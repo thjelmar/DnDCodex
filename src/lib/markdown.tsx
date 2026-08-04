@@ -10,13 +10,21 @@ export interface MarkdownProps {
   text: string
   /** Called when a [[wiki link]] is clicked, with the link's target text. */
   onWikiLink?: (target: string) => void
+  /**
+   * Returns true if a [[wiki link]] target resolves to an existing entity.
+   * Unresolved links get a "broken" style. Defaults to always-true when omitted.
+   */
+  linkExists?: (target: string) => boolean
+}
+
+interface InlineOpts {
+  onWikiLink?: (t: string) => void
+  linkExists?: (t: string) => boolean
 }
 
 /** Renders inline spans: **bold**, *italic*, `code`, [text](url), [[wiki]]. */
-function renderInline(
-  text: string,
-  onWikiLink?: (t: string) => void,
-): React.ReactNode[] {
+function renderInline(text: string, opts: InlineOpts): React.ReactNode[] {
+  const { onWikiLink, linkExists } = opts
   const nodes: React.ReactNode[] = []
   // Order matters: match the longest / most specific tokens first.
   const pattern =
@@ -29,10 +37,12 @@ function renderInline(
     const token = match[0]
     if (token.startsWith('[[')) {
       const target = token.slice(2, -2).trim()
+      const exists = linkExists ? linkExists(target) : true
       nodes.push(
         <a
           key={key++}
-          className="wikilink"
+          className={exists ? 'wikilink' : 'wikilink broken'}
+          title={exists ? undefined : `Create a note for "${target}"`}
           href="#"
           onClick={(e) => {
             e.preventDefault()
@@ -64,10 +74,11 @@ function renderInline(
   return nodes
 }
 
-export function Markdown({ text, onWikiLink }: MarkdownProps) {
+export function Markdown({ text, onWikiLink, linkExists }: MarkdownProps) {
   if (!text?.trim()) {
     return <p className="faint">Nothing here yet.</p>
   }
+  const opts: InlineOpts = { onWikiLink, linkExists }
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   const blocks: React.ReactNode[] = []
   let paragraph: string[] = []
@@ -77,7 +88,7 @@ export function Markdown({ text, onWikiLink }: MarkdownProps) {
   const flushParagraph = () => {
     if (paragraph.length) {
       blocks.push(
-        <p key={key++}>{renderInline(paragraph.join(' '), onWikiLink)}</p>,
+        <p key={key++}>{renderInline(paragraph.join(' '), opts)}</p>,
       )
       paragraph = []
     }
@@ -85,7 +96,7 @@ export function Markdown({ text, onWikiLink }: MarkdownProps) {
   const flushList = () => {
     if (list) {
       const items = list.items.map((it, i) => (
-        <li key={i}>{renderInline(it, onWikiLink)}</li>
+        <li key={i}>{renderInline(it, opts)}</li>
       ))
       blocks.push(
         list.ordered ? <ol key={key++}>{items}</ol> : <ul key={key++}>{items}</ul>,
@@ -105,7 +116,7 @@ export function Markdown({ text, onWikiLink }: MarkdownProps) {
       flushParagraph()
       flushList()
       const level = heading[1].length
-      const content = renderInline(heading[2], onWikiLink)
+      const content = renderInline(heading[2], opts)
       blocks.push(
         level === 1 ? <h1 key={key++}>{content}</h1>
         : level === 2 ? <h2 key={key++}>{content}</h2>
@@ -124,7 +135,7 @@ export function Markdown({ text, onWikiLink }: MarkdownProps) {
       flushParagraph()
       flushList()
       blocks.push(
-        <blockquote key={key++}>{renderInline(quote[1], onWikiLink)}</blockquote>,
+        <blockquote key={key++}>{renderInline(quote[1], opts)}</blockquote>,
       )
     } else if (line.trim() === '') {
       flushParagraph()

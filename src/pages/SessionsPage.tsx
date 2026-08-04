@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { Markdown } from '../lib/markdown'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import { formatDate, todayISODate } from '../lib/format'
 import type { Session } from '../db/types'
 
@@ -20,11 +20,14 @@ export function SessionsPage() {
     [campaign.id],
   )
 
-  // A ?sel=<id> param (e.g. from global search) preselects that session.
+  // A ?sel=<id> param (from search or a wiki link) selects that session, both
+  // on first mount and whenever the param changes (e.g. a same-page wiki jump).
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [selectedId, setSelectedId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setSelectedId(sel)
+  }, [sel])
 
   // Keep a valid selection as the list changes.
   useEffect(() => {
@@ -130,7 +133,7 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
       </div>
       {preview ? (
         <div className="card" style={{ cursor: 'default' }}>
-          <Markdown text={notes} />
+          <CampaignMarkdown campaignId={session.campaignId} text={notes} />
         </div>
       ) : (
         <textarea

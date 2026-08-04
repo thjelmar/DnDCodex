@@ -422,6 +422,10 @@ button {
 .md a.wikilink {
   border-bottom: 1px dashed var(--accent);
 }
+.md a.wikilink.broken {
+  color: var(--danger);
+  border-bottom-color: var(--danger);
+}
 .md blockquote {
   border-left: 3px solid var(--border);
   margin: 0.6em 0;

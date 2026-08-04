@@ -9,7 +9,7 @@ import {
   newRollTableEntry,
 } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { Markdown } from '../lib/markdown'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import {
   computeRanges,
   formatRange,
@@ -27,9 +27,11 @@ export function RollTablesPage() {
   )
 
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [selectedId, setSelectedId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setSelectedId(sel)
+  }, [sel])
   const selected = tables?.find((t) => t.id === selectedId) ?? null
 
   async function add() {
@@ -159,7 +161,7 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
                 Rolled <strong style={{ color: 'var(--accent)' }}>{result.roll}</strong> on d{result.size}
               </div>
               <div style={{ fontSize: 16 }}>
-                <Markdown text={result.entry.text || '*(empty entry)*'} />
+                <CampaignMarkdown campaignId={table.campaignId} text={result.entry.text || '*(empty entry)*'} />
               </div>
             </div>
           ) : (

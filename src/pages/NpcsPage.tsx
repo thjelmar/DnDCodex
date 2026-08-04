@@ -27,9 +27,11 @@ export function NpcsPage() {
   )
 
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [selectedId, setSelectedId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setSelectedId(sel)
+  }, [sel])
   const selected = npcs?.find((n) => n.id === selectedId) ?? null
 
   async function add() {

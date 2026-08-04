@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNote, updateNote, deleteNote } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { Markdown } from '../lib/markdown'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import type { Note } from '../db/types'
 
 export function NotesPage() {
@@ -15,9 +15,11 @@ export function NotesPage() {
   )
 
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [selectedId, setSelectedId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setSelectedId(sel)
+  }, [sel])
   const selected = notes?.find((n) => n.id === selectedId) ?? null
 
   async function add() {
@@ -109,7 +111,7 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
       </div>
       {preview ? (
         <div className="card" style={{ cursor: 'default' }}>
-          <Markdown text={body} />
+          <CampaignMarkdown campaignId={note.campaignId} text={body} />
         </div>
       ) : (
         <textarea

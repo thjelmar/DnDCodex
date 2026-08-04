@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updateCampaign, deleteCampaign } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { Markdown } from '../lib/markdown'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import { Modal } from '../components/Modal'
 import { formatDate } from '../lib/format'
 
@@ -83,7 +83,7 @@ export function OverviewPage() {
         </button>
       </div>
       <div style={{ marginTop: 12, marginBottom: 28 }}>
-        <Markdown text={campaign.description} />
+        <CampaignMarkdown campaignId={campaign.id} text={campaign.description} />
       </div>
 
       <div className="row between">

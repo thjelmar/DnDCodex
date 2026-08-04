@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createItem, updateItem, deleteItem } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { Modal } from '../components/Modal'
-import { Markdown } from '../lib/markdown'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import type { Item, ItemRarity } from '../db/types'
 
 const RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact']
@@ -24,11 +24,14 @@ export function ItemsPage() {
     () => db.items.where('campaignId').equals(campaign.id).sortBy('name'),
     [campaign.id],
   )
-  // A ?sel=<id> param (e.g. from global search) opens that item for editing.
+  // A ?sel=<id> param (from search or a wiki link) opens that item for editing,
+  // on mount and whenever the param changes.
   const [searchParams] = useSearchParams()
-  const [editingId, setEditingId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [editingId, setEditingId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setEditingId(sel)
+  }, [sel])
   const editing = items?.find((i) => i.id === editingId) ?? null
 
   const [filter, setFilter] = useState('')
@@ -187,7 +190,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         </div>
         {preview ? (
           <div className="card" style={{ cursor: 'default' }}>
-            <Markdown text={description} />
+            <CampaignMarkdown campaignId={item.campaignId} text={description} />
           </div>
         ) : (
           <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />

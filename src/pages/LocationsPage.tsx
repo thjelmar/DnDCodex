@@ -26,9 +26,11 @@ export function LocationsPage() {
   )
 
   const [searchParams] = useSearchParams()
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => searchParams.get('sel'),
-  )
+  const sel = searchParams.get('sel')
+  const [selectedId, setSelectedId] = useState<string | null>(() => sel)
+  useEffect(() => {
+    if (sel) setSelectedId(sel)
+  }, [sel])
   const selected = locations?.find((l) => l.id === selectedId) ?? null
 
   async function add() {
