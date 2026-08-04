@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# Editor / tooling
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Claude Code local (machine-specific permissions)
+.claude/settings.local.json
+
+# TS build info
+node_modules/.tmp
