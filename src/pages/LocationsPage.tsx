@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { createLocation, updateLocation, deleteLocation } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
+import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import type { Location, LocationType } from '../db/types'
 
 const TYPES: LocationType[] = ['region', 'city', 'town', 'village', 'dungeon', 'landmark', 'other']
@@ -97,6 +98,7 @@ function LocationEditor({
   const [type, setType] = useState<LocationType>(location.type)
   const [parentLocationId, setParent] = useState(location.parentLocationId ?? '')
   const [description, setDescription] = useState(location.description)
+  const [preview, setPreview] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -142,8 +144,19 @@ function LocationEditor({
         </select>
       </div>
       <div className="field">
-        <label>Description (markdown, supports [[wiki links]])</label>
-        <textarea className="textarea tall" value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div className="row between">
+          <label>Description (markdown, supports [[wiki links]])</label>
+          <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
+            {preview ? '✎ Edit' : '👁 Preview'}
+          </button>
+        </div>
+        {preview ? (
+          <div className="card" style={{ cursor: 'default' }}>
+            <CampaignMarkdown campaignId={campaignId} text={description} />
+          </div>
+        ) : (
+          <textarea className="textarea tall" value={description} onChange={(e) => setDescription(e.target.value)} />
+        )}
       </div>
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
