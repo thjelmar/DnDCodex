@@ -6,6 +6,7 @@ import { createLocation, updateLocation, deleteLocation } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { TagInput } from '../components/TagInput'
 import type { Location, LocationType } from '../db/types'
 
 const TYPES: LocationType[] = ['region', 'city', 'town', 'village', 'dungeon', 'landmark', 'other']
@@ -98,6 +99,7 @@ function LocationEditor({
   const [type, setType] = useState<LocationType>(location.type)
   const [parentLocationId, setParent] = useState(location.parentLocationId ?? '')
   const [description, setDescription] = useState(location.description)
+  const [tags, setTags] = useState(location.tags)
   const [preview, setPreview] = useState(false)
 
   useEffect(() => {
@@ -107,10 +109,11 @@ function LocationEditor({
         type,
         parentLocationId: parentLocationId || null,
         description,
+        tags,
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, type, parentLocationId, description, location.id])
+  }, [name, type, parentLocationId, description, tags, location.id])
 
   return (
     <div>
@@ -142,6 +145,10 @@ function LocationEditor({
               </option>
             ))}
         </select>
+      </div>
+      <div className="field">
+        <label>Tags</label>
+        <TagInput campaignId={campaignId} tags={tags} onChange={setTags} />
       </div>
       <div className="field">
         <div className="row between">

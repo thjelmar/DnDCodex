@@ -42,6 +42,36 @@ export class CodexDB extends Dexie {
     this.version(2).stores({
       rollTables: 'id, campaignId, name, category',
     })
+    // v3 adds free-form `tags` to every campaign-scoped entity, indexed with a
+    // multiEntry (`*tags`) index so we can query by tag. The upgrade migrates
+    // each note's single `category` into its new `tags` array and backfills an
+    // empty array on everything else.
+    this.version(3)
+      .stores({
+        sessions: 'id, campaignId, date, updatedAt, *tags',
+        locations: 'id, campaignId, name, type, parentLocationId, *tags',
+        npcs: 'id, campaignId, name, locationId, *tags',
+        items: 'id, campaignId, name, rarity, *tags',
+        notes: 'id, campaignId, title, *tags',
+        rollTables: 'id, campaignId, name, category, *tags',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('notes')
+          .toCollection()
+          .modify((n: { tags?: string[]; category?: string }) => {
+            if (n.tags == null) n.tags = n.category ? [n.category] : []
+            delete n.category
+          })
+        for (const name of ['sessions', 'locations', 'npcs', 'items', 'rollTables']) {
+          await tx
+            .table(name)
+            .toCollection()
+            .modify((r: { tags?: string[] }) => {
+              if (r.tags == null) r.tags = []
+            })
+        }
+      })
   }
 }
 

@@ -6,6 +6,7 @@ import { createItem, updateItem, deleteItem } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { Modal } from '../components/Modal'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { TagInput, TagChips } from '../components/TagInput'
 import type { Item, ItemRarity } from '../db/types'
 
 const RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact']
@@ -35,12 +36,15 @@ export function ItemsPage() {
   const editing = items?.find((i) => i.id === editingId) ?? null
 
   const [filter, setFilter] = useState('')
-  const shown = (items ?? []).filter(
-    (i) =>
-      !filter ||
-      i.name.toLowerCase().includes(filter.toLowerCase()) ||
-      i.category.toLowerCase().includes(filter.toLowerCase()),
-  )
+  const shown = (items ?? []).filter((i) => {
+    if (!filter) return true
+    const q = filter.toLowerCase()
+    return (
+      i.name.toLowerCase().includes(q) ||
+      i.category.toLowerCase().includes(q) ||
+      i.tags.some((t) => t.toLowerCase().includes(q))
+    )
+  })
 
   async function add() {
     const i = await createItem(campaign.id)
@@ -86,7 +90,14 @@ export function ItemsPage() {
                   onClick={() => setEditingId(i.id)}
                   style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}
                 >
-                  <td style={cell}><strong>{i.name}</strong></td>
+                  <td style={cell}>
+                    <strong>{i.name}</strong>
+                    {i.tags.length > 0 && (
+                      <div style={{ marginTop: 4 }}>
+                        <TagChips campaignId={i.campaignId} tags={i.tags} size="small" />
+                      </div>
+                    )}
+                  </td>
                   <td style={cell}>{i.category || '—'}</td>
                   <td style={{ ...cell, color: RARITY_COLOR[i.rarity], textTransform: 'capitalize' }}>
                     {i.rarity}
@@ -117,10 +128,11 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
   const [attunement, setAttunement] = useState(item.attunement)
   const [value, setValue] = useState(item.value)
   const [description, setDescription] = useState(item.description)
+  const [tags, setTags] = useState(item.tags)
   const [preview, setPreview] = useState(false)
 
   async function save() {
-    await updateItem(item.id, { name, category, rarity, attunement, value, description })
+    await updateItem(item.id, { name, category, rarity, attunement, value, description, tags })
     onClose()
   }
 
@@ -181,6 +193,10 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         <input type="checkbox" checked={attunement} onChange={(e) => setAttunement(e.target.checked)} />
         Requires attunement
       </label>
+      <div className="field">
+        <label>Tags</label>
+        <TagInput campaignId={item.campaignId} tags={tags} onChange={setTags} />
+      </div>
       <div className="field">
         <div className="row between">
           <label>Description (markdown)</label>

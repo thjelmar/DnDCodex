@@ -72,7 +72,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
 
 export async function createSession(
   campaignId: Id,
-  input: Partial<Pick<Session, 'title' | 'date' | 'notes' | 'dmNotes'>> = {},
+  input: Partial<Pick<Session, 'title' | 'date' | 'notes' | 'dmNotes' | 'tags'>> = {},
 ): Promise<Session> {
   const ts = now()
   const session: Session = {
@@ -82,6 +82,7 @@ export async function createSession(
     date: input.date || ts.slice(0, 10),
     notes: input.notes ?? '',
     dmNotes: input.dmNotes ?? '',
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -103,7 +104,7 @@ export async function deleteSession(id: Id): Promise<void> {
 
 export async function createLocation(
   campaignId: Id,
-  input: Partial<Pick<Location, 'name' | 'type' | 'description' | 'parentLocationId'>> = {},
+  input: Partial<Pick<Location, 'name' | 'type' | 'description' | 'parentLocationId' | 'tags'>> = {},
 ): Promise<Location> {
   const ts = now()
   const location: Location = {
@@ -113,6 +114,7 @@ export async function createLocation(
     type: input.type ?? 'town',
     description: input.description ?? '',
     parentLocationId: input.parentLocationId ?? null,
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -134,7 +136,7 @@ export async function deleteLocation(id: Id): Promise<void> {
 
 export async function createNPC(
   campaignId: Id,
-  input: Partial<Pick<NPC, 'name' | 'role' | 'description' | 'locationId' | 'disposition'>> = {},
+  input: Partial<Pick<NPC, 'name' | 'role' | 'description' | 'locationId' | 'disposition' | 'tags'>> = {},
 ): Promise<NPC> {
   const ts = now()
   const npc: NPC = {
@@ -146,6 +148,7 @@ export async function createNPC(
     locationId: input.locationId ?? null,
     statBlock: '',
     disposition: input.disposition ?? 'unknown',
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -167,7 +170,7 @@ export async function deleteNPC(id: Id): Promise<void> {
 
 export async function createItem(
   campaignId: Id,
-  input: Partial<Pick<Item, 'name' | 'rarity' | 'category' | 'description' | 'attunement' | 'value'>> = {},
+  input: Partial<Pick<Item, 'name' | 'rarity' | 'category' | 'description' | 'attunement' | 'value' | 'tags'>> = {},
 ): Promise<Item> {
   const ts = now()
   const item: Item = {
@@ -179,6 +182,7 @@ export async function createItem(
     description: input.description ?? '',
     attunement: input.attunement ?? false,
     value: input.value ?? '',
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -200,7 +204,7 @@ export async function deleteItem(id: Id): Promise<void> {
 
 export async function createNote(
   campaignId: Id,
-  input: Partial<Pick<Note, 'title' | 'body' | 'category'>> = {},
+  input: Partial<Pick<Note, 'title' | 'body' | 'tags'>> = {},
 ): Promise<Note> {
   const ts = now()
   const note: Note = {
@@ -208,7 +212,7 @@ export async function createNote(
     campaignId,
     title: input.title?.trim() || 'New Note',
     body: input.body ?? '',
-    category: input.category ?? '',
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -235,7 +239,7 @@ export function newRollTableEntry(text = '', weight = 1): RollTableEntry {
 
 export async function createRollTable(
   campaignId: Id,
-  input: Partial<Pick<RollTable, 'name' | 'category' | 'description' | 'entries'>> = {},
+  input: Partial<Pick<RollTable, 'name' | 'category' | 'description' | 'entries' | 'tags'>> = {},
 ): Promise<RollTable> {
   const ts = now()
   const table: RollTable = {
@@ -246,6 +250,7 @@ export async function createRollTable(
     description: input.description ?? '',
     // Seed with a couple of blank rows so the table is usable immediately.
     entries: input.entries ?? [newRollTableEntry(), newRollTableEntry()],
+    tags: input.tags ?? [],
     createdAt: ts,
     updatedAt: ts,
   }
@@ -328,7 +333,7 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 // Export / import (JSON backup)
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT_VERSION = 2
+export const SNAPSHOT_VERSION = 3
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
   const [campaigns, sessions, locations, npcs, items, notes, rollTables, links] =

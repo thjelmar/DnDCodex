@@ -6,6 +6,7 @@ import { createNPC, updateNPC, deleteNPC } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { TagInput } from '../components/TagInput'
 import type { NPC } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -102,6 +103,7 @@ function NpcEditor({
   const [locationId, setLocationId] = useState(npc.locationId ?? '')
   const [description, setDescription] = useState(npc.description)
   const [statBlock, setStatBlock] = useState(npc.statBlock)
+  const [tags, setTags] = useState(npc.tags)
   const [preview, setPreview] = useState(false)
 
   useEffect(() => {
@@ -113,10 +115,11 @@ function NpcEditor({
         locationId: locationId || null,
         description,
         statBlock,
+        tags,
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, role, disposition, locationId, description, statBlock, npc.id])
+  }, [name, role, disposition, locationId, description, statBlock, tags, npc.id])
 
   return (
     <div>
@@ -152,6 +155,10 @@ function NpcEditor({
             ))}
           </select>
         </div>
+      </div>
+      <div className="field">
+        <label>Tags</label>
+        <TagInput campaignId={campaignId} tags={tags} onChange={setTags} />
       </div>
       <div className="field">
         <div className="row between">

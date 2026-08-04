@@ -125,36 +125,39 @@ export async function searchAll(rawQuery: string, limit = 40): Promise<SearchRes
     push('campaign', c.id, null, c.name, `/campaign/${c.id}`,
       evaluate(q, c.name, [c.summary, c.description]))
   }
+  const tagsText = (tags: string[] | undefined) => (tags ?? []).join(' ')
+
   for (const s of sessions) {
     push('session', s.id, s.campaignId, s.title,
       `/campaign/${s.campaignId}/sessions?sel=${s.id}`,
-      evaluate(q, s.title, [s.notes, s.dmNotes]), s.date)
+      evaluate(q, s.title, [s.notes, s.dmNotes, tagsText(s.tags)]), s.date)
   }
   for (const l of locations) {
     push('location', l.id, l.campaignId, l.name,
       `/campaign/${l.campaignId}/locations?sel=${l.id}`,
-      evaluate(q, l.name, [l.type, l.description]))
+      evaluate(q, l.name, [l.type, l.description, tagsText(l.tags)]))
   }
   for (const n of npcs) {
     push('npc', n.id, n.campaignId, n.name,
       `/campaign/${n.campaignId}/npcs?sel=${n.id}`,
-      evaluate(q, n.name, [n.role, n.description, n.statBlock]), n.role)
+      evaluate(q, n.name, [n.role, n.description, n.statBlock, tagsText(n.tags)]), n.role)
   }
   for (const i of items) {
     push('item', i.id, i.campaignId, i.name,
       `/campaign/${i.campaignId}/items?sel=${i.id}`,
-      evaluate(q, i.name, [i.category, i.description]), i.rarity)
+      evaluate(q, i.name, [i.category, i.description, tagsText(i.tags)]), i.rarity)
   }
   for (const nt of notes) {
     push('note', nt.id, nt.campaignId, nt.title,
       `/campaign/${nt.campaignId}/notes?sel=${nt.id}`,
-      evaluate(q, nt.title, [nt.body, nt.category]), nt.category || undefined)
+      evaluate(q, nt.title, [nt.body, tagsText(nt.tags)]),
+      (nt.tags ?? [])[0] || undefined)
   }
   for (const rt of rollTables) {
     const entriesText = rt.entries.map((e) => e.text).join(' • ')
     push('rolltable', rt.id, rt.campaignId, rt.name,
       `/campaign/${rt.campaignId}/tables?sel=${rt.id}`,
-      evaluate(q, rt.name, [rt.category, rt.description, entriesText]), rt.category || undefined)
+      evaluate(q, rt.name, [rt.category, rt.description, entriesText, tagsText(rt.tags)]), rt.category || undefined)
   }
 
   results.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))

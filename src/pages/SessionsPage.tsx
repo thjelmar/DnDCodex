@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { TagInput } from '../components/TagInput'
 import { formatDate, todayISODate } from '../lib/format'
 import type { Session } from '../db/types'
 
@@ -92,6 +93,7 @@ export function SessionsPage() {
 function SessionEditor({ session, onDelete }: { session: Session; onDelete: () => void }) {
   const [title, setTitle] = useState(session.title)
   const [date, setDate] = useState(session.date)
+  const [tags, setTags] = useState(session.tags)
   const [notes, setNotes] = useState(session.notes)
   const [dmNotes, setDmNotes] = useState(session.dmNotes)
   const [preview, setPreview] = useState(false)
@@ -100,10 +102,10 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
   // Debounced autosave whenever a field changes.
   useEffect(() => {
     const t = setTimeout(() => {
-      updateSession(session.id, { title, date, notes, dmNotes })
+      updateSession(session.id, { title, date, tags, notes, dmNotes })
     }, 500)
     return () => clearTimeout(t)
-  }, [title, date, notes, dmNotes, session.id])
+  }, [title, date, tags, notes, dmNotes, session.id])
 
   return (
     <div>
@@ -121,6 +123,11 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="field">
+        <label>Tags</label>
+        <TagInput campaignId={session.campaignId} tags={tags} onChange={setTags} />
       </div>
 
       <div className="row between" style={{ marginBottom: 6 }}>

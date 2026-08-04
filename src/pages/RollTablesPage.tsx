@@ -10,6 +10,7 @@ import {
 } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { TagInput } from '../components/TagInput'
 import {
   computeRanges,
   formatRange,
@@ -95,6 +96,7 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
   const [category, setCategory] = useState(table.category)
   const [description, setDescription] = useState(table.description)
   const [entries, setEntries] = useState<RollTableEntry[]>(table.entries)
+  const [tags, setTags] = useState(table.tags)
 
   const [result, setResult] = useState<RollResult | null>(null)
   const [history, setHistory] = useState<RollResult[]>([])
@@ -102,10 +104,10 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
   // Debounced autosave.
   useEffect(() => {
     const t = setTimeout(() => {
-      updateRollTable(table.id, { name, category, description, entries })
+      updateRollTable(table.id, { name, category, description, entries, tags })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, category, description, entries, table.id])
+  }, [name, category, description, entries, tags, table.id])
 
   const ranges = useMemo(() => computeRanges(entries), [entries])
   const size = tableSize(entries)
@@ -144,6 +146,10 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
       <div className="field">
         <label>Description (optional)</label>
         <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="When and how to use this table" />
+      </div>
+      <div className="field">
+        <label>Tags</label>
+        <TagInput campaignId={table.campaignId} tags={tags} onChange={setTags} />
       </div>
 
       {/* Roller */}

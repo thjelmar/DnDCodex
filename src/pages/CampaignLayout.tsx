@@ -20,6 +20,7 @@ const TABS = [
   { to: 'locations', label: 'Locations' },
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
+  { to: 'tags', label: 'Tags' },
 ]
 
 export function CampaignLayout() {

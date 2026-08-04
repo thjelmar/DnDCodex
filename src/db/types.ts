@@ -47,6 +47,8 @@ export interface Session extends BaseRecord {
   notes: string
   /** Private DM-only notes for this session (markdown). */
   dmNotes: string
+  /** Free-form organizational tags. */
+  tags: string[]
 }
 
 export type LocationType =
@@ -66,6 +68,8 @@ export interface Location extends BaseRecord {
   description: string
   /** Optional containing location (e.g. a town within a region). */
   parentLocationId: Id | null
+  /** Free-form organizational tags. */
+  tags: string[]
 }
 
 /** A non-player character. */
@@ -81,6 +85,8 @@ export interface NPC extends BaseRecord {
   statBlock: string
   /** Disposition toward the party. */
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown'
+  /** Free-form organizational tags. */
+  tags: string[]
 }
 
 export type ItemRarity =
@@ -102,6 +108,8 @@ export interface Item extends BaseRecord {
   attunement: boolean
   /** Approximate value in gp (freeform text to allow "priceless" etc.). */
   value: string
+  /** Free-form organizational tags. */
+  tags: string[]
 }
 
 /** A freeform world-building note / wiki page within a campaign. */
@@ -110,8 +118,8 @@ export interface Note extends BaseRecord {
   title: string
   /** Body (markdown). */
   body: string
-  /** Optional grouping tag (e.g. "Lore", "Factions", "History"). */
-  category: string
+  /** Organizational tags (e.g. "Lore", "Factions", "History"). */
+  tags: string[]
 }
 
 /** One row of a roll table. Weight controls how many die faces it covers. */
@@ -131,10 +139,12 @@ export interface RollTableEntry {
 export interface RollTable extends BaseRecord {
   campaignId: Id
   name: string
-  /** Optional grouping tag (e.g. "Loot", "Encounters"). */
+  /** Optional grouping label shown in the tables list (e.g. "Loot"). */
   category: string
   description: string
   entries: RollTableEntry[]
+  /** Free-form organizational tags. */
+  tags: string[]
 }
 
 /**

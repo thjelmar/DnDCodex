@@ -13,6 +13,7 @@ import { LocationsPage } from './pages/LocationsPage'
 import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
+import { TagsPage } from './pages/TagsPage'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 
@@ -117,6 +118,7 @@ export function App() {
               <Route path="locations" element={<LocationsPage />} />
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
+              <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
