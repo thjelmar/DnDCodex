@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createItem, updateItem, deleteItem } from '../db/repo'
@@ -23,7 +24,11 @@ export function ItemsPage() {
     () => db.items.where('campaignId').equals(campaign.id).sortBy('name'),
     [campaign.id],
   )
-  const [editingId, setEditingId] = useState<string | null>(null)
+  // A ?sel=<id> param (e.g. from global search) opens that item for editing.
+  const [searchParams] = useSearchParams()
+  const [editingId, setEditingId] = useState<string | null>(
+    () => searchParams.get('sel'),
+  )
   const editing = items?.find((i) => i.id === editingId) ?? null
 
   const [filter, setFilter] = useState('')

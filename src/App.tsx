@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { HashRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
+import { SearchPalette } from './components/SearchPalette'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -12,7 +14,9 @@ import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
 
-function Sidebar() {
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+
+function Sidebar({ onOpenSearch }: { onOpenSearch: () => void }) {
   // Show the handful of most-recently-updated campaigns for quick access.
   const recent = useLiveQuery(
     () =>
@@ -31,6 +35,15 @@ function Sidebar() {
         <span className="glyph">⚔️</span>
         <span>D&amp;D Codex</span>
       </div>
+
+      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenSearch}>
+        <span className="ico">🔎</span>
+        <span>Search</span>
+        <span style={{ marginLeft: 'auto' }}>
+          <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
+          <kbd>K</kbd>
+        </span>
+      </button>
 
       <NavLink to="/" end className="nav-link">
         <span className="ico">📚</span> Campaigns
@@ -74,10 +87,25 @@ function Sidebar() {
 }
 
 export function App() {
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  // Global Cmd/Ctrl+K toggles the search palette.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSearchOpen((o) => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <HashRouter>
+      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
       <div className="app">
-        <Sidebar />
+        <Sidebar onOpenSearch={() => setSearchOpen(true)} />
         <main className="main">
           <Routes>
             <Route path="/" element={<CampaignsPage />} />

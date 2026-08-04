@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNPC, updateNPC, deleteNPC } from '../db/repo'
@@ -25,7 +26,10 @@ export function NpcsPage() {
     [campaign.id],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get('sel'),
+  )
   const selected = npcs?.find((n) => n.id === selectedId) ?? null
 
   async function add() {

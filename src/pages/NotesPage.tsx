@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNote, updateNote, deleteNote } from '../db/repo'
@@ -13,7 +14,10 @@ export function NotesPage() {
     [campaign.id],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get('sel'),
+  )
   const selected = notes?.find((n) => n.id === selectedId) ?? null
 
   async function add() {

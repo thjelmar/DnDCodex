@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import {
@@ -25,7 +26,10 @@ export function RollTablesPage() {
     [campaign.id],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get('sel'),
+  )
   const selected = tables?.find((t) => t.id === selectedId) ?? null
 
   async function add() {

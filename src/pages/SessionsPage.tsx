@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
@@ -19,7 +20,11 @@ export function SessionsPage() {
     [campaign.id],
   )
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // A ?sel=<id> param (e.g. from global search) preselects that session.
+  const [searchParams] = useSearchParams()
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => searchParams.get('sel'),
+  )
 
   // Keep a valid selection as the list changes.
   useEffect(() => {
