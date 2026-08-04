@@ -19,6 +19,7 @@ const TABS = [
   { to: 'npcs', label: 'NPCs' },
   { to: 'locations', label: 'Locations' },
   { to: 'items', label: 'Items' },
+  { to: 'tables', label: 'Tables' },
 ]
 
 export function CampaignLayout() {

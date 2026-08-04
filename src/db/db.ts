@@ -6,6 +6,7 @@ import type {
   NPC,
   Item,
   Note,
+  RollTable,
   Link,
 } from './types'
 
@@ -20,6 +21,7 @@ export class CodexDB extends Dexie {
   npcs!: EntityTable<NPC, 'id'>
   items!: EntityTable<Item, 'id'>
   notes!: EntityTable<Note, 'id'>
+  rollTables!: EntityTable<RollTable, 'id'>
   links!: EntityTable<Link, 'id'>
 
   constructor() {
@@ -34,6 +36,11 @@ export class CodexDB extends Dexie {
       // Compound indexes let us efficiently find links touching an entity from
       // either side.
       links: 'id, campaignId, [fromKind+fromId], [toKind+toId]',
+    })
+    // v2 adds roll tables. Dexie carries the v1 stores forward automatically;
+    // only the changed/new store needs to be declared here.
+    this.version(2).stores({
+      rollTables: 'id, campaignId, name, category',
     })
   }
 }

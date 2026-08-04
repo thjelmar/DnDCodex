@@ -17,14 +17,15 @@ export function OverviewPage() {
 
   // Counts and recent sessions for the dashboard.
   const stats = useLiveQuery(async () => {
-    const [sessions, npcs, locations, items, notes] = await Promise.all([
+    const [sessions, npcs, locations, items, notes, tables] = await Promise.all([
       db.sessions.where('campaignId').equals(campaign.id).count(),
       db.npcs.where('campaignId').equals(campaign.id).count(),
       db.locations.where('campaignId').equals(campaign.id).count(),
       db.items.where('campaignId').equals(campaign.id).count(),
       db.notes.where('campaignId').equals(campaign.id).count(),
+      db.rollTables.where('campaignId').equals(campaign.id).count(),
     ])
-    return { sessions, npcs, locations, items, notes }
+    return { sessions, npcs, locations, items, notes, tables }
   }, [campaign.id])
 
   const recentSessions = useLiveQuery(
@@ -54,6 +55,7 @@ export function OverviewPage() {
     ['NPCs', stats?.npcs, 'npcs'],
     ['Locations', stats?.locations, 'locations'],
     ['Items', stats?.items, 'items'],
+    ['Roll Tables', stats?.tables, 'tables'],
   ]
 
   return (

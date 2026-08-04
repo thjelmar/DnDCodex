@@ -10,6 +10,7 @@ import { NpcsPage } from './pages/NpcsPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
+import { RollTablesPage } from './pages/RollTablesPage'
 
 function Sidebar() {
   // Show the handful of most-recently-updated campaigns for quick access.
@@ -87,6 +88,7 @@ export function App() {
               <Route path="npcs" element={<NpcsPage />} />
               <Route path="locations" element={<LocationsPage />} />
               <Route path="items" element={<ItemsPage />} />
+              <Route path="tables" element={<RollTablesPage />} />
               <Route path="notes" element={<NotesPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

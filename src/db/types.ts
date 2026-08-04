@@ -114,6 +114,29 @@ export interface Note extends BaseRecord {
   category: string
 }
 
+/** One row of a roll table. Weight controls how many die faces it covers. */
+export interface RollTableEntry {
+  id: Id
+  /** The result text shown when this entry is rolled (markdown). */
+  text: string
+  /** Relative likelihood — how many consecutive die numbers this row spans. */
+  weight: number
+}
+
+/**
+ * A random table (loot, encounters, wild magic, rumors…). Entries are weighted;
+ * the effective die size is the sum of all weights, and each entry occupies a
+ * contiguous range of that die (computed in lib/roll.ts).
+ */
+export interface RollTable extends BaseRecord {
+  campaignId: Id
+  name: string
+  /** Optional grouping tag (e.g. "Loot", "Encounters"). */
+  category: string
+  description: string
+  entries: RollTableEntry[]
+}
+
 /**
  * A typed link between two entities, e.g. an NPC "resides in" a Location, or a
  * Location "allied with" another Location. Links are undirected in meaning but
@@ -139,5 +162,6 @@ export interface DatabaseSnapshot {
   npcs: NPC[]
   items: Item[]
   notes: Note[]
+  rollTables: RollTable[]
   links: Link[]
 }
