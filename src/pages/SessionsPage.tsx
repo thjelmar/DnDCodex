@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { MarkdownEditor } from '../components/MarkdownEditor'
 import { TagInput } from '../components/TagInput'
 import { formatDate, todayISODate } from '../lib/format'
 import type { Session } from '../db/types'
@@ -96,7 +96,6 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
   const [tags, setTags] = useState(session.tags)
   const [notes, setNotes] = useState(session.notes)
   const [dmNotes, setDmNotes] = useState(session.dmNotes)
-  const [preview, setPreview] = useState(false)
   const [showDm, setShowDm] = useState(true)
 
   // Debounced autosave whenever a field changes.
@@ -130,26 +129,14 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         <TagInput campaignId={session.campaignId} tags={tags} onChange={setTags} />
       </div>
 
-      <div className="row between" style={{ marginBottom: 6 }}>
-        <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
-          Session Notes
-        </label>
-        <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
-          {preview ? '✎ Edit' : '👁 Preview'}
-        </button>
-      </div>
-      {preview ? (
-        <div className="card" style={{ cursor: 'default' }}>
-          <CampaignMarkdown campaignId={session.campaignId} text={notes} />
-        </div>
-      ) : (
-        <textarea
-          className="textarea tall"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="What happened this session? Supports **markdown** and [[wiki links]]."
-        />
-      )}
+      <MarkdownEditor
+        campaignId={session.campaignId}
+        value={notes}
+        onChange={setNotes}
+        label="Session Notes"
+        placeholder="What happened this session? Supports **markdown**, [[wiki links]], and images."
+        tall
+      />
 
       <div className="row between" style={{ margin: '20px 0 6px' }}>
         <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>

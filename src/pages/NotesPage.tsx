@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNote, updateNote, deleteNote } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { MarkdownEditor } from '../components/MarkdownEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import type { Note } from '../db/types'
 
@@ -72,7 +72,6 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
   const [title, setTitle] = useState(note.title)
   const [tags, setTags] = useState(note.tags)
   const [body, setBody] = useState(note.body)
-  const [preview, setPreview] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -92,26 +91,14 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
         <TagInput campaignId={note.campaignId} tags={tags} onChange={setTags} />
       </div>
 
-      <div className="row between" style={{ marginBottom: 6 }}>
-        <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
-          Body
-        </label>
-        <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
-          {preview ? '✎ Edit' : '👁 Preview'}
-        </button>
-      </div>
-      {preview ? (
-        <div className="card" style={{ cursor: 'default' }}>
-          <CampaignMarkdown campaignId={note.campaignId} text={body} />
-        </div>
-      ) : (
-        <textarea
-          className="textarea tall"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Write freely. Supports **markdown** and [[wiki links]]."
-        />
-      )}
+      <MarkdownEditor
+        campaignId={note.campaignId}
+        value={body}
+        onChange={setBody}
+        label="Body"
+        placeholder="Write freely. Supports **markdown**, [[wiki links]], and images."
+        tall
+      />
 
       <div className="row between" style={{ marginTop: 18 }}>
         <span className="faint" style={{ fontSize: 12 }}>Autosaves as you type.</span>

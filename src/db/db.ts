@@ -7,6 +7,7 @@ import type {
   Item,
   Note,
   RollTable,
+  StoredImage,
   Link,
 } from './types'
 
@@ -22,6 +23,7 @@ export class CodexDB extends Dexie {
   items!: EntityTable<Item, 'id'>
   notes!: EntityTable<Note, 'id'>
   rollTables!: EntityTable<RollTable, 'id'>
+  images!: EntityTable<StoredImage, 'id'>
   links!: EntityTable<Link, 'id'>
 
   constructor() {
@@ -71,6 +73,20 @@ export class CodexDB extends Dexie {
               if (r.tags == null) r.tags = []
             })
         }
+      })
+    // v4 adds an `images` store (uploaded images as base64 data URLs) and a
+    // `coverImageId` on campaigns.
+    this.version(4)
+      .stores({
+        images: 'id, campaignId',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('campaigns')
+          .toCollection()
+          .modify((c: { coverImageId?: string | null }) => {
+            if (c.coverImageId === undefined) c.coverImageId = null
+          })
       })
   }
 }

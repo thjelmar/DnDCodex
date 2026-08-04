@@ -35,6 +35,26 @@ export interface Campaign extends BaseRecord {
   /** IDs of other campaigns referenced by this one (shared worlds, sequels). */
   relatedCampaignIds: Id[]
   archived: boolean
+  /** Optional cover image (StoredImage id) shown on the overview page. */
+  coverImageId: Id | null
+}
+
+/**
+ * An uploaded image, stored as a base64 data URL so it serializes into the JSON
+ * backup and renders directly without object-URL lifecycle management. Uploads
+ * are downscaled on the client (see lib/image.ts) to keep storage reasonable.
+ */
+export interface StoredImage extends BaseRecord {
+  campaignId: Id
+  /** Original filename, used as default alt text. */
+  name: string
+  mime: string
+  /** base64 data URL (e.g. "data:image/webp;base64,…"). */
+  dataUrl: string
+  width: number
+  height: number
+  /** Approximate decoded byte size, for display. */
+  bytes: number
 }
 
 /** A play session with a date and notes. */
@@ -173,5 +193,6 @@ export interface DatabaseSnapshot {
   items: Item[]
   notes: Note[]
   rollTables: RollTable[]
+  images: StoredImage[]
   links: Link[]
 }

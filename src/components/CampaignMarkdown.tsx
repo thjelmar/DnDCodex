@@ -45,12 +45,29 @@ function useEntityIndex(campaignId: Id): Map<string, Target> | undefined {
   }, [campaignId])
 }
 
+/** Maps `img:<id>` references to their stored data URLs for the campaign. */
+function useImageMap(campaignId: Id): Map<string, string> {
+  return (
+    useLiveQuery(async () => {
+      const images = await db.images.where('campaignId').equals(campaignId).toArray()
+      return new Map(images.map((i) => [i.id, i.dataUrl]))
+    }, [campaignId]) ?? new Map()
+  )
+}
+
 export function CampaignMarkdown({ campaignId, text }: { campaignId: Id; text: string }) {
   const index = useEntityIndex(campaignId)
+  const images = useImageMap(campaignId)
   const navigate = useNavigate()
 
   const linkExists = (target: string) =>
     !!index?.has(target.trim().toLowerCase())
+
+  const resolveImage = (src: string): string | undefined => {
+    if (src.startsWith('img:')) return images.get(src.slice(4))
+    if (/^(https?:|data:)/i.test(src)) return src
+    return undefined
+  }
 
   const onWikiLink = async (target: string) => {
     const hit = index?.get(target.trim().toLowerCase())
@@ -65,5 +82,12 @@ export function CampaignMarkdown({ campaignId, text }: { campaignId: Id; text: s
     }
   }
 
-  return <Markdown text={text} onWikiLink={onWikiLink} linkExists={linkExists} />
+  return (
+    <Markdown
+      text={text}
+      onWikiLink={onWikiLink}
+      linkExists={linkExists}
+      resolveImage={resolveImage}
+    />
+  )
 }

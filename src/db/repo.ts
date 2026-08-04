@@ -8,6 +8,7 @@ import type {
   Note,
   RollTable,
   RollTableEntry,
+  StoredImage,
   Link,
   EntityKind,
   Id,
@@ -35,6 +36,7 @@ export async function createCampaign(
     color: input.color ?? DEFAULT_COLORS[count % DEFAULT_COLORS.length],
     relatedCampaignIds: [],
     archived: false,
+    coverImageId: null,
     createdAt: ts,
     updatedAt: ts,
   }
@@ -50,7 +52,7 @@ export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<
 export async function deleteCampaign(id: Id): Promise<void> {
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.images, db.links],
     async () => {
       await Promise.all([
         db.sessions.where('campaignId').equals(id).delete(),
@@ -59,6 +61,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
         db.items.where('campaignId').equals(id).delete(),
         db.notes.where('campaignId').equals(id).delete(),
         db.rollTables.where('campaignId').equals(id).delete(),
+        db.images.where('campaignId').equals(id).delete(),
         db.links.where('campaignId').equals(id).delete(),
       ])
       await db.campaigns.delete(id)
@@ -267,6 +270,35 @@ export async function deleteRollTable(id: Id): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Images
+// ---------------------------------------------------------------------------
+
+export async function createImage(
+  campaignId: Id,
+  input: Pick<StoredImage, 'name' | 'mime' | 'dataUrl' | 'width' | 'height' | 'bytes'>,
+): Promise<StoredImage> {
+  const ts = now()
+  const image: StoredImage = {
+    id: newId(),
+    campaignId,
+    name: input.name,
+    mime: input.mime,
+    dataUrl: input.dataUrl,
+    width: input.width,
+    height: input.height,
+    bytes: input.bytes,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.images.add(image)
+  return image
+}
+
+export async function deleteImage(id: Id): Promise<void> {
+  await db.images.delete(id)
+}
+
+// ---------------------------------------------------------------------------
 // Links (cross-entity relationships)
 // ---------------------------------------------------------------------------
 
@@ -333,10 +365,10 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 // Export / import (JSON backup)
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT_VERSION = 3
+export const SNAPSHOT_VERSION = 4
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, rollTables, links] =
+  const [campaigns, sessions, locations, npcs, items, notes, rollTables, images, links] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -345,6 +377,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.items.toArray(),
       db.notes.toArray(),
       db.rollTables.toArray(),
+      db.images.toArray(),
       db.links.toArray(),
     ])
   return {
@@ -357,6 +390,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     items,
     notes,
     rollTables,
+    images,
     links,
   }
 }
@@ -374,7 +408,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.images, db.links],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -385,6 +419,7 @@ export async function importSnapshot(
           db.items.clear(),
           db.notes.clear(),
           db.rollTables.clear(),
+          db.images.clear(),
           db.links.clear(),
         ])
       }
@@ -396,6 +431,7 @@ export async function importSnapshot(
         db.items.bulkPut(snapshot.items ?? []),
         db.notes.bulkPut(snapshot.notes ?? []),
         db.rollTables.bulkPut(snapshot.rollTables ?? []),
+        db.images.bulkPut(snapshot.images ?? []),
         db.links.bulkPut(snapshot.links ?? []),
       ])
     },

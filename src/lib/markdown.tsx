@@ -15,27 +15,61 @@ export interface MarkdownProps {
    * Unresolved links get a "broken" style. Defaults to always-true when omitted.
    */
   linkExists?: (target: string) => boolean
+  /**
+   * Resolves a markdown image src (e.g. "img:<id>") to a renderable URL, or
+   * undefined if it can't be resolved. Omitting it renders images by their raw
+   * src (only http(s)/data URLs are allowed through).
+   */
+  resolveImage?: (src: string) => string | undefined
 }
 
 interface InlineOpts {
   onWikiLink?: (t: string) => void
   linkExists?: (t: string) => boolean
+  resolveImage?: (src: string) => string | undefined
 }
 
-/** Renders inline spans: **bold**, *italic*, `code`, [text](url), [[wiki]]. */
+/** Renders inline spans: image, **bold**, *italic*, `code`, [text](url), [[wiki]]. */
 function renderInline(text: string, opts: InlineOpts): React.ReactNode[] {
-  const { onWikiLink, linkExists } = opts
+  const { onWikiLink, linkExists, resolveImage } = opts
   const nodes: React.ReactNode[] = []
-  // Order matters: match the longest / most specific tokens first.
+  // Order matters: match the longest / most specific tokens first. The image
+  // token (![alt](src)) must precede the link token so its leading "!" is
+  // consumed rather than leaving a stray link.
   const pattern =
-    /(\[\[[^\]]+\]\])|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)/g
+    /(!\[[^\]]*\]\([^)]+\))|(\[\[[^\]]+\]\])|(\[[^\]]+\]\([^)]+\))|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(`[^`]+`)/g
   let last = 0
   let match: RegExpExecArray | null
   let key = 0
   while ((match = pattern.exec(text)) !== null) {
     if (match.index > last) nodes.push(text.slice(last, match.index))
     const token = match[0]
-    if (token.startsWith('[[')) {
+    if (token.startsWith('![')) {
+      const m = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(token)!
+      const alt = m[1]
+      const rawSrc = m[2].trim()
+      const resolved = resolveImage
+        ? resolveImage(rawSrc)
+        : /^(https?:|data:)/i.test(rawSrc)
+          ? rawSrc
+          : undefined
+      if (resolved) {
+        nodes.push(
+          <img
+            key={key++}
+            src={resolved}
+            alt={alt}
+            style={{ maxWidth: '100%', borderRadius: 8, display: 'block', margin: '10px 0' }}
+          />,
+        )
+      } else {
+        nodes.push(
+          <span key={key++} className="faint">
+            [missing image{alt ? `: ${alt}` : ''}]
+          </span>,
+        )
+      }
+    } else if (token.startsWith('[[')) {
       const target = token.slice(2, -2).trim()
       const exists = linkExists ? linkExists(target) : true
       nodes.push(
@@ -74,11 +108,11 @@ function renderInline(text: string, opts: InlineOpts): React.ReactNode[] {
   return nodes
 }
 
-export function Markdown({ text, onWikiLink, linkExists }: MarkdownProps) {
+export function Markdown({ text, onWikiLink, linkExists, resolveImage }: MarkdownProps) {
   if (!text?.trim()) {
     return <p className="faint">Nothing here yet.</p>
   }
-  const opts: InlineOpts = { onWikiLink, linkExists }
+  const opts: InlineOpts = { onWikiLink, linkExists, resolveImage }
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   const blocks: React.ReactNode[] = []
   let paragraph: string[] = []

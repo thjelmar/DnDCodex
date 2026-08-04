@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { updateCampaign, deleteCampaign } from '../db/repo'
+import { updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { MarkdownEditor } from '../components/MarkdownEditor'
 import { Modal } from '../components/Modal'
 import { formatDate } from '../lib/format'
+import { processImageFile } from '../lib/image'
+import type { Campaign } from '../db/types'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -60,6 +63,8 @@ export function OverviewPage() {
 
   return (
     <div>
+      <CampaignCover campaign={campaign} />
+
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', marginBottom: 24 }}>
         {statCards.map(([label, count, path]) => (
           <Link
@@ -262,15 +267,103 @@ function EditCampaignModal({
         <label>Summary</label>
         <input className="input" value={summary} onChange={(e) => setSummary(e.target.value)} />
       </div>
-      <div className="field">
-        <label>World overview (markdown, supports [[wiki links]])</label>
-        <textarea
-          className="textarea tall"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the world, its history, factions, and tone…"
-        />
-      </div>
+      <MarkdownEditor
+        campaignId={campaignId}
+        value={description}
+        onChange={setDescription}
+        label="World overview (markdown, [[wiki links]], images)"
+        placeholder="Describe the world, its history, factions, and tone…"
+        tall
+      />
     </Modal>
+  )
+}
+
+/**
+ * The campaign cover banner plus its upload / change / remove controls. The
+ * cover is a StoredImage referenced by campaign.coverImageId.
+ */
+function CampaignCover({ campaign }: { campaign: Campaign }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  const cover = useLiveQuery(
+    () => (campaign.coverImageId ? db.images.get(campaign.coverImageId) : undefined),
+    [campaign.coverImageId],
+  )
+
+  async function handleFiles(files: FileList | null) {
+    const file = files?.[0]
+    if (!file) return
+    setBusy(true)
+    try {
+      const processed = await processImageFile(file)
+      const image = await createImage(campaign.id, {
+        name: file.name,
+        mime: processed.mime,
+        dataUrl: processed.dataUrl,
+        width: processed.width,
+        height: processed.height,
+        bytes: processed.bytes,
+      })
+      // Replace any previous cover, cleaning up the old image.
+      const previous = campaign.coverImageId
+      await updateCampaign(campaign.id, { coverImageId: image.id })
+      if (previous) await deleteImage(previous)
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function removeCover() {
+    const previous = campaign.coverImageId
+    await updateCampaign(campaign.id, { coverImageId: null })
+    if (previous) await deleteImage(previous)
+  }
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      {cover ? (
+        <div style={{ position: 'relative' }}>
+          <img
+            src={cover.dataUrl}
+            alt={`${campaign.name} cover`}
+            style={{
+              width: '100%',
+              maxHeight: 260,
+              objectFit: 'cover',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              display: 'block',
+            }}
+          />
+          <div className="row" style={{ position: 'absolute', top: 10, right: 10, gap: 6 }}>
+            <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
+              {busy ? '…' : 'Change'}
+            </button>
+            <button className="btn small danger" onClick={removeCover}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          className="btn"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+          style={{ width: '100%', padding: '18px', borderStyle: 'dashed' }}
+        >
+          {busy ? 'Uploading…' : '🖼 Add a cover image'}
+        </button>
+      )}
+    </div>
   )
 }
