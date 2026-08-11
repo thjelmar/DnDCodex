@@ -7,6 +7,7 @@ import type {
   Item,
   Note,
   RollTable,
+  PlayerNote,
   StoredImage,
   Link,
 } from './types'
@@ -23,6 +24,7 @@ export class CodexDB extends Dexie {
   items!: EntityTable<Item, 'id'>
   notes!: EntityTable<Note, 'id'>
   rollTables!: EntityTable<RollTable, 'id'>
+  playerNotes!: EntityTable<PlayerNote, 'id'>
   images!: EntityTable<StoredImage, 'id'>
   links!: EntityTable<Link, 'id'>
 
@@ -88,6 +90,11 @@ export class CodexDB extends Dexie {
             if (c.coverImageId === undefined) c.coverImageId = null
           })
       })
+    // v5 adds player notes — a player-scoped notes collection, separate from
+    // the DM's per-campaign World Notes.
+    this.version(5).stores({
+      playerNotes: 'id, campaignId, title, *tags',
+    })
   }
 }
 

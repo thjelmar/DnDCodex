@@ -12,17 +12,18 @@ export function BackupPage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const counts = useLiveQuery(async () => {
-    const [campaigns, sessions, npcs, locations, items, notes, tables, images] = await Promise.all([
+    const [campaigns, sessions, npcs, locations, items, notes, playerNotes, tables, images] = await Promise.all([
       db.campaigns.count(),
       db.sessions.count(),
       db.npcs.count(),
       db.locations.count(),
       db.items.count(),
       db.notes.count(),
+      db.playerNotes.count(),
       db.rollTables.count(),
       db.images.count(),
     ])
-    return { campaigns, sessions, npcs, locations, items, notes, tables, images }
+    return { campaigns, sessions, npcs, locations, items, notes, playerNotes, tables, images }
   }, [])
 
   function flash(msg: string) {
@@ -86,7 +87,8 @@ export function BackupPage() {
           <span className="tag">{counts.npcs} NPCs</span>
           <span className="tag">{counts.locations} locations</span>
           <span className="tag">{counts.items} items</span>
-          <span className="tag">{counts.notes} notes</span>
+          <span className="tag">{counts.notes} world notes</span>
+          <span className="tag">{counts.playerNotes} player notes</span>
           <span className="tag">{counts.tables} roll tables</span>
           <span className="tag">{counts.images} images</span>
         </div>

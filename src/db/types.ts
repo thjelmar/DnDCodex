@@ -142,6 +142,18 @@ export interface Note extends BaseRecord {
   tags: string[]
 }
 
+/**
+ * A player's personal note for a campaign — kept separate from the DM's World
+ * Notes. Organized in the nav under Player → Notes, subdivided by campaign.
+ */
+export interface PlayerNote extends BaseRecord {
+  campaignId: Id
+  title: string
+  /** Body (markdown, supports images and [[wiki links]]). */
+  body: string
+  tags: string[]
+}
+
 /** One row of a roll table. Weight controls how many die faces it covers. */
 export interface RollTableEntry {
   id: Id
@@ -192,6 +204,7 @@ export interface DatabaseSnapshot {
   npcs: NPC[]
   items: Item[]
   notes: Note[]
+  playerNotes: PlayerNote[]
   rollTables: RollTable[]
   images: StoredImage[]
   links: Link[]

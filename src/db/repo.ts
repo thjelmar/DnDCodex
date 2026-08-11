@@ -8,6 +8,7 @@ import type {
   Note,
   RollTable,
   RollTableEntry,
+  PlayerNote,
   StoredImage,
   Link,
   EntityKind,
@@ -52,7 +53,7 @@ export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<
 export async function deleteCampaign(id: Id): Promise<void> {
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.images, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links],
     async () => {
       await Promise.all([
         db.sessions.where('campaignId').equals(id).delete(),
@@ -61,6 +62,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
         db.items.where('campaignId').equals(id).delete(),
         db.notes.where('campaignId').equals(id).delete(),
         db.rollTables.where('campaignId').equals(id).delete(),
+        db.playerNotes.where('campaignId').equals(id).delete(),
         db.images.where('campaignId').equals(id).delete(),
         db.links.where('campaignId').equals(id).delete(),
       ])
@@ -270,6 +272,36 @@ export async function deleteRollTable(id: Id): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Player notes
+// ---------------------------------------------------------------------------
+
+export async function createPlayerNote(
+  campaignId: Id,
+  input: Partial<Pick<PlayerNote, 'title' | 'body' | 'tags'>> = {},
+): Promise<PlayerNote> {
+  const ts = now()
+  const note: PlayerNote = {
+    id: newId(),
+    campaignId,
+    title: input.title?.trim() || 'New Note',
+    body: input.body ?? '',
+    tags: input.tags ?? [],
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.playerNotes.add(note)
+  return note
+}
+
+export async function updatePlayerNote(id: Id, patch: Partial<PlayerNote>): Promise<void> {
+  await db.playerNotes.update(id, { ...patch, updatedAt: now() })
+}
+
+export async function deletePlayerNote(id: Id): Promise<void> {
+  await db.playerNotes.delete(id)
+}
+
+// ---------------------------------------------------------------------------
 // Images
 // ---------------------------------------------------------------------------
 
@@ -365,10 +397,10 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 // Export / import (JSON backup)
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT_VERSION = 4
+export const SNAPSHOT_VERSION = 5
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, rollTables, images, links] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -376,6 +408,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.npcs.toArray(),
       db.items.toArray(),
       db.notes.toArray(),
+      db.playerNotes.toArray(),
       db.rollTables.toArray(),
       db.images.toArray(),
       db.links.toArray(),
@@ -389,6 +422,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     npcs,
     items,
     notes,
+    playerNotes,
     rollTables,
     images,
     links,
@@ -408,7 +442,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.images, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -419,6 +453,7 @@ export async function importSnapshot(
           db.items.clear(),
           db.notes.clear(),
           db.rollTables.clear(),
+          db.playerNotes.clear(),
           db.images.clear(),
           db.links.clear(),
         ])
@@ -431,6 +466,7 @@ export async function importSnapshot(
         db.items.bulkPut(snapshot.items ?? []),
         db.notes.bulkPut(snapshot.notes ?? []),
         db.rollTables.bulkPut(snapshot.rollTables ?? []),
+        db.playerNotes.bulkPut(snapshot.playerNotes ?? []),
         db.images.bulkPut(snapshot.images ?? []),
         db.links.bulkPut(snapshot.links ?? []),
       ])

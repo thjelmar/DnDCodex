@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createCampaign } from '../db/repo'
@@ -16,6 +16,16 @@ export function CampaignsPage() {
   )
 
   const [creating, setCreating] = useState(false)
+
+  // The "New Campaign" nav link routes here with ?new=1 to open the dialog.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setCreating(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
   const [name, setName] = useState('')
   const [summary, setSummary] = useState('')
   const [color, setColor] = useState(COLORS[0])
