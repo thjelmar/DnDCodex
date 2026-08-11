@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, NavLink, Link, Navigate } from 'react-router
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
+import { DiceRoller } from './components/DiceRoller'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -24,7 +25,7 @@ const ellipsis: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-function Sidebar({ onOpenSearch }: { onOpenSearch: () => void }) {
+function Sidebar({ onOpenSearch, onOpenDice }: { onOpenSearch: () => void; onOpenDice: () => void }) {
   // Most-recently-updated campaigns for quick access under the DM section.
   const recent = useLiveQuery(
     () =>
@@ -50,6 +51,14 @@ function Sidebar({ onOpenSearch }: { onOpenSearch: () => void }) {
         <span style={{ marginLeft: 'auto' }}>
           <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
           <kbd>K</kbd>
+        </span>
+      </button>
+      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenDice}>
+        <span className="ico">🎲</span>
+        <span>Dice Roller</span>
+        <span style={{ marginLeft: 'auto' }}>
+          <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
+          <kbd>E</kbd>
         </span>
       </button>
       <NavLink to="/backup" className="nav-link">
@@ -131,13 +140,17 @@ function PlayerNotesNav() {
 
 export function App() {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [diceOpen, setDiceOpen] = useState(false)
 
-  // Global Cmd/Ctrl+K toggles the search palette.
+  // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setSearchOpen((o) => !o)
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault()
+        setDiceOpen((o) => !o)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -147,8 +160,9 @@ export function App() {
   return (
     <HashRouter>
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
       <div className="app">
-        <Sidebar onOpenSearch={() => setSearchOpen(true)} />
+        <Sidebar onOpenSearch={() => setSearchOpen(true)} onOpenDice={() => setDiceOpen(true)} />
         <main className="main">
           <Routes>
             <Route path="/" element={<CampaignsPage />} />

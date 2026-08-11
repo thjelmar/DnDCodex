@@ -554,6 +554,67 @@ button {
   height: 0;
 }
 
+/* ---------- Dice roller ---------- */
+
+.dice-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.die-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.08s, border-color 0.12s, background 0.12s;
+}
+.die-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+  transform: translateY(-1px);
+}
+.die-btn:active {
+  transform: scale(0.96);
+}
+.die-label {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.dice-mode {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.dice-mode button {
+  flex: 1;
+  padding: 9px 6px;
+  background: var(--bg);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px;
+}
+.dice-mode button:last-child {
+  border-right: none;
+}
+.dice-mode button:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+.dice-mode button.active {
+  background: var(--accent-strong);
+  color: white;
+}
+
 kbd {
   display: inline-block;
   padding: 1px 6px;
