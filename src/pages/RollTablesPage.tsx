@@ -9,7 +9,6 @@ import {
   newRollTableEntry,
 } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
 import { TagInput } from '../components/TagInput'
 import {
   computeRanges,
@@ -167,7 +166,7 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
                 Rolled <strong style={{ color: 'var(--accent)' }}>{result.roll}</strong> on d{result.size}
               </div>
               <div style={{ fontSize: 16 }}>
-                <CampaignMarkdown campaignId={table.campaignId} text={result.entry.text || '*(empty entry)*'} />
+                {result.entry.text || <span className="faint">(empty entry)</span>}
               </div>
             </div>
           ) : (

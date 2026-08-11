@@ -5,7 +5,7 @@ import { db } from '../db/db'
 import { createItem, updateItem, deleteItem } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { Modal } from '../components/Modal'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import type { Item, ItemRarity } from '../db/types'
 
@@ -129,7 +129,6 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
   const [value, setValue] = useState(item.value)
   const [description, setDescription] = useState(item.description)
   const [tags, setTags] = useState(item.tags)
-  const [preview, setPreview] = useState(false)
 
   async function save() {
     await updateItem(item.id, { name, category, rarity, attunement, value, description, tags })
@@ -197,21 +196,13 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         <label>Tags</label>
         <TagInput campaignId={item.campaignId} tags={tags} onChange={setTags} />
       </div>
-      <div className="field">
-        <div className="row between">
-          <label>Description (markdown)</label>
-          <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
-            {preview ? '✎ Edit' : '👁 Preview'}
-          </button>
-        </div>
-        {preview ? (
-          <div className="card" style={{ cursor: 'default' }}>
-            <CampaignMarkdown campaignId={item.campaignId} text={description} />
-          </div>
-        ) : (
-          <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
-        )}
-      </div>
+      <RichTextEditor
+        campaignId={item.campaignId}
+        value={description}
+        onChange={setDescription}
+        label="Description"
+        placeholder="What it does, its history, attunement notes…"
+      />
     </Modal>
   )
 }

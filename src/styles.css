@@ -445,6 +445,115 @@ button {
 .mt-0 { margin-top: 0; }
 .mb-0 { margin-bottom: 0; }
 
+/* ---------- Rich text editor ---------- */
+
+.rte-editable {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+.rte-editable:focus-within {
+  border-color: var(--accent);
+}
+
+.rte-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+.rte-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+.rte-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+.rte-btn.active {
+  background: var(--accent-strong);
+  color: white;
+}
+.rte-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.rte-content {
+  padding: 12px 14px;
+  outline: none;
+  line-height: 1.6;
+}
+.rte-content:focus {
+  outline: none;
+}
+.rte-editable .rte-content {
+  min-height: 120px;
+}
+/* Read-only display variant */
+.rte:not(.rte-editable) .rte-content {
+  padding: 0;
+}
+
+.rte-content h1, .rte-content h2, .rte-content h3 {
+  font-family: var(--serif);
+  margin: 0.6em 0 0.3em;
+}
+.rte-content h1 { font-size: 1.5em; }
+.rte-content h2 { font-size: 1.3em; }
+.rte-content h3 { font-size: 1.12em; }
+.rte-content p { margin: 0.5em 0; }
+.rte-content ul, .rte-content ol { padding-left: 1.4em; margin: 0.5em 0; }
+.rte-content blockquote {
+  border-left: 3px solid var(--border);
+  margin: 0.6em 0;
+  padding-left: 12px;
+  color: var(--text-dim);
+}
+.rte-content code {
+  background: var(--bg-elev-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.rte-content img {
+  max-width: 100%;
+  border-radius: 8px;
+  display: block;
+  margin: 10px 0;
+}
+.rte-content img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+}
+.rte-content a.wikilink {
+  color: var(--accent);
+  border-bottom: 1px dashed var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+/* Placeholder text for empty editors */
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-faint);
+  pointer-events: none;
+  height: 0;
+}
+
 kbd {
   display: inline-block;
   padding: 1px 6px;

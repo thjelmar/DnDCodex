@@ -5,7 +5,7 @@ import { db } from '../db/db'
 import { createLocation, updateLocation, deleteLocation } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import type { Location, LocationType } from '../db/types'
 
@@ -100,7 +100,6 @@ function LocationEditor({
   const [parentLocationId, setParent] = useState(location.parentLocationId ?? '')
   const [description, setDescription] = useState(location.description)
   const [tags, setTags] = useState(location.tags)
-  const [preview, setPreview] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -150,21 +149,14 @@ function LocationEditor({
         <label>Tags</label>
         <TagInput campaignId={campaignId} tags={tags} onChange={setTags} />
       </div>
-      <div className="field">
-        <div className="row between">
-          <label>Description (markdown, supports [[wiki links]])</label>
-          <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
-            {preview ? '✎ Edit' : '👁 Preview'}
-          </button>
-        </div>
-        {preview ? (
-          <div className="card" style={{ cursor: 'default' }}>
-            <CampaignMarkdown campaignId={campaignId} text={description} />
-          </div>
-        ) : (
-          <textarea className="textarea tall" value={description} onChange={(e) => setDescription(e.target.value)} />
-        )}
-      </div>
+      <RichTextEditor
+        campaignId={campaignId}
+        value={description}
+        onChange={setDescription}
+        label="Description"
+        placeholder="What's here, who lives here, notable features, [[wiki links]]…"
+        minHeight={180}
+      />
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
         Connections

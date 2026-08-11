@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNote, updateNote, deleteNote } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { MarkdownEditor } from '../components/MarkdownEditor'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import type { Note } from '../db/types'
 
@@ -91,13 +91,13 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
         <TagInput campaignId={note.campaignId} tags={tags} onChange={setTags} />
       </div>
 
-      <MarkdownEditor
+      <RichTextEditor
         campaignId={note.campaignId}
         value={body}
         onChange={setBody}
         label="Body"
-        placeholder="Write freely. Supports **markdown**, [[wiki links]], and images."
-        tall
+        placeholder="Write freely. Use the toolbar, [[wiki links]], and images."
+        minHeight={220}
       />
 
       <div className="row between" style={{ marginTop: 18 }}>

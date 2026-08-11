@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { MarkdownEditor } from '../components/MarkdownEditor'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { formatDate, todayISODate } from '../lib/format'
 import type { Session } from '../db/types'
@@ -129,13 +129,13 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         <TagInput campaignId={session.campaignId} tags={tags} onChange={setTags} />
       </div>
 
-      <MarkdownEditor
+      <RichTextEditor
         campaignId={session.campaignId}
         value={notes}
         onChange={setNotes}
         label="Session Notes"
-        placeholder="What happened this session? Supports **markdown**, [[wiki links]], and images."
-        tall
+        placeholder="What happened this session? Use the toolbar, [[wiki links]], and images."
+        minHeight={220}
       />
 
       <div className="row between" style={{ margin: '20px 0 6px' }}>
@@ -147,10 +147,10 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         </button>
       </div>
       {showDm && (
-        <textarea
-          className="textarea"
+        <RichTextEditor
+          campaignId={session.campaignId}
           value={dmNotes}
-          onChange={(e) => setDmNotes(e.target.value)}
+          onChange={setDmNotes}
           placeholder="Secret plans, foreshadowing, upcoming twists…"
         />
       )}

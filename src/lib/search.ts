@@ -1,4 +1,5 @@
 import { db } from '../db/db'
+import { htmlToText } from './richtext'
 import type { EntityKind } from '../db/types'
 
 // Full-text-ish search across every campaign and entity. For a local app the
@@ -123,34 +124,34 @@ export async function searchAll(rawQuery: string, limit = 40): Promise<SearchRes
 
   for (const c of campaigns) {
     push('campaign', c.id, null, c.name, `/campaign/${c.id}`,
-      evaluate(q, c.name, [c.summary, c.description]))
+      evaluate(q, c.name, [c.summary, htmlToText(c.description)]))
   }
   const tagsText = (tags: string[] | undefined) => (tags ?? []).join(' ')
 
   for (const s of sessions) {
     push('session', s.id, s.campaignId, s.title,
       `/campaign/${s.campaignId}/sessions?sel=${s.id}`,
-      evaluate(q, s.title, [s.notes, s.dmNotes, tagsText(s.tags)]), s.date)
+      evaluate(q, s.title, [htmlToText(s.notes), htmlToText(s.dmNotes), tagsText(s.tags)]), s.date)
   }
   for (const l of locations) {
     push('location', l.id, l.campaignId, l.name,
       `/campaign/${l.campaignId}/locations?sel=${l.id}`,
-      evaluate(q, l.name, [l.type, l.description, tagsText(l.tags)]))
+      evaluate(q, l.name, [l.type, htmlToText(l.description), tagsText(l.tags)]))
   }
   for (const n of npcs) {
     push('npc', n.id, n.campaignId, n.name,
       `/campaign/${n.campaignId}/npcs?sel=${n.id}`,
-      evaluate(q, n.name, [n.role, n.description, n.statBlock, tagsText(n.tags)]), n.role)
+      evaluate(q, n.name, [n.role, htmlToText(n.description), n.statBlock, tagsText(n.tags)]), n.role)
   }
   for (const i of items) {
     push('item', i.id, i.campaignId, i.name,
       `/campaign/${i.campaignId}/items?sel=${i.id}`,
-      evaluate(q, i.name, [i.category, i.description, tagsText(i.tags)]), i.rarity)
+      evaluate(q, i.name, [i.category, htmlToText(i.description), tagsText(i.tags)]), i.rarity)
   }
   for (const nt of notes) {
     push('note', nt.id, nt.campaignId, nt.title,
       `/campaign/${nt.campaignId}/notes?sel=${nt.id}`,
-      evaluate(q, nt.title, [nt.body, tagsText(nt.tags)]),
+      evaluate(q, nt.title, [htmlToText(nt.body), tagsText(nt.tags)]),
       (nt.tags ?? [])[0] || undefined)
   }
   for (const rt of rollTables) {

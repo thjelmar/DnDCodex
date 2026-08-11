@@ -5,7 +5,7 @@ import { db } from '../db/db'
 import { createNPC, updateNPC, deleteNPC } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import type { NPC } from '../db/types'
 
@@ -104,7 +104,6 @@ function NpcEditor({
   const [description, setDescription] = useState(npc.description)
   const [statBlock, setStatBlock] = useState(npc.statBlock)
   const [tags, setTags] = useState(npc.tags)
-  const [preview, setPreview] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -160,21 +159,13 @@ function NpcEditor({
         <label>Tags</label>
         <TagInput campaignId={campaignId} tags={tags} onChange={setTags} />
       </div>
-      <div className="field">
-        <div className="row between">
-          <label>Description (markdown, supports [[wiki links]])</label>
-          <button className="btn ghost small" onClick={() => setPreview((p) => !p)}>
-            {preview ? '✎ Edit' : '👁 Preview'}
-          </button>
-        </div>
-        {preview ? (
-          <div className="card" style={{ cursor: 'default' }}>
-            <CampaignMarkdown campaignId={campaignId} text={description} />
-          </div>
-        ) : (
-          <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
-        )}
-      </div>
+      <RichTextEditor
+        campaignId={campaignId}
+        value={description}
+        onChange={setDescription}
+        label="Description"
+        placeholder="Appearance, personality, secrets, [[wiki links]]…"
+      />
       <div className="field">
         <label>Stat block / mechanical notes</label>
         <textarea className="textarea" value={statBlock} onChange={(e) => setStatBlock(e.target.value)} placeholder="AC 13, HP 27, …" />

@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote, deletePlayerNote } from '../db/repo'
-import { MarkdownEditor } from '../components/MarkdownEditor'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import type { PlayerNote } from '../db/types'
 
@@ -144,13 +144,13 @@ function PlayerNoteEditor({ note, onDelete }: { note: PlayerNote; onDelete: () =
         <TagInput campaignId={note.campaignId} tags={tags} onChange={setTags} />
       </div>
 
-      <MarkdownEditor
+      <RichTextEditor
         campaignId={note.campaignId}
         value={body}
         onChange={setBody}
         label="Body"
         placeholder="Your notes from the session — what happened, clues, NPCs you met, plans…"
-        tall
+        minHeight={220}
       />
 
       <div className="row between" style={{ marginTop: 18 }}>

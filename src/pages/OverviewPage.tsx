@@ -4,8 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { CampaignMarkdown } from '../components/CampaignMarkdown'
-import { MarkdownEditor } from '../components/MarkdownEditor'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { Modal } from '../components/Modal'
 import { formatDate } from '../lib/format'
 import { processImageFile } from '../lib/image'
@@ -88,7 +87,11 @@ export function OverviewPage() {
         </button>
       </div>
       <div style={{ marginTop: 12, marginBottom: 28 }}>
-        <CampaignMarkdown campaignId={campaign.id} text={campaign.description} />
+        {campaign.description?.trim() ? (
+          <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
+        ) : (
+          <p className="faint">Nothing here yet.</p>
+        )}
       </div>
 
       <div className="row between">
@@ -267,13 +270,13 @@ function EditCampaignModal({
         <label>Summary</label>
         <input className="input" value={summary} onChange={(e) => setSummary(e.target.value)} />
       </div>
-      <MarkdownEditor
+      <RichTextEditor
         campaignId={campaignId}
         value={description}
         onChange={setDescription}
-        label="World overview (markdown, [[wiki links]], images)"
+        label="World overview"
         placeholder="Describe the world, its history, factions, and tone…"
-        tall
+        minHeight={220}
       />
     </Modal>
   )

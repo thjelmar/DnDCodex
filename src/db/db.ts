@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import { markdownToHtml } from '../lib/mdToHtml'
 import type {
   Campaign,
   Session,
@@ -95,6 +96,48 @@ export class CodexDB extends Dexie {
     this.version(5).stores({
       playerNotes: 'id, campaignId, title, *tags',
     })
+    // v6 converts every markdown prose field into the rich-text HTML that the
+    // WYSIWYG editor stores. Inline ![](img:<id>) references are resolved to
+    // embedded data URLs, after which images that were only used inline (i.e.
+    // not a campaign cover) are pruned.
+    this.version(6)
+      .stores({})
+      .upgrade(async (tx) => {
+        const images = await tx.table('images').toArray()
+        const imageMap = new Map<string, string>(images.map((i) => [i.id, i.dataUrl]))
+        const md = (v: unknown) => markdownToHtml(typeof v === 'string' ? v : '', imageMap)
+
+        await tx.table('campaigns').toCollection().modify((c: { description?: string }) => {
+          c.description = md(c.description)
+        })
+        await tx.table('sessions').toCollection().modify((s: { notes?: string; dmNotes?: string }) => {
+          s.notes = md(s.notes)
+          s.dmNotes = md(s.dmNotes)
+        })
+        await tx.table('notes').toCollection().modify((n: { body?: string }) => {
+          n.body = md(n.body)
+        })
+        await tx.table('playerNotes').toCollection().modify((n: { body?: string }) => {
+          n.body = md(n.body)
+        })
+        await tx.table('npcs').toCollection().modify((n: { description?: string }) => {
+          n.description = md(n.description)
+        })
+        await tx.table('locations').toCollection().modify((l: { description?: string }) => {
+          l.description = md(l.description)
+        })
+        await tx.table('items').toCollection().modify((i: { description?: string }) => {
+          i.description = md(i.description)
+        })
+
+        // Images now live inline in the HTML; keep only those used as covers.
+        const campaigns = await tx.table('campaigns').toArray()
+        const coverIds = new Set(
+          campaigns.map((c) => c.coverImageId).filter((id): id is string => Boolean(id)),
+        )
+        const orphans = images.filter((i) => !coverIds.has(i.id)).map((i) => i.id)
+        if (orphans.length) await tx.table('images').bulkDelete(orphans)
+      })
   }
 }
 
