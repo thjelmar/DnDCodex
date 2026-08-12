@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createLink, deleteLink, linksForEntity } from '../db/repo'
+import { AddLinkButton } from './AddLinkButton'
 import type { EntityKind, Id, Link } from '../db/types'
 
 // Kinds a user can link to from the UI. Campaign links are handled separately
@@ -13,6 +14,15 @@ const LINKABLE_KINDS: { kind: EntityKind; label: string }[] = [
   { kind: 'note', label: 'Note' },
   { kind: 'session', label: 'Session' },
 ]
+
+// The campaign sub-route where each kind is created.
+const KIND_SECTION: Partial<Record<EntityKind, string>> = {
+  npc: 'npcs',
+  location: 'locations',
+  item: 'items',
+  note: 'notes',
+  session: 'sessions',
+}
 
 interface NamedEntity {
   id: Id
@@ -136,22 +146,31 @@ export function EntityLinks({
             </option>
           ))}
         </select>
-        <select
-          className="select"
-          style={{ width: 170 }}
-          value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
-        >
-          <option value="">Select…</option>
-          {targetOptions.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
-            </option>
-          ))}
-        </select>
-        <button className="btn small" onClick={add} disabled={!targetId}>
-          ＋ Link
-        </button>
+        {targetOptions.length === 0 ? (
+          <AddLinkButton
+            to={`/campaign/${campaignId}/${KIND_SECTION[targetKind] ?? ''}`}
+            label={LINKABLE_KINDS.find((k) => k.kind === targetKind)?.label ?? 'entry'}
+          />
+        ) : (
+          <>
+            <select
+              className="select"
+              style={{ width: 170 }}
+              value={targetId}
+              onChange={(e) => setTargetId(e.target.value)}
+            >
+              <option value="">Select…</option>
+              {targetOptions.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+            <button className="btn small" onClick={add} disabled={!targetId}>
+              ＋ Link
+            </button>
+          </>
+        )}
       </div>
     </div>
   )

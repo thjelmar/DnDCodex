@@ -8,6 +8,7 @@ import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
+import { AddLinkButton } from '../components/AddLinkButton'
 import type { Location, LocationType, Id } from '../db/types'
 
 // Types run largest → smallest; the tree nests them via parentLocationId.
@@ -328,23 +329,27 @@ function LocationEditor({
       {groups.includes('ruler') && (
         <div className="field">
           <label>{type === 'kingdom' ? 'Ruler' : 'Leader'} (links to an NPC)</label>
-          <div className="row" style={{ gap: 8 }}>
-            <select className="select" value={rulerNpcId} onChange={(e) => setRulerNpcId(e.target.value)}>
-              <option value="">— none —</option>
-              {npcs.map((n) => (
-                <option key={n.id} value={n.id}>{n.name}</option>
-              ))}
-            </select>
-            {ruler && (
-              <button
-                className="btn small"
-                onClick={() => navigate(`/campaign/${campaignId}/npcs?sel=${ruler.id}`)}
-                title="Open NPC"
-              >
-                ↗
-              </button>
-            )}
-          </div>
+          {npcs.length === 0 ? (
+            <AddLinkButton to={`/campaign/${campaignId}/npcs`} label="NPC" />
+          ) : (
+            <div className="row" style={{ gap: 8 }}>
+              <select className="select" value={rulerNpcId} onChange={(e) => setRulerNpcId(e.target.value)}>
+                <option value="">— none —</option>
+                {npcs.map((n) => (
+                  <option key={n.id} value={n.id}>{n.name}</option>
+                ))}
+              </select>
+              {ruler && (
+                <button
+                  className="btn small"
+                  onClick={() => navigate(`/campaign/${campaignId}/npcs?sel=${ruler.id}`)}
+                  title="Open NPC"
+                >
+                  ↗
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
       <div className="form-row">
@@ -395,11 +400,11 @@ function LocationEditor({
         <div className="form-row">
           <div className="field">
             <label>Allies</label>
-            <LocationMultiPicker allLocations={allLocations} selfId={location.id} value={allyIds} onChange={setAllyIds} onOpen={onSelect} />
+            <LocationMultiPicker campaignId={campaignId} allLocations={allLocations} selfId={location.id} value={allyIds} onChange={setAllyIds} onOpen={onSelect} />
           </div>
           <div className="field">
             <label>Enemies</label>
-            <LocationMultiPicker allLocations={allLocations} selfId={location.id} value={enemyIds} onChange={setEnemyIds} onOpen={onSelect} />
+            <LocationMultiPicker campaignId={campaignId} allLocations={allLocations} selfId={location.id} value={enemyIds} onChange={setEnemyIds} onOpen={onSelect} />
           </div>
         </div>
       )}
@@ -475,12 +480,14 @@ function LocationEditor({
 }
 
 function LocationMultiPicker({
+  campaignId,
   allLocations,
   selfId,
   value,
   onChange,
   onOpen,
 }: {
+  campaignId: string
   allLocations: Location[]
   selfId: string
   value: string[]
@@ -488,6 +495,7 @@ function LocationMultiPicker({
   onOpen: (id: string) => void
 }) {
   const options = allLocations.filter((l) => l.id !== selfId && !value.includes(l.id))
+  const noOtherLocations = allLocations.filter((l) => l.id !== selfId).length === 0
   return (
     <div>
       <div className="row wrap" style={{ gap: 6, marginBottom: value.length ? 6 : 0 }}>
@@ -509,20 +517,24 @@ function LocationMultiPicker({
           )
         })}
       </div>
-      <select
-        className="select"
-        value=""
-        onChange={(e) => {
-          if (e.target.value) onChange([...value, e.target.value])
-        }}
-      >
-        <option value="">+ add…</option>
-        {options.map((l) => (
-          <option key={l.id} value={l.id}>
-            {TYPE_ICON[l.type]} {l.name}
-          </option>
-        ))}
-      </select>
+      {noOtherLocations ? (
+        <AddLinkButton to={`/campaign/${campaignId}/locations`} label="location" />
+      ) : (
+        <select
+          className="select"
+          value=""
+          onChange={(e) => {
+            if (e.target.value) onChange([...value, e.target.value])
+          }}
+        >
+          <option value="">+ add…</option>
+          {options.map((l) => (
+            <option key={l.id} value={l.id}>
+              {TYPE_ICON[l.type]} {l.name}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   )
 }

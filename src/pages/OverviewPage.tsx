@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { AddLinkButton } from '../components/AddLinkButton'
 import { Modal } from '../components/Modal'
 import { formatDate } from '../lib/format'
 import { processImageFile } from '../lib/image'
@@ -201,6 +202,10 @@ function RelatedCampaignPicker({
   const options = allCampaigns.filter(
     (c) => c.id !== campaignId && !current.includes(c.id),
   )
+  const noOtherCampaigns = allCampaigns.filter((c) => c.id !== campaignId).length === 0
+  if (noOtherCampaigns) {
+    return <AddLinkButton to="/?new=1" label="campaign" />
+  }
   if (options.length === 0) return null
   return (
     <select

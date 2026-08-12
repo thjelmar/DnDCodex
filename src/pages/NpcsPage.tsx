@@ -8,6 +8,7 @@ import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
+import { AddLinkButton } from '../components/AddLinkButton'
 import type { NPC } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -147,14 +148,18 @@ function NpcEditor({
         </div>
         <div className="field">
           <label>Usually found at</label>
-          <select className="select" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-            <option value="">—</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
+          {locations.length === 0 ? (
+            <AddLinkButton to={`/campaign/${campaignId}/locations`} label="location" />
+          ) : (
+            <select className="select" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+              <option value="">—</option>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
       <div className="field">
