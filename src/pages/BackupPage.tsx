@@ -5,8 +5,10 @@ import { exportSnapshot, importSnapshot } from '../db/repo'
 import { downloadText, readFileAsText } from '../lib/download'
 import { sessionsToICS } from '../lib/calendar'
 import { todayISODate } from '../lib/format'
+import { useConfirm } from '../components/ConfirmDialog'
 
 export function BackupPage() {
+  const confirm = useConfirm()
   const [toast, setToast] = useState<string | null>(null)
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -43,7 +45,12 @@ export function BackupPage() {
       const snapshot = JSON.parse(text)
       if (
         importMode === 'replace' &&
-        !confirm('Replace ALL current data with this backup? This cannot be undone.')
+        !(await confirm({
+          title: 'Replace all data?',
+          message: 'This wipes everything currently stored and loads the backup instead. This cannot be undone.',
+          confirmLabel: 'Replace',
+          danger: true,
+        }))
       ) {
         return
       }

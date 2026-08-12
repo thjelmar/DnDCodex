@@ -7,6 +7,7 @@ import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { NPC } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -97,6 +98,7 @@ function NpcEditor({
   locations: { id: string; name: string }[]
   onDelete: () => void
 }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(npc.name)
   const [role, setRole] = useState(npc.role)
   const [disposition, setDisposition] = useState(npc.disposition)
@@ -183,7 +185,18 @@ function NpcEditor({
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${npc.name}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete NPC?',
+                message: (
+                  <>
+                    Delete <strong>{npc.name}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deleteNPC(npc.id)
               onDelete()
             }

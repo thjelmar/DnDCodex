@@ -7,6 +7,7 @@ import { useCampaign } from './CampaignLayout'
 import { Modal } from '../components/Modal'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { Item, ItemRarity } from '../db/types'
 
 const RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact']
@@ -122,6 +123,7 @@ const cellHead: React.CSSProperties = { padding: '8px 10px', fontWeight: 600 }
 const cell: React.CSSProperties = { padding: '10px' }
 
 function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(item.name)
   const [category, setCategory] = useState(item.category)
   const [rarity, setRarity] = useState<ItemRarity>(item.rarity)
@@ -145,7 +147,18 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
             className="btn danger"
             style={{ marginRight: 'auto' }}
             onClick={async () => {
-              if (confirm(`Delete "${item.name}"?`)) {
+              if (
+                await confirm({
+                  title: 'Delete item?',
+                  message: (
+                    <>
+                      Delete <strong>{item.name}</strong>? This can't be undone.
+                    </>
+                  ),
+                  confirmLabel: 'Delete',
+                  danger: true,
+                })
+              ) {
                 await deleteItem(item.id)
                 onClose()
               }

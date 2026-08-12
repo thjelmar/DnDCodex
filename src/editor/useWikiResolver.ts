@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createNote } from '../db/repo'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { Id } from '../db/types'
 
 // Resolves [[wiki link]] targets to campaign entities and follows them. Shared
@@ -10,6 +11,7 @@ import type { Id } from '../db/types'
 // offer creating a world note for it.
 export function useWikiResolver(campaignId: Id) {
   const navigate = useNavigate()
+  const confirm = useConfirm()
 
   const index = useLiveQuery(async () => {
     const [npcs, locations, notes, items, sessions, tables] = await Promise.all([
@@ -40,7 +42,13 @@ export function useWikiResolver(campaignId: Id) {
       navigate(to)
       return
     }
-    if (confirm(`No page named “${target}” yet. Create a world note for it?`)) {
+    if (
+      await confirm({
+        title: 'Create note?',
+        message: `No page named “${target}” yet. Create a world note for it?`,
+        confirmLabel: 'Create note',
+      })
+    ) {
       const note = await createNote(campaignId, { title: target })
       navigate(`/campaign/${campaignId}/notes?sel=${note.id}`)
     }

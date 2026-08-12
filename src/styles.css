@@ -189,6 +189,14 @@ button {
 .btn.danger:hover {
   background: rgba(220, 38, 38, 0.12);
 }
+.btn.destructive {
+  background: var(--danger-strong);
+  border-color: var(--danger-strong);
+  color: white;
+}
+.btn.destructive:hover {
+  background: #b91c1c;
+}
 .btn.ghost {
   background: transparent;
   border-color: transparent;

@@ -7,6 +7,7 @@ import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { Location, LocationType } from '../db/types'
 
 const TYPES: LocationType[] = ['region', 'city', 'town', 'village', 'dungeon', 'landmark', 'other']
@@ -95,6 +96,7 @@ function LocationEditor({
   allLocations: Location[]
   onDelete: () => void
 }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(location.name)
   const [type, setType] = useState<LocationType>(location.type)
   const [parentLocationId, setParent] = useState(location.parentLocationId ?? '')
@@ -170,7 +172,18 @@ function LocationEditor({
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${location.name}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete location?',
+                message: (
+                  <>
+                    Delete <strong>{location.name}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deleteLocation(location.id)
               onDelete()
             }

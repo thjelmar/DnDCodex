@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote, deletePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { PlayerNote } from '../db/types'
 
 // Standalone page (outside the DM CampaignLayout) for a player's personal notes
@@ -122,6 +123,7 @@ export function PlayerNotesPage() {
 }
 
 function PlayerNoteEditor({ note, onDelete }: { note: PlayerNote; onDelete: () => void }) {
+  const confirm = useConfirm()
   const [title, setTitle] = useState(note.title)
   const [tags, setTags] = useState(note.tags)
   const [body, setBody] = useState(note.body)
@@ -158,7 +160,18 @@ function PlayerNoteEditor({ note, onDelete }: { note: PlayerNote; onDelete: () =
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${note.title}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete note?',
+                message: (
+                  <>
+                    Delete <strong>{note.title}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deletePlayerNote(note.id)
               onDelete()
             }

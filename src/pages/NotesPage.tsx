@@ -6,6 +6,7 @@ import { createNote, updateNote, deleteNote } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import type { Note } from '../db/types'
 
 export function NotesPage() {
@@ -69,6 +70,7 @@ export function NotesPage() {
 }
 
 function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
+  const confirm = useConfirm()
   const [title, setTitle] = useState(note.title)
   const [tags, setTags] = useState(note.tags)
   const [body, setBody] = useState(note.body)
@@ -105,7 +107,18 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${note.title}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete note?',
+                message: (
+                  <>
+                    Delete <strong>{note.title}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deleteNote(note.id)
               onDelete()
             }

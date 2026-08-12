@@ -10,6 +10,7 @@ import {
 } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { TagInput } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import {
   computeRanges,
   formatRange,
@@ -91,6 +92,7 @@ export function RollTablesPage() {
 }
 
 function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () => void }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(table.name)
   const [category, setCategory] = useState(table.category)
   const [description, setDescription] = useState(table.description)
@@ -253,7 +255,18 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${table.name}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete table?',
+                message: (
+                  <>
+                    Delete <strong>{table.name}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deleteRollTable(table.id)
               onDelete()
             }

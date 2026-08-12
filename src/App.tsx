@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -159,10 +160,11 @@ export function App() {
 
   return (
     <HashRouter>
-      <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
-      <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
-      <div className="app">
-        <Sidebar onOpenSearch={() => setSearchOpen(true)} onOpenDice={() => setDiceOpen(true)} />
+      <ConfirmProvider>
+        <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+        <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
+        <div className="app">
+          <Sidebar onOpenSearch={() => setSearchOpen(true)} onOpenDice={() => setDiceOpen(true)} />
         <main className="main">
           <Routes>
             <Route path="/" element={<CampaignsPage />} />
@@ -181,7 +183,8 @@ export function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
-      </div>
+        </div>
+      </ConfirmProvider>
     </HashRouter>
   )
 }

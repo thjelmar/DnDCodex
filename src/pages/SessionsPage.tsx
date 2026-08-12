@@ -6,6 +6,7 @@ import { createSession, updateSession, deleteSession } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
+import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate, todayISODate } from '../lib/format'
 import type { Session } from '../db/types'
 
@@ -91,6 +92,7 @@ export function SessionsPage() {
 }
 
 function SessionEditor({ session, onDelete }: { session: Session; onDelete: () => void }) {
+  const confirm = useConfirm()
   const [title, setTitle] = useState(session.title)
   const [date, setDate] = useState(session.date)
   const [tags, setTags] = useState(session.tags)
@@ -162,7 +164,18 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         <button
           className="btn danger small"
           onClick={async () => {
-            if (confirm(`Delete "${session.title}"?`)) {
+            if (
+              await confirm({
+                title: 'Delete session?',
+                message: (
+                  <>
+                    Delete <strong>{session.title}</strong>? This can't be undone.
+                  </>
+                ),
+                confirmLabel: 'Delete',
+                danger: true,
+              })
+            ) {
               await deleteSession(session.id)
               onDelete()
             }
