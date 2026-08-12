@@ -71,8 +71,13 @@ export interface Session extends BaseRecord {
   tags: string[]
 }
 
+// Ordered roughly from largest to smallest scope. The nesting hierarchy is
+// world > region > kingdom > city/town/village, with dungeon/landmark/other as
+// leaf places that can sit anywhere.
 export type LocationType =
+  | 'world'
   | 'region'
+  | 'kingdom'
   | 'city'
   | 'town'
   | 'village'
@@ -80,16 +85,48 @@ export type LocationType =
   | 'landmark'
   | 'other'
 
-/** A place in the world. Locations nest via `parentLocationId`. */
+/**
+ * A place in the world. Locations nest via `parentLocationId` (the "auto-link"
+ * up to its containing region/kingdom/world). Beyond the shared fields, each
+ * type surfaces a relevant subset of the structured fields below in the editor
+ * (e.g. currency/government on a kingdom; population/trade on a settlement).
+ */
 export interface Location extends BaseRecord {
   campaignId: Id
   name: string
   type: LocationType
+  /** Rich-text (HTML) description. */
   description: string
-  /** Optional containing location (e.g. a town within a region). */
+  /** Containing location — the auto-link up the hierarchy. */
   parentLocationId: Id | null
   /** Free-form organizational tags. */
   tags: string[]
+
+  // --- Structured world-building fields (all optional per type) ---
+  /** Kingdom: form of government, e.g. "Feudal monarchy". */
+  governmentType: string
+  /** Kingdom/settlement: the ruler or leader, linked to an NPC. */
+  rulerNpcId: Id | null
+  /** Kingdom: official currency. */
+  currency: string
+  /** Kingdom/settlement: dominant religion(s). */
+  religion: string
+  /** Kingdom: governing departments / bodies (HTML). */
+  departments: string
+  /** Settlement: population, kept as text to allow "~5,000" etc. */
+  population: string
+  /** Settlement: prosperity level (see PROSPERITY_LEVELS). */
+  prosperity: string
+  /** Settlement: main imports. */
+  imports: string
+  /** Settlement: main exports. */
+  exports: string
+  /** Settlement: notable points of interest (HTML). */
+  pointsOfInterest: string
+  /** Other locations this one is allied with. */
+  allyIds: Id[]
+  /** Other locations this one is in conflict with. */
+  enemyIds: Id[]
 }
 
 /** A non-player character. */

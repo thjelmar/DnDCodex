@@ -138,6 +138,26 @@ export class CodexDB extends Dexie {
         const orphans = images.filter((i) => !coverIds.has(i.id)).map((i) => i.id)
         if (orphans.length) await tx.table('images').bulkDelete(orphans)
       })
+    // v7 backfills the new structured world-building fields on locations.
+    this.version(7).upgrade(async (tx) => {
+      await tx
+        .table('locations')
+        .toCollection()
+        .modify((l: Record<string, unknown>) => {
+          l.governmentType ??= ''
+          l.rulerNpcId ??= null
+          l.currency ??= ''
+          l.religion ??= ''
+          l.departments ??= ''
+          l.population ??= ''
+          l.prosperity ??= ''
+          l.imports ??= ''
+          l.exports ??= ''
+          l.pointsOfInterest ??= ''
+          l.allyIds ??= []
+          l.enemyIds ??= []
+        })
+    })
   }
 }
 
