@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createLocation, updateLocation, deleteLocation } from '../db/repo'
+import { createLocation, updateLocation, deleteLocation, createNPC } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
@@ -330,7 +330,15 @@ function LocationEditor({
         <div className="field">
           <label>{type === 'kingdom' ? 'Ruler' : 'Leader'} (links to an NPC)</label>
           {npcs.length === 0 ? (
-            <AddLinkButton to={`/campaign/${campaignId}/npcs`} label="NPC" />
+            <AddLinkButton
+              label="NPC"
+              onAdd={async () => {
+                const created = await createNPC(campaignId)
+                setRulerNpcId(created.id)
+                await updateLocation(location.id, { rulerNpcId: created.id })
+                navigate(`/campaign/${campaignId}/npcs?sel=${created.id}`)
+              }}
+            />
           ) : (
             <div className="row" style={{ gap: 8 }}>
               <select className="select" value={rulerNpcId} onChange={(e) => setRulerNpcId(e.target.value)}>
@@ -400,11 +408,37 @@ function LocationEditor({
         <div className="form-row">
           <div className="field">
             <label>Allies</label>
-            <LocationMultiPicker campaignId={campaignId} allLocations={allLocations} selfId={location.id} value={allyIds} onChange={setAllyIds} onOpen={onSelect} />
+            <LocationMultiPicker
+              allLocations={allLocations}
+              selfId={location.id}
+              value={allyIds}
+              onChange={setAllyIds}
+              onOpen={onSelect}
+              onAddNew={async () => {
+                const created = await createLocation(campaignId)
+                const next = [...allyIds, created.id]
+                setAllyIds(next)
+                await updateLocation(location.id, { allyIds: next })
+                navigate(`/campaign/${campaignId}/locations?sel=${created.id}`)
+              }}
+            />
           </div>
           <div className="field">
             <label>Enemies</label>
-            <LocationMultiPicker campaignId={campaignId} allLocations={allLocations} selfId={location.id} value={enemyIds} onChange={setEnemyIds} onOpen={onSelect} />
+            <LocationMultiPicker
+              allLocations={allLocations}
+              selfId={location.id}
+              value={enemyIds}
+              onChange={setEnemyIds}
+              onOpen={onSelect}
+              onAddNew={async () => {
+                const created = await createLocation(campaignId)
+                const next = [...enemyIds, created.id]
+                setEnemyIds(next)
+                await updateLocation(location.id, { enemyIds: next })
+                navigate(`/campaign/${campaignId}/locations?sel=${created.id}`)
+              }}
+            />
           </div>
         </div>
       )}
@@ -480,19 +514,19 @@ function LocationEditor({
 }
 
 function LocationMultiPicker({
-  campaignId,
   allLocations,
   selfId,
   value,
   onChange,
   onOpen,
+  onAddNew,
 }: {
-  campaignId: string
   allLocations: Location[]
   selfId: string
   value: string[]
   onChange: (ids: string[]) => void
   onOpen: (id: string) => void
+  onAddNew: () => Promise<void>
 }) {
   const options = allLocations.filter((l) => l.id !== selfId && !value.includes(l.id))
   const noOtherLocations = allLocations.filter((l) => l.id !== selfId).length === 0
@@ -518,7 +552,7 @@ function LocationMultiPicker({
         })}
       </div>
       {noOtherLocations ? (
-        <AddLinkButton to={`/campaign/${campaignId}/locations`} label="location" />
+        <AddLinkButton label="location" onAdd={onAddNew} />
       ) : (
         <select
           className="select"

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
+import { createCampaign, updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { AddLinkButton } from '../components/AddLinkButton'
@@ -199,12 +199,22 @@ function RelatedCampaignPicker({
   current: string[]
   allCampaigns: { id: string; name: string }[]
 }) {
+  const navigate = useNavigate()
   const options = allCampaigns.filter(
     (c) => c.id !== campaignId && !current.includes(c.id),
   )
   const noOtherCampaigns = allCampaigns.filter((c) => c.id !== campaignId).length === 0
   if (noOtherCampaigns) {
-    return <AddLinkButton to="/?new=1" label="campaign" />
+    return (
+      <AddLinkButton
+        label="campaign"
+        onAdd={async () => {
+          const created = await createCampaign()
+          await updateCampaign(campaignId, { relatedCampaignIds: [...current, created.id] })
+          navigate(`/campaign/${created.id}`)
+        }}
+      />
+    )
   }
   if (options.length === 0) return null
   return (

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createNPC, updateNPC, deleteNPC } from '../db/repo'
+import { createNPC, updateNPC, deleteNPC, createLocation } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
@@ -100,6 +100,7 @@ function NpcEditor({
   onDelete: () => void
 }) {
   const confirm = useConfirm()
+  const navigate = useNavigate()
   const [name, setName] = useState(npc.name)
   const [role, setRole] = useState(npc.role)
   const [disposition, setDisposition] = useState(npc.disposition)
@@ -149,7 +150,15 @@ function NpcEditor({
         <div className="field">
           <label>Usually found at</label>
           {locations.length === 0 ? (
-            <AddLinkButton to={`/campaign/${campaignId}/locations`} label="location" />
+            <AddLinkButton
+              label="location"
+              onAdd={async () => {
+                const loc = await createLocation(campaignId)
+                setLocationId(loc.id)
+                await updateNPC(npc.id, { locationId: loc.id })
+                navigate(`/campaign/${campaignId}/locations?sel=${loc.id}`)
+              }}
+            />
           ) : (
             <select className="select" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
               <option value="">—</option>

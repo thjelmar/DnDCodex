@@ -1,7 +1,17 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createLink, deleteLink, linksForEntity } from '../db/repo'
+import {
+  createLink,
+  deleteLink,
+  linksForEntity,
+  createNPC,
+  createLocation,
+  createItem,
+  createNote,
+  createSession,
+} from '../db/repo'
 import { AddLinkButton } from './AddLinkButton'
 import type { EntityKind, Id, Link } from '../db/types'
 
@@ -22,6 +32,18 @@ const KIND_SECTION: Partial<Record<EntityKind, string>> = {
   item: 'items',
   note: 'notes',
   session: 'sessions',
+}
+
+/** Creates a blank entity of the given kind and returns its id. */
+async function createByKind(campaignId: Id, kind: EntityKind): Promise<Id> {
+  switch (kind) {
+    case 'npc': return (await createNPC(campaignId)).id
+    case 'location': return (await createLocation(campaignId)).id
+    case 'item': return (await createItem(campaignId)).id
+    case 'note': return (await createNote(campaignId)).id
+    case 'session': return (await createSession(campaignId)).id
+    default: throw new Error(`Cannot create kind: ${kind}`)
+  }
 }
 
 interface NamedEntity {
@@ -70,6 +92,7 @@ export function EntityLinks({
   kind: EntityKind
   id: Id
 }) {
+  const navigate = useNavigate()
   const entities = useCampaignEntities(campaignId)
   const links = useLiveQuery(() => linksForEntity(kind, id), [kind, id]) ?? []
 
@@ -148,8 +171,12 @@ export function EntityLinks({
         </select>
         {targetOptions.length === 0 ? (
           <AddLinkButton
-            to={`/campaign/${campaignId}/${KIND_SECTION[targetKind] ?? ''}`}
             label={LINKABLE_KINDS.find((k) => k.kind === targetKind)?.label ?? 'entry'}
+            onAdd={async () => {
+              const newId = await createByKind(campaignId, targetKind)
+              await createLink(campaignId, kind, id, targetKind, newId, label || 'related to')
+              navigate(`/campaign/${campaignId}/${KIND_SECTION[targetKind] ?? ''}?sel=${newId}`)
+            }}
           />
         ) : (
           <>
