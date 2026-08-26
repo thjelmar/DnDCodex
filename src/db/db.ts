@@ -158,6 +158,24 @@ export class CodexDB extends Dexie {
           l.enemyIds ??= []
         })
     })
+    // v8: campaigns gain a dm/player role (existing ones are DM campaigns);
+    // player notes gain a section + journal date + quest status.
+    this.version(8).upgrade(async (tx) => {
+      await tx
+        .table('campaigns')
+        .toCollection()
+        .modify((c: Record<string, unknown>) => {
+          c.role ??= 'dm'
+        })
+      await tx
+        .table('playerNotes')
+        .toCollection()
+        .modify((n: Record<string, unknown>) => {
+          n.section ??= 'notes'
+          n.date ??= ''
+          n.status ??= ''
+        })
+    })
   }
 }
 

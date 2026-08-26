@@ -11,7 +11,12 @@ const COLORS = ['#7c3aed', '#db2777', '#0891b2', '#ca8a04', '#16a34a', '#dc2626'
 export function CampaignsPage() {
   const navigate = useNavigate()
   const campaigns = useLiveQuery(
-    () => db.campaigns.orderBy('updatedAt').reverse().toArray(),
+    () =>
+      db.campaigns
+        .orderBy('updatedAt')
+        .reverse()
+        .filter((c) => c.role !== 'player')
+        .toArray(),
     [],
   )
 

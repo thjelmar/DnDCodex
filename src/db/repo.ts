@@ -25,7 +25,7 @@ const DEFAULT_COLORS = [
 ]
 
 export async function createCampaign(
-  input: Partial<Pick<Campaign, 'name' | 'summary' | 'description' | 'color'>> = {},
+  input: Partial<Pick<Campaign, 'name' | 'summary' | 'description' | 'color' | 'role'>> = {},
 ): Promise<Campaign> {
   const ts = now()
   const count = await db.campaigns.count()
@@ -38,6 +38,7 @@ export async function createCampaign(
     relatedCampaignIds: [],
     archived: false,
     coverImageId: null,
+    role: input.role ?? 'dm',
     createdAt: ts,
     updatedAt: ts,
   }
@@ -289,15 +290,19 @@ export async function deleteRollTable(id: Id): Promise<void> {
 
 export async function createPlayerNote(
   campaignId: Id,
-  input: Partial<Pick<PlayerNote, 'title' | 'body' | 'tags'>> = {},
+  input: Partial<Pick<PlayerNote, 'section' | 'title' | 'body' | 'tags' | 'date' | 'status'>> = {},
 ): Promise<PlayerNote> {
   const ts = now()
+  const section = input.section ?? 'notes'
   const note: PlayerNote = {
     id: newId(),
     campaignId,
-    title: input.title?.trim() || 'New Note',
+    section,
+    title: input.title?.trim() || 'Untitled',
     body: input.body ?? '',
     tags: input.tags ?? [],
+    date: input.date ?? (section === 'journal' ? ts.slice(0, 10) : ''),
+    status: input.status ?? (section === 'quests' ? 'active' : ''),
     createdAt: ts,
     updatedAt: ts,
   }

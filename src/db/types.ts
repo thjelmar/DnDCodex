@@ -23,6 +23,12 @@ export interface BaseRecord {
   updatedAt: ISODate
 }
 
+/**
+ * Whether this campaign is one the user runs (DM section, full world-building)
+ * or one they merely play in (Player section, a lightweight notes home).
+ */
+export type CampaignRole = 'dm' | 'player'
+
 /** A single campaign / world. The top-level container for everything else. */
 export interface Campaign extends BaseRecord {
   name: string
@@ -37,6 +43,8 @@ export interface Campaign extends BaseRecord {
   archived: boolean
   /** Optional cover image (StoredImage id) shown on the overview page. */
   coverImageId: Id | null
+  /** dm = you run it; player = you play in it (Player section only). */
+  role: CampaignRole
 }
 
 /**
@@ -179,16 +187,25 @@ export interface Note extends BaseRecord {
   tags: string[]
 }
 
+/** Sections of a player campaign's home. */
+export type PlayerNoteSection = 'journal' | 'character' | 'quests' | 'people' | 'notes'
+
 /**
- * A player's personal note for a campaign — kept separate from the DM's World
- * Notes. Organized in the nav under Player → Notes, subdivided by campaign.
+ * A player's personal entry for a campaign — kept separate from the DM's World
+ * Notes. Each entry lives in a section of the player's campaign home.
  */
 export interface PlayerNote extends BaseRecord {
   campaignId: Id
+  /** Which section of the player home this entry belongs to. */
+  section: PlayerNoteSection
   title: string
-  /** Body (markdown, supports images and [[wiki links]]). */
+  /** Body (rich-text HTML, supports images and [[wiki links]]). */
   body: string
   tags: string[]
+  /** Journal entries: the session date (YYYY-MM-DD). Empty otherwise. */
+  date: string
+  /** Quests: 'active' | 'completed' | 'failed'. Empty otherwise. */
+  status: string
 }
 
 /** One row of a roll table. Weight controls how many die faces it covers. */

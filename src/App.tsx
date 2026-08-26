@@ -5,6 +5,7 @@ import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -26,14 +27,22 @@ const ellipsis: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-function Sidebar({ onOpenSearch, onOpenDice }: { onOpenSearch: () => void; onOpenDice: () => void }) {
-  // Most-recently-updated campaigns for quick access under the DM section.
+function Sidebar({
+  onOpenSearch,
+  onOpenDice,
+  onAddPlayerCampaign,
+}: {
+  onOpenSearch: () => void
+  onOpenDice: () => void
+  onAddPlayerCampaign: () => void
+}) {
+  // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
     () =>
       db.campaigns
         .orderBy('updatedAt')
         .reverse()
-        .filter((c) => !c.archived)
+        .filter((c) => !c.archived && c.role !== 'player')
         .limit(6)
         .toArray(),
     [],
@@ -83,9 +92,9 @@ function Sidebar({ onOpenSearch, onOpenDice }: { onOpenSearch: () => void; onOpe
         </NavLink>
       ))}
 
-      {/* Player: personal notes, subdivided by campaign */}
+      {/* Player: campaigns you're playing in, each a notes home */}
       <div className="sidebar-heading">Player</div>
-      <PlayerNotesNav />
+      <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
 
       <div className="sidebar-spacer" />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
@@ -95,46 +104,35 @@ function Sidebar({ onOpenSearch, onOpenDice }: { onOpenSearch: () => void; onOpe
   )
 }
 
-/** Expandable "Notes" entry listing every campaign the player can take notes on. */
-function PlayerNotesNav() {
-  const [open, setOpen] = useState(true)
+/** Lists the campaigns the player is playing in, plus an "add campaign" action. */
+function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => void }) {
   const campaigns = useLiveQuery(
-    () => db.campaigns.orderBy('name').filter((c) => !c.archived).toArray(),
+    () => db.campaigns.orderBy('name').filter((c) => !c.archived && c.role === 'player').toArray(),
     [],
   )
 
   return (
     <>
+      {campaigns?.map((c) => (
+        <NavLink
+          key={c.id}
+          to={`/player/${c.id}`}
+          className="nav-link"
+          style={{ paddingLeft: 22, fontSize: 13.5 }}
+        >
+          <span className="ico" style={{ color: c.color }} aria-hidden>
+            ●
+          </span>
+          <span style={ellipsis}>{c.name}</span>
+        </NavLink>
+      ))}
       <button
         className="nav-link"
-        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
+        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
+        onClick={onAddPlayerCampaign}
       >
-        <span className="ico">📓</span>
-        <span>Notes</span>
-        <span style={{ marginLeft: 'auto', color: 'var(--text-faint)' }}>{open ? '▾' : '▸'}</span>
+        <span className="ico">＋</span> Add a campaign
       </button>
-      {open &&
-        (campaigns && campaigns.length > 0 ? (
-          campaigns.map((c) => (
-            <NavLink
-              key={c.id}
-              to={`/player/${c.id}`}
-              className="nav-link"
-              style={{ paddingLeft: 22, fontSize: 13.5 }}
-            >
-              <span className="ico" style={{ color: c.color }} aria-hidden>
-                ●
-              </span>
-              <span style={ellipsis}>{c.name}</span>
-            </NavLink>
-          ))
-        ) : (
-          <div className="faint" style={{ fontSize: 12, padding: '4px 10px 4px 30px' }}>
-            No campaigns yet.
-          </div>
-        ))}
     </>
   )
 }
@@ -158,13 +156,20 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const [addPlayerOpen, setAddPlayerOpen] = useState(false)
+
   return (
     <HashRouter>
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
+        <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         <div className="app">
-          <Sidebar onOpenSearch={() => setSearchOpen(true)} onOpenDice={() => setDiceOpen(true)} />
+          <Sidebar
+            onOpenSearch={() => setSearchOpen(true)}
+            onOpenDice={() => setDiceOpen(true)}
+            onAddPlayerCampaign={() => setAddPlayerOpen(true)}
+          />
         <main className="main">
           <Routes>
             <Route path="/" element={<CampaignsPage />} />
