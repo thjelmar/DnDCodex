@@ -562,6 +562,43 @@ button {
   height: 0;
 }
 
+/* ---------- Campaign external links ---------- */
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+.link-chip-open {
+  padding: 6px 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.link-chip-open:hover {
+  background: var(--bg-elev-2);
+  text-decoration: none;
+}
+.link-chip-btn {
+  border: none;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 0 8px;
+  align-self: stretch;
+  font-size: 12px;
+}
+.link-chip-btn:hover {
+  background: var(--bg-elev-2);
+  color: var(--text);
+}
+
 /* ---------- Dice roller ---------- */
 
 .dice-grid {

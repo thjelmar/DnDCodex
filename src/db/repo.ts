@@ -39,6 +39,7 @@ export async function createCampaign(
     archived: false,
     coverImageId: null,
     role: input.role ?? 'dm',
+    externalLinks: [],
     createdAt: ts,
     updatedAt: ts,
   }

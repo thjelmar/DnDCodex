@@ -11,6 +11,7 @@ import {
 } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
+import { CampaignLinks } from '../components/CampaignLinks'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate } from '../lib/format'
@@ -149,8 +150,12 @@ export function PlayerNotesPage() {
           }}
         />
       </div>
-      <div className="subtitle" style={{ marginBottom: 22 }}>
+      <div className="subtitle" style={{ marginBottom: 14 }}>
         A campaign you're playing in — your journal, character, and notes.
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
       </div>
 
       {SECTIONS.map((section) => {

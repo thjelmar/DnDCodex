@@ -176,6 +176,15 @@ export class CodexDB extends Dexie {
           n.status ??= ''
         })
     })
+    // v9: campaigns gain a list of external quick links.
+    this.version(9).upgrade(async (tx) => {
+      await tx
+        .table('campaigns')
+        .toCollection()
+        .modify((c: Record<string, unknown>) => {
+          c.externalLinks ??= []
+        })
+    })
   }
 }
 

@@ -29,6 +29,14 @@ export interface BaseRecord {
  */
 export type CampaignRole = 'dm' | 'player'
 
+/** A labeled external link (e.g. a D&D Beyond page) shown as a button. */
+export interface ExternalLink {
+  id: Id
+  label: string
+  /** An http(s) URL. */
+  url: string
+}
+
 /** A single campaign / world. The top-level container for everything else. */
 export interface Campaign extends BaseRecord {
   name: string
@@ -45,6 +53,8 @@ export interface Campaign extends BaseRecord {
   coverImageId: Id | null
   /** dm = you run it; player = you play in it (Player section only). */
   role: CampaignRole
+  /** Quick links to external tools (D&D Beyond, character sheets, VTT…). */
+  externalLinks: ExternalLink[]
 }
 
 /**
