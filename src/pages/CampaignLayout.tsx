@@ -20,6 +20,7 @@ const TABS = [
   { to: 'locations', label: 'Locations' },
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
+  { to: 'map', label: 'Map' },
   { to: 'tags', label: 'Tags' },
 ]
 
