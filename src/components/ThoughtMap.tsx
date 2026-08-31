@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { Modal } from './Modal'
 import { createLink, deleteLink } from '../db/repo'
 import {
   buildCampaignGraph,
@@ -52,6 +53,10 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [hidden, setHidden] = useState<Set<NodeKind>>(new Set())
   const [showGaps, setShowGaps] = useState(false)
+  // The node currently under a bubble being dragged (a drop here creates a link).
+  const [linkTarget, setLinkTarget] = useState<string | null>(null)
+  // Pending "describe the relationship" popup after a link drop.
+  const [linkDraft, setLinkDraft] = useState<{ fromKey: string; toKey: string } | null>(null)
 
   const center = { x: size.w / 2, y: size.h / 2 }
   const centerRef = useRef(center)
@@ -110,9 +115,30 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
   // --- Pointer interactions (pan, node drag, zoom) ---
   const drag = useRef<
     | { kind: 'pan'; startX: number; startY: number; tx: number; ty: number }
-    | { kind: 'node'; key: string; moved: boolean }
+    | { kind: 'node'; key: string; moved: boolean; startX: number; startY: number; prevPinned: boolean }
     | null
   >(null)
+
+  // How close (in world units) a dragged bubble's center must come to another
+  // bubble to count as "dropped on" it. A little larger than the node radius.
+  const LINK_RADIUS = 20
+
+  /** Nearest other node whose center is within LINK_RADIUS of (x, y). */
+  function nodeNear(x: number, y: number, exceptKey: string): string | null {
+    let best = LINK_RADIUS
+    let hit: string | null = null
+    for (const other of viewRef.current.nodes) {
+      if (other.key === exceptKey) continue
+      const op = posRef.current.get(other.key)
+      if (!op) continue
+      const dist = Math.hypot(op.x - x, op.y - y)
+      if (dist < best) {
+        best = dist
+        hit = other.key
+      }
+    }
+    return hit
+  }
 
   const toWorld = (clientX: number, clientY: number) => {
     const rect = wrapRef.current!.getBoundingClientRect()
@@ -132,8 +158,14 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
     if (e.button !== 0) return
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
     const p = posRef.current.get(node.key)
+    const prevPinned = p?.pinned ?? false
     if (p) p.pinned = true
-    drag.current = { kind: 'node', key: node.key, moved: false }
+    // Freeze the simulation while dragging so the target bubbles hold still
+    // (essential for aiming a drop). It reheats on release.
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    rafRef.current = null
+    heatRef.current = 0
+    drag.current = { kind: 'node', key: node.key, moved: false, startX: p?.x ?? 0, startY: p?.y ?? 0, prevPinned }
   }
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current
@@ -149,15 +181,32 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
         p.vx = 0
         p.vy = 0
         d.moved = true
-        reheat(120)
+        setLinkTarget(nodeNear(w.x, w.y, d.key))
+        // Re-render to follow the cursor without advancing physics (frozen while
+        // dragging), so other bubbles stay put and can be aimed at.
+        forceRender((n) => n + 1)
       }
     }
   }
   function onPointerUp() {
     const d = drag.current
-    if (d?.kind === 'node' && !d.moved) {
-      setSelected((s) => (s === d.key ? null : d.key))
+    if (d?.kind === 'node') {
+      const p = posRef.current.get(d.key)
+      // Dropped onto another bubble → offer to describe the relationship, and
+      // return the dragged bubble to where it started (a link gesture, not a move).
+      const target = d.moved && p ? nodeNear(p.x, p.y, d.key) : null
+      if (target && p) {
+        p.x = d.startX
+        p.y = d.startY
+        p.pinned = d.prevPinned
+        setLinkDraft({ fromKey: d.key, toKey: target })
+      } else if (!d.moved) {
+        setSelected((s) => (s === d.key ? null : d.key))
+      }
+      // Let the layout settle around the drag's outcome.
+      reheat(160)
     }
+    setLinkTarget(null)
     drag.current = null
   }
   function onBgPointerUp() {
@@ -331,9 +380,10 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
                 if (!p) return null
                 const meta = KIND_META[n.kind]
                 const isSel = n.key === selected
-                const dim = neighborhood != null && !neighborhood.has(n.key)
+                const isLinkTarget = n.key === linkTarget
+                const dim = neighborhood != null && !neighborhood.has(n.key) && !isLinkTarget
                 const gap = showGaps && !connected.has(n.key)
-                const r = isSel ? 13 : 10
+                const r = isSel || isLinkTarget ? 13 : 10
                 return (
                   <g
                     key={n.key}
@@ -342,11 +392,12 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
                     style={{ cursor: 'pointer', opacity: dim ? 0.28 : 1 }}
                   >
                     {gap && <circle r={r + 6} fill="none" stroke="var(--danger)" strokeWidth={1.5} strokeDasharray="3 3" />}
+                    {isLinkTarget && <circle r={r + 8} fill="var(--accent)" opacity={0.18} />}
                     <circle
                       r={r}
                       fill={meta.color}
-                      stroke={isSel ? 'var(--text)' : 'var(--bg)'}
-                      strokeWidth={isSel ? 2.5 : 2}
+                      stroke={isLinkTarget ? 'var(--accent)' : isSel ? 'var(--text)' : 'var(--bg)'}
+                      strokeWidth={isLinkTarget || isSel ? 2.5 : 2}
                     />
                     <text textAnchor="middle" dy={4} style={{ fontSize: 11, pointerEvents: 'none' }}>
                       {meta.icon}
@@ -373,7 +424,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
           </svg>
 
           <div className="faint" style={{ position: 'absolute', left: 10, bottom: 8, fontSize: 11, pointerEvents: 'none' }}>
-            Drag to pan · scroll to zoom · drag a node to pin it · click to focus
+            Drag to pan · scroll to zoom · drop a bubble onto another to link them · click to focus
           </div>
         </div>
 
@@ -388,7 +439,84 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
           />
         )}
       </div>
+
+      {linkDraft && nodeByKey.get(linkDraft.fromKey) && nodeByKey.get(linkDraft.toKey) && (
+        <RelationshipModal
+          campaignId={campaignId}
+          from={nodeByKey.get(linkDraft.fromKey)!}
+          to={nodeByKey.get(linkDraft.toKey)!}
+          onClose={() => setLinkDraft(null)}
+        />
+      )}
     </div>
+  )
+}
+
+/** Popup shown after dropping one bubble onto another: name the relationship,
+ *  then persist it as a link. */
+function RelationshipModal({
+  campaignId,
+  from,
+  to,
+  onClose,
+}: {
+  campaignId: Id
+  from: GraphNode
+  to: GraphNode
+  onClose: () => void
+}) {
+  const [label, setLabel] = useState('')
+  const [swap, setSwap] = useState(false)
+  const a = swap ? to : from
+  const b = swap ? from : to
+
+  async function save() {
+    await createLink(campaignId, a.kind, a.id, b.kind, b.id, label.trim() || 'related to')
+    onClose()
+  }
+
+  return (
+    <Modal
+      title="Describe the connection"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={save}>
+            Connect
+          </button>
+        </>
+      }
+    >
+      <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        <span className="tag">{KIND_META[a.kind].icon} {a.name}</span>
+        <button
+          className="btn ghost small"
+          onClick={() => setSwap((s) => !s)}
+          title="Swap direction"
+          style={{ padding: '2px 8px' }}
+        >
+          →⇄
+        </button>
+        <span className="tag">{KIND_META[b.kind].icon} {b.name}</span>
+      </div>
+      <div className="field">
+        <label>{a.name} …</label>
+        <input
+          className="input"
+          autoFocus
+          placeholder="relationship (e.g. serves, allied with, betrayed)"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && save()}
+        />
+      </div>
+      <div className="faint" style={{ fontSize: 12 }}>
+        Reads as “{a.name} <strong>{label.trim() || 'related to'}</strong> {b.name}”. Use ⇄ to flip the direction.
+      </div>
+    </Modal>
   )
 }
 
