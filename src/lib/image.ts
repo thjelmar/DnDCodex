@@ -31,14 +31,22 @@ function readAsDataUrl(file: Blob): Promise<string> {
   })
 }
 
+export interface ProcessOptions {
+  /** Longest-edge cap in pixels (default 1600). Avatars pass something small. */
+  maxDim?: number
+  /** Center-crop to a square before scaling (for avatars). */
+  square?: boolean
+}
+
 /**
  * Validates, downscales, and encodes an image file. Throws if the file is not
  * an image. Returns a data URL plus metadata.
  */
-export async function processImageFile(file: File): Promise<ProcessedImage> {
+export async function processImageFile(file: File, opts: ProcessOptions = {}): Promise<ProcessedImage> {
   if (!file.type.startsWith('image/')) {
     throw new Error('That file is not an image.')
   }
+  const maxDim = opts.maxDim ?? MAX_DIM
 
   // Preserve animated GIFs as-is (canvas would flatten them to one frame).
   if (file.type === 'image/gif') {
@@ -49,16 +57,30 @@ export async function processImageFile(file: File): Promise<ProcessedImage> {
 
   // Decode respecting EXIF orientation so photos aren't sideways.
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height))
-  const width = Math.max(1, Math.round(bitmap.width * scale))
-  const height = Math.max(1, Math.round(bitmap.height * scale))
+
+  // Optionally center-crop to a square source region first (avatars).
+  let sx = 0
+  let sy = 0
+  let sw = bitmap.width
+  let sh = bitmap.height
+  if (opts.square) {
+    const side = Math.min(sw, sh)
+    sx = Math.floor((sw - side) / 2)
+    sy = Math.floor((sh - side) / 2)
+    sw = side
+    sh = side
+  }
+
+  const scale = Math.min(1, maxDim / Math.max(sw, sh))
+  const width = Math.max(1, Math.round(sw * scale))
+  const height = Math.max(1, Math.round(sh * scale))
 
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not process the image.')
-  ctx.drawImage(bitmap, 0, 0, width, height)
+  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, width, height)
   bitmap.close?.()
 
   let mime = 'image/webp'

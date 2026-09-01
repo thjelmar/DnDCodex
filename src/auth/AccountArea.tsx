@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { useAuth } from './AuthProvider'
 import { useSync } from './SyncProvider'
+import { processImageFile } from '../lib/image'
 
 /**
  * Sidebar account control. Hidden entirely until a Supabase backend is
@@ -11,6 +12,7 @@ import { useSync } from './SyncProvider'
 export function AccountArea() {
   const { configured, loading, user, profile, signOut } = useAuth()
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   if (!configured || loading) return null
 
@@ -22,23 +24,37 @@ export function AccountArea() {
     return (
       <div style={{ padding: '4px 8px' }}>
         <div className="row between" style={{ gap: 8, alignItems: 'center' }}>
-          <span
+          <button
             className="row"
-            style={{ gap: 6, minWidth: 0, alignItems: 'center', fontSize: 12.5, color: 'var(--text-dim)' }}
-            title={name}
+            onClick={() => setEditing(true)}
+            title="Edit profile"
+            style={{
+              gap: 6,
+              minWidth: 0,
+              alignItems: 'center',
+              fontSize: 12.5,
+              color: 'var(--text-dim)',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
           >
             {avatar ? (
-              <img src={avatar} alt="" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
+              <img src={avatar} alt="" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
             ) : (
               <span aria-hidden>👤</span>
             )}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-          </span>
+            <span aria-hidden style={{ opacity: 0.6 }}>✎</span>
+          </button>
           <button className="btn ghost small" onClick={() => signOut()}>
             Sign out
           </button>
         </div>
         <SyncStatusLine />
+        {editing && <ProfileModal onClose={() => setEditing(false)} />}
       </div>
     )
   }
@@ -54,6 +70,136 @@ export function AccountArea() {
       </button>
       {open && <SignInModal onClose={() => setOpen(false)} />}
     </>
+  )
+}
+
+/** Edit-profile modal: change display name and avatar. */
+function ProfileModal({ onClose }: { onClose: () => void }) {
+  const { user, profile, updateProfile } = useAuth()
+  const meta = user?.user_metadata ?? {}
+  const [name, setName] = useState(profile?.display_name || meta.name || meta.full_name || '')
+  // undefined = unchanged; string = new avatar; null = reset to default.
+  const [avatarDraft, setAvatarDraft] = useState<string | null | undefined>(undefined)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // The OAuth-provided picture is the default we revert to on "Remove".
+  const defaultAvatar = (meta.avatar_url as string) || null
+  const currentAvatar = profile?.avatar_url || defaultAvatar
+  const shownAvatar = avatarDraft === undefined ? currentAvatar : (avatarDraft ?? defaultAvatar)
+  const canRemove = avatarDraft ? true : avatarDraft === null ? false : Boolean(profile?.avatar_url)
+
+  async function pickFile(files: FileList | null) {
+    const file = files?.[0]
+    if (!file) return
+    setError('')
+    setBusy(true)
+    try {
+      // Small square avatar keeps the profiles row (read in member lists) light.
+      const processed = await processImageFile(file, { maxDim: 256, square: true })
+      setAvatarDraft(processed.dataUrl)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not process that image.')
+    } finally {
+      setBusy(false)
+      if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function save() {
+    setBusy(true)
+    setError('')
+    try {
+      const patch: { display_name?: string; avatar_url?: string | null } = {}
+      const trimmed = name.trim()
+      if (trimmed && trimmed !== profile?.display_name) patch.display_name = trimmed
+      if (avatarDraft !== undefined) patch.avatar_url = avatarDraft
+      if (Object.keys(patch).length) await updateProfile(patch)
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save your profile.')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Edit profile"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="btn primary" onClick={save} disabled={busy || !name.trim()}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </>
+      }
+    >
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => pickFile(e.target.files)}
+      />
+      <div className="row" style={{ gap: 14, alignItems: 'center', marginBottom: 16 }}>
+        {shownAvatar ? (
+          <img
+            src={shownAvatar}
+            alt=""
+            width={56}
+            height={56}
+            style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border)' }}
+          />
+        ) : (
+          <span
+            aria-hidden
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 26,
+              background: 'var(--bg-elev-2)',
+              border: '1px solid var(--border)',
+              flexShrink: 0,
+            }}
+          >
+            👤
+          </span>
+        )}
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
+            {busy ? '…' : shownAvatar ? 'Change photo' : 'Upload photo'}
+          </button>
+          {canRemove && (
+            <button className="btn ghost small" disabled={busy} onClick={() => setAvatarDraft(null)}>
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="field">
+        <label>Display name</label>
+        <input
+          className="input"
+          value={name}
+          maxLength={60}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your name"
+        />
+      </div>
+      <p className="faint" style={{ fontSize: 12, marginTop: 4, marginBottom: 0 }}>
+        This is how your DM and party see you in shares and member lists.
+      </p>
+      {error && <div className="danger-text" style={{ fontSize: 13, marginTop: 10 }}>{error}</div>}
+    </Modal>
   )
 }
 

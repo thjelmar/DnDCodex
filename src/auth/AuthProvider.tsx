@@ -22,6 +22,8 @@ interface AuthState {
   profile: Profile | null
   signIn: (provider: OAuthProvider) => Promise<void>
   signOut: () => Promise<void>
+  /** Update the signed-in user's own profile (display name / avatar). */
+  updateProfile: (patch: { display_name?: string; avatar_url?: string | null }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -94,9 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase?.auth.signOut()
   }
 
+  async function updateProfile(patch: { display_name?: string; avatar_url?: string | null }) {
+    if (!supabase || !session?.user) return
+    const { error } = await supabase
+      .from('profiles')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', session.user.id)
+    if (error) throw new Error(error.message)
+    setProfile((p) => (p ? { ...p, ...patch } : p))
+  }
+
   return (
     <AuthContext.Provider
-      value={{ configured: isSupabaseConfigured, loading, session, user: session?.user ?? null, profile, signIn, signOut }}
+      value={{ configured: isSupabaseConfigured, loading, session, user: session?.user ?? null, profile, signIn, signOut, updateProfile }}
     >
       {children}
     </AuthContext.Provider>
