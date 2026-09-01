@@ -5,8 +5,9 @@ import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
-import { AuthProvider } from './auth/AuthProvider'
+import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { AccountArea } from './auth/AccountArea'
+import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
@@ -108,8 +109,10 @@ function Sidebar({
   )
 }
 
-/** Lists the campaigns the player is playing in, plus an "add campaign" action. */
+/** Lists the campaigns the player is playing in, plus add/join actions. */
 function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => void }) {
+  const { user } = useAuth()
+  const [joinOpen, setJoinOpen] = useState(false)
   const campaigns = useLiveQuery(
     () => db.campaigns.orderBy('name').filter((c) => !c.archived && c.role === 'player').toArray(),
     [],
@@ -137,6 +140,16 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
       >
         <span className="ico">＋</span> Add a campaign
       </button>
+      {user && (
+        <button
+          className="nav-link"
+          style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
+          onClick={() => setJoinOpen(true)}
+        >
+          <span className="ico">🔑</span> Join a campaign
+        </button>
+      )}
+      {joinOpen && <JoinCampaignModal onClose={() => setJoinOpen(false)} />}
     </>
   )
 }
