@@ -2,13 +2,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Modal } from './Modal'
-import { createLink, deleteLink } from '../db/repo'
+import { useConfirm } from './ConfirmDialog'
+import { createLink } from '../db/repo'
 import {
   buildCampaignGraph,
   connectedKeys,
+  disconnectEdge,
+  disconnectNode,
   KIND_META,
   NODE_KINDS,
   type CampaignGraph,
+  type GraphEdge,
   type GraphNode,
   type NodeKind,
 } from '../lib/graph'
@@ -436,6 +440,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
             nodeByKey={nodeByKey}
             onClose={() => setSelected(null)}
             onPick={(key) => setSelected(key)}
+            onMarkGaps={() => setShowGaps(true)}
           />
         )}
       </div>
@@ -529,6 +534,7 @@ function NodePanel({
   nodeByKey,
   onClose,
   onPick,
+  onMarkGaps,
 }: {
   campaignId: Id
   node: GraphNode
@@ -536,7 +542,9 @@ function NodePanel({
   nodeByKey: Map<string, GraphNode>
   onClose: () => void
   onPick: (key: string) => void
+  onMarkGaps: () => void
 }) {
+  const confirm = useConfirm()
   const meta = KIND_META[node.kind]
   const conns = graph.edges
     .filter((e) => e.fromKey === node.key || e.toKey === node.key)
@@ -556,6 +564,45 @@ function NodePanel({
     await createLink(campaignId, node.kind, node.id, target.kind, target.id, label.trim() || 'related to')
     setLabel('')
     setTargetKey('')
+  }
+
+  // Remove one connection. Structural (derived) edges edit an underlying field,
+  // so confirm those; explicit links match the existing one-click removal.
+  async function removeOne(edge: GraphEdge, otherName: string) {
+    if (edge.derived) {
+      const ok = await confirm({
+        title: 'Remove this connection?',
+        message: (
+          <>
+            “{edge.label} {otherName}” comes from <strong>{node.name}</strong>’s details. Removing it here clears
+            that field.
+          </>
+        ),
+        confirmLabel: 'Remove',
+        danger: true,
+      })
+      if (!ok) return
+    }
+    await disconnectEdge(edge)
+  }
+
+  // Sever every connection at once, leaving the bubble an orphan — a lore gap.
+  async function disconnectAll() {
+    const ok = await confirm({
+      title: 'Disconnect this bubble?',
+      message: (
+        <>
+          Remove all {conns.length} connection{conns.length === 1 ? '' : 's'} from <strong>{node.name}</strong>?
+          It’ll be marked as a lore gap until you reconnect it. Structural links (home, ruler, parent, allies) are
+          cleared too.
+        </>
+      ),
+      confirmLabel: 'Disconnect',
+      danger: true,
+    })
+    if (!ok) return
+    await disconnectNode(campaignId, node)
+    onMarkGaps()
   }
 
   return (
@@ -590,10 +637,21 @@ function NodePanel({
         Open {meta.icon} →
       </Link>
 
-      <div className="sidebar-heading" style={{ margin: '16px 0 6px' }}>
-        Connections {conns.length > 0 && <span className="faint">({conns.length})</span>}
+      <div className="row between" style={{ margin: '16px 0 6px', alignItems: 'baseline' }}>
+        <span className="sidebar-heading" style={{ margin: 0 }}>
+          Connections {conns.length > 0 && <span className="faint">({conns.length})</span>}
+        </span>
+        {conns.length > 0 && (
+          <button
+            onClick={disconnectAll}
+            title="Remove every connection — marks this as a lore gap"
+            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+          >
+            Disconnect all
+          </button>
+        )}
       </div>
-      {conns.length === 0 && <div className="faint" style={{ fontSize: 13 }}>No connections yet — add one below.</div>}
+      {conns.length === 0 && <div className="faint" style={{ fontSize: 13 }}>No connections yet — a lore gap. Add one below.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {conns.map(({ edge, other }) => (
           <div key={edge.key} className="row between" style={{ gap: 6 }}>
@@ -601,22 +659,22 @@ function NodePanel({
               onClick={() => onPick(other!.key)}
               style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', color: 'var(--text)', padding: 0, minWidth: 0 }}
             >
-              <span className="faint" style={{ fontSize: 11 }}>{edge.label}</span>
+              <span className="faint" style={{ fontSize: 11 }}>
+                {edge.label}
+                {edge.derived && <span title="Inferred from this entry's fields"> · auto</span>}
+              </span>
               <div style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {KIND_META[other!.kind].icon} {other!.name}
               </div>
             </button>
-            {edge.derived ? (
-              <span className="tag" style={{ fontSize: 10 }} title="Inferred from this entry's fields">auto</span>
-            ) : (
-              <button
-                onClick={() => edge.linkId && deleteLink(edge.linkId)}
-                aria-label="Remove connection"
-                style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            )}
+            <button
+              onClick={() => removeOne(edge, other!.name)}
+              aria-label="Disconnect"
+              title="Disconnect"
+              style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}
+            >
+              ✕
+            </button>
           </div>
         ))}
       </div>
