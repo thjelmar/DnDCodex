@@ -1,23 +1,39 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { Modal } from './Modal'
 import { useConfirm } from './ConfirmDialog'
-import { createLink } from '../db/repo'
-import {
-  buildCampaignGraph,
-  connectedKeys,
-  disconnectEdge,
-  disconnectNode,
-  KIND_META,
-  NODE_KINDS,
-  type CampaignGraph,
-  type GraphEdge,
-  type GraphNode,
-  type NodeKind,
-} from '../lib/graph'
+import { connectedKeys, type CampaignGraph, type GraphEdge, type GraphNode } from '../lib/graph'
 import { seedPosition, stepLayout, type SimNode } from '../lib/forceLayout'
-import type { Id } from '../db/types'
+
+interface MetaEntry {
+  label: string
+  icon: string
+  color: string
+}
+
+/**
+ * Everything the map engine needs that differs between contexts (DM campaign vs.
+ * a player's home). The engine itself — layout, pan/zoom, drag-to-link, focus,
+ * disconnect — is identical; the adapter supplies the data and the persistence.
+ */
+export interface MapConfig {
+  /** Style per node kind (keyed by GraphNode.kind). */
+  meta: Record<string, MetaEntry>
+  /** Node kinds shown as filter toggles, in order. */
+  kinds: string[]
+  onConnect: (from: GraphNode, to: GraphNode, label: string) => Promise<void> | void
+  onDisconnectEdge: (edge: GraphEdge) => Promise<void> | void
+  onDisconnectNode: (node: GraphNode) => Promise<void> | void
+  /** Open the entry behind a node (navigate, or open a modal). */
+  onOpen: (node: GraphNode) => void
+  /** Shown when the graph has no nodes at all. */
+  emptyHint: string
+  /** Label for the orphan-highlight toggle (default "Lore gaps"). */
+  gapLabel?: string
+  /** Noun used in the disconnect confirm (default "lore gap"). */
+  gapWord?: string
+  /** Extra sentence appended to the "disconnect all" confirmation. */
+  gapNote?: string
+}
 
 interface Transform {
   tx: number
@@ -26,16 +42,12 @@ interface Transform {
 }
 
 /**
- * The campaign "thought map" — a force-directed web of every NPC, location,
- * item, note and session, wired together by the connections the DM has drawn
- * plus the structural links implied by the data. Pan/zoom to explore, drag to
- * arrange, click a node to focus on its neighborhood, and add or cut
- * connections right on the canvas (they persist to the same links the rest of
- * the app reads).
+ * A force-directed "thought map": bubbles for entries, wired together by their
+ * connections. Pan/zoom to explore, drag to arrange, drop one bubble onto
+ * another to link them, click a bubble to focus its neighborhood, and cut
+ * connections from the side panel. The engine is context-free — see MapConfig.
  */
-export function ThoughtMap({ campaignId }: { campaignId: Id }) {
-  const graph = useLiveQuery(() => buildCampaignGraph(campaignId), [campaignId])
-
+export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined; config: MapConfig }) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 800, h: 600 })
   useLayoutEffect(() => {
@@ -55,7 +67,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
 
   const [transform, setTransform] = useState<Transform>({ tx: 0, ty: 0, k: 1 })
   const [selected, setSelected] = useState<string | null>(null)
-  const [hidden, setHidden] = useState<Set<NodeKind>>(new Set())
+  const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [showGaps, setShowGaps] = useState(false)
   // The node currently under a bubble being dragged (a drop here creates a link).
   const [linkTarget, setLinkTarget] = useState<string | null>(null)
@@ -245,7 +257,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
     reheat(320)
   }
 
-  function toggleKind(kind: NodeKind) {
+  function toggleKind(kind: string) {
     setHidden((h) => {
       const next = new Set(h)
       next.has(kind) ? next.delete(kind) : next.add(kind)
@@ -266,14 +278,16 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
 
   const pos = posRef.current
   const selectedNode = selected ? nodeByKey.get(selected) ?? null : null
+  const gapLabel = config.gapLabel ?? 'Lore gaps'
 
   return (
     <div>
       <div className="row wrap between" style={{ gap: 10, marginBottom: 10, alignItems: 'center' }}>
         <div className="row wrap" style={{ gap: 6 }}>
-          {NODE_KINDS.map((kind) => {
+          {config.kinds.map((kind) => {
             const on = !hidden.has(kind)
-            const meta = KIND_META[kind]
+            const meta = config.meta[kind]
+            if (!meta) return null
             return (
               <button
                 key={kind}
@@ -301,7 +315,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
             style={{ borderColor: showGaps ? 'var(--danger)' : 'var(--border)', color: showGaps ? 'var(--danger)' : undefined }}
             title="Highlight entries that aren't connected to anything yet"
           >
-            ⚠ Lore gaps
+            ⚠ {gapLabel}
           </button>
           <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in">＋</button>
           <button className="btn ghost small" onClick={() => zoomBy(0.833)} title="Zoom out">－</button>
@@ -333,9 +347,7 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
             <div className="empty" style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div className="big">🕸️</div>
               <p className="faint">
-                {graph.nodes.length === 0
-                  ? 'Add some NPCs, locations, notes or sessions and they’ll appear here to connect.'
-                  : 'Everything is hidden — re-enable a category above.'}
+                {graph.nodes.length === 0 ? config.emptyHint : 'Everything is hidden — re-enable a category above.'}
               </p>
             </div>
           )}
@@ -382,7 +394,8 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
               {view.nodes.map((n) => {
                 const p = pos.get(n.key)
                 if (!p) return null
-                const meta = KIND_META[n.kind]
+                const meta = config.meta[n.kind]
+                if (!meta) return null
                 const isSel = n.key === selected
                 const isLinkTarget = n.key === linkTarget
                 const dim = neighborhood != null && !neighborhood.has(n.key) && !isLinkTarget
@@ -434,10 +447,10 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
 
         {selectedNode && (
           <NodePanel
-            campaignId={campaignId}
             node={selectedNode}
             graph={view}
             nodeByKey={nodeByKey}
+            config={config}
             onClose={() => setSelected(null)}
             onPick={(key) => setSelected(key)}
             onMarkGaps={() => setShowGaps(true)}
@@ -447,9 +460,9 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
 
       {linkDraft && nodeByKey.get(linkDraft.fromKey) && nodeByKey.get(linkDraft.toKey) && (
         <RelationshipModal
-          campaignId={campaignId}
           from={nodeByKey.get(linkDraft.fromKey)!}
           to={nodeByKey.get(linkDraft.toKey)!}
+          config={config}
           onClose={() => setLinkDraft(null)}
         />
       )}
@@ -458,16 +471,16 @@ export function ThoughtMap({ campaignId }: { campaignId: Id }) {
 }
 
 /** Popup shown after dropping one bubble onto another: name the relationship,
- *  then persist it as a link. */
+ *  then persist it. */
 function RelationshipModal({
-  campaignId,
   from,
   to,
+  config,
   onClose,
 }: {
-  campaignId: Id
   from: GraphNode
   to: GraphNode
+  config: MapConfig
   onClose: () => void
 }) {
   const [label, setLabel] = useState('')
@@ -476,7 +489,7 @@ function RelationshipModal({
   const b = swap ? from : to
 
   async function save() {
-    await createLink(campaignId, a.kind, a.id, b.kind, b.id, label.trim() || 'related to')
+    await config.onConnect(a, b, label.trim() || 'related to')
     onClose()
   }
 
@@ -496,7 +509,7 @@ function RelationshipModal({
       }
     >
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-        <span className="tag">{KIND_META[a.kind].icon} {a.name}</span>
+        <span className="tag">{config.meta[a.kind]?.icon} {a.name}</span>
         <button
           className="btn ghost small"
           onClick={() => setSwap((s) => !s)}
@@ -505,7 +518,7 @@ function RelationshipModal({
         >
           →⇄
         </button>
-        <span className="tag">{KIND_META[b.kind].icon} {b.name}</span>
+        <span className="tag">{config.meta[b.kind]?.icon} {b.name}</span>
       </div>
       <div className="field">
         <label>{a.name} …</label>
@@ -526,26 +539,26 @@ function RelationshipModal({
 }
 
 /** Detail sidebar for the focused node: where to open it, its connections, and
- *  an inline form to wire it to another entity. */
+ *  an inline form to wire it to another bubble. */
 function NodePanel({
-  campaignId,
   node,
   graph,
   nodeByKey,
+  config,
   onClose,
   onPick,
   onMarkGaps,
 }: {
-  campaignId: Id
   node: GraphNode
   graph: CampaignGraph
   nodeByKey: Map<string, GraphNode>
+  config: MapConfig
   onClose: () => void
   onPick: (key: string) => void
   onMarkGaps: () => void
 }) {
   const confirm = useConfirm()
-  const meta = KIND_META[node.kind]
+  const meta = config.meta[node.kind]
   const conns = graph.edges
     .filter((e) => e.fromKey === node.key || e.toKey === node.key)
     .map((e) => {
@@ -557,11 +570,12 @@ function NodePanel({
   const [label, setLabel] = useState('')
   const [targetKey, setTargetKey] = useState('')
   const options = graph.nodes.filter((n) => n.key !== node.key)
+  const gapWord = config.gapWord ?? 'lore gap'
 
   async function addConnection() {
     const target = nodeByKey.get(targetKey)
     if (!target) return
-    await createLink(campaignId, node.kind, node.id, target.kind, target.id, label.trim() || 'related to')
+    await config.onConnect(node, target, label.trim() || 'related to')
     setLabel('')
     setTargetKey('')
   }
@@ -583,25 +597,24 @@ function NodePanel({
       })
       if (!ok) return
     }
-    await disconnectEdge(edge)
+    await config.onDisconnectEdge(edge)
   }
 
-  // Sever every connection at once, leaving the bubble an orphan — a lore gap.
+  // Sever every connection at once, leaving the bubble an orphan — a gap.
   async function disconnectAll() {
     const ok = await confirm({
       title: 'Disconnect this bubble?',
       message: (
         <>
-          Remove all {conns.length} connection{conns.length === 1 ? '' : 's'} from <strong>{node.name}</strong>?
-          It’ll be marked as a lore gap until you reconnect it. Structural links (home, ruler, parent, allies) are
-          cleared too.
+          Remove all {conns.length} connection{conns.length === 1 ? '' : 's'} from <strong>{node.name}</strong>? It’ll
+          be marked as a {gapWord} until you reconnect it.{config.gapNote ? ` ${config.gapNote}` : ''}
         </>
       ),
       confirmLabel: 'Disconnect',
       danger: true,
     })
     if (!ok) return
-    await disconnectNode(campaignId, node)
+    await config.onDisconnectNode(node)
     onMarkGaps()
   }
 
@@ -620,7 +633,7 @@ function NodePanel({
     >
       <div className="row between" style={{ alignItems: 'flex-start' }}>
         <div className="row" style={{ gap: 8 }}>
-          <span aria-hidden style={{ width: 12, height: 12, borderRadius: '50%', background: meta.color, marginTop: 5 }} />
+          <span aria-hidden style={{ width: 12, height: 12, borderRadius: '50%', background: meta?.color, marginTop: 5 }} />
           <div>
             <div style={{ fontWeight: 600, fontFamily: 'var(--serif)', fontSize: 17 }}>{node.name}</div>
             {node.sub && <div className="faint" style={{ fontSize: 12, textTransform: 'capitalize' }}>{node.sub}</div>}
@@ -629,13 +642,9 @@ function NodePanel({
         <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
-      <Link
-        to={`/campaign/${campaignId}/${node.section}?sel=${node.id}`}
-        className="btn small"
-        style={{ marginTop: 10, display: 'inline-block' }}
-      >
-        Open {meta.icon} →
-      </Link>
+      <button className="btn small" style={{ marginTop: 10 }} onClick={() => config.onOpen(node)}>
+        Open {meta?.icon} →
+      </button>
 
       <div className="row between" style={{ margin: '16px 0 6px', alignItems: 'baseline' }}>
         <span className="sidebar-heading" style={{ margin: 0 }}>
@@ -644,14 +653,14 @@ function NodePanel({
         {conns.length > 0 && (
           <button
             onClick={disconnectAll}
-            title="Remove every connection — marks this as a lore gap"
+            title={`Remove every connection — marks this as a ${gapWord}`}
             style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 12, padding: 0 }}
           >
             Disconnect all
           </button>
         )}
       </div>
-      {conns.length === 0 && <div className="faint" style={{ fontSize: 13 }}>No connections yet — a lore gap. Add one below.</div>}
+      {conns.length === 0 && <div className="faint" style={{ fontSize: 13 }}>No connections yet — a {gapWord}. Add one below.</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {conns.map(({ edge, other }) => (
           <div key={edge.key} className="row between" style={{ gap: 6 }}>
@@ -664,7 +673,7 @@ function NodePanel({
                 {edge.derived && <span title="Inferred from this entry's fields"> · auto</span>}
               </span>
               <div style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {KIND_META[other!.kind].icon} {other!.name}
+                {config.meta[other!.kind]?.icon} {other!.name}
               </div>
             </button>
             <button
@@ -691,7 +700,7 @@ function NodePanel({
         <option value="">Link to…</option>
         {options.map((o) => (
           <option key={o.key} value={o.key}>
-            {KIND_META[o.kind].icon} {o.name}
+            {config.meta[o.kind]?.icon} {o.name}
           </option>
         ))}
       </select>

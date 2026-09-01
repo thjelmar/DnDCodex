@@ -28,6 +28,7 @@ const KIND_ICON: Record<EntityKind, string> = {
   location: '📍',
   item: '⚔️',
   note: '📄',
+  playernote: '📓',
 }
 const ROLLTABLE_ICON = '🎲'
 
@@ -38,6 +39,7 @@ const KIND_LABEL: Record<EntityKind, string> = {
   location: 'Location',
   item: 'Item',
   note: 'Note',
+  playernote: 'Player note',
 }
 
 /** Returns a ~90-char snippet centered on the first match, or '' if none. */

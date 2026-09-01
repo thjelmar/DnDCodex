@@ -8,12 +8,16 @@ import {
   deletePlayerNote,
   updateCampaign,
   deleteCampaign,
+  createLink,
 } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
+import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
+import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
+import { buildPlayerGraph, PLAYER_KIND_META, PLAYER_MAP_SECTIONS } from '../lib/playerGraph'
 import { formatDate } from '../lib/format'
 import type { PlayerNote, PlayerNoteSection } from '../db/types'
 
@@ -87,6 +91,27 @@ export function PlayerNotesPage() {
     }
     return map
   }, [notes])
+
+  const playerGraph = useLiveQuery(
+    () => (campaignId ? buildPlayerGraph(campaignId) : Promise.resolve<CampaignGraph>({ nodes: [], edges: [] })),
+    [campaignId],
+  )
+  const mapConfig = useMemo<MapConfig>(
+    () => ({
+      meta: PLAYER_KIND_META,
+      kinds: PLAYER_MAP_SECTIONS,
+      onConnect: async (from, to, label) => {
+        await createLink(campaignId!, 'playernote', from.id, 'playernote', to.id, label)
+      },
+      onDisconnectEdge: (edge) => disconnectEdge(edge),
+      onDisconnectNode: (node) => disconnectNode(campaignId!, node),
+      onOpen: (node) => setEditingId(node.id),
+      emptyHint: 'Add People & Places and Quests above, then drag bubbles together to map how they connect.',
+      gapLabel: 'Loose ends',
+      gapWord: 'loose end',
+    }),
+    [campaignId],
+  )
 
   if (campaign === undefined) return <div className="content faint">Loading…</div>
   if (!campaign || !campaignId) {
@@ -186,6 +211,20 @@ export function PlayerNotesPage() {
           </div>
         )
       })}
+
+      <div style={{ marginBottom: 24 }}>
+        <div className="row between" style={{ marginBottom: 4 }}>
+          <h2 className="mb-0" style={{ fontSize: 20 }}>
+            <span aria-hidden style={{ marginRight: 8 }}>🕸️</span>
+            Map
+          </h2>
+        </div>
+        <p className="faint" style={{ margin: '4px 0 10px' }}>
+          Your People &amp; Places and Quests as a web — drag a bubble onto another to connect them, and spot who
+          you haven’t tied in yet.
+        </p>
+        <ThoughtMap graph={playerGraph} config={mapConfig} />
+      </div>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '28px 0 16px' }} />
       <button className="btn danger small" onClick={removeCampaign}>

@@ -15,7 +15,10 @@ export type NodeKind = Extract<EntityKind, 'npc' | 'location' | 'item' | 'note' 
 export interface GraphNode {
   /** Stable composite key, `${kind}:${id}`. */
   key: string
-  kind: NodeKind
+  /** Style key into the map's meta (DM: entity kind; player: note section). */
+  kind: string
+  /** Entity kind used for the links table (DM: same as kind; player: 'playernote'). */
+  linkKind: EntityKind
   id: Id
   name: string
   /** Secondary line (role, location type, rarity…). */
@@ -88,7 +91,7 @@ export async function buildCampaignGraph(campaignId: Id): Promise<CampaignGraph>
   const add = (kind: NodeKind, id: Id, name: string, sub?: string) => {
     const k = key(kind, id)
     present.add(k)
-    nodes.push({ key: k, kind, id, name: name || '(untitled)', sub, section: KIND_META[kind].section })
+    nodes.push({ key: k, kind, linkKind: kind, id, name: name || '(untitled)', sub, section: KIND_META[kind].section })
   }
 
   npcs.forEach((n) => add('npc', n.id, n.name, n.role))
@@ -191,7 +194,7 @@ export async function disconnectEdge(edge: GraphEdge): Promise<void> {
  */
 export async function disconnectNode(campaignId: Id, node: GraphNode): Promise<void> {
   // Explicit links touching the node from either side.
-  const links = await linksForEntity(node.kind, node.id)
+  const links = await linksForEntity(node.linkKind, node.id)
   await Promise.all(links.map((l) => deleteLink(l.id)))
 
   const locations = await db.locations.where('campaignId').equals(campaignId).toArray()

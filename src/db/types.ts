@@ -16,6 +16,7 @@ export type EntityKind =
   | 'location'
   | 'item'
   | 'note'
+  | 'playernote'
 
 export interface BaseRecord {
   id: Id

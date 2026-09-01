@@ -81,6 +81,7 @@ const KIND_ICON: Record<EntityKind, string> = {
   location: '📍',
   item: '⚔️',
   note: '📄',
+  playernote: '📓',
 }
 
 export function EntityLinks({
