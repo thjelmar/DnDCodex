@@ -11,6 +11,7 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "@tiptap/extension-image": "^3.30.0",
     "@tiptap/extension-placeholder": "^3.30.0",
     "@tiptap/pm": "^3.30.0",

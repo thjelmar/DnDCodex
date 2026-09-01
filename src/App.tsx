@@ -5,6 +5,8 @@ import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
+import { AuthProvider } from './auth/AuthProvider'
+import { AccountArea } from './auth/AccountArea'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
@@ -98,6 +100,7 @@ function Sidebar({
       <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
 
       <div className="sidebar-spacer" />
+      <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
       </div>
@@ -160,6 +163,7 @@ export function App() {
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
 
   return (
+    <AuthProvider>
     <HashRouter>
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -193,5 +197,6 @@ export function App() {
         </div>
       </ConfirmProvider>
     </HashRouter>
+    </AuthProvider>
   )
 }
