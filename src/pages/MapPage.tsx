@@ -45,7 +45,12 @@ export function MapPage() {
       <ThoughtMap graph={graph} config={config} />
 
       {shareNode && graph && (
-        <ShareWithPlayersModal node={shareNode} graph={graph} onClose={() => setShareNode(null)} />
+        <ShareWithPlayersModal
+          campaignId={campaign.id}
+          node={shareNode}
+          graph={graph}
+          onClose={() => setShareNode(null)}
+        />
       )}
     </div>
   )

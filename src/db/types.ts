@@ -56,6 +56,12 @@ export interface Campaign extends BaseRecord {
   role: CampaignRole
   /** Quick links to external tools (D&D Beyond, character sheets, VTT…). */
   externalLinks: ExternalLink[]
+  /**
+   * For a player campaign created by joining a DM's campaign: the cloud
+   * campaign id it's linked to, so account-delivered shares land here. Null for
+   * DM campaigns and manually-added player campaigns.
+   */
+  linkedCampaignId: Id | null
 }
 
 /**

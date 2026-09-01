@@ -15,6 +15,7 @@ import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { ImportSharedModal } from '../components/ImportSharedModal'
+import { SharedInbox } from '../auth/SharedInbox'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
@@ -187,6 +188,10 @@ export function PlayerNotesPage() {
           ⬇ Import from your DM
         </button>
       </div>
+
+      {campaign.linkedCampaignId && (
+        <SharedInbox localCampaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
+      )}
 
       {SECTIONS.map((section) => {
         const entries = bySection.get(section.key) ?? []

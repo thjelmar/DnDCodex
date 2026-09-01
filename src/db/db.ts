@@ -185,6 +185,15 @@ export class CodexDB extends Dexie {
           c.externalLinks ??= []
         })
     })
+    // v10: player campaigns can link to a cloud campaign (for account shares).
+    this.version(10).upgrade(async (tx) => {
+      await tx
+        .table('campaigns')
+        .toCollection()
+        .modify((c: Record<string, unknown>) => {
+          c.linkedCampaignId ??= null
+        })
+    })
   }
 }
 

@@ -60,3 +60,89 @@ export async function joinCampaignByCode(code: string): Promise<{ campaignId: st
   const info = await supabase.from('campaigns').select('name').eq('id', campaignId).maybeSingle()
   return { campaignId: campaignId as string, name: (info.data?.name as string) ?? 'the campaign' }
 }
+
+export interface Member {
+  userId: string
+  role: string
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** The members of a campaign (with profile display names), for the DM to pick
+ *  share recipients. */
+export async function getCampaignMembers(campaignId: string): Promise<Member[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('campaign_members')
+    .select('user_id, role, profiles ( display_name, avatar_url )')
+    .eq('campaign_id', campaignId)
+  if (error || !data) return []
+  return data.map((r) => {
+    const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
+      | { display_name: string | null; avatar_url: string | null }
+      | undefined
+    return {
+      userId: r.user_id as string,
+      role: r.role as string,
+      displayName: p?.display_name || 'Player',
+      avatarUrl: p?.avatar_url ?? null,
+    }
+  })
+}
+
+/** Sends a share (a built SharePacket) to each recipient's inbox. */
+export async function sendShareToMembers(
+  campaignId: string,
+  fromUserId: string,
+  toUserIds: string[],
+  title: string,
+  payload: unknown,
+): Promise<number> {
+  if (!supabase || toUserIds.length === 0) return 0
+  const rows = toUserIds.map((to) => ({
+    campaign_id: campaignId,
+    from_user: fromUserId,
+    to_user: to,
+    title,
+    payload,
+  }))
+  const { error } = await supabase.from('shares').insert(rows)
+  if (error) throw new Error(error.message)
+  return rows.length
+}
+
+export interface InboxShare {
+  id: string
+  title: string | null
+  payload: unknown
+  createdAt: string
+  fromName: string
+}
+
+/** Pending (not-yet-imported) shares addressed to me for a given cloud campaign. */
+export async function getInbox(cloudCampaignId: string): Promise<InboxShare[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('shares')
+    .select('id, title, payload, created_at, sender:profiles!shares_from_user_fkey ( display_name )')
+    .eq('campaign_id', cloudCampaignId)
+    .is('consumed_at', null)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data.map((r) => {
+    const s = (Array.isArray(r.sender) ? r.sender[0] : r.sender) as { display_name: string | null } | undefined
+    return {
+      id: r.id as string,
+      title: (r.title as string) ?? null,
+      payload: r.payload,
+      createdAt: r.created_at as string,
+      fromName: s?.display_name || 'Your DM',
+    }
+  })
+}
+
+/** Marks a share as imported so it drops out of the inbox. */
+export async function markShareConsumed(id: string): Promise<void> {
+  if (!supabase) return
+  await supabase.from('shares').update({ consumed_at: new Date().toISOString() }).eq('id', id)
+}

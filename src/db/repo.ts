@@ -25,7 +25,7 @@ const DEFAULT_COLORS = [
 ]
 
 export async function createCampaign(
-  input: Partial<Pick<Campaign, 'name' | 'summary' | 'description' | 'color' | 'role'>> = {},
+  input: Partial<Pick<Campaign, 'name' | 'summary' | 'description' | 'color' | 'role' | 'linkedCampaignId'>> = {},
 ): Promise<Campaign> {
   const ts = now()
   const count = await db.campaigns.count()
@@ -40,11 +40,23 @@ export async function createCampaign(
     coverImageId: null,
     role: input.role ?? 'dm',
     externalLinks: [],
+    linkedCampaignId: input.linkedCampaignId ?? null,
     createdAt: ts,
     updatedAt: ts,
   }
   await db.campaigns.add(campaign)
   return campaign
+}
+
+/**
+ * Finds the local player campaign linked to a cloud campaign, creating it if
+ * absent. Used when joining a campaign / receiving an account share, so shares
+ * have a local home.
+ */
+export async function findOrCreateLinkedPlayerCampaign(cloudId: Id, name: string): Promise<Campaign> {
+  const existing = await db.campaigns.filter((c) => c.linkedCampaignId === cloudId).first()
+  if (existing) return existing
+  return createCampaign({ name, role: 'player', linkedCampaignId: cloudId })
 }
 
 export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<void> {
