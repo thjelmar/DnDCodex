@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { useAuth } from './AuthProvider'
 import { useSync } from './SyncProvider'
-import { processImageFile } from '../lib/image'
+import { AvatarCropper } from './AvatarCropper'
 
 /**
  * Sidebar account control. Hidden entirely until a Supabase backend is
@@ -82,6 +82,7 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
   const [avatarDraft, setAvatarDraft] = useState<string | null | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [cropFile, setCropFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // The OAuth-provided picture is the default we revert to on "Remove".
@@ -90,21 +91,16 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
   const shownAvatar = avatarDraft === undefined ? currentAvatar : (avatarDraft ?? defaultAvatar)
   const canRemove = avatarDraft ? true : avatarDraft === null ? false : Boolean(profile?.avatar_url)
 
-  async function pickFile(files: FileList | null) {
+  function pickFile(files: FileList | null) {
     const file = files?.[0]
+    if (fileRef.current) fileRef.current.value = ''
     if (!file) return
-    setError('')
-    setBusy(true)
-    try {
-      // Small square avatar keeps the profiles row (read in member lists) light.
-      const processed = await processImageFile(file, { maxDim: 256, square: true })
-      setAvatarDraft(processed.dataUrl)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not process that image.')
-    } finally {
-      setBusy(false)
-      if (fileRef.current) fileRef.current.value = ''
+    if (!file.type.startsWith('image/')) {
+      setError('That file is not an image.')
+      return
     }
+    setError('')
+    setCropFile(file) // open the crop-and-adjust step
   }
 
   async function save() {
@@ -121,6 +117,22 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
       setError(e instanceof Error ? e.message : 'Could not save your profile.')
       setBusy(false)
     }
+  }
+
+  // Crop-and-adjust step, shown after a photo is picked.
+  if (cropFile) {
+    return (
+      <Modal title="Adjust photo" onClose={() => setCropFile(null)}>
+        <AvatarCropper
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onConfirm={(url) => {
+            setAvatarDraft(url)
+            setCropFile(null)
+          }}
+        />
+      </Modal>
+    )
   }
 
   return (
