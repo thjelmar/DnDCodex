@@ -18,6 +18,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'rollTables',
   'images',
   'links',
+  'encounters',
 ]
 
 const TABLE_TO_KIND: Record<SyncTable, string> = {
@@ -31,6 +32,7 @@ const TABLE_TO_KIND: Record<SyncTable, string> = {
   rollTables: 'rolltable',
   images: 'image',
   links: 'link',
+  encounters: 'encounter',
 }
 
 const KIND_TO_TABLE: Record<string, SyncTable> = Object.fromEntries(

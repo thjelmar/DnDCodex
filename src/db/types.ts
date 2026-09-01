@@ -283,6 +283,7 @@ export type SyncTable =
   | 'rollTables'
   | 'images'
   | 'links'
+  | 'encounters'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -319,6 +320,33 @@ export interface SyncStateRow {
   lastError?: string | null
 }
 
+/** One line in a saved encounter: a monster (from a data source or custom) and
+ *  how many of them. HP/AC/DEX are snapshotted so running it later needs no
+ *  re-fetch, even for non-bundled (Open5e / custom) monsters. */
+export interface EncounterCombatant {
+  id: Id
+  /** Monster slug if it came from a data source; null for a custom entry. */
+  slug: string | null
+  name: string
+  /** Challenge rating as a number (0.125 = 1/8). */
+  cr: number
+  hp: number | null
+  ac: number | null
+  dex: number | null
+  count: number
+}
+
+/** A prepared combat encounter, built against a party's level for difficulty. */
+export interface Encounter extends BaseRecord {
+  campaignId: Id
+  name: string
+  /** Party size assumed for the difficulty rating. */
+  players: number
+  /** Party level assumed for the difficulty rating (1–20). */
+  level: number
+  combatants: EncounterCombatant[]
+}
+
 /** Discriminated union used by generic helpers and the export payload. */
 export interface DatabaseSnapshot {
   version: number
@@ -333,4 +361,5 @@ export interface DatabaseSnapshot {
   rollTables: RollTable[]
   images: StoredImage[]
   links: Link[]
+  encounters?: Encounter[]
 }

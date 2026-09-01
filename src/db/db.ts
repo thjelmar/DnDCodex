@@ -11,6 +11,7 @@ import type {
   PlayerNote,
   StoredImage,
   Link,
+  Encounter,
   PendingChange,
   SyncStateRow,
   SyncOptOutRow,
@@ -31,6 +32,7 @@ export class CodexDB extends Dexie {
   playerNotes!: EntityTable<PlayerNote, 'id'>
   images!: EntityTable<StoredImage, 'id'>
   links!: EntityTable<Link, 'id'>
+  encounters!: EntityTable<Encounter, 'id'>
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
@@ -212,6 +214,10 @@ export class CodexDB extends Dexie {
     // this campaign in this browser). Also not exported / not mirrored.
     this.version(12).stores({
       syncOptOut: 'campaignId',
+    })
+    // v13 adds prepared combat encounters (the encounter builder).
+    this.version(13).stores({
+      encounters: 'id, campaignId, name, updatedAt',
     })
   }
 }

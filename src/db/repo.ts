@@ -13,6 +13,7 @@ import type {
   PlayerNote,
   StoredImage,
   Link,
+  Encounter,
   EntityKind,
   Id,
   DatabaseSnapshot,
@@ -71,7 +72,7 @@ export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<
 export async function deleteCampaign(id: Id): Promise<void> {
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters],
     async () => {
       await Promise.all([
         db.sessions.where('campaignId').equals(id).delete(),
@@ -83,6 +84,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
         db.playerNotes.where('campaignId').equals(id).delete(),
         db.images.where('campaignId').equals(id).delete(),
         db.links.where('campaignId').equals(id).delete(),
+        db.encounters.where('campaignId').equals(id).delete(),
       ])
       await db.campaigns.delete(id)
     },
@@ -356,6 +358,41 @@ export async function deletePlayerNote(id: Id): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Encounters (prepared combats for the encounter builder)
+// ---------------------------------------------------------------------------
+
+export async function createEncounter(
+  campaignId: Id,
+  input: Partial<Pick<Encounter, 'name' | 'players' | 'level' | 'combatants'>> = {},
+): Promise<Encounter> {
+  const ts = now()
+  const encounter: Encounter = {
+    id: newId(),
+    campaignId,
+    name: input.name?.trim() || 'New Encounter',
+    players: input.players ?? 4,
+    level: input.level ?? 1,
+    combatants: input.combatants ?? [],
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.encounters.add(encounter)
+  await enqueuePut('encounters', encounter.id, campaignId)
+  return encounter
+}
+
+export async function updateEncounter(id: Id, patch: Partial<Encounter>): Promise<void> {
+  await db.encounters.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('encounters', id)
+}
+
+export async function deleteEncounter(id: Id): Promise<void> {
+  const existing = await db.encounters.get(id)
+  await db.encounters.delete(id)
+  if (existing) await enqueueDel('encounters', id, existing.campaignId)
+}
+
+// ---------------------------------------------------------------------------
 // Images
 // ---------------------------------------------------------------------------
 
@@ -468,10 +505,10 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 // Export / import (JSON backup)
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT_VERSION = 5
+export const SNAPSHOT_VERSION = 6
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -483,6 +520,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.rollTables.toArray(),
       db.images.toArray(),
       db.links.toArray(),
+      db.encounters.toArray(),
     ])
   return {
     version: SNAPSHOT_VERSION,
@@ -497,6 +535,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     rollTables,
     images,
     links,
+    encounters,
   }
 }
 
@@ -513,7 +552,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -527,6 +566,7 @@ export async function importSnapshot(
           db.playerNotes.clear(),
           db.images.clear(),
           db.links.clear(),
+          db.encounters.clear(),
         ])
       }
       await Promise.all([
@@ -540,6 +580,7 @@ export async function importSnapshot(
         db.playerNotes.bulkPut(snapshot.playerNotes ?? []),
         db.images.bulkPut(snapshot.images ?? []),
         db.links.bulkPut(snapshot.links ?? []),
+        db.encounters.bulkPut(snapshot.encounters ?? []),
       ])
     },
   )
