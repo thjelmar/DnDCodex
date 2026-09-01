@@ -53,7 +53,7 @@ export function CampaignLayout() {
   return (
     <div className="content">
       <div className="row between" style={{ marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
-        <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 12, alignItems: 'center', minWidth: 0 }}>
           <span
             aria-hidden
             style={{
@@ -62,15 +62,18 @@ export function CampaignLayout() {
               borderRadius: '50%',
               background: campaign.color,
               display: 'inline-block',
+              flexShrink: 0,
             }}
           />
           <h1 className="mb-0">{campaign.name}</h1>
+        </div>
+        <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
+          <Link to="/" className="btn ghost small">
+            ← All campaigns
+          </Link>
         </div>
-        <Link to="/" className="btn ghost small">
-          ← All campaigns
-        </Link>
       </div>
       {campaign.summary && (
         <div className="subtitle" style={{ marginBottom: 16 }}>
