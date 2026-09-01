@@ -7,6 +7,7 @@ import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
+import { ShareInboxProvider, useShareInbox, ShareBadge } from './auth/ShareInboxProvider'
 import { AccountArea } from './auth/AccountArea'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
@@ -98,7 +99,10 @@ function Sidebar({
       ))}
 
       {/* Player: campaigns you're playing in, each a notes home */}
-      <div className="sidebar-heading">Player</div>
+      <div className="sidebar-heading" style={{ display: 'flex', alignItems: 'center' }}>
+        Player
+        <PlayerSharesBadge />
+      </div>
       <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
 
       <div className="sidebar-spacer" />
@@ -110,9 +114,16 @@ function Sidebar({
   )
 }
 
+/** The total pending-shares badge shown next to the "Player" heading. */
+function PlayerSharesBadge() {
+  const { total } = useShareInbox()
+  return <ShareBadge count={total} />
+}
+
 /** Lists the campaigns the player is playing in, plus add/join actions. */
 function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => void }) {
   const { user } = useAuth()
+  const { byCampaign } = useShareInbox()
   const [joinOpen, setJoinOpen] = useState(false)
   const campaigns = useLiveQuery(
     () => db.campaigns.orderBy('name').filter((c) => !c.archived && c.role === 'player').toArray(),
@@ -132,6 +143,9 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
             ●
           </span>
           <span style={ellipsis}>{c.name}</span>
+          <span style={{ marginLeft: 'auto' }}>
+            <ShareBadge count={c.linkedCampaignId ? byCampaign[c.linkedCampaignId] ?? 0 : 0} />
+          </span>
         </NavLink>
       ))}
       <button
@@ -179,6 +193,7 @@ export function App() {
   return (
     <AuthProvider>
     <SyncProvider>
+    <ShareInboxProvider>
     <HashRouter>
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -212,6 +227,7 @@ export function App() {
         </div>
       </ConfirmProvider>
     </HashRouter>
+    </ShareInboxProvider>
     </SyncProvider>
     </AuthProvider>
   )

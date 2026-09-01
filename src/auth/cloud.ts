@@ -141,6 +141,34 @@ export async function getInbox(cloudCampaignId: string): Promise<InboxShare[]> {
   })
 }
 
+export interface InboxCounts {
+  /** Total pending (unconsumed) shares addressed to me, across all campaigns. */
+  total: number
+  /** Pending count keyed by cloud campaign id (== a player campaign's linkedCampaignId). */
+  byCampaign: Record<string, number>
+}
+
+/**
+ * A single roll-up of every pending share addressed to me, for the global
+ * sidebar badge. RLS already restricts `shares` to my own rows; we filter to
+ * received-and-unconsumed and tally per campaign client-side.
+ */
+export async function getInboxCounts(userId: string): Promise<InboxCounts> {
+  if (!supabase) return { total: 0, byCampaign: {} }
+  const { data, error } = await supabase
+    .from('shares')
+    .select('campaign_id')
+    .eq('to_user', userId)
+    .is('consumed_at', null)
+  if (error || !data) return { total: 0, byCampaign: {} }
+  const byCampaign: Record<string, number> = {}
+  for (const r of data) {
+    const cid = r.campaign_id as string
+    byCampaign[cid] = (byCampaign[cid] ?? 0) + 1
+  }
+  return { total: data.length, byCampaign }
+}
+
 /** Marks a share as imported so it drops out of the inbox. */
 export async function markShareConsumed(id: string): Promise<void> {
   if (!supabase) return
