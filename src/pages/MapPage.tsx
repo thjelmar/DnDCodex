@@ -1,16 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCampaign } from './CampaignLayout'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
+import { ShareWithPlayersModal } from '../components/ShareWithPlayersModal'
 import { createLink } from '../db/repo'
-import { buildCampaignGraph, disconnectEdge, disconnectNode, KIND_META, NODE_KINDS } from '../lib/graph'
+import { buildCampaignGraph, disconnectEdge, disconnectNode, KIND_META, NODE_KINDS, type GraphNode } from '../lib/graph'
 
 /** The campaign thought map — a connected web of everything in the world. */
 export function MapPage() {
   const campaign = useCampaign()
   const navigate = useNavigate()
   const graph = useLiveQuery(() => buildCampaignGraph(campaign.id), [campaign.id])
+  const [shareNode, setShareNode] = useState<GraphNode | null>(null)
 
   const config = useMemo<MapConfig>(
     () => ({
@@ -22,6 +24,7 @@ export function MapPage() {
       onDisconnectEdge: (edge) => disconnectEdge(edge),
       onDisconnectNode: (node) => disconnectNode(campaign.id, node),
       onOpen: (node) => navigate(`/campaign/${campaign.id}/${node.section}?sel=${node.id}`),
+      onShare: (node) => setShareNode(node),
       emptyHint: 'Add some NPCs, locations, notes or sessions and they’ll appear here to connect.',
       gapLabel: 'Lore gaps',
       gapWord: 'lore gap',
@@ -40,6 +43,10 @@ export function MapPage() {
         knows whom, spot the threads you haven’t tied off yet, and add connections right on the canvas.
       </p>
       <ThoughtMap graph={graph} config={config} />
+
+      {shareNode && graph && (
+        <ShareWithPlayersModal node={shareNode} graph={graph} onClose={() => setShareNode(null)} />
+      )}
     </div>
   )
 }

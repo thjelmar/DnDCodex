@@ -14,6 +14,7 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
+import { ImportSharedModal } from '../components/ImportSharedModal'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
@@ -62,6 +63,7 @@ export function PlayerNotesPage() {
   const [searchParams] = useSearchParams()
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
+  const [importOpen, setImportOpen] = useState(false)
   useEffect(() => {
     if (sel) setEditingId(sel)
   }, [sel])
@@ -179,8 +181,11 @@ export function PlayerNotesPage() {
         A campaign you're playing in — your journal, character, and notes.
       </div>
 
-      <div style={{ marginBottom: 24 }}>
+      <div className="row wrap between" style={{ gap: 10, marginBottom: 24, alignItems: 'center' }}>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
+        <button className="btn ghost small" onClick={() => setImportOpen(true)} title="Paste a share code from your DM">
+          ⬇ Import from your DM
+        </button>
       </div>
 
       {SECTIONS.map((section) => {
@@ -234,6 +239,7 @@ export function PlayerNotesPage() {
       {editing && (
         <PlayerEntryModal key={editing.id} note={editing} onClose={() => setEditingId(null)} />
       )}
+      {importOpen && <ImportSharedModal campaignId={campaign.id} onClose={() => setImportOpen(false)} />}
     </div>
   )
 }

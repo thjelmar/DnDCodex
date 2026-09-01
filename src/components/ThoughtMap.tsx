@@ -25,6 +25,8 @@ export interface MapConfig {
   onDisconnectNode: (node: GraphNode) => Promise<void> | void
   /** Open the entry behind a node (navigate, or open a modal). */
   onOpen: (node: GraphNode) => void
+  /** Optional: share this node (and its neighbors) with players. DM only. */
+  onShare?: (node: GraphNode) => void
   /** Shown when the graph has no nodes at all. */
   emptyHint: string
   /** Label for the orphan-highlight toggle (default "Lore gaps"). */
@@ -642,9 +644,16 @@ function NodePanel({
         <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
       </div>
 
-      <button className="btn small" style={{ marginTop: 10 }} onClick={() => config.onOpen(node)}>
-        Open {meta?.icon} →
-      </button>
+      <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
+        <button className="btn small" onClick={() => config.onOpen(node)}>
+          Open {meta?.icon} →
+        </button>
+        {config.onShare && (
+          <button className="btn small ghost" onClick={() => config.onShare!(node)} title="Share this with your players">
+            📤 Share with players
+          </button>
+        )}
+      </div>
 
       <div className="row between" style={{ margin: '16px 0 6px', alignItems: 'baseline' }}>
         <span className="sidebar-heading" style={{ margin: 0 }}>
