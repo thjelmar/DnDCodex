@@ -68,8 +68,8 @@ export function CampaignLayout() {
           <h1 className="mb-0">{campaign.name}</h1>
         </div>
         <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
+          <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
           <Link to="/" className="btn ghost small">
             ← All campaigns
           </Link>
