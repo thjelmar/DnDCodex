@@ -33,10 +33,14 @@ export async function enableCampaignSharing(
       .insert({ id: campaign.id, owner_id: ownerId, name: campaign.name, join_code: joinCode })
     if (error) throw error
   }
-  // Make sure the DM is recorded as a member.
+  // Make sure the DM is recorded as a member. ignoreDuplicates avoids an RLS
+  // UPDATE (which members have no policy for) if the row already exists.
   await supabase
     .from('campaign_members')
-    .upsert({ campaign_id: campaign.id, user_id: ownerId, role: 'dm' }, { onConflict: 'campaign_id,user_id' })
+    .upsert(
+      { campaign_id: campaign.id, user_id: ownerId, role: 'dm' },
+      { onConflict: 'campaign_id,user_id', ignoreDuplicates: true },
+    )
 
   return joinCode
 }
