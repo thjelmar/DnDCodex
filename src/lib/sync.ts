@@ -401,6 +401,9 @@ export async function bootstrap(ownerId: string): Promise<void> {
 
     // 5. Full sync + live subscriptions.
     await syncAll(ownerId)
+    // Recount now that the pull has created any brand-new local campaigns —
+    // otherwise the badge sticks at the count taken before they existed.
+    await refreshCampaignCount()
     for (const id of syncedCampaignIds()) subscribeCampaign(id, ownerId)
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
