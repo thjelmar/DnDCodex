@@ -1,4 +1,6 @@
 import { db, newId, now } from './db'
+import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
+import { tableForKind } from '../lib/syncKinds'
 import type {
   Campaign,
   Session,
@@ -45,6 +47,7 @@ export async function createCampaign(
     updatedAt: ts,
   }
   await db.campaigns.add(campaign)
+  await enqueuePut('campaigns', campaign.id, campaign.id)
   return campaign
 }
 
@@ -61,6 +64,7 @@ export async function findOrCreateLinkedPlayerCampaign(cloudId: Id, name: string
 
 export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<void> {
   await db.campaigns.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('campaigns', id)
 }
 
 /** Deletes a campaign and every record that belongs to it. */
@@ -83,6 +87,8 @@ export async function deleteCampaign(id: Id): Promise<void> {
       await db.campaigns.delete(id)
     },
   )
+  // A single campaign-level tombstone; the cloud cascade-deletes its records.
+  await enqueueDel('campaigns', id, id)
 }
 
 // ---------------------------------------------------------------------------
@@ -106,11 +112,13 @@ export async function createSession(
     updatedAt: ts,
   }
   await db.sessions.add(session)
+  await enqueuePut('sessions', session.id, campaignId)
   return session
 }
 
 export async function updateSession(id: Id, patch: Partial<Session>): Promise<void> {
   await db.sessions.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('sessions', id)
 }
 
 export async function deleteSession(id: Id): Promise<void> {
@@ -150,11 +158,13 @@ export async function createLocation(
     updatedAt: ts,
   }
   await db.locations.add(location)
+  await enqueuePut('locations', location.id, campaignId)
   return location
 }
 
 export async function updateLocation(id: Id, patch: Partial<Location>): Promise<void> {
   await db.locations.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('locations', id)
 }
 
 export async function deleteLocation(id: Id): Promise<void> {
@@ -184,11 +194,13 @@ export async function createNPC(
     updatedAt: ts,
   }
   await db.npcs.add(npc)
+  await enqueuePut('npcs', npc.id, campaignId)
   return npc
 }
 
 export async function updateNPC(id: Id, patch: Partial<NPC>): Promise<void> {
   await db.npcs.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('npcs', id)
 }
 
 export async function deleteNPC(id: Id): Promise<void> {
@@ -218,11 +230,13 @@ export async function createItem(
     updatedAt: ts,
   }
   await db.items.add(item)
+  await enqueuePut('items', item.id, campaignId)
   return item
 }
 
 export async function updateItem(id: Id, patch: Partial<Item>): Promise<void> {
   await db.items.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('items', id)
 }
 
 export async function deleteItem(id: Id): Promise<void> {
@@ -248,11 +262,13 @@ export async function createNote(
     updatedAt: ts,
   }
   await db.notes.add(note)
+  await enqueuePut('notes', note.id, campaignId)
   return note
 }
 
 export async function updateNote(id: Id, patch: Partial<Note>): Promise<void> {
   await db.notes.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('notes', id)
 }
 
 export async function deleteNote(id: Id): Promise<void> {
@@ -286,15 +302,19 @@ export async function createRollTable(
     updatedAt: ts,
   }
   await db.rollTables.add(table)
+  await enqueuePut('rollTables', table.id, campaignId)
   return table
 }
 
 export async function updateRollTable(id: Id, patch: Partial<RollTable>): Promise<void> {
   await db.rollTables.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('rollTables', id)
 }
 
 export async function deleteRollTable(id: Id): Promise<void> {
+  const existing = await db.rollTables.get(id)
   await db.rollTables.delete(id)
+  if (existing) await enqueueDel('rollTables', id, existing.campaignId)
 }
 
 // ---------------------------------------------------------------------------
@@ -320,15 +340,19 @@ export async function createPlayerNote(
     updatedAt: ts,
   }
   await db.playerNotes.add(note)
+  await enqueuePut('playerNotes', note.id, campaignId)
   return note
 }
 
 export async function updatePlayerNote(id: Id, patch: Partial<PlayerNote>): Promise<void> {
   await db.playerNotes.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('playerNotes', id)
 }
 
 export async function deletePlayerNote(id: Id): Promise<void> {
+  const existing = await db.playerNotes.get(id)
   await db.playerNotes.delete(id)
+  if (existing) await enqueueDel('playerNotes', id, existing.campaignId)
 }
 
 // ---------------------------------------------------------------------------
@@ -353,11 +377,14 @@ export async function createImage(
     updatedAt: ts,
   }
   await db.images.add(image)
+  await enqueuePut('images', image.id, campaignId)
   return image
 }
 
 export async function deleteImage(id: Id): Promise<void> {
+  const existing = await db.images.get(id)
   await db.images.delete(id)
+  if (existing) await enqueueDel('images', id, existing.campaignId)
 }
 
 // ---------------------------------------------------------------------------
@@ -385,11 +412,14 @@ export async function createLink(
     updatedAt: ts,
   }
   await db.links.add(link)
+  await enqueuePut('links', link.id, campaignId)
   return link
 }
 
 export async function deleteLink(id: Id): Promise<void> {
+  const existing = await db.links.get(id)
   await db.links.delete(id)
+  if (existing) await enqueueDel('links', id, existing.campaignId)
 }
 
 /** Returns every link that touches the given entity, from either side. */
@@ -415,12 +445,23 @@ const TABLE_BY_KIND = {
 } as const
 
 async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<void> {
+  let campaignId: Id | undefined
+  let touching: Link[] = []
   await db.transaction('rw', [db.links, db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes], async () => {
     const table = TABLE_BY_KIND[kind as keyof typeof TABLE_BY_KIND]?.()
-    if (table) await table.delete(id)
-    const touching = await linksForEntity(kind, id)
+    if (table) {
+      const rec = (await table.get(id)) as { campaignId?: Id } | undefined
+      campaignId = rec?.campaignId
+      await table.delete(id)
+    }
+    touching = await linksForEntity(kind, id)
     await db.links.bulkDelete(touching.map((l) => l.id))
   })
+  // Tombstone the entity and every link that referenced it, so the deletion
+  // propagates rather than the links reappearing on another device.
+  const syncTable = tableForKind(kind)
+  if (syncTable && campaignId) await enqueueDel(syncTable, id, campaignId)
+  for (const l of touching) await enqueueDel('links', l.id, l.campaignId)
 }
 
 // ---------------------------------------------------------------------------
@@ -502,4 +543,12 @@ export async function importSnapshot(
       ])
     },
   )
+  // A bulk restore bypasses the per-record outbox; if any campaign is synced,
+  // re-queue everything so the restored state pushes to the cloud.
+  try {
+    const { resyncSyncedCampaigns } = await import('../lib/sync')
+    await resyncSyncedCampaigns()
+  } catch {
+    // Sync not active / not configured — local-only import, nothing to push.
+  }
 }

@@ -51,3 +51,46 @@ cp .env.example .env
 Once `.env` is filled in (or you paste me the URL + anon key — the anon key is publishable, not a secret),
 I'll restart the dev server and we'll verify a real Discord/Google sign-in end to end. Then on to
 **Phase 1 (profiles)**.
+
+---
+
+# Migrations (SQL Editor)
+
+Run each file in `supabase/migrations/` once, in order, via **Supabase → SQL Editor → New query → Run**.
+The "destructive operation" banner is just the `drop policy if exists` / `drop trigger if exists`
+guards — safe to run. Re-running any file is idempotent.
+
+| File | What it adds |
+|------|--------------|
+| `0001_profiles.sql` | `profiles` table + auto-create trigger |
+| `0002_membership.sql` | cloud `campaigns` + `campaign_members` + `join_campaign()` |
+| `0003_shares.sql` | `shares` inbox table |
+| `0004_realtime.sql` | live updates for `shares` |
+| `0005_records.sql` | **Phase 3:** the `records` sync mirror + live updates |
+
+# Phase 3 — full campaign sync
+
+After running `0005_records.sql`, every campaign you own is mirrored to the cloud and follows your
+account across devices. Nothing else to configure — sign in and it just works.
+
+**How it works (plain version):**
+- Your browser (IndexedDB) stays the source of truth. The cloud `records` table is a JSONB mirror —
+  one row per entity (session, NPC, note, …), stamped with a server time.
+- On sign-in the app pulls down every campaign your account owns (creating any that aren't on this
+  device yet) and backs up any local campaigns that weren't in the cloud.
+- Edits push automatically ~1s after you make them; other devices get them live (Realtime) or within
+  a minute. Conflicts resolve last-write-wins per record.
+- Players still only receive **shares** (curated quests/notes) — the `records` mirror is **owner-only**
+  (Row-Level Security), so nobody sees your full notebook.
+
+**Test it end to end:**
+1. Sign in on this browser. The sidebar (under your name) should show **“☁️ Synced N campaigns • just now.”**
+2. In Supabase → **Table editor → records**, confirm rows appear (kind = campaign/session/npc/…).
+3. Open the app in a **different browser or a private window**, sign in with the **same account** →
+   your campaigns and all their contents appear, no import needed.
+4. Edit something in one window; within a second or two it shows up in the other.
+
+**Known limitation:** deleting a whole campaign is **not** auto-propagated to your other devices (a
+delete on one device may be undone by another re-uploading it). This is deliberate — silently deleting
+across devices on a stale/empty cloud read is too risky. Records (sessions, NPCs, notes, links) *do*
+delete everywhere. Full campaign-delete propagation is a later refinement.

@@ -6,6 +6,7 @@ import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { SyncProvider } from './auth/SyncProvider'
 import { AccountArea } from './auth/AccountArea'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
@@ -177,6 +178,7 @@ export function App() {
 
   return (
     <AuthProvider>
+    <SyncProvider>
     <HashRouter>
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -210,6 +212,7 @@ export function App() {
         </div>
       </ConfirmProvider>
     </HashRouter>
+    </SyncProvider>
     </AuthProvider>
   )
 }

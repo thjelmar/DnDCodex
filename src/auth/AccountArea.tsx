@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { useAuth } from './AuthProvider'
+import { useSync } from './SyncProvider'
 
 /**
  * Sidebar account control. Hidden entirely until a Supabase backend is
@@ -37,6 +38,7 @@ export function AccountArea() {
             Sign out
           </button>
         </div>
+        <SyncStatusLine />
       </div>
     )
   }
@@ -53,6 +55,57 @@ export function AccountArea() {
       {open && <SignInModal onClose={() => setOpen(false)} />}
     </>
   )
+}
+
+/** A compact "cloud sync" status line shown under the signed-in user. */
+function SyncStatusLine() {
+  const { status } = useSync()
+  // Re-render every 30s so the "last synced" relative time stays fresh.
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
+  let icon = '☁️'
+  let text: string
+  let color = 'var(--text-dim)'
+  if (status.error) {
+    icon = '⚠️'
+    text = 'Sync error — will retry'
+    color = 'var(--danger, #dc2626)'
+  } else if (status.syncing) {
+    text = 'Syncing…'
+  } else if (status.campaigns === 0) {
+    text = 'No campaigns synced yet'
+  } else {
+    const n = status.campaigns
+    text = `Synced ${n} campaign${n === 1 ? '' : 's'}${status.lastSyncedAt ? ' • ' + relTime(status.lastSyncedAt) : ''}`
+  }
+
+  return (
+    <div
+      className="row"
+      style={{ gap: 6, alignItems: 'center', fontSize: 11.5, color, padding: '2px 2px 0', minWidth: 0 }}
+      title={status.error ?? undefined}
+    >
+      <span aria-hidden>{icon}</span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
+    </div>
+  )
+}
+
+/** Small relative-time formatter ("just now", "3m ago", "2h ago"). */
+function relTime(iso: string): string {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return ''
+  const secs = Math.max(0, Math.round((Date.now() - then) / 1000))
+  if (secs < 45) return 'just now'
+  const mins = Math.round(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.round(hrs / 24)}d ago`
 }
 
 function SignInModal({ onClose }: { onClose: () => void }) {

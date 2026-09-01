@@ -265,6 +265,51 @@ export interface Link extends BaseRecord {
   label: string
 }
 
+// ---------------------------------------------------------------------------
+// Sync bookkeeping (Phase 3). These tables are LOCAL-ONLY — they never appear in
+// the JSON backup and are not mirrored to the cloud. They track what still needs
+// to be pushed (the outbox) and how far each campaign has been pulled.
+// ---------------------------------------------------------------------------
+
+/** The Dexie tables that participate in cloud sync (campaign + its children). */
+export type SyncTable =
+  | 'campaigns'
+  | 'sessions'
+  | 'locations'
+  | 'npcs'
+  | 'items'
+  | 'notes'
+  | 'playerNotes'
+  | 'rollTables'
+  | 'images'
+  | 'links'
+
+/**
+ * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
+ * current record; `del` sends a tombstone. Coalesced by (table+recordId) at push.
+ */
+export interface PendingChange {
+  id?: number
+  table: SyncTable
+  recordId: Id
+  campaignId: Id
+  op: 'put' | 'del'
+  at: ISODate
+}
+
+/** Per-campaign sync progress. Presence of a row = this campaign is synced. */
+export interface SyncStateRow {
+  campaignId: Id
+  /** The cloud campaign owner (always the current user for their own campaigns). */
+  ownerId: Id
+  /** Server `updated_at` high-water mark; the next pull fetches rows after it. */
+  pullCursor: string
+  /** When the last successful sync completed (ISO), or null if never. */
+  lastSyncedAt: ISODate | null
+  /** Last sync error message, if the most recent attempt failed. */
+  lastError?: string | null
+}
+
 /** Discriminated union used by generic helpers and the export payload. */
 export interface DatabaseSnapshot {
   version: number

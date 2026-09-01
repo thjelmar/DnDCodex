@@ -11,6 +11,8 @@ import type {
   PlayerNote,
   StoredImage,
   Link,
+  PendingChange,
+  SyncStateRow,
 } from './types'
 
 // The Dexie instance. Each table is keyed by `id`; the strings after `id`
@@ -28,6 +30,9 @@ export class CodexDB extends Dexie {
   playerNotes!: EntityTable<PlayerNote, 'id'>
   images!: EntityTable<StoredImage, 'id'>
   links!: EntityTable<Link, 'id'>
+  // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
+  pending!: EntityTable<PendingChange, 'id'>
+  syncState!: EntityTable<SyncStateRow, 'campaignId'>
 
   constructor() {
     super('dnd-codex')
@@ -193,6 +198,13 @@ export class CodexDB extends Dexie {
         .modify((c: Record<string, unknown>) => {
           c.linkedCampaignId ??= null
         })
+    })
+    // v11 adds local-only sync bookkeeping tables (Phase 3 full campaign sync):
+    // `pending` is the push outbox, `syncState` tracks each campaign's pull
+    // cursor. No existing data is touched.
+    this.version(11).stores({
+      pending: '++id, campaignId, [table+recordId]',
+      syncState: 'campaignId',
     })
   }
 }
