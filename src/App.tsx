@@ -98,6 +98,7 @@ function Sidebar({
           <span style={ellipsis}>{c.name}</span>
         </NavLink>
       ))}
+      <ToolsMenu />
 
       {/* Player: campaigns you're playing in, each a notes home */}
       <div className="sidebar-heading" style={{ display: 'flex', alignItems: 'center' }}>
@@ -119,6 +120,29 @@ function Sidebar({
 function PlayerSharesBadge() {
   const { total } = useShareInbox()
   return <ShareBadge count={total} />
+}
+
+/** Collapsible DM "Tools" sub-menu: campaign-independent utilities. */
+function ToolsMenu() {
+  const [open, setOpen] = useState(true)
+  return (
+    <>
+      <button
+        className="nav-link"
+        onClick={() => setOpen((o) => !o)}
+        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span className="ico">🧰</span>
+        <span>Tools</span>
+        <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+          <span className="ico">⚔️</span> Encounter Builder
+        </NavLink>
+      )}
+    </>
+  )
 }
 
 /** Lists the campaigns the player is playing in, plus add/join actions. */
@@ -210,6 +234,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
+            <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
@@ -218,7 +243,6 @@ export function App() {
               <Route path="locations" element={<LocationsPage />} />
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
-              <Route path="encounters" element={<EncountersPage />} />
               <Route path="map" element={<MapPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />
