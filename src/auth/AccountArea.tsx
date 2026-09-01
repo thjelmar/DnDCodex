@@ -8,23 +8,30 @@ import { useAuth } from './AuthProvider'
  * configured, shows a sign-in entry or the signed-in user + sign-out.
  */
 export function AccountArea() {
-  const { configured, loading, user, signOut } = useAuth()
+  const { configured, loading, user, profile, signOut } = useAuth()
   const [open, setOpen] = useState(false)
 
   if (!configured || loading) return null
 
   if (user) {
     const meta = user.user_metadata ?? {}
-    const name = meta.name || meta.full_name || meta.user_name || user.email || 'Signed in'
+    const name =
+      profile?.display_name || meta.name || meta.full_name || meta.user_name || user.email || 'Signed in'
+    const avatar = profile?.avatar_url || meta.avatar_url || null
     return (
       <div style={{ padding: '4px 8px' }}>
         <div className="row between" style={{ gap: 8, alignItems: 'center' }}>
           <span
-            className="faint"
-            style={{ fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            className="row"
+            style={{ gap: 6, minWidth: 0, alignItems: 'center', fontSize: 12.5, color: 'var(--text-dim)' }}
             title={name}
           >
-            👤 {name}
+            {avatar ? (
+              <img src={avatar} alt="" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0 }} />
+            ) : (
+              <span aria-hidden>👤</span>
+            )}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
           </span>
           <button className="btn ghost small" onClick={() => signOut()}>
             Sign out
