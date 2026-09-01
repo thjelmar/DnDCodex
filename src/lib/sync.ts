@@ -77,8 +77,17 @@ function setStatus(patch: Partial<SyncStatus>) {
   for (const fn of listeners) fn(status)
 }
 
-function refreshCampaignCount() {
-  setStatus({ campaigns: syncedCampaignIds().length })
+/**
+ * Reports the number of synced campaigns that actually exist locally. An owned
+ * cloud campaign with no records and no local row (e.g. an empty shell left over
+ * from an earlier "Invite players") is still tracked but not counted here, so the
+ * status matches what the user actually sees in the sidebar.
+ */
+async function refreshCampaignCount() {
+  const ids = syncedCampaignIds()
+  let n = 0
+  for (const id of ids) if (await db.campaigns.get(id)) n++
+  setStatus({ campaigns: n })
 }
 
 // ---- cloud campaign shell -------------------------------------------------
@@ -141,10 +150,10 @@ export async function enableSync(
     await db.syncState.put({ campaignId: campaign.id, ownerId, pullCursor: CURSOR_ZERO, lastSyncedAt: null, lastError: null })
     addSyncedCampaign(campaign.id)
     await enqueueWholeCampaign(campaign.id)
-    refreshCampaignCount()
+    await refreshCampaignCount()
   } else {
     addSyncedCampaign(campaign.id)
-    refreshCampaignCount()
+    await refreshCampaignCount()
   }
   await syncCampaign(campaign.id, ownerId)
   subscribeCampaign(campaign.id, ownerId)
@@ -165,7 +174,7 @@ export async function disableSync(campaignId: string): Promise<void> {
   removeSyncedCampaign(campaignId)
   await db.syncState.delete(campaignId)
   await db.pending.where('campaignId').equals(campaignId).delete()
-  refreshCampaignCount()
+  await refreshCampaignCount()
 }
 
 // ---- push -----------------------------------------------------------------
@@ -185,7 +194,7 @@ async function pushCampaign(campaignId: string, ownerId: string): Promise<void> 
     await db.pending.where('campaignId').equals(campaignId).delete()
     await db.syncState.delete(campaignId)
     removeSyncedCampaign(campaignId)
-    refreshCampaignCount()
+    await refreshCampaignCount()
     return
   }
 
@@ -347,7 +356,7 @@ export async function bootstrap(ownerId: string): Promise<void> {
         addSyncedCampaign(id)
       }
     }
-    refreshCampaignCount()
+    await refreshCampaignCount()
 
     // NOTE: we intentionally do NOT delete local campaigns that are missing from
     // the cloud list. Treating "absent from a cloud query" as "delete my local
