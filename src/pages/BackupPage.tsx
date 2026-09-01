@@ -148,11 +148,12 @@ export function BackupPage() {
         </button>
       </div>
 
-      <div className="card" style={{ cursor: 'default', opacity: 0.7 }}>
-        <h3>☁️ Google Drive sync <span className="tag">Coming soon</span></h3>
+      <div className="card" style={{ cursor: 'default' }}>
+        <h3>☁️ Cloud sync</h3>
         <p className="muted mb-0">
-          A later update will let you sync this backup to Google Drive so your notes follow you
-          across devices.
+          Sign in (bottom-left) and your campaigns sync automatically to your account, so your notes
+          follow you across devices. Signed out, everything stays private in this browser — this JSON
+          export is still your portable, offline backup.
         </p>
       </div>
 
