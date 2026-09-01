@@ -1,25 +1,41 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from './AuthProvider'
+import { supabase } from '../lib/supabase'
 import { getInbox, markShareConsumed, type InboxShare } from './cloud'
 import { importSharePacket, type SharePacket } from '../lib/share'
 
 /**
  * Player-side inbox for a linked campaign: quests/notes the DM sent to this
- * account. One click imports a share into the player's sections + map, then it
- * drops out of the list.
+ * account. Updates live via Supabase Realtime — a share the DM sends appears
+ * here without a refresh. One click imports it into the player's sections + map.
  */
 export function SharedInbox({ localCampaignId, linkedCampaignId }: { localCampaignId: string; linkedCampaignId: string }) {
   const { user } = useAuth()
   const [items, setItems] = useState<InboxShare[]>([])
   const [busy, setBusy] = useState<string | null>(null)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
+    if (!user) return
     setItems(await getInbox(linkedCampaignId))
-  }
-  useEffect(() => {
-    if (user) refresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, linkedCampaignId])
+
+  useEffect(() => {
+    refresh()
+    if (!supabase || !user) return
+    // Live updates: any change to shares in this campaign re-pulls the inbox.
+    // RLS still applies, so a player only ever receives their own shares.
+    const channel = supabase
+      .channel(`inbox-${linkedCampaignId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shares', filter: `campaign_id=eq.${linkedCampaignId}` },
+        () => refresh(),
+      )
+      .subscribe()
+    return () => {
+      supabase!.removeChannel(channel)
+    }
+  }, [refresh, user, linkedCampaignId])
 
   if (!user || items.length === 0) return null
 
