@@ -1,6 +1,8 @@
 import { useParams, NavLink, Outlet, useOutletContext, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { SyncToggle } from '../auth/SyncToggle'
+import { InvitePlayers } from '../auth/InvitePlayers'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -50,8 +52,8 @@ export function CampaignLayout() {
 
   return (
     <div className="content">
-      <div className="row between" style={{ marginBottom: 6 }}>
-        <div className="row" style={{ gap: 12 }}>
+      <div className="row between" style={{ marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span
             aria-hidden
             style={{
@@ -63,6 +65,8 @@ export function CampaignLayout() {
             }}
           />
           <h1 className="mb-0">{campaign.name}</h1>
+          <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
+          <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
         </div>
         <Link to="/" className="btn ghost small">
           ← All campaigns

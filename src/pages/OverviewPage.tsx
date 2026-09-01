@@ -7,8 +7,6 @@ import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { CampaignLinks } from '../components/CampaignLinks'
-import { InvitePlayers } from '../auth/InvitePlayers'
-import { SyncToggle } from '../auth/SyncToggle'
 import { Modal } from '../components/Modal'
 import { formatDate } from '../lib/format'
 import { processImageFile } from '../lib/image'
@@ -72,10 +70,6 @@ export function OverviewPage() {
         <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
       </div>
-
-      <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
-
-      <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', marginBottom: 24 }}>
         {statCards.map(([label, count, path]) => (

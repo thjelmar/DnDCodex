@@ -5,11 +5,11 @@ import { useAuth } from './AuthProvider'
 import { optOutOfSync, optInToSync } from '../lib/sync'
 
 /**
- * Per-campaign sync control, shown on the campaign overview when signed in.
- * Signed-in users sync every campaign they own by default; this lets them keep a
- * specific campaign LOCAL to this browser instead. Opting out keeps any existing
- * cloud copy (it just stops updating it here); opting back in re-uploads and
- * resumes live sync. The preference is per-device and never itself synced.
+ * Compact per-campaign sync control for the campaign header. Signed-in users sync
+ * every campaign they own by default; this keeps a specific one LOCAL to this
+ * browser instead. Opting out keeps any existing cloud copy (just stops updating
+ * it here); opting back in re-uploads and resumes live sync. The preference is
+ * per-device and never itself synced. Hidden unless signed in.
  */
 export function SyncToggle({ campaign }: { campaign: { id: string; name: string } }) {
   const { configured, user } = useAuth()
@@ -38,23 +38,30 @@ export function SyncToggle({ campaign }: { campaign: { id: string; name: string 
     }
   }
 
+  const tip = optedOut
+    ? 'Kept on this device only. Click to sync this campaign to your account across devices.'
+    : 'Syncing to your account across devices. Click to keep this campaign local to this browser.'
+
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Sync</div>
-      <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-        <label className="row" style={{ gap: 8, alignItems: 'center', cursor: busy ? 'default' : 'pointer' }}>
-          <input type="checkbox" checked={!optedOut} disabled={busy} onChange={toggle} />
-          <span style={{ fontSize: 13.5 }}>
-            {busy ? 'Updating…' : optedOut ? '⛅ Kept on this device only' : '☁️ Syncing to your account'}
-          </span>
-        </label>
-        <span className="faint" style={{ fontSize: 12 }}>
-          {optedOut
-            ? 'This campaign stays in this browser. Any existing cloud copy is kept but not updated here.'
-            : 'This campaign syncs to your account and follows you across devices.'}
+    <label
+      className="row"
+      title={tip}
+      style={{
+        gap: 6,
+        alignItems: 'center',
+        cursor: busy ? 'default' : 'pointer',
+        fontSize: 13,
+        color: 'var(--text-dim)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <input type="checkbox" checked={!optedOut} disabled={busy} onChange={toggle} />
+      <span>{busy ? 'Sync…' : optedOut ? '⛅ Local only' : '☁️ Sync'}</span>
+      {error && (
+        <span className="danger-text" title={error} aria-label={error}>
+          ⚠️
         </span>
-      </div>
-      {error && <div className="danger-text" style={{ fontSize: 13, marginTop: 6 }}>{error}</div>}
-    </div>
+      )}
+    </label>
   )
 }

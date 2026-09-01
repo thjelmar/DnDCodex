@@ -3,9 +3,9 @@ import { useAuth } from './AuthProvider'
 import { enableCampaignSharing, getCampaignJoinCode } from './cloud'
 
 /**
- * DM-side, on the campaign overview: register the campaign for sharing and show
- * the join code to hand out. Only appears when signed in (sharing needs
- * accounts). Nothing here syncs campaign content yet — just the invite link.
+ * DM-side, compact control for the campaign header: register the campaign for
+ * sharing and show the join code to hand out. Only appears when signed in
+ * (sharing needs accounts).
  */
 export function InvitePlayers({ campaign }: { campaign: { id: string; name: string } }) {
   const { configured, user } = useAuth()
@@ -51,42 +51,42 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
   }
 
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Players</div>
+    <span className="row" style={{ gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
       {code ? (
-        <div className="row wrap" style={{ gap: 10, alignItems: 'center' }}>
-          <span className="faint" style={{ fontSize: 13 }}>Join code:</span>
+        <>
           <code
+            title="Players enter this under “Join a campaign” to link their account."
             style={{
-              fontSize: 18,
-              letterSpacing: 3,
+              fontSize: 14,
+              letterSpacing: 2,
               fontFamily: 'monospace',
               background: 'var(--bg-elev-2)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius-sm)',
-              padding: '4px 12px',
+              padding: '2px 8px',
             }}
           >
-            {code}
+            🔑 {code}
           </code>
           <button className="btn ghost small" onClick={copy}>
             {copied ? '✓ Copied' : 'Copy'}
           </button>
-          <span className="faint" style={{ fontSize: 12 }}>
-            Share this with your players — they enter it under “Join a campaign”.
-          </span>
-        </div>
+        </>
       ) : (
-        <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-          <button className="btn small" disabled={busy} onClick={invite}>
-            {busy ? 'Enabling…' : '📣 Invite players'}
-          </button>
-          <span className="faint" style={{ fontSize: 12 }}>
-            Generates a join code so players can link their accounts to this campaign.
-          </span>
-        </div>
+        <button
+          className="btn small"
+          disabled={busy}
+          onClick={invite}
+          title="Generates a join code so players can link their accounts to this campaign."
+        >
+          {busy ? 'Enabling…' : '📣 Invite players'}
+        </button>
       )}
-      {error && <div className="danger-text" style={{ fontSize: 13, marginTop: 6 }}>{error}</div>}
-    </div>
+      {error && (
+        <span className="danger-text" title={error} aria-label={error}>
+          ⚠️
+        </span>
+      )}
+    </span>
   )
 }
