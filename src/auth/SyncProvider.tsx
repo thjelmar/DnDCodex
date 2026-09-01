@@ -77,6 +77,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         if (cancelled) break
         if (enabling.current.has(c.id)) continue
         if (await db.syncState.get(c.id)) continue
+        if (await db.syncOptOut.get(c.id)) continue // user kept this one local
         enabling.current.add(c.id)
         try {
           await enableSync(c, userId)

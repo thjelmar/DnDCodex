@@ -297,6 +297,15 @@ export interface PendingChange {
   at: ISODate
 }
 
+/**
+ * A LOCAL-ONLY, per-device opt-out. Presence of a row means "keep this campaign
+ * off cloud sync in this browser." Kept out of the synced `Campaign` record on
+ * purpose, so the preference never propagates to the user's other devices.
+ */
+export interface SyncOptOutRow {
+  campaignId: Id
+}
+
 /** Per-campaign sync progress. Presence of a row = this campaign is synced. */
 export interface SyncStateRow {
   campaignId: Id

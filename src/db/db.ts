@@ -13,6 +13,7 @@ import type {
   Link,
   PendingChange,
   SyncStateRow,
+  SyncOptOutRow,
 } from './types'
 
 // The Dexie instance. Each table is keyed by `id`; the strings after `id`
@@ -33,6 +34,7 @@ export class CodexDB extends Dexie {
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
+  syncOptOut!: EntityTable<SyncOptOutRow, 'campaignId'>
 
   constructor() {
     super('dnd-codex')
@@ -205,6 +207,11 @@ export class CodexDB extends Dexie {
     this.version(11).stores({
       pending: '++id, campaignId, [table+recordId]',
       syncState: 'campaignId',
+    })
+    // v12 adds a local-only per-device sync opt-out list (presence = don't sync
+    // this campaign in this browser). Also not exported / not mirrored.
+    this.version(12).stores({
+      syncOptOut: 'campaignId',
     })
   }
 }

@@ -177,6 +177,29 @@ export async function disableSync(campaignId: string): Promise<void> {
   await refreshCampaignCount()
 }
 
+// ---- per-device opt-out ---------------------------------------------------
+
+/** Whether this campaign is kept off sync in this browser. */
+export async function isSyncOptedOut(campaignId: string): Promise<boolean> {
+  return Boolean(await db.syncOptOut.get(campaignId))
+}
+
+/**
+ * Opt a campaign OUT of sync on this device (option 1: the cloud copy is kept,
+ * we just stop syncing it here). disableSync runs FIRST so the opt-out marker is
+ * never itself pushed, keeping the preference local.
+ */
+export async function optOutOfSync(campaignId: string): Promise<void> {
+  await disableSync(campaignId)
+  await db.syncOptOut.put({ campaignId })
+}
+
+/** Opt a campaign back IN: clear the marker, then enable + do an initial sync. */
+export async function optInToSync(campaign: { id: string; name: string }, ownerId: string): Promise<void> {
+  await db.syncOptOut.delete(campaign.id)
+  await enableSync(campaign, ownerId)
+}
+
 // ---- push -----------------------------------------------------------------
 
 /** Drains the outbox for one campaign, upserting records + tombstones. */
@@ -348,6 +371,7 @@ export async function bootstrap(ownerId: string): Promise<void> {
     //    creates it from cloud records, so nothing is queued here.
     for (const c of owned ?? []) {
       const id = c.id as string
+      if (await db.syncOptOut.get(id)) continue // opted out on this device
       if (!(await db.syncState.get(id))) {
         await db.syncState.put({ campaignId: id, ownerId, pullCursor: CURSOR_ZERO, lastSyncedAt: null, lastError: null })
         addSyncedCampaign(id)
@@ -369,6 +393,7 @@ export async function bootstrap(ownerId: string): Promise<void> {
     //    (campaigns created before signing in — back them up under the account).
     const localCampaigns = await db.campaigns.toArray()
     for (const camp of localCampaigns) {
+      if (await db.syncOptOut.get(camp.id)) continue // opted out on this device
       if (!ownedIds.has(camp.id) && !(await db.syncState.get(camp.id))) {
         await enableSync({ id: camp.id, name: camp.name }, ownerId).catch(() => {})
       }
