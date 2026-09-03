@@ -9,7 +9,8 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { AddLinkButton } from '../components/AddLinkButton'
-import type { NPC } from '../db/types'
+import { StatBlockEditor } from '../components/StatBlockEditor'
+import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
 const DISPOSITION_COLOR: Record<NPC['disposition'], string> = {
@@ -103,9 +104,11 @@ function NpcEditor({
   const navigate = useNavigate()
   const [name, setName] = useState(npc.name)
   const [role, setRole] = useState(npc.role)
+  const [race, setRace] = useState(npc.race ?? '')
   const [disposition, setDisposition] = useState(npc.disposition)
   const [locationId, setLocationId] = useState(npc.locationId ?? '')
   const [description, setDescription] = useState(npc.description)
+  const [statBlockData, setStatBlockData] = useState<StatBlock | null>(npc.statBlockData ?? null)
   const [statBlock, setStatBlock] = useState(npc.statBlock)
   const [tags, setTags] = useState(npc.tags)
 
@@ -114,15 +117,17 @@ function NpcEditor({
       updateNPC(npc.id, {
         name,
         role,
+        race,
         disposition,
         locationId: locationId || null,
         description,
+        statBlockData,
         statBlock,
         tags,
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, role, disposition, locationId, description, statBlock, tags, npc.id])
+  }, [name, role, race, disposition, locationId, description, statBlockData, statBlock, tags, npc.id])
 
   return (
     <div>
@@ -134,6 +139,10 @@ function NpcEditor({
         <div className="field">
           <label>Role</label>
           <input className="input" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Innkeeper, Villain…" />
+        </div>
+        <div className="field">
+          <label>Race</label>
+          <input className="input" value={race} onChange={(e) => setRace(e.target.value)} placeholder="Human, Elf, Dragon…" />
         </div>
       </div>
       <div className="form-row">
@@ -183,8 +192,12 @@ function NpcEditor({
         placeholder="Appearance, personality, secrets, [[wiki links]]…"
       />
       <div className="field">
-        <label>Stat block / mechanical notes</label>
-        <textarea className="textarea" value={statBlock} onChange={(e) => setStatBlock(e.target.value)} placeholder="AC 13, HP 27, …" />
+        <label>Stat block</label>
+        <StatBlockEditor name={name} value={statBlockData} onChange={setStatBlockData} />
+      </div>
+      <div className="field">
+        <label>Additional notes</label>
+        <textarea className="textarea" value={statBlock} onChange={(e) => setStatBlock(e.target.value)} placeholder="Tactics, secrets, lair actions, mechanical reminders…" />
       </div>
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>

@@ -455,11 +455,14 @@ button {
 
 /* ---------- Rich text editor ---------- */
 
+/* Manuscript feel: a warm writing surface with an accent spine and a toolbar
+   that recedes until you're actually writing. */
 .rte-editable {
-  border: 1px solid var(--border);
+  border: 1px solid #3a3348;
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: #18151f;
   overflow: hidden;
+  box-shadow: inset 3px 0 0 var(--accent-strong);
 }
 .rte-editable:focus-within {
   border-color: var(--accent);
@@ -470,9 +473,16 @@ button {
   align-items: center;
   gap: 2px;
   flex-wrap: wrap;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-elev);
+  justify-content: flex-end;
+  padding: 6px 10px;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+.rte-editable:focus-within .rte-toolbar {
+  opacity: 1;
+  border-bottom-color: var(--border);
 }
 .rte-btn {
   min-width: 28px;
@@ -510,7 +520,12 @@ button {
   outline: none;
 }
 .rte-editable .rte-content {
-  min-height: 120px;
+  min-height: 140px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.8;
+  padding: 8px 24px 22px;
+  color: #e7e3ee;
 }
 /* Read-only display variant */
 .rte:not(.rte-editable) .rte-content {
@@ -560,6 +575,100 @@ button {
   color: var(--text-faint);
   pointer-events: none;
   height: 0;
+}
+
+/* ---------- NPC stat block ---------- */
+
+.sb-empty { padding: 4px 0; }
+.sb-results { display: flex; flex-direction: column; gap: 4px; }
+.sb-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.sb-result:hover { border-color: var(--accent); }
+
+/* Rendered block — reads like a real stat block, on the manuscript surface. */
+.sb {
+  border: 1px solid #3a3348;
+  border-radius: var(--radius-sm);
+  background: #18151f;
+  box-shadow: inset 3px 0 0 var(--accent-strong);
+  padding: 14px 18px;
+  font-family: var(--serif);
+}
+.sb-name { font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.sb-sub { color: var(--text-dim); font-style: italic; font-size: 14px; margin-top: 2px; }
+.sb-rule {
+  height: 1px;
+  margin: 10px 0;
+  background: linear-gradient(90deg, var(--accent-strong), transparent);
+  opacity: 0.55;
+}
+.sb-line { font-size: 14.5px; line-height: 1.5; color: #e7e3ee; margin: 2px 0; }
+.sb-line-label { color: var(--accent); font-weight: 600; }
+
+.sb-abilities {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  text-align: center;
+}
+.sb-ability { background: var(--bg-elev); border-radius: 6px; padding: 6px 2px; }
+.sb-ab-label { font-size: 11px; letter-spacing: 0.05em; color: var(--accent); font-weight: 600; }
+.sb-ab-score { font-size: 17px; color: var(--text); }
+.sb-ab-mods { font-size: 12px; color: var(--text-dim); display: flex; justify-content: center; gap: 6px; }
+.sb-save-prof { color: var(--text); font-weight: 600; }
+.sb-ab-legend { text-align: center; font-size: 11px; margin-top: 3px; }
+
+.sb-section { margin-top: 10px; }
+.sb-section-title {
+  font-size: 15px;
+  color: var(--accent);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+}
+.sb-entry { font-size: 14px; line-height: 1.55; color: #e7e3ee; margin: 4px 0; }
+.sb-entry strong { color: var(--text); }
+
+/* Edit form */
+.sb-form-label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
+.sb-ability-inputs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+.sb-ability-input { text-align: center; }
+.sb-ability-input .input { text-align: center; padding: 4px; }
+.sb-ab-derived { font-size: 12px; margin-top: 2px; }
+.sb-ab-prof {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  cursor: pointer;
+}
+.sb-entry-section { margin-top: 10px; }
+.sb-entry-edit {
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
 }
 
 /* ---------- Campaign external links ---------- */

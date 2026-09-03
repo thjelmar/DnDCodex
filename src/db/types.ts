@@ -154,16 +154,71 @@ export interface Location extends BaseRecord {
   enemyIds: Id[]
 }
 
+/** The six ability scores, keyed by their short names. */
+export type AbilityKey = 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'
+
+/** One named entry in a stat-block section (a trait, action, reaction, …). */
+export interface StatBlockEntry {
+  id: Id
+  name: string
+  /** Body text; plain text, line breaks preserved. */
+  text: string
+}
+
+/**
+ * A structured 5e (2024) monster/NPC stat block, matching the D&D Beyond field
+ * order. Everything is optional/empty by default; the editor and renderer
+ * compute ability modifiers, saving throws, proficiency bonus, and XP so the
+ * DM never hand-maths them. Absent (undefined/null) means "no stat block yet".
+ */
+export interface StatBlock {
+  size: string
+  /** Creature type + any tags, e.g. "Humanoid (Wizard)". */
+  creatureType: string
+  alignment: string
+  ac: string
+  /** Hit points, incl. hit dice text, e.g. "170 (31d8 + 31)". */
+  hp: string
+  speed: string
+  /** Initiative bonus text, e.g. "+7 (17)". Empty = derive from DEX. */
+  initiative: string
+  abilities: Record<AbilityKey, number>
+  /** Ability keys the creature is proficient in for saving throws. */
+  saveProficiencies: AbilityKey[]
+  /** Proficiency bonus override; empty = derive from CR. */
+  pb: string
+  skills: string
+  resistances: string
+  immunities: string
+  vulnerabilities: string
+  senses: string
+  languages: string
+  /** Challenge rating as text, e.g. "12", "1/2", "1/8". */
+  cr: string
+  habitat: string
+  gear: string
+  treasure: string
+  traits: StatBlockEntry[]
+  actions: StatBlockEntry[]
+  bonusActions: StatBlockEntry[]
+  reactions: StatBlockEntry[]
+  legendaryActions: StatBlockEntry[]
+}
+
 /** A non-player character. */
 export interface NPC extends BaseRecord {
   campaignId: Id
   name: string
   /** Role / occupation (e.g. "Innkeeper", "Big Bad"). */
   role: string
+  /** Ancestry / species (e.g. "Human", "Mind Flayer"). */
+  race: string
   description: string
   /** Where this NPC is usually found. */
   locationId: Id | null
-  /** Freeform stat block or mechanical notes (markdown). */
+  /** Structured stat block. Null/undefined until the DM builds one. */
+  statBlockData?: StatBlock | null
+  /** Freeform additional mechanical notes (markdown), below the stat block. */
   statBlock: string
   /** Disposition toward the party. */
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown'
