@@ -4,7 +4,7 @@ import { db } from '../db/db'
 import { useAuth } from '../auth/AuthProvider'
 import { pushEntity } from '../auth/cloud'
 import { setEntityShared } from '../db/repo'
-import { revealEntity, revealHash, type ShareableKind } from '../lib/reveal'
+import { entityReveal, revealHash, type ShareableKind } from '../lib/reveal'
 import { Icon } from './Icon'
 import type { NPC, Location, Note, Session, Item } from '../db/types'
 
@@ -16,6 +16,7 @@ interface Pending {
   kind: ShareableKind
   id: string
   title: string
+  sections: string[]
   entity: NPC | Location | Note | Session | Item
 }
 
@@ -37,8 +38,16 @@ export function PushChangesPanel({ campaignId }: { campaignId: string }) {
     const scan = (kind: ShareableKind, arr: (NPC | Location | Note | Session | Item)[]) => {
       for (const e of arr) {
         if (!e.sharedWithPlayers) continue
-        const snap = revealEntity(kind, e)
-        if (e.sharedPushedHash !== revealHash(snap)) out.push({ kind, id: e.id, title: snap.title || 'Untitled', entity: e })
+        const snap = entityReveal(kind, e)
+        if (e.sharedPushedHash !== revealHash(snap)) {
+          out.push({
+            kind,
+            id: e.id,
+            title: snap.title || 'Untitled',
+            sections: snap.sections.map((s) => s.label),
+            entity: e,
+          })
+        }
       }
     }
     scan('npc', npcs)
@@ -80,7 +89,7 @@ export function PushChangesPanel({ campaignId }: { campaignId: string }) {
     try {
       for (const p of pending) {
         if (!selected.has(p.id)) continue
-        const snap = revealEntity(p.kind, p.entity)
+        const snap = entityReveal(p.kind, p.entity)
         await pushEntity(campaignId, p.id, p.kind, snap)
         await setEntityShared(p.kind, p.id, { sharedPushedHash: revealHash(snap) })
       }
@@ -100,10 +109,11 @@ export function PushChangesPanel({ campaignId }: { campaignId: string }) {
           <div className="pushchanges-head">Unpublished changes</div>
           <div className="pushchanges-list">
             {pending.map((p) => (
-              <label key={p.id} className="pushchanges-item">
+              <label key={p.id} className="pushchanges-item" style={{ alignItems: 'flex-start' }}>
                 <input
                   type="checkbox"
                   checked={selected.has(p.id)}
+                  style={{ marginTop: 3 }}
                   onChange={(e) => {
                     const next = new Set(selected)
                     if (e.target.checked) next.add(p.id)
@@ -111,8 +121,17 @@ export function PushChangesPanel({ campaignId }: { campaignId: string }) {
                     setSelected(next)
                   }}
                 />
-                <span aria-hidden>{KIND_ICON[p.kind]}</span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                <span aria-hidden style={{ marginTop: 1 }}>{KIND_ICON[p.kind]}</span>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                  {p.sections.length > 0 && (
+                    <span className="pushchanges-sections">
+                      {p.sections.map((s) => (
+                        <span key={s} className="pushchanges-sectag">{s}</span>
+                      ))}
+                    </span>
+                  )}
+                </span>
               </label>
             ))}
           </div>

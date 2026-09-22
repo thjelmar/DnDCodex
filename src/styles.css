@@ -715,6 +715,17 @@ button {
   min-width: 0;
 }
 .pushchanges-item:hover { background: var(--bg-elev); }
+.share-picker { width: 288px; }
+.pushchanges-sections { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.pushchanges-sectag {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 16px;
+}
 
 /* ---------- Entity portrait ---------- */
 

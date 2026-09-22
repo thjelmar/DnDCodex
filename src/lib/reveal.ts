@@ -10,6 +10,31 @@ import { emptyStatBlock } from './statblock'
 
 export type ShareableKind = 'npc' | 'location' | 'note' | 'session' | 'item'
 
+type Shareable = NPC | Location | Note | Session | Item
+
+/** The sections each kind can expose to players, in display order. Keys match
+ *  the section keys produced by `revealEntity`. Drives the share section picker
+ *  and the header push panel's per-section breakdown. */
+export const SECTIONS: Record<ShareableKind, { key: string; label: string }[]> = {
+  npc: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'description', label: 'Description' },
+    { key: 'statblock', label: 'Stat block' },
+    { key: 'notes', label: 'Notes' },
+  ],
+  location: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'description', label: 'Description' },
+    { key: 'poi', label: 'Points of interest' },
+  ],
+  item: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'description', label: 'Description' },
+  ],
+  session: [{ key: 'recap', label: 'Recap' }],
+  note: [{ key: 'body', label: 'Note' }],
+}
+
 export interface RevealedField {
   label: string
   value: string
@@ -121,8 +146,25 @@ function revealStatBlock(sb: StatBlock): RevealedStatBlock {
   }
 }
 
-/** The reveal-safe, spoiler-redacted, structured snapshot for a shareable entity. */
+/** The reveal-safe, spoiler-redacted, structured snapshot for a shareable entity.
+ *  When `only` is given, only those section keys are included — the DM's chosen
+ *  subset from the share picker (undefined = every section). */
 export function revealEntity(
+  kind: ShareableKind,
+  e: NPC | Location | Note | Session | Item,
+  only?: string[],
+): RevealedEntity {
+  const r = buildReveal(kind, e)
+  if (only) r.sections = r.sections.filter((s) => only.includes(s.key))
+  return r
+}
+
+/** Reveal an entity using the section subset stored on it (its `sharedSections`). */
+export function entityReveal(kind: ShareableKind, e: Shareable): RevealedEntity {
+  return revealEntity(kind, e, e.sharedSections)
+}
+
+function buildReveal(
   kind: ShareableKind,
   e: NPC | Location | Note | Session | Item,
 ): RevealedEntity {

@@ -103,6 +103,8 @@ export interface Session extends BaseRecord {
   /** Live-shared to players (Phase 3c). */
   sharedWithPlayers?: boolean
   sharedPushedHash?: string
+  /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
+  sharedSections?: string[]
 }
 
 // Ordered roughly from largest to smallest scope. The nesting hierarchy is
@@ -166,6 +168,8 @@ export interface Location extends BaseRecord {
   /** Live-shared to players (Phase 3c). */
   sharedWithPlayers?: boolean
   sharedPushedHash?: string
+  /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
+  sharedSections?: string[]
 }
 
 /** The six ability scores, keyed by their short names. */
@@ -265,6 +269,8 @@ export interface NPC extends BaseRecord {
   sharedWithPlayers?: boolean
   /** Content hash of the last snapshot pushed to players (for change detection). */
   sharedPushedHash?: string
+  /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
+  sharedSections?: string[]
 }
 
 export type ItemRarity =
@@ -293,6 +299,8 @@ export interface Item extends BaseRecord {
   /** Live-shared to players (Phase 3c). */
   sharedWithPlayers?: boolean
   sharedPushedHash?: string
+  /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
+  sharedSections?: string[]
 }
 
 /** A freeform world-building note / wiki page within a campaign. */
@@ -306,6 +314,8 @@ export interface Note extends BaseRecord {
   /** Live-shared to players (Phase 3c). */
   sharedWithPlayers?: boolean
   sharedPushedHash?: string
+  /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
+  sharedSections?: string[]
 }
 
 /** Sections of a player campaign's home. */

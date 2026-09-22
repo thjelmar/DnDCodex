@@ -451,7 +451,7 @@ const SHARE_TABLE: Record<ShareableKind, 'npcs' | 'locations' | 'notes' | 'sessi
 export async function setEntityShared(
   kind: ShareableKind,
   id: Id,
-  patch: { sharedWithPlayers?: boolean; sharedPushedHash?: string },
+  patch: { sharedWithPlayers?: boolean; sharedPushedHash?: string; sharedSections?: string[] },
 ): Promise<void> {
   const table = SHARE_TABLE[kind]
   await db.table(table).update(id, { ...patch, updatedAt: now() })
