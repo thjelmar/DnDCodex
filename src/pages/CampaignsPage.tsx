@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -54,7 +55,7 @@ export function CampaignsPage() {
           <div className="subtitle">Every world you're running or building.</div>
         </div>
         <button className="btn primary" onClick={() => setCreating(true)}>
-          ＋ New Campaign
+          <Icon name="plus" size={15} color="inherit" /> New Campaign
         </button>
       </div>
 

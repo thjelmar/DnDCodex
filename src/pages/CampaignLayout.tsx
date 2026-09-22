@@ -6,6 +6,7 @@ import { updateCampaign } from '../db/repo'
 import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
 import { PushChangesPanel } from '../components/PushChangesPanel'
+import { Icon } from '../components/Icon'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -110,7 +111,7 @@ export function CampaignLayout() {
                 onClick={startRename}
                 style={{ flexShrink: 0 }}
               >
-                ✎
+                <Icon name="pencil" size={14} />
               </button>
             </>
           )}
@@ -120,7 +121,7 @@ export function CampaignLayout() {
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
           <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
           <Link to="/" className="btn ghost small">
-            ← All campaigns
+            <Icon name="arrow-left" size={13} /> All campaigns
           </Link>
         </div>
       </div>

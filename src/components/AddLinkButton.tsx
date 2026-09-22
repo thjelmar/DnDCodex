@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useState } from 'react'
 
 // Shown in place of an empty link picker: there's nothing of this kind to link
@@ -19,7 +20,7 @@ export function AddLinkButton({ label, onAdd }: { label: string; onAdd: () => vo
         }
       }}
     >
-      {busy ? '…' : `＋ Add ${label}`}
+      {busy ? '…' : <><Icon name="plus" size={14} /> Add {label}</>}
     </button>
   )
 }

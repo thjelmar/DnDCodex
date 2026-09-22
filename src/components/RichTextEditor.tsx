@@ -5,6 +5,7 @@ import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { WikiLink } from '../editor/WikiLink'
 import { Spoiler } from '../editor/Spoiler'
+import { Icon } from './Icon'
 import { useWikiResolver } from '../editor/useWikiResolver'
 import { processImageFile } from '../lib/image'
 import type { Id } from '../db/types'
@@ -203,10 +204,10 @@ function Toolbar({
         active={editor.isActive('spoiler')}
         onClick={() => editor.chain().focus().toggleMark('spoiler').run()}
       >
-        🔒
+        <Icon name="lock" size={15} />
       </Btn>
       <Btn title="Insert image" onClick={onInsertImage}>
-        {busy ? '…' : '🖼'}
+        {busy ? '…' : <Icon name="image" size={15} />}
       </Btn>
     </div>
   )

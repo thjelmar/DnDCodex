@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { pushEntity } from '../auth/cloud'
 import { setEntityShared } from '../db/repo'
 import { revealEntity, revealHash, type ShareableKind } from '../lib/reveal'
+import { Icon } from './Icon'
 import type { NPC, Location, Note, Session, Item } from '../db/types'
 
 const KIND_ICON: Record<ShareableKind, string> = {
@@ -92,7 +93,7 @@ export function PushChangesPanel({ campaignId }: { campaignId: string }) {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button className="btn small primary" onClick={toggleOpen} title="Publish edits to your shared player copies">
-        ⬆ Push changes ({pending.length})
+        <Icon name="upload" size={14} color="inherit" /> Push changes ({pending.length})
       </button>
       {open && (
         <div className="pushchanges-pop">

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './AuthProvider'
 import { enableCampaignSharing, getCampaignJoinCode } from './cloud'
+import { Icon } from '../components/Icon'
 
 /**
  * DM-side control for the campaign header: a compact "Invite players" button that
@@ -75,7 +76,7 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
         onClick={() => setOpen((o) => !o)}
         title="Generate a join code so players can link their accounts to this campaign."
       >
-        {code ? '🔑' : '📣'} Invite players
+        <Icon name="key" size={14} /> Invite players
       </button>
 
       {open && (
@@ -113,7 +114,7 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
                   {code}
                 </code>
                 <button className="btn ghost small" onClick={copy}>
-                  {copied ? '✓ Copied' : 'Copy'}
+                  {copied ? <><Icon name="check" size={13} /> Copied</> : <><Icon name="copy" size={13} /> Copy</>}
                 </button>
               </div>
               <p className="faint mb-0" style={{ fontSize: 12, marginTop: 8 }}>

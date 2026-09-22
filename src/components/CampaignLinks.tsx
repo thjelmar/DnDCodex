@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useState } from 'react'
 import { updateCampaign } from '../db/repo'
 import { newId } from '../db/db'
@@ -35,18 +36,18 @@ export function CampaignLinks({ campaignId, links }: { campaignId: string; links
             className="link-chip-open"
             title={l.url}
           >
-            🔗 {l.label} <span className="faint">↗</span>
+            <Icon name="link" size={13} /> {l.label} <span className="faint"><Icon name="external" size={12} /></span>
           </a>
           <button className="link-chip-btn" title="Edit link" onClick={() => setModal({ link: l })}>
-            ✎
+            <Icon name="pencil" size={13} />
           </button>
           <button className="link-chip-btn" title="Remove link" onClick={() => remove(l.id)}>
-            ✕
+            <Icon name="x" size={12} />
           </button>
         </span>
       ))}
       <button className="btn ghost small" onClick={() => setModal({ link: null })}>
-        ＋ Add link
+        <Icon name="plus" size={13} /> Add link
       </button>
 
       {modal && <LinkModal initial={modal.link} onClose={() => setModal(null)} onSave={save} />}

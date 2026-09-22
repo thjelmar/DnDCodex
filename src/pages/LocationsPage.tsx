@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -88,7 +89,7 @@ export function LocationsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, alignItems: 'start' }}>
       <div>
         <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          ＋ New {selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}
+          <Icon name="plus" size={15} color="inherit" /> New {selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}
         </button>
         {locations?.length === 0 && <p className="faint">No locations yet. Start with a World or Region.</p>}
         {roots.map((l) => (
@@ -364,7 +365,7 @@ function LocationEditor({
                   onClick={() => navigate(`/campaign/${campaignId}/npcs?sel=${ruler.id}`)}
                   title="Open NPC"
                 >
-                  ↗
+                  <Icon name="external" size={14} />
                 </button>
               )}
             </div>
@@ -556,7 +557,7 @@ function LocationMultiPicker({
                 style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0 }}
                 aria-label="Remove"
               >
-                ✕
+                <Icon name="x" size={12} />
               </button>
             </span>
           )

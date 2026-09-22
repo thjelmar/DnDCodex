@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { useConfirm } from './ConfirmDialog'
@@ -319,7 +320,7 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
           >
             ⚠ {gapLabel}
           </button>
-          <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in">＋</button>
+          <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in"><Icon name="plus" size={14} /></button>
           <button className="btn ghost small" onClick={() => zoomBy(0.833)} title="Zoom out">－</button>
           <button className="btn ghost small" onClick={recenter} title="Reset the layout and view">Recenter</button>
         </div>
@@ -641,7 +642,7 @@ function NodePanel({
             {node.sub && <div className="faint" style={{ fontSize: 12, textTransform: 'capitalize' }}>{node.sub}</div>}
           </div>
         </div>
-        <button className="btn ghost small" onClick={onClose} aria-label="Close">✕</button>
+        <button className="btn ghost small" onClick={onClose} aria-label="Close"><Icon name="x" size={14} /></button>
       </div>
 
       <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
@@ -691,7 +692,7 @@ function NodePanel({
               title="Disconnect"
               style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer' }}
             >
-              ✕
+              <Icon name="x" size={13} />
             </button>
           </div>
         ))}
@@ -714,7 +715,7 @@ function NodePanel({
         ))}
       </select>
       <button className="btn small primary" style={{ width: '100%' }} disabled={!targetKey} onClick={addConnection}>
-        ＋ Connect
+        <Icon name="plus" size={14} /> Connect
       </button>
     </div>
   )

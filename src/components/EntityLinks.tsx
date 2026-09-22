@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -141,7 +142,7 @@ export function EntityLinks({
               aria-label="Remove link"
               style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0 }}
             >
-              ✕
+              <Icon name="x" size={12} />
             </button>
           </span>
         ))}
@@ -195,7 +196,7 @@ export function EntityLinks({
               ))}
             </select>
             <button className="btn small" onClick={add} disabled={!targetId}>
-              ＋ Link
+              <Icon name="plus" size={13} /> Link
             </button>
           </>
         )}

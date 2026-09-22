@@ -177,6 +177,22 @@ export interface StatBlockEntry {
   name: string
   /** Body text; plain text, line breaks preserved. */
   text: string
+  /** Hidden from players when the stat block is shared (Phase 3d). */
+  spoiler?: boolean
+}
+
+/** Fixed stat-block rows the DM can mark as spoilers (each hidden as a unit). */
+export interface StatBlockSectionSpoilers {
+  /** AC / HP / Speed / Initiative. */
+  core?: boolean
+  /** The six ability scores row. */
+  abilities?: boolean
+  /** Skills / resistances / immunities / vulnerabilities / senses / languages. */
+  secondary?: boolean
+  /** CR / PB / XP. */
+  cr?: boolean
+  /** Habitat / gear / treasure. */
+  gear?: boolean
 }
 
 /**
@@ -217,6 +233,9 @@ export interface StatBlock {
   bonusActions: StatBlockEntry[]
   reactions: StatBlockEntry[]
   legendaryActions: StatBlockEntry[]
+  /** Fixed rows hidden from players when shared (per-entry spoilers live on the
+   *  entries themselves). */
+  sectionSpoilers?: StatBlockSectionSpoilers
 }
 
 /** A non-player character. */

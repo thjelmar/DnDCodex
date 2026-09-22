@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -226,7 +227,7 @@ export function EncountersPage() {
                           <span style={{ color: camp?.color }}>●</span> {camp?.name ?? 'Unknown'} · {e.combatants.reduce((n, c) => n + c.count, 0)} creatures
                         </div>
                       </button>
-                      <button className="btn ghost small" onClick={() => removeSaved(e.id, e.name)} aria-label="Delete">🗑</button>
+                      <button className="btn ghost small" onClick={() => removeSaved(e.id, e.name)} aria-label="Delete"><Icon name="trash" size={14} /></button>
                     </div>
                   )
                 })}

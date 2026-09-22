@@ -610,6 +610,9 @@ button {
 }
 .share-control { display: inline-flex; align-items: center; }
 .share-on {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12.5px;
   color: var(--accent);
   font-weight: 600;
@@ -770,6 +773,41 @@ button {
 .sb-entry { font-size: 14px; line-height: 1.55; color: #e7e3ee; margin: 4px 0; }
 .sb-entry strong { color: var(--text); }
 
+/* In-view spoiler toggles (mark a section/entry as hidden without opening edit). */
+.sb-view-group { position: relative; }
+.sb-view-group-head { display: flex; justify-content: flex-end; margin-bottom: -4px; }
+.sb-view-group.spoiled,
+.sb-entry-row.spoiled {
+  background: rgba(167, 139, 250, 0.08);
+  border-left: 2px solid var(--accent-strong);
+  border-radius: 4px;
+  padding-left: 8px;
+  margin-left: -2px;
+}
+.sb-view-group.spoiled { padding: 2px 6px 4px 8px; }
+.sb-view-spoiler {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 10.5px;
+  padding: 0 7px;
+  height: 18px;
+  line-height: 16px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.sb-view-spoiler.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(167, 139, 250, 0.14);
+}
+.sb-entry-row { display: flex; gap: 8px; align-items: flex-start; }
+.sb-entry-row .sb-entry { flex: 1; }
+.sb-entry-row .sb-view-spoiler { margin-top: 5px; flex-shrink: 0; }
+
 /* Edit form */
 .sb-form-label { display: block; font-size: 13px; color: var(--text-dim); margin: 10px 0 4px; }
 .sb-ability-inputs {
@@ -797,6 +835,44 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elev);
+}
+.sb-entry-edit.spoiled {
+  border-color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent-strong);
+}
+
+/* Stat-block spoiler groups (rows the DM can hide from players). */
+.sb-group { margin-top: 8px; }
+.sb-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.sb-group-label { font-size: 13px; color: var(--text-dim); font-weight: 500; }
+.sb-spoiler-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.sb-spoiler-toggle.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(167, 139, 250, 0.12);
+}
+.sb-group-spoiled {
+  background: rgba(167, 139, 250, 0.08);
+  border-left: 2px solid var(--accent-strong);
+  border-radius: 4px;
+  padding: 4px 8px 6px;
+  margin-left: -4px;
 }
 
 /* ---------- Campaign external links ---------- */

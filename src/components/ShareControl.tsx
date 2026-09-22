@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { pushEntity, unshareEntity } from '../auth/cloud'
 import { setEntityShared } from '../db/repo'
 import { revealEntity, revealHash, type ShareableKind } from '../lib/reveal'
+import { Icon } from './Icon'
 import type { NPC, Location, Note, Session, Item } from '../db/types'
 
 type Shareable = NPC | Location | Note | Session | Item
@@ -70,11 +71,11 @@ export function ShareControl({
     <div className="share-control">
       {!shared ? (
         <button className="btn small" disabled={busy} onClick={() => publish(true)}>
-          👁 Share with players
+          <Icon name="eye" size={14} /> Share with players
         </button>
       ) : (
         <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span className="share-on">👁 Shared with players</span>
+          <span className="share-on"><Icon name="eye" size={14} /> Shared with players</span>
           {hasPending ? (
             <button
               className="btn small primary"

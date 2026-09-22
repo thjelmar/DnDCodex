@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -52,7 +53,7 @@ export function RollTablesPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
       <div>
         <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          ＋ New Table
+          <Icon name="plus" size={15} color="inherit" /> New Table
         </button>
         {tables?.length === 0 && <p className="faint">No roll tables yet.</p>}
         {[...grouped.entries()].map(([category, group]) => (
@@ -238,13 +239,13 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
                 aria-label="Remove entry"
                 onClick={() => removeEntry(entry.id)}
               >
-                ✕
+                <Icon name="x" size={13} />
               </button>
             </div>
           )
         })}
         <button className="btn small" style={{ marginTop: 6 }} onClick={addEntry}>
-          ＋ Add entry
+          <Icon name="plus" size={14} /> Add entry
         </button>
       </div>
 

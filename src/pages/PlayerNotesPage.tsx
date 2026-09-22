@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -187,7 +188,7 @@ export function PlayerNotesPage() {
       <div className="row wrap between" style={{ gap: 10, marginBottom: 24, alignItems: 'center' }}>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
         <button className="btn ghost small" onClick={() => setImportOpen(true)} title="Paste a share code from your DM">
-          ⬇ Import from your DM
+          <Icon name="download" size={14} /> Import from your DM
         </button>
       </div>
 
@@ -216,7 +217,7 @@ export function PlayerNotesPage() {
                 )}
               </h2>
               <button className="btn small" onClick={() => addTo(section.key)}>
-                ＋ {section.addLabel}
+                <Icon name="plus" size={13} /> {section.addLabel}
               </button>
             </div>
             {entries.length === 0 ? (

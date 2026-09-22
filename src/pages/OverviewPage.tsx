@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -90,7 +91,7 @@ export function OverviewPage() {
       <div className="row between">
         <h2 className="mb-0">World Overview</h2>
         <button className="btn small" onClick={() => setEditing(true)}>
-          ✎ Edit
+          <Icon name="pencil" size={13} /> Edit
         </button>
       </div>
       <div style={{ marginTop: 12, marginBottom: 28 }}>
@@ -385,7 +386,7 @@ function CampaignCover({ campaign }: { campaign: Campaign }) {
           onClick={() => fileRef.current?.click()}
           style={{ width: '100%', padding: '18px', borderStyle: 'dashed' }}
         >
-          {busy ? 'Uploading…' : '🖼 Add a cover image'}
+          {busy ? 'Uploading…' : <><Icon name="image" size={15} /> Add a cover image</>}
         </button>
       )}
     </div>

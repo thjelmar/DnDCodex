@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useId, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -66,7 +67,7 @@ export function TagInput({
             aria-label={`Remove ${tag}`}
             style={{ background: 'none', border: 'none', color: 'var(--text-faint)', cursor: 'pointer', padding: 0, fontSize: 13 }}
           >
-            ✕
+            <Icon name="x" size={11} />
           </button>
         </span>
       ))}

@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../components/Modal'
 import { useAuth } from './AuthProvider'
@@ -47,7 +48,7 @@ export function AccountArea() {
               <span aria-hidden>👤</span>
             )}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-            <span aria-hidden style={{ opacity: 0.6 }}>✎</span>
+            <span aria-hidden style={{ opacity: 0.6 }}><Icon name="pencil" size={13} /></span>
           </button>
           <button className="btn ghost small" onClick={() => signOut()}>
             Sign out

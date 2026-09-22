@@ -9,6 +9,7 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
+import { Icon } from '../components/Icon'
 import { useConfirm } from '../components/ConfirmDialog'
 import type { Item, ItemRarity } from '../db/types'
 
@@ -65,7 +66,7 @@ export function ItemsPage() {
           onChange={(e) => setFilter(e.target.value)}
         />
         <button className="btn primary" onClick={add}>
-          ＋ New Item
+          <Icon name="plus" size={15} color="inherit" /> New Item
         </button>
       </div>
 

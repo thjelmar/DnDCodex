@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
 import { ShareInboxProvider, useShareInbox, ShareBadge } from './auth/ShareInboxProvider'
 import { AccountArea } from './auth/AccountArea'
+import { Icon } from './components/Icon'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { CampaignsPage } from './pages/CampaignsPage'
@@ -65,7 +66,7 @@ function Sidebar({
       </div>
 
       <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenSearch}>
-        <span className="ico">🔎</span>
+        <span className="ico"><Icon name="search" /></span>
         <span>Search</span>
         <span style={{ marginLeft: 'auto' }}>
           <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
@@ -73,7 +74,7 @@ function Sidebar({
         </span>
       </button>
       <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenDice}>
-        <span className="ico">🎲</span>
+        <span className="ico"><Icon name="dice" /></span>
         <span>Dice Roller</span>
         <span style={{ marginLeft: 'auto' }}>
           <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
@@ -81,7 +82,7 @@ function Sidebar({
         </span>
       </button>
       <NavLink to="/backup" className="nav-link">
-        <span className="ico">💾</span> Backup &amp; Data
+        <span className="ico"><Icon name="save" /></span> Backup &amp; Data
       </NavLink>
 
       {/* DM: campaign creation & management */}
@@ -90,7 +91,7 @@ function Sidebar({
         <span className="ico">📚</span> Campaigns
       </NavLink>
       <Link to="/?new=1" className="nav-link">
-        <span className="ico">＋</span> New Campaign
+        <span className="ico"><Icon name="plus" /></span> New Campaign
       </Link>
       {recent?.map((c) => (
         <NavLink key={c.id} to={`/campaign/${c.id}`} className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
@@ -134,7 +135,7 @@ function ToolsMenu() {
         onClick={() => setOpen((o) => !o)}
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
       >
-        <span className="ico">🧰</span>
+        <span className="ico"><Icon name="tools" /></span>
         <span>Tools</span>
         <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{open ? '▾' : '▸'}</span>
       </button>
@@ -180,7 +181,7 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
         onClick={onAddPlayerCampaign}
       >
-        <span className="ico">＋</span> Add a campaign
+        <span className="ico"><Icon name="plus" /></span> Add a campaign
       </button>
       {user && (
         <button
@@ -188,7 +189,7 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
           style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
           onClick={() => setJoinOpen(true)}
         >
-          <span className="ico">🔑</span> Join a campaign
+          <span className="ico"><Icon name="key" /></span> Join a campaign
         </button>
       )}
       {joinOpen && <JoinCampaignModal onClose={() => setJoinOpen(false)} />}

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useAuth } from './AuthProvider'
 import { optOutOfSync, optInToSync } from '../lib/sync'
+import { Icon } from '../components/Icon'
 
 /**
  * Compact per-campaign sync control for the campaign header. Signed-in users sync
@@ -56,7 +57,9 @@ export function SyncToggle({ campaign }: { campaign: { id: string; name: string 
       }}
     >
       <input type="checkbox" checked={!optedOut} disabled={busy} onChange={toggle} />
-      <span>{busy ? 'Sync…' : optedOut ? '⛅ Local only' : '☁️ Sync'}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        {busy ? 'Sync…' : <><Icon name="cloud" size={14} color={optedOut ? 'var(--text-faint)' : 'var(--accent)'} />{optedOut ? 'Local only' : 'Sync'}</>}
+      </span>
       {error && (
         <span className="danger-text" title={error} aria-label={error}>
           ⚠️

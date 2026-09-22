@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createImage, deleteImage } from '../db/repo'
 import { processImageFile } from '../lib/image'
+import { Icon } from './Icon'
 import type { Id } from '../db/types'
 
 /**
@@ -99,7 +100,7 @@ export function EntityImage({
           onClick={() => fileRef.current?.click()}
           title={`Add a ${label}`}
         >
-          {busy ? '…' : <><span style={{ fontSize: 24 }}>🖼</span><span style={{ fontSize: 12 }}>Add {label}</span></>}
+          {busy ? '…' : <><Icon name="image" size={26} strokeWidth={1.5} /><span style={{ fontSize: 12 }}>Add {label}</span></>}
         </button>
       )}
     </div>

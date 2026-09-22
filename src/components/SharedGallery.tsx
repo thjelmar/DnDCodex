@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
@@ -66,7 +67,7 @@ export function SharedGallery({
     <div style={{ marginBottom: 24 }}>
       {showHeading && (
         <h2 style={{ fontSize: 18, marginBottom: 10 }}>
-          <span aria-hidden style={{ marginRight: 8 }}>🖼️</span>
+          <span aria-hidden style={{ marginRight: 8, display: 'inline-flex' }}><Icon name="image" size={18} /></span>
           Shared gallery
         </h2>
       )}

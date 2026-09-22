@@ -9,6 +9,7 @@ import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate, todayISODate } from '../lib/format'
 import { ShareControl } from '../components/ShareControl'
+import { Icon } from '../components/Icon'
 import type { Session } from '../db/types'
 
 export function SessionsPage() {
@@ -56,7 +57,7 @@ export function SessionsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
       <div>
         <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={addSession}>
-          ＋ New Session
+          <Icon name="plus" size={15} color="inherit" /> New Session
         </button>
         {sessions?.length === 0 && <p className="faint">No sessions yet.</p>}
         {sessions?.map((s) => (

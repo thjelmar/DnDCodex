@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -18,7 +19,7 @@ export function PlayerGalleryPage() {
     return (
       <div className="content">
         <div className="empty">
-          <div className="big">🖼️</div>
+          <div className="big"><Icon name="image" size={40} strokeWidth={1.4} /></div>
           <p>This campaign has no shared gallery.</p>
           <Link className="btn" to={campaignId ? `/player/${campaignId}` : '/'}>
             ← Back
@@ -32,7 +33,7 @@ export function PlayerGalleryPage() {
     <div className="content">
       <div className="row between" style={{ marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <h1 className="mb-0">
-          <span aria-hidden style={{ marginRight: 8 }}>🖼️</span>
+          <span aria-hidden style={{ marginRight: 8, display: 'inline-flex' }}><Icon name="image" size={20} /></span>
           {campaign.name} — Shared gallery
         </h1>
         <Link to={`/player/${campaign.id}`} className="btn ghost small">

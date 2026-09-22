@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -77,7 +78,7 @@ export function GalleryPage() {
           sees it in a live album — toggle it off any time to pull it back.
         </p>
         <button className="btn primary" disabled={busy} onClick={() => fileRef.current?.click()}>
-          {busy ? 'Uploading…' : '＋ Upload images'}
+          {busy ? 'Uploading…' : <><Icon name="upload" size={15} color="inherit" /> Upload images</>}
         </button>
       </div>
 
@@ -89,7 +90,7 @@ export function GalleryPage() {
 
       {images?.length === 0 ? (
         <div className="empty">
-          <div className="big">🖼️</div>
+          <div className="big"><Icon name="image" size={40} strokeWidth={1.4} /></div>
           <p>No images yet. Upload maps, handouts, or character art to build your gallery.</p>
         </div>
       ) : (

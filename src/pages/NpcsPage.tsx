@@ -12,6 +12,7 @@ import { AddLinkButton } from '../components/AddLinkButton'
 import { StatBlockEditor } from '../components/StatBlockEditor'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
+import { Icon } from '../components/Icon'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -50,7 +51,7 @@ export function NpcsPage() {
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
       <div>
         <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          ＋ New NPC
+          <Icon name="plus" size={15} color="inherit" /> New NPC
         </button>
         {npcs?.length === 0 && <p className="faint">No NPCs yet.</p>}
         {npcs?.map((n) => (
@@ -207,10 +208,13 @@ function NpcEditor({
         <label>Stat block</label>
         <StatBlockEditor name={name} value={statBlockData} onChange={setStatBlockData} />
       </div>
-      <div className="field">
-        <label>Additional notes</label>
-        <textarea className="textarea" value={statBlock} onChange={(e) => setStatBlock(e.target.value)} placeholder="Tactics, secrets, lair actions, mechanical reminders…" />
-      </div>
+      <RichTextEditor
+        campaignId={campaignId}
+        value={statBlock}
+        onChange={setStatBlock}
+        label="Additional notes"
+        placeholder="Tactics, secrets, lair actions, mechanical reminders… (use the lock button to mark spoilers)"
+      />
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
         Connections
