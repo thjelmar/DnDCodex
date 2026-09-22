@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import type { RevealedEntity } from '../lib/reveal'
 
 // Cloud-side helpers for Phase 2: registering a DM's campaign for sharing,
 // generating/reading its join code, and letting a player join by code. These
@@ -252,17 +253,10 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
 // so players never see unpushed edits. Un-sharing deletes the row (retracts it
 // live). Players read `shared_entities` directly (RLS restricts to members).
 
-export interface SharedEntityData {
-  kind: string
-  title: string
-  subtitle?: string
-  body: string
-}
-
 export interface SharedEntityRow {
   id: string
   kind: string
-  data: SharedEntityData
+  data: RevealedEntity
   pushedAt: string
 }
 
@@ -271,7 +265,7 @@ export async function pushEntity(
   campaignId: string,
   id: string,
   kind: string,
-  data: SharedEntityData,
+  data: RevealedEntity,
 ): Promise<void> {
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_entities').upsert(
@@ -300,7 +294,7 @@ export async function getSharedEntities(cloudCampaignId: string): Promise<Shared
   return data.map((r) => ({
     id: r.id as string,
     kind: r.kind as string,
-    data: r.data as SharedEntityData,
+    data: r.data as RevealedEntity,
     pushedAt: r.pushed_at as string,
   }))
 }

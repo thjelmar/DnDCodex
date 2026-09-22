@@ -17,6 +17,8 @@
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  /* Lock glyph (outline) used for spoiler markers, via mask so it takes currentColor. */
+  --lock-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23000'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x='4'%20y='11'%20width='16'%20height='10'%20rx='2'/%3E%3Cpath%20d='M8%2011V7a4%204%200%200%201%208%200v4'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 * {
@@ -578,19 +580,50 @@ button {
 }
 .rte-content .spoiler::before,
 .spoiler::before {
-  content: '🔒 ';
-  font-size: 0.85em;
-  opacity: 0.7;
+  content: '';
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 3px;
+  vertical-align: -1px;
+  background-color: var(--accent);
+  -webkit-mask: var(--lock-mask);
+  mask: var(--lock-mask);
 }
 /* Player-side: the secret text is redacted server-side; this is all that's sent. */
 .spoiler-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: var(--bg-elev-2);
-  color: var(--text-faint);
+  color: var(--text-dim);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 0 6px;
+  padding: 0 7px;
   font-size: 0.92em;
   font-style: italic;
+}
+.spoiler-hidden::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  background-color: var(--accent);
+  -webkit-mask: var(--lock-mask);
+  mask: var(--lock-mask);
+}
+/* Player-side stat-block "section is hidden" marker. */
+.sb-hidden-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+.sb-hidden-label {
+  font-size: 15px;
+  color: var(--accent);
+  font-weight: 600;
 }
 /* Placeholder text for empty editors */
 .rte-content p.is-editor-empty:first-child::before {
@@ -630,6 +663,27 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.shared-pill {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(167, 139, 250, 0.14);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.shared-section { margin-top: 8px; }
+.shared-section-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+.shared-fields { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.shared-field { font-size: 13.5px; color: #e7e3ee; }
+.shared-field-label { color: var(--accent); font-weight: 600; }
 .pushchanges-pop {
   position: absolute;
   top: calc(100% + 6px);

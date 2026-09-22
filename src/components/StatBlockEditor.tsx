@@ -161,21 +161,38 @@ function SbGroup({
   )
 }
 
-function StatBlockView({
+/** Player-side marker where a stat-block section was redacted by the DM. */
+function HiddenMarker({ label }: { label: string }) {
+  return (
+    <div className="sb-hidden-row">
+      <span className="sb-hidden-label">{label}</span>
+      <span className="spoiler-hidden">Hidden by your DM</span>
+    </div>
+  )
+}
+
+export function StatBlockView({
   name,
   block,
   onChange,
+  hideAbilities,
+  hidden,
 }: {
   name: string
   block: StatBlock
   /** When provided (DM view), sections show spoiler toggles. */
   onChange?: (block: StatBlock) => void
+  /** Player view: omit the ability grid (it was spoilered). */
+  hideAbilities?: boolean
+  /** Player view: fixed rows the DM hid — render a "hidden" marker for each. */
+  hidden?: StatBlockSectionSpoilers
 }) {
   const pb = effectivePb(block)
   const crLine = crXpLabel(block)
   const header = [block.size, block.creatureType].filter(Boolean).join(' ') +
     (block.alignment ? `, ${block.alignment}` : '')
   const spoilers = block.sectionSpoilers ?? {}
+  const h = hidden ?? {}
   const set = (patch: Partial<StatBlock>) => onChange?.({ ...block, ...patch })
   const toggle = (k: keyof StatBlockSectionSpoilers) =>
     set({ sectionSpoilers: { ...spoilers, [k]: !spoilers[k] } })
@@ -191,7 +208,9 @@ function StatBlockView({
       <div className="sb-name">{name || 'Unnamed'}</div>
       {header.trim() && <div className="sb-sub">{header}</div>}
 
-      {has(block.ac, initiative, block.hp, block.speed) && (
+      {h.core ? (
+        <><div className="sb-rule" /><HiddenMarker label="Core stats" /></>
+      ) : has(block.ac, initiative, block.hp, block.speed) ? (
         <>
           <div className="sb-rule" />
           <SbGroup spoiled={!!spoilers.core} onToggle={onChange && (() => toggle('core'))}>
@@ -201,28 +220,36 @@ function StatBlockView({
             <SbLine label="Speed" value={block.speed} />
           </SbGroup>
         </>
-      )}
+      ) : null}
 
-      <div className="sb-rule" />
-      <SbGroup spoiled={!!spoilers.abilities} onToggle={onChange && (() => toggle('abilities'))}>
-        <div className="sb-abilities">
-          {ABILITIES.map(({ key, label }) => (
-            <div key={key} className="sb-ability">
-              <div className="sb-ab-label">{label}</div>
-              <div className="sb-ab-score">{block.abilities[key]}</div>
-              <div className="sb-ab-mods">
-                <span>{signed(abilityMod(block.abilities[key]))}</span>
-                <span className={block.saveProficiencies.includes(key) ? 'sb-save-prof' : ''}>
-                  {signed(saveValue(block, key))}
-                </span>
-              </div>
+      {h.abilities ? (
+        <><div className="sb-rule" /><HiddenMarker label="Ability scores" /></>
+      ) : !hideAbilities ? (
+        <>
+          <div className="sb-rule" />
+          <SbGroup spoiled={!!spoilers.abilities} onToggle={onChange && (() => toggle('abilities'))}>
+            <div className="sb-abilities">
+              {ABILITIES.map(({ key, label }) => (
+                <div key={key} className="sb-ability">
+                  <div className="sb-ab-label">{label}</div>
+                  <div className="sb-ab-score">{block.abilities[key]}</div>
+                  <div className="sb-ab-mods">
+                    <span>{signed(abilityMod(block.abilities[key]))}</span>
+                    <span className={block.saveProficiencies.includes(key) ? 'sb-save-prof' : ''}>
+                      {signed(saveValue(block, key))}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="sb-ab-legend faint">mod · save</div>
-      </SbGroup>
+            <div className="sb-ab-legend faint">mod · save</div>
+          </SbGroup>
+        </>
+      ) : null}
 
-      {has(block.skills, block.resistances, block.immunities, block.vulnerabilities, block.senses, block.languages) && (
+      {h.secondary ? (
+        <><div className="sb-rule" /><HiddenMarker label="Skills, senses &amp; defenses" /></>
+      ) : has(block.skills, block.resistances, block.immunities, block.vulnerabilities, block.senses, block.languages) ? (
         <>
           <div className="sb-rule" />
           <SbGroup spoiled={!!spoilers.secondary} onToggle={onChange && (() => toggle('secondary'))}>
@@ -234,21 +261,25 @@ function StatBlockView({
             <SbLine label="Languages" value={block.languages} />
           </SbGroup>
         </>
-      )}
+      ) : null}
 
-      {crText.trim() && (
+      {h.cr ? (
+        <HiddenMarker label="Challenge rating" />
+      ) : crText.trim() ? (
         <SbGroup spoiled={!!spoilers.cr} onToggle={onChange && (() => toggle('cr'))}>
           <SbLine label="CR" value={crText} />
         </SbGroup>
-      )}
+      ) : null}
 
-      {has(block.habitat, block.gear, block.treasure) && (
+      {h.gear ? (
+        <HiddenMarker label="Habitat, gear &amp; treasure" />
+      ) : has(block.habitat, block.gear, block.treasure) ? (
         <SbGroup spoiled={!!spoilers.gear} onToggle={onChange && (() => toggle('gear'))}>
           <SbLine label="Habitat" value={block.habitat} />
           <SbLine label="Gear" value={block.gear} />
           <SbLine label="Treasure" value={block.treasure} />
         </SbGroup>
-      )}
+      ) : null}
 
       {SECTIONS.map(({ key, label }) => {
         const entries = block[key]
@@ -258,11 +289,17 @@ function StatBlockView({
             <div className="sb-section-title">{label}</div>
             {entries.map((e) => (
               <div key={e.id} className={`sb-entry-row${e.spoiler ? ' spoiled' : ''}`}>
-                <p className="sb-entry">
-                  {e.name && <strong>{e.name}. </strong>}
-                  <span style={{ whiteSpace: 'pre-wrap' }}>{e.text}</span>
-                </p>
-                {onChange && <SbSpoilerControl spoiled={!!e.spoiler} onToggle={() => toggleEntry(key, e.id)} />}
+                {e.hidden ? (
+                  <span className="spoiler-hidden">Hidden by your DM</span>
+                ) : (
+                  <>
+                    <p className="sb-entry">
+                      {e.name && <strong>{e.name}. </strong>}
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{e.text}</span>
+                    </p>
+                    {onChange && <SbSpoilerControl spoiled={!!e.spoiler} onToggle={() => toggleEntry(key, e.id)} />}
+                  </>
+                )}
               </div>
             ))}
           </div>

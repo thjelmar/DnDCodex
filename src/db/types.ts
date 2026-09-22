@@ -179,6 +179,8 @@ export interface StatBlockEntry {
   text: string
   /** Hidden from players when the stat block is shared (Phase 3d). */
   spoiler?: boolean
+  /** Reveal-output only: this entry was redacted (show a "hidden" marker). */
+  hidden?: boolean
 }
 
 /** Fixed stat-block rows the DM can mark as spoilers (each hidden as a unit). */
