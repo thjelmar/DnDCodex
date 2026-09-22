@@ -15,8 +15,6 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
-import { ImportSharedModal } from '../components/ImportSharedModal'
-import { SharedInbox } from '../auth/SharedInbox'
 import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import type { SharedEntityRow } from '../auth/cloud'
@@ -83,7 +81,6 @@ export function PlayerNotesPage() {
   const [searchParams] = useSearchParams()
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
-  const [importOpen, setImportOpen] = useState(false)
   const [viewShared, setViewShared] = useState<SharedEntityRow | null>(null)
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
@@ -219,14 +216,7 @@ export function PlayerNotesPage() {
 
       <div className="row wrap between" style={{ gap: 10, marginBottom: 24, alignItems: 'center' }}>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
-        <button className="btn ghost small" onClick={() => setImportOpen(true)} title="Paste a share code from your DM">
-          <Icon name="download" size={14} /> Import from your DM
-        </button>
       </div>
-
-      {campaign.linkedCampaignId && (
-        <SharedInbox localCampaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
-      )}
 
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
@@ -312,7 +302,6 @@ export function PlayerNotesPage() {
           <SharedCard row={viewShared} />
         </SidePanel>
       )}
-      {importOpen && <ImportSharedModal campaignId={campaign.id} onClose={() => setImportOpen(false)} />}
     </div>
   )
 }
