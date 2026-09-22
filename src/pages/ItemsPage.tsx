@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createItem, updateItem, deleteItem } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
-import { Modal } from '../components/Modal'
+import { SidePanel } from '../components/SidePanel'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { EntityImage } from '../components/EntityImage'
@@ -142,7 +142,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
   }
 
   return (
-    <Modal
+    <SidePanel
       title="Item"
       onClose={onClose}
       footer={
@@ -228,6 +228,6 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         label="Description"
         placeholder="What it does, its history, attunement notes…"
       />
-    </Modal>
+    </SidePanel>
   )
 }

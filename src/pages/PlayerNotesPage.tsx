@@ -20,7 +20,7 @@ import { SharedInbox } from '../auth/SharedInbox'
 import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import type { SharedEntityRow } from '../auth/cloud'
-import { Modal } from '../components/Modal'
+import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
 import { buildPlayerGraph, PLAYER_KIND_META, PLAYER_MAP_SECTIONS } from '../lib/playerGraph'
@@ -308,9 +308,9 @@ export function PlayerNotesPage() {
         <PlayerEntryModal key={editing.id} note={editing} onClose={() => setEditingId(null)} />
       )}
       {viewShared && (
-        <Modal title="Shared with you" onClose={() => setViewShared(null)}>
+        <SidePanel title="Shared with you" onClose={() => setViewShared(null)}>
           <SharedCard row={viewShared} />
-        </Modal>
+        </SidePanel>
       )}
       {importOpen && <ImportSharedModal campaignId={campaign.id} onClose={() => setImportOpen(false)} />}
     </div>
@@ -376,7 +376,7 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
   }, [title, tags, body, date, status, note.id])
 
   return (
-    <Modal
+    <SidePanel
       title={`${section?.icon ?? ''} ${section?.label ?? 'Entry'}`}
       onClose={onClose}
       footer={
@@ -447,6 +447,6 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
       />
 
       <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>Autosaves as you type.</div>
-    </Modal>
+    </SidePanel>
   )
 }

@@ -27,6 +27,8 @@ export type IconName =
   | 'trash'
   | 'download'
   | 'link'
+  | 'maximize'
+  | 'minimize'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -150,6 +152,22 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M9.5 14.5 14.5 9.5" />
       <path d="M11 6.5 12.5 5a4 4 0 0 1 5.7 5.7l-1.5 1.5" />
       <path d="M13 17.5 11.5 19a4 4 0 0 1-5.7-5.7l1.5-1.5" />
+    </>
+  ),
+  maximize: (
+    <>
+      <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+      <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+      <path d="M8 21H5a2 2 0 0 1-2-2v-3" />
+      <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+    </>
+  ),
+  minimize: (
+    <>
+      <path d="M8 3v3a2 2 0 0 1-2 2H3" />
+      <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
+      <path d="M3 16h3a2 2 0 0 1 2 2v3" />
+      <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
     </>
   ),
 }
