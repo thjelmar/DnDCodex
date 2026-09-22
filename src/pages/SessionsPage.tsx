@@ -8,6 +8,7 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate, todayISODate } from '../lib/format'
+import { ShareControl } from '../components/ShareControl'
 import type { Session } from '../db/types'
 
 export function SessionsPage() {
@@ -110,6 +111,9 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
 
   return (
     <div>
+      <div className="share-bar">
+        <ShareControl campaignId={session.campaignId} kind="session" entity={session} />
+      </div>
       <div className="form-row" style={{ gridTemplateColumns: '1fr 160px' }}>
         <div className="field">
           <label>Title</label>

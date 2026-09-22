@@ -28,10 +28,20 @@ export async function enableCampaignSharing(
 
   if (!joinCode) {
     joinCode = generateJoinCode()
-    const { error } = await supabase
-      .from('campaigns')
-      .insert({ id: campaign.id, owner_id: ownerId, name: campaign.name, join_code: joinCode })
-    if (error) throw error
+    if (existing.data) {
+      // Phase 3 sync already created the campaign row, so INSERT would 409 on the
+      // existing primary key. Just set the join code on the existing row.
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ join_code: joinCode })
+        .eq('id', campaign.id)
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('campaigns')
+        .insert({ id: campaign.id, owner_id: ownerId, name: campaign.name, join_code: joinCode })
+      if (error) throw error
+    }
   }
   // Make sure the DM is recorded as a member. ignoreDuplicates avoids an RLS
   // UPDATE (which members have no policy for) if the row already exists.
@@ -173,4 +183,124 @@ export async function getInboxCounts(userId: string): Promise<InboxCounts> {
 export async function markShareConsumed(id: string): Promise<void> {
   if (!supabase) return
   await supabase.from('shares').update({ consumed_at: new Date().toISOString() }).eq('id', id)
+}
+
+// --- Shared gallery (Phase 3b) ---------------------------------------------
+// A live album: the DM upserts images the whole campaign can read; un-sharing
+// deletes the cloud row so it disappears from every player instantly. Unlike
+// the inbox, nothing is imported — players read `shared_images` directly (RLS
+// restricts it to campaign members).
+
+export interface SharedImage {
+  id: string
+  dataUrl: string
+  caption: string | null
+  width: number | null
+  height: number | null
+  createdAt: string
+}
+
+/** Share (or update) a gallery image so every campaign member sees it live. */
+export async function shareImageToCampaign(
+  campaignId: string,
+  img: { id: string; dataUrl: string; caption?: string; width?: number; height?: number },
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('shared_images').upsert(
+    {
+      id: img.id,
+      campaign_id: campaignId,
+      data_url: img.dataUrl,
+      caption: img.caption ?? null,
+      width: img.width ?? null,
+      height: img.height ?? null,
+    },
+    { onConflict: 'id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Stop sharing an image — removes it from every player's view immediately. */
+export async function unshareImageFromCampaign(imageId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('shared_images').delete().eq('id', imageId)
+  if (error) throw new Error(error.message)
+}
+
+/** The live shared gallery for a campaign the current user belongs to. */
+export async function getSharedImages(cloudCampaignId: string): Promise<SharedImage[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('shared_images')
+    .select('id, data_url, caption, width, height, created_at')
+    .eq('campaign_id', cloudCampaignId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data.map((r) => ({
+    id: r.id as string,
+    dataUrl: r.data_url as string,
+    caption: (r.caption as string) ?? null,
+    width: (r.width as number) ?? null,
+    height: (r.height as number) ?? null,
+    createdAt: r.created_at as string,
+  }))
+}
+
+// --- Shared entities (Phase 3c) --------------------------------------------
+// Live published entity copies. `pushEntity` uploads the reveal-safe, spoiler-
+// redacted snapshot (see lib/reveal.ts); it is the DM's explicit "publish" step,
+// so players never see unpushed edits. Un-sharing deletes the row (retracts it
+// live). Players read `shared_entities` directly (RLS restricts to members).
+
+export interface SharedEntityData {
+  kind: string
+  title: string
+  subtitle?: string
+  body: string
+}
+
+export interface SharedEntityRow {
+  id: string
+  kind: string
+  data: SharedEntityData
+  pushedAt: string
+}
+
+/** Publish (upsert) a reveal-safe snapshot of an entity for players. */
+export async function pushEntity(
+  campaignId: string,
+  id: string,
+  kind: string,
+  data: SharedEntityData,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('shared_entities').upsert(
+    { id, campaign_id: campaignId, kind, data, pushed_at: new Date().toISOString() },
+    { onConflict: 'id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Stop sharing an entity — removes it from players immediately. */
+export async function unshareEntity(id: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('shared_entities').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/** The live set of entities shared with the current player for a campaign. */
+export async function getSharedEntities(cloudCampaignId: string): Promise<SharedEntityRow[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('shared_entities')
+    .select('id, kind, data, pushed_at')
+    .eq('campaign_id', cloudCampaignId)
+    .order('pushed_at', { ascending: false })
+  if (error || !data) return []
+  return data.map((r) => ({
+    id: r.id as string,
+    kind: r.kind as string,
+    data: r.data as SharedEntityData,
+    pushedAt: r.pushed_at as string,
+  }))
 }

@@ -80,6 +80,12 @@ export interface StoredImage extends BaseRecord {
   height: number
   /** Approximate decoded byte size, for display. */
   bytes: number
+  /** True for images uploaded into the campaign Gallery (vs. a cover/portrait). */
+  inGallery?: boolean
+  /** Optional caption shown in the gallery and to players. */
+  caption?: string
+  /** True when this gallery image is shared to the campaign's players (live). */
+  sharedWithPlayers?: boolean
 }
 
 /** A play session with a date and notes. */
@@ -94,6 +100,9 @@ export interface Session extends BaseRecord {
   dmNotes: string
   /** Free-form organizational tags. */
   tags: string[]
+  /** Live-shared to players (Phase 3c). */
+  sharedWithPlayers?: boolean
+  sharedPushedHash?: string
 }
 
 // Ordered roughly from largest to smallest scope. The nesting hierarchy is
@@ -120,6 +129,8 @@ export interface Location extends BaseRecord {
   campaignId: Id
   name: string
   type: LocationType
+  /** Header image (StoredImage id) shown at the top of the location. */
+  imageId?: Id | null
   /** Rich-text (HTML) description. */
   description: string
   /** Containing location — the auto-link up the hierarchy. */
@@ -152,6 +163,9 @@ export interface Location extends BaseRecord {
   allyIds: Id[]
   /** Other locations this one is in conflict with. */
   enemyIds: Id[]
+  /** Live-shared to players (Phase 3c). */
+  sharedWithPlayers?: boolean
+  sharedPushedHash?: string
 }
 
 /** The six ability scores, keyed by their short names. */
@@ -213,6 +227,8 @@ export interface NPC extends BaseRecord {
   role: string
   /** Ancestry / species (e.g. "Human", "Mind Flayer"). */
   race: string
+  /** Portrait image (StoredImage id), shown in the editor and list. */
+  imageId?: Id | null
   description: string
   /** Where this NPC is usually found. */
   locationId: Id | null
@@ -224,6 +240,10 @@ export interface NPC extends BaseRecord {
   disposition: 'friendly' | 'neutral' | 'hostile' | 'unknown'
   /** Free-form organizational tags. */
   tags: string[]
+  /** Live-shared to players (Phase 3c). */
+  sharedWithPlayers?: boolean
+  /** Content hash of the last snapshot pushed to players (for change detection). */
+  sharedPushedHash?: string
 }
 
 export type ItemRarity =
@@ -241,12 +261,17 @@ export interface Item extends BaseRecord {
   rarity: ItemRarity
   /** Type (e.g. "Weapon", "Wondrous Item", "Potion"). */
   category: string
+  /** Image (StoredImage id) of the item. */
+  imageId?: Id | null
   description: string
   attunement: boolean
   /** Approximate value in gp (freeform text to allow "priceless" etc.). */
   value: string
   /** Free-form organizational tags. */
   tags: string[]
+  /** Live-shared to players (Phase 3c). */
+  sharedWithPlayers?: boolean
+  sharedPushedHash?: string
 }
 
 /** A freeform world-building note / wiki page within a campaign. */
@@ -257,6 +282,9 @@ export interface Note extends BaseRecord {
   body: string
   /** Organizational tags (e.g. "Lore", "Factions", "History"). */
   tags: string[]
+  /** Live-shared to players (Phase 3c). */
+  sharedWithPlayers?: boolean
+  sharedPushedHash?: string
 }
 
 /** Sections of a player campaign's home. */

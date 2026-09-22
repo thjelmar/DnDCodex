@@ -22,9 +22,11 @@ import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
 import { EncountersPage } from './pages/EncountersPage'
+import { GalleryPage } from './pages/GalleryPage'
 import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
+import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 
@@ -236,6 +238,7 @@ export function App() {
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
+            <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="sessions" element={<SessionsPage />} />
@@ -244,6 +247,7 @@ export function App() {
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
+              <Route path="gallery" element={<GalleryPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />
             </Route>

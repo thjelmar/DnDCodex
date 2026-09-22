@@ -7,6 +7,7 @@ import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
+import { ShareControl } from '../components/ShareControl'
 import type { Note } from '../db/types'
 
 export function NotesPage() {
@@ -84,6 +85,9 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
 
   return (
     <div>
+      <div className="share-bar">
+        <ShareControl campaignId={note.campaignId} kind="note" entity={note} />
+      </div>
       <div className="field">
         <label>Title</label>
         <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />

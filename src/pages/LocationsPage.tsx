@@ -9,6 +9,8 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { AddLinkButton } from '../components/AddLinkButton'
+import { EntityImage } from '../components/EntityImage'
+import { ShareControl } from '../components/ShareControl'
 import type { Location, LocationType, Id } from '../db/types'
 
 // Types run largest → smallest; the tree nests them via parentLocationId.
@@ -222,6 +224,7 @@ function LocationEditor({
 
   const [name, setName] = useState(location.name)
   const [type, setType] = useState<LocationType>(location.type)
+  const [imageId, setImageId] = useState<string | null>(location.imageId ?? null)
   const [parentLocationId, setParent] = useState(location.parentLocationId ?? '')
   const [description, setDescription] = useState(location.description)
   const [tags, setTags] = useState(location.tags)
@@ -241,13 +244,13 @@ function LocationEditor({
   useEffect(() => {
     const t = setTimeout(() => {
       updateLocation(location.id, {
-        name, type, parentLocationId: parentLocationId || null, description, tags,
+        name, type, imageId, parentLocationId: parentLocationId || null, description, tags,
         governmentType, rulerNpcId: rulerNpcId || null, currency, religion, departments,
         population, prosperity, imports, exports, pointsOfInterest, allyIds, enemyIds,
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, type, parentLocationId, description, tags, governmentType, rulerNpcId, currency,
+  }, [name, type, imageId, parentLocationId, description, tags, governmentType, rulerNpcId, currency,
       religion, departments, population, prosperity, imports, exports, pointsOfInterest,
       allyIds, enemyIds, location.id])
 
@@ -272,6 +275,9 @@ function LocationEditor({
 
   return (
     <div>
+      <div className="share-bar">
+        <ShareControl campaignId={campaignId} kind="location" entity={location} />
+      </div>
       {ancestors.length > 0 && (
         <div className="row wrap faint" style={{ gap: 6, marginBottom: 10, fontSize: 13 }}>
           {ancestors.map((a) => (
@@ -290,6 +296,9 @@ function LocationEditor({
         </div>
       )}
 
+      <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+        <EntityImage campaignId={campaignId} imageId={imageId} onChange={setImageId} label="image" />
+        <div style={{ flex: 1, minWidth: 0 }}>
       <div className="form-row">
         <div className="field">
           <label>Name</label>
@@ -304,6 +313,8 @@ function LocationEditor({
               </option>
             ))}
           </select>
+        </div>
+      </div>
         </div>
       </div>
 

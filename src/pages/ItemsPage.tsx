@@ -7,6 +7,8 @@ import { useCampaign } from './CampaignLayout'
 import { Modal } from '../components/Modal'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
+import { EntityImage } from '../components/EntityImage'
+import { ShareControl } from '../components/ShareControl'
 import { useConfirm } from '../components/ConfirmDialog'
 import type { Item, ItemRarity } from '../db/types'
 
@@ -127,13 +129,14 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
   const [name, setName] = useState(item.name)
   const [category, setCategory] = useState(item.category)
   const [rarity, setRarity] = useState<ItemRarity>(item.rarity)
+  const [imageId, setImageId] = useState<string | null>(item.imageId ?? null)
   const [attunement, setAttunement] = useState(item.attunement)
   const [value, setValue] = useState(item.value)
   const [description, setDescription] = useState(item.description)
   const [tags, setTags] = useState(item.tags)
 
   async function save() {
-    await updateItem(item.id, { name, category, rarity, attunement, value, description, tags })
+    await updateItem(item.id, { name, category, rarity, imageId, attunement, value, description, tags })
     onClose()
   }
 
@@ -175,14 +178,22 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         </>
       }
     >
-      <div className="form-row">
-        <div className="field">
-          <label>Name</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="field">
-          <label>Type / category</label>
-          <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Weapon, Potion…" />
+      <div className="share-bar">
+        <ShareControl campaignId={item.campaignId} kind="item" entity={item} />
+      </div>
+      <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+        <EntityImage campaignId={item.campaignId} imageId={imageId} onChange={setImageId} label="image" />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="form-row">
+            <div className="field">
+              <label>Name</label>
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Type / category</label>
+              <input className="input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Weapon, Potion…" />
+            </div>
+          </div>
         </div>
       </div>
       <div className="form-row">

@@ -10,6 +10,8 @@ import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { StatBlockEditor } from '../components/StatBlockEditor'
+import { EntityImage } from '../components/EntityImage'
+import { ShareControl } from '../components/ShareControl'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -105,6 +107,7 @@ function NpcEditor({
   const [name, setName] = useState(npc.name)
   const [role, setRole] = useState(npc.role)
   const [race, setRace] = useState(npc.race ?? '')
+  const [imageId, setImageId] = useState<string | null>(npc.imageId ?? null)
   const [disposition, setDisposition] = useState(npc.disposition)
   const [locationId, setLocationId] = useState(npc.locationId ?? '')
   const [description, setDescription] = useState(npc.description)
@@ -118,6 +121,7 @@ function NpcEditor({
         name,
         role,
         race,
+        imageId,
         disposition,
         locationId: locationId || null,
         description,
@@ -127,10 +131,16 @@ function NpcEditor({
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, role, race, disposition, locationId, description, statBlockData, statBlock, tags, npc.id])
+  }, [name, role, race, imageId, disposition, locationId, description, statBlockData, statBlock, tags, npc.id])
 
   return (
     <div>
+      <div className="share-bar">
+        <ShareControl campaignId={campaignId} kind="npc" entity={npc} />
+      </div>
+      <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
+        <EntityImage campaignId={campaignId} imageId={imageId} onChange={setImageId} label="portrait" />
+        <div style={{ flex: 1, minWidth: 0 }}>
       <div className="form-row">
         <div className="field">
           <label>Name</label>
@@ -178,6 +188,8 @@ function NpcEditor({
               ))}
             </select>
           )}
+        </div>
+      </div>
         </div>
       </div>
       <div className="field">

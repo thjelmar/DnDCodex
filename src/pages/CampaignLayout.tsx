@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { updateCampaign } from '../db/repo'
 import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
+import { PushChangesPanel } from '../components/PushChangesPanel'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -25,6 +26,7 @@ const TABS = [
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
   { to: 'map', label: 'Map' },
+  { to: 'gallery', label: 'Gallery' },
   { to: 'tags', label: 'Tags' },
 ]
 
@@ -114,6 +116,7 @@ export function CampaignLayout() {
           )}
         </div>
         <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <PushChangesPanel campaignId={campaign.id} />
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
           <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
           <Link to="/" className="btn ghost small">

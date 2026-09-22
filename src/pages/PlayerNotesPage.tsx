@@ -16,6 +16,8 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { ImportSharedModal } from '../components/ImportSharedModal'
 import { SharedInbox } from '../auth/SharedInbox'
+import { SharedGallery } from '../components/SharedGallery'
+import { SharedEntities } from '../components/SharedEntities'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
@@ -191,6 +193,14 @@ export function PlayerNotesPage() {
 
       {campaign.linkedCampaignId && (
         <SharedInbox localCampaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
+      )}
+
+      {campaign.linkedCampaignId && (
+        <SharedEntities linkedCampaignId={campaign.linkedCampaignId} />
+      )}
+
+      {campaign.linkedCampaignId && (
+        <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}
 
       {SECTIONS.map((section) => {

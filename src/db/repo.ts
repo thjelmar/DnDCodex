@@ -1,6 +1,7 @@
 import { db, newId, now } from './db'
 import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
 import { tableForKind } from '../lib/syncKinds'
+import type { ShareableKind } from '../lib/reveal'
 import type {
   Campaign,
   Session,
@@ -141,6 +142,7 @@ export async function createLocation(
     campaignId,
     name: input.name?.trim() || 'New Location',
     type: input.type ?? 'town',
+    imageId: null,
     description: input.description ?? '',
     parentLocationId: input.parentLocationId ?? null,
     tags: input.tags ?? [],
@@ -188,6 +190,7 @@ export async function createNPC(
     name: input.name?.trim() || 'New NPC',
     role: input.role ?? '',
     race: '',
+    imageId: null,
     description: input.description ?? '',
     locationId: input.locationId ?? null,
     statBlockData: null,
@@ -226,6 +229,7 @@ export async function createItem(
     name: input.name?.trim() || 'New Item',
     rarity: input.rarity ?? 'common',
     category: input.category ?? '',
+    imageId: null,
     description: input.description ?? '',
     attunement: input.attunement ?? false,
     value: input.value ?? '',
@@ -420,10 +424,38 @@ export async function createImage(
   return image
 }
 
+export async function updateImage(id: Id, patch: Partial<StoredImage>): Promise<void> {
+  await db.images.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('images', id)
+}
+
 export async function deleteImage(id: Id): Promise<void> {
   const existing = await db.images.get(id)
   await db.images.delete(id)
   if (existing) await enqueueDel('images', id, existing.campaignId)
+}
+
+// ---------------------------------------------------------------------------
+// Entity sharing flags (Phase 3c) — generic over the shareable kinds.
+// ---------------------------------------------------------------------------
+
+const SHARE_TABLE: Record<ShareableKind, 'npcs' | 'locations' | 'notes' | 'sessions' | 'items'> = {
+  npc: 'npcs',
+  location: 'locations',
+  note: 'notes',
+  session: 'sessions',
+  item: 'items',
+}
+
+/** Set the live-share flags on any shareable entity (syncs like a normal edit). */
+export async function setEntityShared(
+  kind: ShareableKind,
+  id: Id,
+  patch: { sharedWithPlayers?: boolean; sharedPushedHash?: string },
+): Promise<void> {
+  const table = SHARE_TABLE[kind]
+  await db.table(table).update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById(table, id)
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { WikiLink } from '../editor/WikiLink'
+import { Spoiler } from '../editor/Spoiler'
 import { useWikiResolver } from '../editor/useWikiResolver'
 import { processImageFile } from '../lib/image'
 import type { Id } from '../db/types'
@@ -38,6 +39,7 @@ export function RichTextEditor({
       StarterKit,
       Image.configure({ allowBase64: true }),
       WikiLink,
+      Spoiler,
       Placeholder.configure({ placeholder: placeholder ?? 'Write here…' }),
     ],
     content: value || '',
@@ -195,6 +197,13 @@ function Toolbar({
       <span className="rte-sep" />
       <Btn title="Wiki link (select text first)" active={editor.isActive('wikiLink')} onClick={toggleWikiLink}>
         [[ ]]
+      </Btn>
+      <Btn
+        title="Spoiler — hidden from players until you reveal it (select text first)"
+        active={editor.isActive('spoiler')}
+        onClick={() => editor.chain().focus().toggleMark('spoiler').run()}
+      >
+        🔒
       </Btn>
       <Btn title="Insert image" onClick={onInsertImage}>
         {busy ? '…' : '🖼'}

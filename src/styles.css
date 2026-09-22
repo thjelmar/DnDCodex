@@ -568,6 +568,30 @@ button {
   cursor: pointer;
   text-decoration: none;
 }
+/* DM-side spoiler: marked but still readable (you're the one hiding it). */
+.rte-content .spoiler,
+.spoiler {
+  background: rgba(167, 139, 250, 0.18);
+  border-bottom: 1px dashed var(--accent);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+.rte-content .spoiler::before,
+.spoiler::before {
+  content: '🔒 ';
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+/* Player-side: the secret text is redacted server-side; this is all that's sent. */
+.spoiler-hidden {
+  background: var(--bg-elev-2);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 0.92em;
+  font-style: italic;
+}
 /* Placeholder text for empty editors */
 .rte-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
@@ -576,6 +600,110 @@ button {
   pointer-events: none;
   height: 0;
 }
+
+/* ---------- Entity sharing ---------- */
+
+.share-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+.share-control { display: inline-flex; align-items: center; }
+.share-on {
+  font-size: 12.5px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.shared-entity-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  padding: 12px 14px;
+}
+.shared-kind {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.pushchanges-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: 264px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.pushchanges-head {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.pushchanges-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.pushchanges-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 0;
+}
+.pushchanges-item:hover { background: var(--bg-elev); }
+
+/* ---------- Entity portrait ---------- */
+
+.entity-image { flex-shrink: 0; }
+.entity-image-img {
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.entity-image-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.entity-image-empty:hover { border-color: var(--accent); color: var(--text-dim); }
+
+/* ---------- Campaign gallery ---------- */
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.gallery-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.gallery-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: var(--bg);
+}
+.gallery-card-body { padding: 8px 10px; }
 
 /* ---------- NPC stat block ---------- */
 
