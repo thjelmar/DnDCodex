@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { getSharedEntities, type SharedEntityRow } from '../auth/cloud'
 import { StatBlockView } from './StatBlockEditor'
-import { Icon } from './Icon'
 import type { RevealedSection } from '../lib/reveal'
 
 // The player's live view of entities (NPCs, locations, notes, sessions, items)
@@ -15,10 +14,16 @@ const KIND_LABEL: Record<string, string> = {
 }
 const CAPITALIZE_LABELS = new Set(['Disposition', 'Rarity', 'Type', 'Prosperity'])
 
-export function SharedEntities({ linkedCampaignId }: { linkedCampaignId: string }) {
+/** Live subscription to the entities a DM has shared with this linked campaign.
+ *  Re-fetches on any realtime change to `shared_entities`. */
+export function useSharedEntities(linkedCampaignId: string | null | undefined): SharedEntityRow[] {
   const [items, setItems] = useState<SharedEntityRow[]>([])
 
   useEffect(() => {
+    if (!linkedCampaignId) {
+      setItems([])
+      return
+    }
     let cancelled = false
     const refresh = async () => {
       const rows = await getSharedEntities(linkedCampaignId)
@@ -46,24 +51,10 @@ export function SharedEntities({ linkedCampaignId }: { linkedCampaignId: string 
     }
   }, [linkedCampaignId])
 
-  if (items.length === 0) return null
-
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <h2 style={{ fontSize: 18, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icon name="eye" size={18} />
-        Shared with you
-      </h2>
-      <div style={{ display: 'grid', gap: 12 }}>
-        {items.map((it) => (
-          <SharedCard key={it.id} row={it} />
-        ))}
-      </div>
-    </div>
-  )
+  return items
 }
 
-function SharedCard({ row }: { row: SharedEntityRow }) {
+export function SharedCard({ row }: { row: SharedEntityRow }) {
   const d = row.data
   return (
     <div className="shared-entity-card">

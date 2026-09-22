@@ -18,7 +18,8 @@ import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { ImportSharedModal } from '../components/ImportSharedModal'
 import { SharedInbox } from '../auth/SharedInbox'
 import { SharedGallery } from '../components/SharedGallery'
-import { SharedEntities } from '../components/SharedEntities'
+import { useSharedEntities, SharedCard } from '../components/SharedEntities'
+import type { SharedEntityRow } from '../auth/cloud'
 import { Modal } from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
@@ -40,6 +41,21 @@ const SECTIONS: SectionDef[] = [
   { key: 'people', label: 'People & Places', icon: '🧑', blurb: "NPCs you've met and where you've been.", addLabel: 'Add entry' },
   { key: 'notes', label: 'Loose Notes', icon: '📝', blurb: 'Anything else worth remembering.', addLabel: 'Add note' },
 ]
+
+// Where a DM-shared entity lands among the player's own sections.
+const SHARED_KIND_SECTION: Record<string, PlayerNoteSection> = {
+  npc: 'people',
+  location: 'people',
+  session: 'journal',
+  note: 'notes',
+  item: 'notes',
+}
+
+const KIND_ICON: Record<string, string> = {
+  npc: '🧑', location: '🗺️', session: '📅', note: '📝', item: '⚔️',
+}
+
+type SectionFilter = 'all' | 'mine' | 'shared'
 
 const QUEST_STATUS: { value: string; label: string; color: string }[] = [
   { value: 'active', label: 'Active', color: 'var(--accent)' },
@@ -68,6 +84,22 @@ export function PlayerNotesPage() {
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
   const [importOpen, setImportOpen] = useState(false)
+  const [viewShared, setViewShared] = useState<SharedEntityRow | null>(null)
+  const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
+
+  const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
+  const sharedBySection = useMemo(() => {
+    const map = new Map<PlayerNoteSection, SharedEntityRow[]>()
+    for (const r of sharedRows) {
+      const key = SHARED_KIND_SECTION[r.data.kind] ?? 'notes'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(r)
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => (a.data.title || '').localeCompare(b.data.title || ''))
+    }
+    return map
+  }, [sharedRows])
   useEffect(() => {
     if (sel) setEditingId(sel)
   }, [sel])
@@ -197,34 +229,54 @@ export function PlayerNotesPage() {
       )}
 
       {campaign.linkedCampaignId && (
-        <SharedEntities linkedCampaignId={campaign.linkedCampaignId} />
-      )}
-
-      {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}
 
       {SECTIONS.map((section) => {
-        const entries = bySection.get(section.key) ?? []
+        const mine = bySection.get(section.key) ?? []
+        const shared = sharedBySection.get(section.key) ?? []
+        const filter = filters[section.key] ?? 'all'
+        const showMine = filter !== 'shared'
+        const showShared = filter !== 'mine'
+        const count = mine.length + shared.length
+        const isEmpty = (showMine ? mine.length : 0) + (showShared ? shared.length : 0) === 0
         return (
           <div key={section.key} style={{ marginBottom: 24 }}>
             <div className="row between" style={{ marginBottom: 4 }}>
               <h2 className="mb-0" style={{ fontSize: 20 }}>
                 <span aria-hidden style={{ marginRight: 8 }}>{section.icon}</span>
                 {section.label}
-                {entries.length > 0 && (
-                  <span className="faint" style={{ fontSize: 14, marginLeft: 8 }}>{entries.length}</span>
+                {count > 0 && (
+                  <span className="faint" style={{ fontSize: 14, marginLeft: 8 }}>{count}</span>
                 )}
               </h2>
-              <button className="btn small" onClick={() => addTo(section.key)}>
-                <Icon name="plus" size={13} /> {section.addLabel}
-              </button>
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                {shared.length > 0 && (
+                  <div className="seg-filter" role="group" aria-label={`Filter ${section.label}`}>
+                    {(['all', 'mine', 'shared'] as SectionFilter[]).map((f) => (
+                      <button
+                        key={f}
+                        className={filter === f ? 'active' : ''}
+                        onClick={() => setFilters((prev) => ({ ...prev, [section.key]: f }))}
+                      >
+                        {f === 'all' ? 'All' : f === 'mine' ? 'Mine' : 'Shared'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button className="btn small" onClick={() => addTo(section.key)}>
+                  <Icon name="plus" size={13} /> {section.addLabel}
+                </button>
+              </div>
             </div>
-            {entries.length === 0 ? (
+            {isEmpty ? (
               <p className="faint" style={{ margin: '4px 0 0' }}>{section.blurb}</p>
             ) : (
               <div style={{ marginTop: 8 }}>
-                {entries.map((n) => (
+                {showShared && shared.map((r) => (
+                  <SharedEntryRow key={r.id} row={r} onOpen={() => setViewShared(r)} />
+                ))}
+                {showMine && mine.map((n) => (
                   <EntryRow key={n.id} note={n} campaignId={campaign.id} onOpen={() => setEditingId(n.id)} />
                 ))}
               </div>
@@ -255,6 +307,11 @@ export function PlayerNotesPage() {
       {editing && (
         <PlayerEntryModal key={editing.id} note={editing} onClose={() => setEditingId(null)} />
       )}
+      {viewShared && (
+        <Modal title="Shared with you" onClose={() => setViewShared(null)}>
+          <SharedCard row={viewShared} />
+        </Modal>
+      )}
       {importOpen && <ImportSharedModal campaignId={campaign.id} onClose={() => setImportOpen(false)} />}
     </div>
   )
@@ -280,6 +337,24 @@ function EntryRow({ note, campaignId, onOpen }: { note: PlayerNote; campaignId: 
         </span>
       </div>
       <TagChips campaignId={campaignId} tags={note.tags} size="small" />
+    </div>
+  )
+}
+
+function SharedEntryRow({ row, onOpen }: { row: SharedEntityRow; onOpen: () => void }) {
+  const d = row.data
+  return (
+    <div className="list-row shared-row" style={{ cursor: 'pointer', alignItems: 'center' }} onClick={onOpen}>
+      <div className="row" style={{ gap: 10, minWidth: 0, alignItems: 'center' }}>
+        <span aria-hidden>{KIND_ICON[d.kind] ?? '📄'}</span>
+        <span className="title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {d.title}
+        </span>
+        {d.subtitle && (
+          <span className="faint" style={{ fontSize: 12, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{d.subtitle}</span>
+        )}
+      </div>
+      <span className="shared-pill"><Icon name="eye" size={12} color="inherit" /> Shared with you</span>
     </div>
   )
 }

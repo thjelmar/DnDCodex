@@ -716,6 +716,19 @@ button {
 }
 .pushchanges-item:hover { background: var(--bg-elev); }
 .share-picker { width: 288px; }
+.seg-filter { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.seg-filter button {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  padding: 2px 10px;
+  cursor: pointer;
+  line-height: 20px;
+}
+.seg-filter button:hover { color: var(--text); background: var(--bg-elev); }
+.seg-filter button.active { background: var(--accent); color: #fff; }
+.list-row.shared-row { border-left: 2px solid var(--accent); padding-left: 10px; }
 .pushchanges-sections { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .pushchanges-sectag {
   font-size: 10.5px;
