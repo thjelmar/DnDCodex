@@ -105,6 +105,7 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
         label="Body"
         placeholder="Write freely. Use the toolbar, [[wiki links]], and images."
         minHeight={220}
+        revealNeedsConfirm={note.sharedWithPlayers === true}
       />
 
       <div className="row between" style={{ marginTop: 18 }}>

@@ -203,10 +203,11 @@ function NpcEditor({
         onChange={setDescription}
         label="Description"
         placeholder="Appearance, personality, secrets, [[wiki links]]…"
+        revealNeedsConfirm={npc.sharedWithPlayers === true}
       />
       <div className="field">
         <label>Stat block</label>
-        <StatBlockEditor name={name} value={statBlockData} onChange={setStatBlockData} />
+        <StatBlockEditor name={name} value={statBlockData} onChange={setStatBlockData} revealNeedsConfirm={npc.sharedWithPlayers === true} />
       </div>
       <RichTextEditor
         campaignId={campaignId}
@@ -214,6 +215,7 @@ function NpcEditor({
         onChange={setStatBlock}
         label="Additional notes"
         placeholder="Tactics, secrets, lair actions, mechanical reminders… (use the lock button to mark spoilers)"
+        revealNeedsConfirm={npc.sharedWithPlayers === true}
       />
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>

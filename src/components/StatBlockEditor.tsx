@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Icon } from './Icon'
+import { useRevealConfirm } from './ConfirmDialog'
 import type { StatBlock, StatBlockEntry, StatBlockSectionSpoilers } from '../db/types'
 import { searchSrd } from '../lib/monsters'
 import {
@@ -32,11 +33,14 @@ export function StatBlockEditor({
   name,
   value,
   onChange,
+  revealNeedsConfirm = false,
 }: {
   /** The NPC's name, shown as the block's title. */
   name: string
   value: StatBlock | null | undefined
   onChange: (block: StatBlock | null) => void
+  /** When true (NPC already shared), un-hiding a spoilered section/entry asks first. */
+  revealNeedsConfirm?: boolean
 }) {
   const [editing, setEditing] = useState(false)
 
@@ -52,13 +56,14 @@ export function StatBlockEditor({
         onChange={onChange}
         onDone={() => setEditing(false)}
         onRemove={() => { onChange(null); setEditing(false) }}
+        revealNeedsConfirm={revealNeedsConfirm}
       />
     )
   }
 
   return (
     <div>
-      <StatBlockView name={name} block={value} onChange={onChange} />
+      <StatBlockView name={name} block={value} onChange={onChange} revealNeedsConfirm={revealNeedsConfirm} />
       <div className="row" style={{ gap: 8, marginTop: 8 }}>
         <button className="btn small" onClick={() => setEditing(true)}><Icon name="pencil" size={13} /> Edit stat block</button>
       </div>
@@ -177,6 +182,7 @@ export function StatBlockView({
   onChange,
   hideAbilities,
   hidden,
+  revealNeedsConfirm = false,
 }: {
   name: string
   block: StatBlock
@@ -186,7 +192,10 @@ export function StatBlockView({
   hideAbilities?: boolean
   /** Player view: fixed rows the DM hid — render a "hidden" marker for each. */
   hidden?: StatBlockSectionSpoilers
+  /** When true (entity already shared), un-hiding a section/entry asks first. */
+  revealNeedsConfirm?: boolean
 }) {
+  const revealConfirm = useRevealConfirm()
   const pb = effectivePb(block)
   const crLine = crXpLabel(block)
   const header = [block.size, block.creatureType].filter(Boolean).join(' ') +
@@ -194,10 +203,15 @@ export function StatBlockView({
   const spoilers = block.sectionSpoilers ?? {}
   const h = hidden ?? {}
   const set = (patch: Partial<StatBlock>) => onChange?.({ ...block, ...patch })
-  const toggle = (k: keyof StatBlockSectionSpoilers) =>
+  const toggle = async (k: keyof StatBlockSectionSpoilers) => {
+    if (!(await revealConfirm(!!spoilers[k], revealNeedsConfirm))) return
     set({ sectionSpoilers: { ...spoilers, [k]: !spoilers[k] } })
-  const toggleEntry = (key: SectionKey, id: string) =>
+  }
+  const toggleEntry = async (key: SectionKey, id: string) => {
+    const cur = block[key].find((e) => e.id === id)
+    if (!(await revealConfirm(!!cur?.spoiler, revealNeedsConfirm))) return
     set({ [key]: block[key].map((e) => (e.id === id ? { ...e, spoiler: !e.spoiler } : e)) } as Partial<StatBlock>)
+  }
 
   const initiative = block.initiative || (block.abilities.dex ? signed(abilityMod(block.abilities.dex)) : '')
   const crText = crLine ? `${crLine}${parseCr(block.cr) != null ? `; PB ${signed(pb)}` : ''}` : ''
@@ -327,17 +341,22 @@ function StatBlockForm({
   onChange,
   onDone,
   onRemove,
+  revealNeedsConfirm,
 }: {
   value: StatBlock
   onChange: (block: StatBlock) => void
   onDone: () => void
   onRemove: () => void
+  revealNeedsConfirm: boolean
 }) {
+  const revealConfirm = useRevealConfirm()
   const set = (patch: Partial<StatBlock>) => onChange({ ...value, ...patch })
   const cr = parseCr(value.cr)
   const spoilers = value.sectionSpoilers ?? {}
-  const toggleSpoiler = (k: keyof StatBlockSectionSpoilers) =>
+  const toggleSpoiler = async (k: keyof StatBlockSectionSpoilers) => {
+    if (!(await revealConfirm(!!spoilers[k], revealNeedsConfirm))) return
     set({ sectionSpoilers: { ...spoilers, [k]: !spoilers[k] } })
+  }
 
   return (
     <div className="sb-form">
@@ -419,6 +438,7 @@ function StatBlockForm({
           label={label}
           entries={value[key]}
           onChange={(entries) => set({ [key]: entries } as Partial<StatBlock>)}
+          revealNeedsConfirm={revealNeedsConfirm}
         />
       ))}
 
@@ -508,13 +528,20 @@ function EntrySection({
   label,
   entries,
   onChange,
+  revealNeedsConfirm,
 }: {
   label: string
   entries: StatBlockEntry[]
   onChange: (entries: StatBlockEntry[]) => void
+  revealNeedsConfirm: boolean
 }) {
+  const revealConfirm = useRevealConfirm()
   const update = (id: string, patch: Partial<StatBlockEntry>) =>
     onChange(entries.map((e) => (e.id === id ? { ...e, ...patch } : e)))
+  const toggleEntrySpoiler = async (e: StatBlockEntry) => {
+    if (!(await revealConfirm(!!e.spoiler, revealNeedsConfirm))) return
+    update(e.id, { spoiler: !e.spoiler })
+  }
   const remove = (id: string) => onChange(entries.filter((e) => e.id !== id))
   const move = (i: number, dir: -1 | 1) => {
     const j = i + dir
@@ -543,7 +570,7 @@ function EntrySection({
             <button
               className={`btn ghost small${e.spoiler ? ' active' : ''}`}
               title={e.spoiler ? 'Hidden from players — click to reveal' : 'Hide from players'}
-              onClick={() => update(e.id, { spoiler: !e.spoiler })}
+              onClick={() => toggleEntrySpoiler(e)}
             >
               <Icon name={e.spoiler ? 'lock' : 'unlock'} size={14} />
             </button>

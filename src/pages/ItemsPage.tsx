@@ -227,6 +227,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         onChange={setDescription}
         label="Description"
         placeholder="What it does, its history, attunement notes…"
+        revealNeedsConfirm={item.sharedWithPlayers === true}
       />
     </SidePanel>
   )

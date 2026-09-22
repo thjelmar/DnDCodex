@@ -143,6 +143,7 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         label="Session Notes"
         placeholder="What happened this session? Use the toolbar, [[wiki links]], and images."
         minHeight={220}
+        revealNeedsConfirm={session.sharedWithPlayers === true}
       />
 
       <div className="row between" style={{ margin: '20px 0 6px' }}>

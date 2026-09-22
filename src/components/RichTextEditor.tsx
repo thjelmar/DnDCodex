@@ -6,6 +6,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { WikiLink } from '../editor/WikiLink'
 import { Spoiler } from '../editor/Spoiler'
 import { Icon } from './Icon'
+import { useRevealConfirm } from './ConfirmDialog'
 import { useWikiResolver } from '../editor/useWikiResolver'
 import { processImageFile } from '../lib/image'
 import type { Id } from '../db/types'
@@ -21,6 +22,7 @@ export function RichTextEditor({
   placeholder,
   editable = true,
   minHeight,
+  revealNeedsConfirm = false,
 }: {
   campaignId: Id
   value: string
@@ -29,6 +31,8 @@ export function RichTextEditor({
   placeholder?: string
   editable?: boolean
   minHeight?: number
+  /** When true (the entity is already shared), unmarking a spoiler asks first. */
+  revealNeedsConfirm?: boolean
 }) {
   const { follow } = useWikiResolver(campaignId)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -97,7 +101,7 @@ export function RichTextEditor({
     <div className="field">
       {label && <label>{label}</label>}
       <div className="rte rte-editable">
-        <Toolbar editor={editor} onInsertImage={() => fileRef.current?.click()} busy={busy} />
+        <Toolbar editor={editor} onInsertImage={() => fileRef.current?.click()} busy={busy} revealNeedsConfirm={revealNeedsConfirm} />
         <div onClick={onClick}>
           <EditorContent editor={editor} />
         </div>
@@ -141,11 +145,14 @@ function Toolbar({
   editor,
   onInsertImage,
   busy,
+  revealNeedsConfirm,
 }: {
   editor: Editor | null
   onInsertImage: () => void
   busy: boolean
+  revealNeedsConfirm: boolean
 }) {
+  const revealConfirm = useRevealConfirm()
   // Re-render the toolbar on selection/content changes so active states update.
   const [, setTick] = useState(0)
   useEffect(() => {
@@ -168,6 +175,13 @@ function Toolbar({
     } else if (text) {
       editor.chain().focus().setMark('wikiLink', { target: text }).run()
     }
+  }
+
+  async function toggleSpoiler() {
+    if (!editor) return
+    const ok = await revealConfirm(editor.isActive('spoiler'), revealNeedsConfirm)
+    if (!ok) return
+    editor.chain().focus().toggleMark('spoiler').run()
   }
 
   return (
@@ -202,7 +216,7 @@ function Toolbar({
       <Btn
         title="Spoiler — hidden from players until you reveal it (select text first)"
         active={editor.isActive('spoiler')}
-        onClick={() => editor.chain().focus().toggleMark('spoiler').run()}
+        onClick={toggleSpoiler}
       >
         <Icon name="lock" size={15} />
       </Btn>
