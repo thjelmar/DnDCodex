@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../auth/AuthProvider'
 import { getSharedEntities, type SharedEntityRow } from '../auth/cloud'
 import { StatBlockView } from './StatBlockEditor'
 import type { RevealedSection } from '../lib/reveal'
@@ -18,6 +19,15 @@ const CAPITALIZE_LABELS = new Set(['Disposition', 'Rarity', 'Type', 'Prosperity'
  *  Re-fetches on any realtime change to `shared_entities`. */
 export function useSharedEntities(linkedCampaignId: string | null | undefined): SharedEntityRow[] {
   const [items, setItems] = useState<SharedEntityRow[]>([])
+  // A Realtime channel binds its postgres_changes RLS at JOIN time using the
+  // websocket's current token. linkedCampaignId comes from local Dexie and is
+  // ready before the async session restore, so joining then would bind the
+  // subscription as anon — RLS (is_member) silently drops every event, and a
+  // later setAuth does NOT re-run the join. Gate the channel on the access token
+  // so it only joins once the socket carries the authenticated user's JWT, and
+  // re-key on the token so a sign-in (or refresh) re-joins with a fresh RLS ctx.
+  const { session } = useAuth()
+  const token = session?.access_token ?? null
 
   useEffect(() => {
     if (!linkedCampaignId) {
@@ -30,7 +40,7 @@ export function useSharedEntities(linkedCampaignId: string | null | undefined): 
       if (!cancelled) setItems(rows)
     }
     refresh()
-    if (!supabase) return
+    if (!supabase || !token) return
     let timer: ReturnType<typeof setTimeout> | null = null
     const schedule = () => {
       if (timer) clearTimeout(timer)
@@ -49,7 +59,7 @@ export function useSharedEntities(linkedCampaignId: string | null | undefined): 
       if (timer) clearTimeout(timer)
       supabase!.removeChannel(channel)
     }
-  }, [linkedCampaignId])
+  }, [linkedCampaignId, token])
 
   return items
 }

@@ -2,6 +2,7 @@ import { Icon } from './Icon'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../auth/AuthProvider'
 import { getSharedImages, type SharedImage } from '../auth/cloud'
 import { Modal } from './Modal'
 
@@ -29,6 +30,11 @@ export function SharedGallery({
 }) {
   const [images, setImages] = useState<SharedImage[]>([])
   const [lightbox, setLightbox] = useState<SharedImage | null>(null)
+  // Gate the Realtime channel on the authenticated access token: joining before
+  // the session is restored binds postgres_changes RLS as anon and never
+  // recovers. See useSharedEntities for the full explanation.
+  const { session } = useAuth()
+  const token = session?.access_token ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -37,7 +43,7 @@ export function SharedGallery({
       if (!cancelled) setImages(imgs)
     }
     refresh()
-    if (!supabase) return
+    if (!supabase || !token) return
     let timer: ReturnType<typeof setTimeout> | null = null
     const schedule = () => {
       if (timer) clearTimeout(timer)
@@ -56,7 +62,7 @@ export function SharedGallery({
       if (timer) clearTimeout(timer)
       supabase!.removeChannel(channel)
     }
-  }, [linkedCampaignId])
+  }, [linkedCampaignId, token])
 
   if (images.length === 0) return null
 
