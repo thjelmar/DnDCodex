@@ -784,17 +784,20 @@ button {
   gap: 8px;
   margin-bottom: 8px;
 }
-.shared-title { font-size: 16px; }
+/* Name / role / description are the card's primary type at 18px; the rest of
+   the card's content text sits at 16px. */
+.shared-title { font-size: 18px; }
 .shared-subtitle {
-  font-size: 16px;
+  font-size: 18px;
   font-style: italic;
   color: var(--text-dim);
   text-transform: capitalize;
 }
+.shared-entity-card .rte-content { font-size: 16px; }
 .shared-section { margin-top: 8px; }
-/* Description as the title's subheader: italic, a touch smaller, sits close up. */
+/* Description as the title's subheader: italic, primary size, sits close up. */
 .shared-subheader { margin-top: 4px; }
-.shared-subheader .rte-content { font-style: italic; font-size: 14px; }
+.shared-subheader .rte-content { font-style: italic; font-size: 18px; }
 .shared-section-label {
   font-size: 12px;
   color: var(--text-dim);
@@ -803,7 +806,7 @@ button {
   margin-bottom: 3px;
 }
 .shared-fields { display: flex; flex-wrap: wrap; gap: 4px 16px; }
-.shared-field { font-size: 13.5px; color: #e7e3ee; }
+.shared-field { font-size: 16px; color: #e7e3ee; }
 .shared-field-label { color: var(--accent); font-weight: 600; }
 .pushchanges-pop {
   position: absolute;
