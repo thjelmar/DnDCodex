@@ -18,5 +18,15 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
         detectSessionInUrl: true,
         flowType: 'pkce',
       },
+      global: {
+        // Force every REST read to hit the network. Safari (and other browsers'
+        // heuristic HTTP caching) will otherwise serve a cached shared_entities /
+        // shared_images GET, so a realtime-triggered refetch returns a STALE
+        // snapshot and the player's card doesn't visibly update even though the
+        // live event arrived. `no-store` keeps reads fresh; Realtime is a
+        // WebSocket and is unaffected by this.
+        fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+          fetch(input, { ...init, cache: 'no-store' }),
+      },
     })
   : null
