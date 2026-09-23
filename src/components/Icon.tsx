@@ -29,6 +29,7 @@ export type IconName =
   | 'link'
   | 'maximize'
   | 'minimize'
+  | 'settings'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -168,6 +169,19 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M21 8h-3a2 2 0 0 1-2-2V3" />
       <path d="M3 16h3a2 2 0 0 1 2 2v3" />
       <path d="M16 21v-3a2 2 0 0 1 2-2h3" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="M4 6h9" />
+      <path d="M18 6h2" />
+      <circle cx="15.5" cy="6" r="2.2" />
+      <path d="M4 12h2" />
+      <path d="M11 12h9" />
+      <circle cx="8.5" cy="12" r="2.2" />
+      <path d="M4 18h9" />
+      <path d="M18 18h2" />
+      <circle cx="15.5" cy="18" r="2.2" />
     </>
   ),
 }

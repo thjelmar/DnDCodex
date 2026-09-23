@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { Modal } from './Modal'
+import { isConfirmSkipped, setConfirmSkip } from '../lib/prefs'
 
 // A promise-based confirmation dialog to replace native window.confirm(), which
 // can be silently suppressed by the browser ("prevent this page from creating
@@ -20,22 +21,6 @@ interface ConfirmOptions {
    * immediately (no prompt). Stored per browser.
    */
   remember?: string
-}
-
-const REMEMBER_PREFIX = 'codex.confirmSkip.'
-function isRemembered(key: string): boolean {
-  try {
-    return localStorage.getItem(REMEMBER_PREFIX + key) === '1'
-  } catch {
-    return false
-  }
-}
-function remember(key: string) {
-  try {
-    localStorage.setItem(REMEMBER_PREFIX + key, '1')
-  } catch {
-    /* ignore */
-  }
 }
 
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>
@@ -79,7 +64,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const confirm = useCallback<ConfirmFn>((opts) => {
     // Honor a remembered "don't ask again" for this key — resolve without a prompt.
-    if (opts.remember && isRemembered(opts.remember)) return Promise.resolve(true)
+    if (opts.remember && isConfirmSkipped(opts.remember)) return Promise.resolve(true)
     return new Promise<boolean>((resolve) => {
       setDontAsk(false)
       setPending({ ...opts, resolve })
@@ -88,7 +73,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const settle = (result: boolean) => {
     setPending((cur) => {
-      if (result && cur?.remember && dontAsk) remember(cur.remember)
+      if (result && cur?.remember && dontAsk) setConfirmSkip(cur.remember, true)
       cur?.resolve(result)
       return null
     })

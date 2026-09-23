@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { pushEntity, unshareEntity } from '../auth/cloud'
 import { setEntityShared } from '../db/repo'
 import { revealEntity, revealHash, entityReveal, SECTIONS, type ShareableKind } from '../lib/reveal'
+import { loadShareDefaults, saveShareDefaults } from '../lib/prefs'
 import { Icon } from './Icon'
 import type { NPC, Location, Note, Session, Item } from '../db/types'
 
@@ -10,26 +11,6 @@ type Shareable = NPC | Location | Note | Session | Item
 
 const KIND_PLURAL: Record<ShareableKind, string> = {
   npc: 'NPCs', location: 'locations', note: 'notes', session: 'sessions', item: 'items',
-}
-
-// Per-kind "which sections do I usually share" defaults, remembered per browser.
-function defaultsKey(kind: ShareableKind) {
-  return `codex.shareDefaults.${kind}`
-}
-function loadDefaults(kind: ShareableKind): string[] | null {
-  try {
-    const raw = localStorage.getItem(defaultsKey(kind))
-    return raw ? (JSON.parse(raw) as string[]) : null
-  } catch {
-    return null
-  }
-}
-function saveDefaults(kind: ShareableKind, keys: string[]) {
-  try {
-    localStorage.setItem(defaultsKey(kind), JSON.stringify(keys))
-  } catch {
-    /* ignore */
-  }
 }
 
 /**
@@ -85,7 +66,7 @@ export function ShareControl({
     // Preselect: the entity's saved choice, else this kind's default, else all.
     const base =
       (shared && entity.sharedSections) ||
-      loadDefaults(kind) ||
+      loadShareDefaults(kind) ||
       allSections.map((s) => s.key)
     setSelected(new Set(base.filter((k) => allSections.some((s) => s.key === k))))
     setMakeDefault(false)
@@ -104,7 +85,7 @@ export function ShareControl({
         sharedSections: keys,
         sharedPushedHash: revealHash(snap),
       })
-      if (makeDefault) saveDefaults(kind, keys)
+      if (makeDefault) saveShareDefaults(kind, keys)
       setPicker(false)
     } catch {
       setError(

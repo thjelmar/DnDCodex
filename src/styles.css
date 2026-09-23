@@ -844,6 +844,35 @@ button {
   line-height: 16px;
 }
 
+/* ---------- Preferences panel ---------- */
+
+.prefs-section { margin-bottom: 20px; }
+.prefs-section:last-child { margin-bottom: 4px; }
+.prefs-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.prefs-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.prefs-row-label { width: 88px; flex-shrink: 0; font-size: 13.5px; }
+.prefs-row-value {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
 /* ---------- Entity portrait ---------- */
 
 .entity-image { flex-shrink: 0; }

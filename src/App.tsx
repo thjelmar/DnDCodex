@@ -11,6 +11,7 @@ import { AccountArea } from './auth/AccountArea'
 import { Icon } from './components/Icon'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
+import { PreferencesModal } from './components/PreferencesModal'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -40,10 +41,12 @@ function Sidebar({
   onOpenSearch,
   onOpenDice,
   onAddPlayerCampaign,
+  onOpenPrefs,
 }: {
   onOpenSearch: () => void
   onOpenDice: () => void
   onAddPlayerCampaign: () => void
+  onOpenPrefs: () => void
 }) {
   // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
@@ -83,6 +86,9 @@ function Sidebar({
       <NavLink to="/backup" className="nav-link">
         <span className="ico"><Icon name="save" /></span> Backup &amp; Data
       </NavLink>
+      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
+        <span className="ico"><Icon name="settings" /></span> Preferences
+      </button>
 
       {/* DM: campaign creation & management */}
       <div className="sidebar-heading">DM</div>
@@ -205,6 +211,7 @@ export function App() {
   }, [])
 
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
+  const [prefsOpen, setPrefsOpen] = useState(false)
 
   return (
     <AuthProvider>
@@ -214,11 +221,13 @@ export function App() {
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
+        {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
         <div className="app">
           <Sidebar
             onOpenSearch={() => setSearchOpen(true)}
             onOpenDice={() => setDiceOpen(true)}
             onAddPlayerCampaign={() => setAddPlayerOpen(true)}
+            onOpenPrefs={() => setPrefsOpen(true)}
           />
         <main className="main">
           <Routes>
