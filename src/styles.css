@@ -777,7 +777,24 @@ button {
   border-radius: 999px;
   padding: 1px 8px;
 }
+.shared-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.shared-title { font-size: 16px; }
+.shared-subtitle {
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-dim);
+  text-transform: capitalize;
+}
 .shared-section { margin-top: 8px; }
+/* Description as the title's subheader: italic, a touch smaller, sits close up. */
+.shared-subheader { margin-top: 4px; }
+.shared-subheader .rte-content { font-style: italic; font-size: 14px; }
 .shared-section-label {
   font-size: 12px;
   color: var(--text-dim);

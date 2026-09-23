@@ -56,15 +56,32 @@ export function useSharedEntities(linkedCampaignId: string | null | undefined): 
 
 export function SharedCard({ row }: { row: SharedEntityRow }) {
   const d = row.data
+  const subtitle = d.subtitle?.trim() ?? ''
+  // The subtitle already shows this value beside the name (an NPC's role, a
+  // location's type…), so drop the matching overview field to avoid repeating
+  // it — and drop the overview section entirely if that leaves it empty.
+  const sections = (d.sections ?? [])
+    .map((s) =>
+      s.fields
+        ? { ...s, fields: s.fields.filter((f) => f.value.trim().toLowerCase() !== subtitle.toLowerCase()) }
+        : s,
+    )
+    .filter((s) => !s.fields || s.fields.length > 0)
+  // The description reads as the title's subheader, so it comes first — right
+  // under the name — ahead of the overview fields and everything else.
+  const ordered = [
+    ...sections.filter((s) => s.key === 'description'),
+    ...sections.filter((s) => s.key !== 'description'),
+  ]
   return (
     <div className="shared-entity-card">
-      <div className="row" style={{ gap: 8, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+      <div className="shared-card-head">
         <span className="shared-kind">{KIND_LABEL[d.kind] ?? d.kind}</span>
-        <strong style={{ fontSize: 16 }}>{d.title}</strong>
-        {d.subtitle && <span className="faint" style={{ fontSize: 13, textTransform: 'capitalize' }}>{d.subtitle}</span>}
+        <strong className="shared-title">{d.title}</strong>
+        {subtitle && <span className="shared-subtitle">{subtitle}</span>}
         <span className="shared-pill">Shared with you</span>
       </div>
-      {(d.sections ?? []).map((s) => (
+      {ordered.map((s) => (
         <SharedSection key={s.key} section={s} title={d.title} />
       ))}
     </div>
@@ -97,9 +114,12 @@ function SharedSection({ section, title }: { section: RevealedSection; title: st
     )
   }
   if (section.html != null) {
+    // Description reads as the title's subheader (italic, slightly smaller);
+    // Note/Recap are the body; everything else keeps a labelled heading.
+    const isDescription = section.label === 'Description'
     const labelled = section.label !== 'Description' && section.label !== 'Note' && section.label !== 'Recap'
     return (
-      <div className="shared-section">
+      <div className={`shared-section${isDescription ? ' shared-subheader' : ''}`}>
         {labelled && <div className="shared-section-label">{section.label}</div>}
         <div className="rte">
           <div className="rte-content" dangerouslySetInnerHTML={{ __html: section.html }} />
