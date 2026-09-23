@@ -40,12 +40,7 @@ export function useSharedEntities(linkedCampaignId: string | null | undefined): 
       if (!cancelled) setItems(rows)
     }
     refresh()
-    // TEMP DIAGNOSTIC (remove after debugging live-share): trace subscription.
-    console.log('[SE] effect', { linkedCampaignId, hasToken: !!token, tokenLen: token?.length })
-    if (!supabase || !token) {
-      console.log('[SE] NOT subscribing', { supabase: !!supabase, hasToken: !!token })
-      return
-    }
+    if (!supabase || !token) return
     let timer: ReturnType<typeof setTimeout> | null = null
     const schedule = () => {
       if (timer) clearTimeout(timer)
@@ -56,14 +51,9 @@ export function useSharedEntities(linkedCampaignId: string | null | undefined): 
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shared_entities', filter: `campaign_id=eq.${linkedCampaignId}` },
-        (payload) => {
-          console.log('[SE] event received', (payload as { eventType?: string }).eventType)
-          schedule()
-        },
+        schedule,
       )
-      .subscribe((status, err) => {
-        console.log('[SE] subscribe status:', status, err ? `err=${err.message}` : '')
-      })
+      .subscribe()
     return () => {
       cancelled = true
       if (timer) clearTimeout(timer)
