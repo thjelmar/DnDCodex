@@ -13,6 +13,12 @@ import {
   type SyncStatus,
 } from '../lib/sync'
 import { loadSyncedCampaigns } from '../lib/syncQueue'
+import {
+  clearAllLocalData,
+  clearSyncedCache,
+  isAccountSwitch,
+  setLastUserId,
+} from '../lib/accountScope'
 
 interface SyncContextValue {
   status: SyncStatus
@@ -45,21 +51,42 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Mirror the engine's status into React state for the indicator.
   useEffect(() => onSyncStatus(setStatus), [])
 
-  // Bootstrap on sign-in; tear down on sign-out.
+  // Bootstrap on sign-in; tear down on sign-out. Enforce account isolation: the
+  // local DB is a cache of the signed-in account, so a DIFFERENT account signing
+  // in wipes it (bootstrap re-pulls fresh), and a real sign-out drops the
+  // cloud-backed cache while keeping any un-synced local work.
   const userId = user?.id ?? null
+  const prevUserId = useRef<string | null>(null)
   useEffect(() => {
+    const prev = prevUserId.current
+    prevUserId.current = userId
+
     if (!userId) {
       bootstrapped.current = false
       setActiveUser(null)
       teardown()
+      // Only on an actual sign-out (was signed in), never on the initial
+      // pre-auth mount where userId starts null.
+      if (prev) clearSyncedCache().catch(() => {})
       return
     }
-    setActiveUser(userId)
+
     bootstrapped.current = false
+    let cancelled = false
     ;(async () => {
+      if (isAccountSwitch(userId)) {
+        teardown()
+        await clearAllLocalData()
+        if (cancelled) return
+      }
+      setLastUserId(userId)
+      setActiveUser(userId)
       await bootstrap(userId)
-      bootstrapped.current = true
+      if (!cancelled) bootstrapped.current = true
     })()
+    return () => {
+      cancelled = true
+    }
   }, [userId])
 
   // Auto-enable sync for any campaign that appears after bootstrap (e.g. a new
