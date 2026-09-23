@@ -81,10 +81,13 @@ export function PlayerNotesPage() {
   const [searchParams] = useSearchParams()
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
-  const [viewShared, setViewShared] = useState<SharedEntityRow | null>(null)
+  const [viewSharedId, setViewSharedId] = useState<string | null>(null)
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
+  // Resolve the open panel's row from the LIVE list (not a snapshot), so a
+  // realtime re-push updates the open card and an un-share closes it.
+  const viewShared = viewSharedId ? sharedRows.find((r) => r.id === viewSharedId) ?? null : null
   const sharedBySection = useMemo(() => {
     const map = new Map<PlayerNoteSection, SharedEntityRow[]>()
     for (const r of sharedRows) {
@@ -264,7 +267,7 @@ export function PlayerNotesPage() {
             ) : (
               <div style={{ marginTop: 8 }}>
                 {showShared && shared.map((r) => (
-                  <SharedEntryRow key={r.id} row={r} onOpen={() => setViewShared(r)} />
+                  <SharedEntryRow key={r.id} row={r} onOpen={() => setViewSharedId(r.id)} />
                 ))}
                 {showMine && mine.map((n) => (
                   <EntryRow key={n.id} note={n} campaignId={campaign.id} onOpen={() => setEditingId(n.id)} />
@@ -298,7 +301,7 @@ export function PlayerNotesPage() {
         <PlayerEntryModal key={editing.id} note={editing} onClose={() => setEditingId(null)} />
       )}
       {viewShared && (
-        <SidePanel title="Shared with you" onClose={() => setViewShared(null)}>
+        <SidePanel title="Shared with you" onClose={() => setViewSharedId(null)}>
           <SharedCard row={viewShared} />
         </SidePanel>
       )}
