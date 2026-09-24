@@ -14,6 +14,10 @@ export interface BugReportInput {
   reporterEmail?: string | null
   /** The signed-in user's id, if any. */
   userId?: string | null
+  /** 'bug' | 'idea' | 'question' (defaults to 'bug' server-side). */
+  type?: string
+  /** Optional screenshot as an image data URL. */
+  screenshot?: string | null
 }
 
 export interface BugReportResult {
@@ -47,6 +51,8 @@ export async function submitBugReport(input: BugReportInput): Promise<BugReportR
     route: typeof location !== 'undefined' ? location.hash || location.pathname : '',
     userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
     appVersion,
+    type: input.type ?? 'bug',
+    screenshot: input.screenshot ?? null,
     context: collectContext(),
   }
 
