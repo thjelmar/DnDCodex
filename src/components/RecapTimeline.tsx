@@ -3,8 +3,9 @@ import { formatDate } from '../lib/format'
 import type { SharedEntityRow } from '../auth/cloud'
 import type { PlayerNote } from '../db/types'
 
-// "Story So Far" — the player-facing recap timeline. It compiles two sources into
-// one chronological "previously on…" log (newest first):
+// "Story So Far" — the player-facing recap timeline, shown as a right-hand rail so
+// it doesn't push the player's own sections down. It compiles two sources into one
+// chronological "previously on…" log (newest first):
 //   • DM recaps — sessions the DM shared (reveal section `recap`), authoritative.
 //   • Your notes — the player's OWN journal entries, so there's still a recap to
 //     read when the DM hasn't gotten around to writing one.
@@ -62,6 +63,11 @@ function buildEntries(sharedRows: SharedEntityRow[], journal: PlayerNote[]): Rec
   return entries
 }
 
+/** Whether there's any recap to show — lets the page skip rendering the rail. */
+export function hasRecap(sharedRows: SharedEntityRow[], journal: PlayerNote[]): boolean {
+  return buildEntries(sharedRows, journal).length > 0
+}
+
 export function RecapTimeline({ sharedRows, journal }: { sharedRows: SharedEntityRow[]; journal: PlayerNote[] }) {
   const all = buildEntries(sharedRows, journal)
   const [filter, setFilter] = useState<'all' | Source>('all')
@@ -78,25 +84,25 @@ export function RecapTimeline({ sharedRows, journal }: { sharedRows: SharedEntit
   const toggle = (id: string) => setOpenId(effectiveOpen === id ? null : id)
 
   return (
-    <div style={{ marginBottom: 24 }}>
-      <div className="row between" style={{ marginBottom: 8 }}>
-        <h2 className="mb-0" style={{ fontSize: 20 }}>
-          <span aria-hidden style={{ marginRight: 8 }}>📜</span>
+    <div className="recap-panel">
+      <div className="recap-header">
+        <h2 className="mb-0" style={{ fontSize: 18 }}>
+          <span aria-hidden style={{ marginRight: 6 }}>📜</span>
           Story So Far
-          <span className="faint" style={{ fontSize: 14, marginLeft: 8 }}>{entries.length}</span>
+          <span className="faint" style={{ fontSize: 13, marginLeft: 6 }}>{entries.length}</span>
         </h2>
         {hasDm && hasYou && (
           <div className="seg-filter" role="group" aria-label="Filter recaps by source">
             {(['all', 'dm', 'you'] as const).map((f) => (
               <button key={f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
-                {f === 'all' ? 'All' : f === 'dm' ? 'DM' : 'My notes'}
+                {f === 'all' ? 'All' : f === 'dm' ? 'DM' : 'Mine'}
               </button>
             ))}
           </div>
         )}
       </div>
       {!hasDm && (
-        <p className="faint" style={{ margin: '0 0 10px' }}>
+        <p className="faint" style={{ margin: '0 0 10px', fontSize: 12.5 }}>
           Your DM hasn’t shared a recap yet — here’s the story from your own journal entries.
         </p>
       )}
@@ -107,12 +113,16 @@ export function RecapTimeline({ sharedRows, journal }: { sharedRows: SharedEntit
             <div key={e.id} className={`recap-entry${open ? ' open' : ''}`}>
               <span className="recap-dot" aria-hidden />
               <button className="recap-head" onClick={() => toggle(e.id)} aria-expanded={open}>
-                <span className="recap-date">{e.date ? formatDate(e.date) : 'Undated'}</span>
-                <span className="recap-title">{e.title}</span>
-                <span className={`recap-src ${e.source}`} title={e.source === 'dm' ? 'Shared by your DM' : 'From your own notes'}>
-                  {e.source === 'dm' ? 'DM' : 'You'}
+                <span className="recap-meta">
+                  <span className="recap-date">{e.date ? formatDate(e.date) : 'Undated'}</span>
+                  <span className={`recap-src ${e.source}`} title={e.source === 'dm' ? 'Shared by your DM' : 'From your own notes'}>
+                    {e.source === 'dm' ? 'DM' : 'You'}
+                  </span>
                 </span>
-                <span className="recap-caret" aria-hidden>{open ? '▾' : '▸'}</span>
+                <span className="recap-titlerow">
+                  <span className="recap-title">{e.title}</span>
+                  <span className="recap-caret" aria-hidden>{open ? '▾' : '▸'}</span>
+                </span>
               </button>
               {open && (
                 <div className="recap-body rte">

@@ -1520,47 +1520,68 @@ kbd {
   .combat-add { grid-template-columns: 1fr; }
 }
 
+/* Player home: main column + a right-hand "Story So Far" rail so the timeline
+   doesn't push the player's own sections down. */
+.player-page { max-width: 1180px; }
+.player-layout { display: flex; gap: 32px; align-items: flex-start; }
+.player-main { flex: 1; min-width: 0; }
+.player-aside {
+  width: 340px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+}
+@media (max-width: 940px) {
+  .player-layout { flex-direction: column; }
+  .player-aside { width: 100%; position: static; max-height: none; }
+}
+
 /* "Story So Far" — player recap timeline (RecapTimeline.tsx). */
+.recap-panel {
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.recap-header { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
 .recap-timeline {
   position: relative;
-  margin-left: 6px;
-  padding-left: 22px;
+  margin-left: 5px;
+  padding-left: 20px;
   border-left: 2px solid var(--border);
 }
 .recap-entry { position: relative; }
 .recap-dot {
   position: absolute;
-  left: -27px;
-  top: 15px;
+  left: -25px;
+  top: 13px;
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--panel, var(--bg));
+  background: var(--bg);
   border: 2px solid var(--accent);
 }
 .recap-entry.open > .recap-dot { background: var(--accent); }
 .recap-head {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  gap: 3px;
   width: 100%;
   background: none;
   border: none;
   cursor: pointer;
   text-align: left;
-  padding: 9px 0;
+  padding: 8px 0;
   color: var(--text);
 }
 .recap-head:hover .recap-title { color: var(--accent); }
-.recap-date {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent);
-  min-width: 92px;
-  flex-shrink: 0;
-}
-.recap-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
-.recap-caret { margin-left: 8px; color: var(--text-dim); font-size: 12px; flex-shrink: 0; }
+.recap-meta { display: flex; align-items: center; gap: 8px; }
+.recap-date { font-size: 11.5px; font-weight: 600; color: var(--accent); }
+.recap-titlerow { display: flex; align-items: baseline; gap: 8px; }
+.recap-title { font-family: var(--serif); font-size: 15px; font-weight: 600; flex: 1; min-width: 0; }
+.recap-caret { color: var(--text-dim); font-size: 12px; flex-shrink: 0; }
 .recap-src {
   margin-left: auto;
   font-size: 10px;
@@ -1572,9 +1593,4 @@ kbd {
 }
 .recap-src.dm { color: var(--accent); background: rgba(167, 139, 250, 0.14); border: 1px solid var(--accent); }
 .recap-src.you { color: var(--text-dim); background: rgba(148, 163, 184, 0.12); border: 1px solid var(--border); }
-.recap-body { padding: 0 0 12px 102px; }
-
-@media (max-width: 640px) {
-  .recap-head { flex-wrap: wrap; }
-  .recap-body { padding-left: 0; }
-}
+.recap-body { padding: 2px 0 10px; font-size: 14px; }

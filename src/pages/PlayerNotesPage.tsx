@@ -17,7 +17,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
-import { RecapTimeline } from '../components/RecapTimeline'
+import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -193,8 +193,11 @@ export function PlayerNotesPage() {
     }
   }
 
+  const journalNotes = bySection.get('journal') ?? []
+  const showStory = hasRecap(sharedRows, journalNotes)
+
   return (
-    <div className="content">
+    <div className="content player-page">
       <div className="row" style={{ gap: 12, marginBottom: 4 }}>
         <span
           aria-hidden
@@ -224,11 +227,11 @@ export function PlayerNotesPage() {
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
       </div>
 
+      <div className="player-layout">
+        <div className="player-main">
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}
-
-      <RecapTimeline sharedRows={sharedRows} journal={bySection.get('journal') ?? []} />
 
       {SECTIONS.map((section) => {
         const mine = bySection.get(section.key) ?? []
@@ -301,6 +304,13 @@ export function PlayerNotesPage() {
       <button className="btn danger small" onClick={removeCampaign}>
         Remove this campaign
       </button>
+        </div>
+        {showStory && (
+          <aside className="player-aside">
+            <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />
+          </aside>
+        )}
+      </div>
 
       {editing && (
         <PlayerEntryModal key={editing.id} note={editing} onClose={() => setEditingId(null)} />
