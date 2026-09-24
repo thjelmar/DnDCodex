@@ -81,6 +81,40 @@ function imageDimensions(src: string): Promise<{ width: number; height: number }
   })
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Could not load the image.'))
+    img.src = src
+  })
+}
+
+/**
+ * Downscale an existing (already-processed) image data URL to a small thumbnail,
+ * re-encoded as WebP (JPEG fallback). Used to embed a self-contained portrait
+ * preview in a shared-entity snapshot so the player's card needs no extra fetch.
+ * Falls back to the original data URL if the canvas is unavailable.
+ */
+export async function makeThumbnail(
+  dataUrl: string,
+  maxDim = 256,
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  const img = await loadImage(dataUrl)
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight))
+  const width = Math.max(1, Math.round(img.naturalWidth * scale))
+  const height = Math.max(1, Math.round(img.naturalHeight * scale))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return { dataUrl, width: img.naturalWidth, height: img.naturalHeight }
+  ctx.drawImage(img, 0, 0, width, height)
+  let out = canvas.toDataURL('image/webp', 0.8)
+  if (!out.startsWith('data:image/webp')) out = canvas.toDataURL('image/jpeg', 0.8)
+  return { dataUrl: out, width, height }
+}
+
 /** "1.2 MB" style human-readable size. */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

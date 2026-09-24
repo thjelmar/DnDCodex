@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
-import { pushEntity, unshareEntity } from '../auth/cloud'
+import { pushEntity, unshareEntity, shareImageToCampaign, unshareImageFromCampaign } from '../auth/cloud'
 import { setEntityShared } from '../db/repo'
-import { revealEntity, revealHash, entityReveal, SECTIONS, type ShareableKind } from '../lib/reveal'
+import { db } from '../db/db'
+import { revealEntity, revealHash, entityReveal, SECTIONS, type RevealedEntity, type ShareableKind } from '../lib/reveal'
+import { makeThumbnail } from '../lib/image'
 import { loadShareDefaults, saveShareDefaults } from '../lib/prefs'
 import { Icon } from './Icon'
-import type { NPC, Location, Note, Session, Item } from '../db/types'
+import type { Id, NPC, Location, Note, Session, Item } from '../db/types'
 
 type Shareable = NPC | Location | Note | Session | Item
 
@@ -57,6 +59,56 @@ export function ShareControl({
   const currentHash = revealHash(entityReveal(kind, entity))
   const hasPending = shared && entity.sharedPushedHash !== currentHash
 
+  // Portrait is shareable for kinds that carry an image (npc/location/item).
+  const imageId = (entity as { imageId?: Id | null }).imageId ?? null
+  const portraitId = (entity as { sharedPortraitId?: Id | null }).sharedPortraitId ?? null
+
+  // Embed a small self-contained thumbnail into the portrait section for the
+  // push copy only — the hashed reveal stays thumbnail-free (imageId only) so
+  // pending detection keys off the image identity, not its bytes.
+  async function injectThumb(snap: RevealedEntity): Promise<RevealedEntity> {
+    const ps = snap.sections.find((s) => s.key === 'portrait')
+    if (!ps?.imageId) return snap
+    const img = await db.images.get(ps.imageId)
+    if (!img) return snap
+    try {
+      const thumb = await makeThumbnail(img.dataUrl, 256)
+      return {
+        ...snap,
+        sections: snap.sections.map((s) =>
+          s.key === 'portrait'
+            ? { ...s, image: { dataUrl: thumb.dataUrl, width: thumb.width, height: thumb.height, alt: snap.title } }
+            : s,
+        ),
+      }
+    } catch {
+      return snap
+    }
+  }
+
+  // Keep the player gallery (shared_images) in step with the Portrait section:
+  // publish the full image while shared, retract a stale/old copy otherwise.
+  // Returns the shared_images row id now in the gallery (or null).
+  async function reconcilePortrait(keys: string[], caption: string): Promise<Id | null> {
+    const wantPortrait = keys.includes('portrait') && !!imageId
+    if (wantPortrait) {
+      const img = await db.images.get(imageId!)
+      if (img) {
+        if (portraitId && portraitId !== imageId) await unshareImageFromCampaign(portraitId)
+        await shareImageToCampaign(campaignId, {
+          id: imageId!,
+          dataUrl: img.dataUrl,
+          caption,
+          width: img.width,
+          height: img.height,
+        })
+        return imageId
+      }
+    }
+    if (portraitId) await unshareImageFromCampaign(portraitId)
+    return null
+  }
+
   // Which sections actually have content right now (for the "(empty)" hint).
   const present = new Set(revealEntity(kind, entity).sections.map((s) => s.key))
   const allSections = SECTIONS[kind]
@@ -79,11 +131,14 @@ export function ShareControl({
     setError(null)
     try {
       const snap = revealEntity(kind, entity, keys)
-      await pushEntity(campaignId, entity.id, kind, snap)
+      const hash = revealHash(snap)
+      await pushEntity(campaignId, entity.id, kind, await injectThumb(snap))
+      const newPortraitId = await reconcilePortrait(keys, snap.title)
       await setEntityShared(kind, entity.id, {
         sharedWithPlayers: true,
         sharedSections: keys,
-        sharedPushedHash: revealHash(snap),
+        sharedPushedHash: hash,
+        sharedPortraitId: newPortraitId,
       })
       if (makeDefault) saveShareDefaults(kind, keys)
       setPicker(false)
@@ -102,9 +157,12 @@ export function ShareControl({
     setBusy(true)
     setError(null)
     try {
+      const keys = entity.sharedSections ?? allSections.map((s) => s.key)
       const snap = entityReveal(kind, entity)
-      await pushEntity(campaignId, entity.id, kind, snap)
-      await setEntityShared(kind, entity.id, { sharedPushedHash: revealHash(snap) })
+      const hash = revealHash(snap)
+      await pushEntity(campaignId, entity.id, kind, await injectThumb(snap))
+      const newPortraitId = await reconcilePortrait(keys, snap.title)
+      await setEntityShared(kind, entity.id, { sharedPushedHash: hash, sharedPortraitId: newPortraitId })
     } catch {
       setError('Couldn’t push — check your connection.')
     } finally {
@@ -117,7 +175,8 @@ export function ShareControl({
     setError(null)
     try {
       await unshareEntity(entity.id)
-      await setEntityShared(kind, entity.id, { sharedWithPlayers: false })
+      if (portraitId) await unshareImageFromCampaign(portraitId)
+      await setEntityShared(kind, entity.id, { sharedWithPlayers: false, sharedPortraitId: null })
     } catch {
       setError('Couldn’t stop sharing — check your connection.')
     } finally {

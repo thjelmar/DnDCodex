@@ -170,6 +170,8 @@ export interface Location extends BaseRecord {
   sharedPushedHash?: string
   /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
   sharedSections?: string[]
+  /** shared_images row id of the portrait published to the player gallery. */
+  sharedPortraitId?: Id | null
 }
 
 /** The six ability scores, keyed by their short names. */
@@ -271,6 +273,10 @@ export interface NPC extends BaseRecord {
   sharedPushedHash?: string
   /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
   sharedSections?: string[]
+  /** shared_images row id of the portrait published to the player gallery (when
+   *  the Portrait section is shared); lets us retract the right gallery copy on
+   *  change/remove/stop. */
+  sharedPortraitId?: Id | null
 }
 
 export type ItemRarity =
@@ -301,6 +307,8 @@ export interface Item extends BaseRecord {
   sharedPushedHash?: string
   /** Section keys the DM chose to share (see lib/reveal SECTIONS); undefined = all. */
   sharedSections?: string[]
+  /** shared_images row id of the portrait published to the player gallery. */
+  sharedPortraitId?: Id | null
 }
 
 /** A freeform world-building note / wiki page within a campaign. */

@@ -777,6 +777,24 @@ button {
   border-radius: 999px;
   padding: 1px 8px;
 }
+/* Portrait (when shared) sits to the left of the name/role + description. */
+.shared-card-top {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.shared-card-headwrap {
+  flex: 1;
+  min-width: 0;
+}
+.shared-portrait {
+  width: 88px;
+  height: 88px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
 .shared-card-head {
   display: flex;
   flex-wrap: wrap;

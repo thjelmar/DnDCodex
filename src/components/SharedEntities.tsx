@@ -77,21 +77,29 @@ export function SharedCard({ row }: { row: SharedEntityRow }) {
         : s,
     )
     .filter((s) => !s.fields || s.fields.length > 0)
-  // The description reads as the title's subheader, so it comes first — right
-  // under the name — ahead of the overview fields and everything else.
-  const ordered = [
-    ...sections.filter((s) => s.key === 'description'),
-    ...sections.filter((s) => s.key !== 'description'),
-  ]
+  // The portrait sits to the left of the name/role and the description subheader;
+  // the description reads as the title's subheader, so it stays right under the
+  // name. Every other section flows full-width beneath.
+  const portrait = sections.find((s) => s.key === 'portrait')
+  const description = sections.find((s) => s.key === 'description')
+  const rest = sections.filter((s) => s.key !== 'portrait' && s.key !== 'description')
   return (
     <div className="shared-entity-card">
-      <div className="shared-card-head">
-        <span className="shared-kind">{KIND_LABEL[d.kind] ?? d.kind}</span>
-        <strong className="shared-title">{d.title}</strong>
-        {subtitle && <span className="shared-subtitle">{subtitle}</span>}
-        <span className="shared-pill">Shared with you</span>
+      <div className="shared-card-top">
+        {portrait?.image?.dataUrl && (
+          <img className="shared-portrait" src={portrait.image.dataUrl} alt={portrait.image.alt || d.title} />
+        )}
+        <div className="shared-card-headwrap">
+          <div className="shared-card-head">
+            <span className="shared-kind">{KIND_LABEL[d.kind] ?? d.kind}</span>
+            <strong className="shared-title">{d.title}</strong>
+            {subtitle && <span className="shared-subtitle">{subtitle}</span>}
+            <span className="shared-pill">Shared with you</span>
+          </div>
+          {description && <SharedSection section={description} title={d.title} />}
+        </div>
       </div>
-      {ordered.map((s) => (
+      {rest.map((s) => (
         <SharedSection key={s.key} section={s} title={d.title} />
       ))}
     </div>

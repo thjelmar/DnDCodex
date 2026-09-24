@@ -1,4 +1,4 @@
-import type { NPC, Location, Note, Session, Item, StatBlock, StatBlockSectionSpoilers } from '../db/types'
+import type { Id, NPC, Location, Note, Session, Item, StatBlock, StatBlockSectionSpoilers } from '../db/types'
 import { emptyStatBlock } from './statblock'
 
 // Builds the reveal-safe, structured snapshot pushed to players for a shared
@@ -21,15 +21,18 @@ export const SECTIONS: Record<ShareableKind, { key: string; label: string }[]> =
     { key: 'description', label: 'Description' },
     { key: 'statblock', label: 'Stat block' },
     { key: 'notes', label: 'Notes' },
+    { key: 'portrait', label: 'Portrait' },
   ],
   location: [
     { key: 'overview', label: 'Overview' },
     { key: 'description', label: 'Description' },
     { key: 'poi', label: 'Points of interest' },
+    { key: 'portrait', label: 'Portrait' },
   ],
   item: [
     { key: 'overview', label: 'Overview' },
     { key: 'description', label: 'Description' },
+    { key: 'portrait', label: 'Portrait' },
   ],
   session: [{ key: 'recap', label: 'Recap' }],
   note: [{ key: 'body', label: 'Note' }],
@@ -59,6 +62,12 @@ export interface RevealedSection {
   fields?: RevealedField[]
   /** A redacted stat block — for the stat-block section. */
   statBlock?: RevealedStatBlock
+  /** Portrait section: the StoredImage id. `buildReveal` emits only the id (so
+   *  the reveal — and its hash — stays synchronous and byte-independent); the
+   *  DM's push handler injects a small self-contained thumbnail into `image`. */
+  imageId?: Id
+  /** Portrait section: an embedded thumbnail, injected at push time. */
+  image?: { dataUrl: string; width: number; height: number; alt: string }
 }
 
 export interface RevealedEntity {
@@ -103,6 +112,12 @@ function htmlSection(key: string, label: string, raw: string): RevealedSection |
 function fieldsSection(key: string, label: string, fields: RevealedField[]): RevealedSection | null {
   const kept = fields.filter((f) => f.value && f.value.trim() && f.value !== 'unknown')
   return kept.length ? { key, label, fields: kept } : null
+}
+
+/** A portrait section carrying only the StoredImage id — the push handler
+ *  injects the actual thumbnail bytes, so the reveal stays sync + hash-stable. */
+function portraitSection(imageId: Id | null | undefined): RevealedSection | null {
+  return imageId ? { key: 'portrait', label: 'Portrait', imageId } : null
 }
 
 /** Produce a player-safe copy of a stat block: blank spoilered rows, drop
@@ -183,6 +198,8 @@ function buildReveal(
       if (n.statBlockData) sections.push({ key: 'statblock', label: 'Stat block', statBlock: revealStatBlock(n.statBlockData) })
       const notes = htmlSection('notes', 'Notes', n.statBlock)
       if (notes) sections.push(notes)
+      const npcPortrait = portraitSection(n.imageId)
+      if (npcPortrait) sections.push(npcPortrait)
       return { kind, title: n.name, subtitle: n.role || undefined, sections }
     }
     case 'location': {
@@ -203,6 +220,8 @@ function buildReveal(
       if (desc) sections.push(desc)
       const poi = htmlSection('poi', 'Points of interest', l.pointsOfInterest)
       if (poi) sections.push(poi)
+      const locPortrait = portraitSection(l.imageId)
+      if (locPortrait) sections.push(locPortrait)
       return { kind, title: l.name, subtitle: l.type, sections }
     }
     case 'item': {
@@ -217,6 +236,8 @@ function buildReveal(
       if (ov) sections.push(ov)
       const desc = htmlSection('description', 'Description', i.description)
       if (desc) sections.push(desc)
+      const itemPortrait = portraitSection(i.imageId)
+      if (itemPortrait) sections.push(itemPortrait)
       return { kind, title: i.name, subtitle: i.rarity, sections }
     }
     case 'session': {
