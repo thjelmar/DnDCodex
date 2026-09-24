@@ -17,6 +17,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
+import { RecapTimeline } from '../components/RecapTimeline'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -91,6 +92,8 @@ export function PlayerNotesPage() {
   const sharedBySection = useMemo(() => {
     const map = new Map<PlayerNoteSection, SharedEntityRow[]>()
     for (const r of sharedRows) {
+      // Shared sessions render in the "Story So Far" recap timeline, not here.
+      if (r.data.kind === 'session') continue
       const key = SHARED_KIND_SECTION[r.data.kind] ?? 'notes'
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(r)
@@ -224,6 +227,8 @@ export function PlayerNotesPage() {
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}
+
+      <RecapTimeline sharedRows={sharedRows} journal={bySection.get('journal') ?? []} />
 
       {SECTIONS.map((section) => {
         const mine = bySection.get(section.key) ?? []

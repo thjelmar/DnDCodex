@@ -1519,3 +1519,62 @@ kbd {
 @media (max-width: 780px) {
   .combat-add { grid-template-columns: 1fr; }
 }
+
+/* "Story So Far" — player recap timeline (RecapTimeline.tsx). */
+.recap-timeline {
+  position: relative;
+  margin-left: 6px;
+  padding-left: 22px;
+  border-left: 2px solid var(--border);
+}
+.recap-entry { position: relative; }
+.recap-dot {
+  position: absolute;
+  left: -27px;
+  top: 15px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--panel, var(--bg));
+  border: 2px solid var(--accent);
+}
+.recap-entry.open > .recap-dot { background: var(--accent); }
+.recap-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 9px 0;
+  color: var(--text);
+}
+.recap-head:hover .recap-title { color: var(--accent); }
+.recap-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 92px;
+  flex-shrink: 0;
+}
+.recap-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.recap-caret { margin-left: 8px; color: var(--text-dim); font-size: 12px; flex-shrink: 0; }
+.recap-src {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 999px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+.recap-src.dm { color: var(--accent); background: rgba(167, 139, 250, 0.14); border: 1px solid var(--accent); }
+.recap-src.you { color: var(--text-dim); background: rgba(148, 163, 184, 0.12); border: 1px solid var(--border); }
+.recap-body { padding: 0 0 12px 102px; }
+
+@media (max-width: 640px) {
+  .recap-head { flex-wrap: wrap; }
+  .recap-body { padding-left: 0; }
+}
