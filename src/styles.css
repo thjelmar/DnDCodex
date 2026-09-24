@@ -820,6 +820,15 @@ button {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
+/* Small avatar on a collapsed shared entry row (falls back to the kind emoji). */
+.shared-row-avatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
 .shared-card-head {
   display: flex;
   flex-wrap: wrap;

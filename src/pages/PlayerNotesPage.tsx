@@ -335,10 +335,17 @@ function EntryRow({ note, campaignId, onOpen }: { note: PlayerNote; campaignId: 
 
 function SharedEntryRow({ row, onOpen }: { row: SharedEntityRow; onOpen: () => void }) {
   const d = row.data
+  // When the DM shared the Portrait section, the snapshot carries an embedded
+  // thumbnail — show it as a small avatar in place of the kind emoji.
+  const avatar = d.sections?.find((s) => s.key === 'portrait')?.image
   return (
     <div className="list-row shared-row" style={{ cursor: 'pointer', alignItems: 'center' }} onClick={onOpen}>
       <div className="row" style={{ gap: 10, minWidth: 0, alignItems: 'center' }}>
-        <span aria-hidden>{KIND_ICON[d.kind] ?? '📄'}</span>
+        {avatar?.dataUrl ? (
+          <img className="shared-row-avatar" src={avatar.dataUrl} alt={avatar.alt || d.title} />
+        ) : (
+          <span aria-hidden>{KIND_ICON[d.kind] ?? '📄'}</span>
+        )}
         <span className="title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {d.title}
         </span>
