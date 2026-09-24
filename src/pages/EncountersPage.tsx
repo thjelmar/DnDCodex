@@ -121,7 +121,7 @@ export function EncountersPage() {
     <div className="content">
       <div className="page-header">
         <div>
-          <h1 className="mb-0">🧰 Encounter Builder</h1>
+          <h1 className="mb-0"><Icon name="tools" size={22} /> Encounter Builder</h1>
           <div className="faint" style={{ fontSize: 13, marginTop: 4 }}>
             Build a combat and save it to a campaign. Difficulty uses the 2024 XP budgets.
           </div>
@@ -330,7 +330,7 @@ function MonsterBrowser({ onAdd }: { onAdd: (m: Monster) => void }) {
       <div style={{ padding: 10, borderTop: '1px solid var(--border)' }} className="row between">
         <span className="faint" style={{ fontSize: 12 }}>{error || 'Bundled SRD monsters work offline.'}</span>
         <button className="btn ghost small" onClick={searchMore} disabled={!query.trim() || loading}>
-          {loading ? 'Searching…' : '🔎 Search Open5e'}
+          {loading ? 'Searching…' : <><Icon name="search" size={14} /> Search Open5e</>}
         </button>
       </div>
     </div>

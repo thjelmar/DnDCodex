@@ -100,6 +100,11 @@ function Sidebar({
       <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
         <span className="ico"><Icon name="settings" /></span> Preferences
       </button>
+      {user && (
+        <NavLink to="/bug-reports" className="nav-link">
+          <span className="ico"><Icon name="inbox" /></span> Bug reports
+        </NavLink>
+      )}
 
       {/* DM: campaign creation & management */}
       <div className="sidebar-heading">DM</div>
@@ -133,11 +138,6 @@ function Sidebar({
       >
         <span className="ico"><Icon name="bug" /></span> Report a bug
       </button>
-      {user && (
-        <NavLink to="/bug-reports" className="nav-link" style={{ color: 'var(--text-dim)' }}>
-          <span className="ico"><Icon name="inbox" /></span> Bug reports
-        </NavLink>
-      )}
       <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
@@ -163,7 +163,7 @@ function ToolsMenu() {
       {open && (
         <>
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
-            <span className="ico">⚔️</span> Encounter Builder
+            <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
           </NavLink>
           <NavLink to="/tools/combat" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="swords" size={15} /></span> Combat Tracker
