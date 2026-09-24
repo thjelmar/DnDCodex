@@ -31,11 +31,30 @@ interface BugReportPayload {
   userAgent?: string
   appVersion?: string
   context?: Record<string, unknown>
+  type?: string
+  /** Optional screenshot as a data URL (e.g. data:image/webp;base64,…). */
+  screenshot?: string | null
 }
 
 const DEFAULT_SUPABASE_URL = 'https://hxdrkifgwrbqpcevvbit.supabase.co'
 const DEFAULT_FROM = 'D&D Codex <onboarding@resend.dev>'
 const MAX_DESCRIPTION = 8000
+// ~4MB of base64 ≈ a downscaled screenshot; reject anything wildly bigger.
+const MAX_SCREENSHOT = 6_000_000
+const TYPES: Record<string, { label: string; emoji: string }> = {
+  bug: { label: 'Bug report', emoji: '🐛' },
+  idea: { label: 'Idea', emoji: '💡' },
+  question: { label: 'Question', emoji: '❓' },
+}
+
+/** Split a data URL into a servable email attachment (base64 content + name). */
+function parseScreenshot(dataUrl: string | null | undefined): { filename: string; content: string } | null {
+  if (!dataUrl) return null
+  const m = /^data:image\/([a-zA-Z0-9.+-]+);base64,([\s\S]+)$/.exec(dataUrl)
+  if (!m) return null
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1]
+  return { filename: `screenshot.${ext}`, content: m[2] }
+}
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -63,6 +82,14 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
   if (!description) return json(400, { error: 'A description is required.' })
   if (description.length > MAX_DESCRIPTION) return json(400, { error: 'Description too long.' })
 
+  const type = payload.type && TYPES[payload.type] ? payload.type : 'bug'
+  const screenshot =
+    typeof payload.screenshot === 'string' &&
+    payload.screenshot.startsWith('data:image/') &&
+    payload.screenshot.length <= MAX_SCREENSHOT
+      ? payload.screenshot
+      : null
+
   const report = {
     description,
     reporter_email: payload.reporterEmail?.trim() || null,
@@ -71,6 +98,8 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
     user_agent: payload.userAgent ?? null,
     app_version: payload.appVersion ?? null,
     context: payload.context ?? {},
+    report_type: type,
+    screenshot,
   }
 
   // 1) Store it (best-effort — never fail the whole request just because storage
@@ -102,13 +131,16 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
   }
 
   const summary = description.split('\n')[0].slice(0, 80)
+  const kind = TYPES[type]
   const ctx = report.context as Record<string, unknown>
   const rows: [string, string][] = [
+    ['Type', kind.label],
     ['From', report.reporter_email || '(not provided)'],
     ['Account user id', report.user_id || '(signed out)'],
     ['Route', report.route || '(unknown)'],
     ['App version', report.app_version || '(unknown)'],
     ['User agent', report.user_agent || '(unknown)'],
+    ['Screenshot', screenshot ? 'attached' : 'none'],
     ['Stored in Supabase', stored ? 'yes' : 'no'],
   ]
   const metaText = rows.map(([k, v]) => `${k}: ${v}`).join('\n')
@@ -123,6 +155,7 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
     ${Object.keys(ctx).length ? `<pre style="font-size:12px;background:#f6f5fa;padding:10px;border-radius:6px;overflow:auto">${esc(JSON.stringify(ctx, null, 2))}</pre>` : ''}
   </div>`
 
+  const attachment = parseScreenshot(screenshot)
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -134,9 +167,10 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
         from: env.BUG_REPORT_FROM || DEFAULT_FROM,
         to: [env.BUG_REPORT_TO],
         reply_to: report.reporter_email || undefined,
-        subject: `🐛 Bug report: ${summary}`,
+        subject: `${kind.emoji} ${kind.label}: ${summary}`,
         text,
         html,
+        attachments: attachment ? [attachment] : undefined,
       }),
     })
     if (!res.ok) {

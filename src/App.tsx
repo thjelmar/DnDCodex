@@ -31,6 +31,7 @@ import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
+import { BugReportsPage } from './pages/BugReportsPage'
 
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
@@ -57,6 +58,7 @@ function Sidebar({
   onOpenPrefs: () => void
   onOpenBug: () => void
 }) {
+  const { user } = useAuth()
   // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
     () =>
@@ -131,6 +133,11 @@ function Sidebar({
       >
         <span className="ico"><Icon name="bug" /></span> Report a bug
       </button>
+      {user && (
+        <NavLink to="/bug-reports" className="nav-link" style={{ color: 'var(--text-dim)' }}>
+          <span className="ico"><Icon name="inbox" /></span> Bug reports
+        </NavLink>
+      )}
       <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
@@ -257,6 +264,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
+            <Route path="/bug-reports" element={<BugReportsPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
