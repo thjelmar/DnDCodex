@@ -39,6 +39,7 @@ export function BugReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<string>('all')
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!token) {
@@ -121,10 +122,16 @@ export function BugReportsPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {shown.map((r) => (
-              <BugReportCard key={r.id} report={r} onStatus={setStatus} />
+              <BugReportCard key={r.id} report={r} onStatus={setStatus} onZoom={setLightbox} />
             ))}
           </div>
         </>
+      )}
+
+      {lightbox && (
+        <div className="bug-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-label="Screenshot">
+          <img src={lightbox} alt="Report screenshot" onClick={(e) => e.stopPropagation()} />
+        </div>
       )}
     </div>
   )
@@ -133,9 +140,11 @@ export function BugReportsPage() {
 function BugReportCard({
   report,
   onStatus,
+  onZoom,
 }: {
   report: BugReport
   onStatus: (id: string, status: string) => void
+  onZoom: (dataUrl: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const r = report
@@ -165,13 +174,12 @@ function BugReportCard({
       </div>
 
       {r.screenshot && (
-        <a href={r.screenshot} target="_blank" rel="noopener noreferrer">
-          <img
-            src={r.screenshot}
-            alt="Reporter screenshot"
-            style={{ maxWidth: '100%', marginTop: 10, borderRadius: 6, border: '1px solid var(--border)' }}
-          />
-        </a>
+        <img
+          src={r.screenshot}
+          alt="Reporter screenshot"
+          className="bug-report-shot"
+          onClick={() => onZoom(r.screenshot!)}
+        />
       )}
 
       <div className="bug-report-meta">

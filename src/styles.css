@@ -359,6 +359,33 @@ button {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
+.bug-report-shot {
+  display: block;
+  max-width: 320px;
+  max-height: 200px;
+  margin-top: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: zoom-in;
+}
+.bug-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  cursor: zoom-out;
+}
+.bug-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  cursor: default;
+}
 .textarea {
   resize: vertical;
   min-height: 90px;
