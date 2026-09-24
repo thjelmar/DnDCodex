@@ -12,6 +12,8 @@ import { Icon } from './components/Icon'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
+import { BugReportModal } from './components/BugReportModal'
+import { installErrorLog } from './lib/errorLog'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -29,6 +31,10 @@ import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
 
+// Start capturing client errors as early as possible so a bug report includes
+// whatever went wrong before the user opened the reporter.
+installErrorLog()
+
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 
 const ellipsis: React.CSSProperties = {
@@ -42,11 +48,13 @@ function Sidebar({
   onOpenDice,
   onAddPlayerCampaign,
   onOpenPrefs,
+  onOpenBug,
 }: {
   onOpenSearch: () => void
   onOpenDice: () => void
   onAddPlayerCampaign: () => void
   onOpenPrefs: () => void
+  onOpenBug: () => void
 }) {
   // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
@@ -115,6 +123,13 @@ function Sidebar({
       <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
 
       <div className="sidebar-spacer" />
+      <button
+        className="nav-link"
+        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
+        onClick={onOpenBug}
+      >
+        <span className="ico"><Icon name="bug" /></span> Report a bug
+      </button>
       <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
@@ -212,6 +227,7 @@ export function App() {
 
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
+  const [bugOpen, setBugOpen] = useState(false)
 
   return (
     <AuthProvider>
@@ -222,12 +238,14 @@ export function App() {
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
+        {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
         <div className="app">
           <Sidebar
             onOpenSearch={() => setSearchOpen(true)}
             onOpenDice={() => setDiceOpen(true)}
             onAddPlayerCampaign={() => setAddPlayerOpen(true)}
             onOpenPrefs={() => setPrefsOpen(true)}
+            onOpenBug={() => setBugOpen(true)}
           />
         <main className="main">
           <Routes>

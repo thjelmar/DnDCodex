@@ -30,6 +30,7 @@ export type IconName =
   | 'maximize'
   | 'minimize'
   | 'settings'
+  | 'bug'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -182,6 +183,20 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M4 18h9" />
       <path d="M18 18h2" />
       <circle cx="15.5" cy="18" r="2.2" />
+    </>
+  ),
+  bug: (
+    <>
+      <path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6Z" />
+      <path d="M12 20v-9" />
+      <path d="m8 2 1.9 1.9" />
+      <path d="M16 2l-1.9 1.9" />
+      <path d="M6 13H2" />
+      <path d="M22 13h-4" />
+      <path d="M6.3 9C4.5 8.8 3 7.2 3 5.2" />
+      <path d="M17.7 9c1.8-.2 3.3-1.8 3.3-3.8" />
+      <path d="M6.3 17C4.5 17.2 3 18.8 3 20.8" />
+      <path d="M17.7 17c1.8.2 3.3 1.8 3.3 3.8" />
     </>
   ),
 }
