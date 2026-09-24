@@ -1274,3 +1274,160 @@ kbd {
   box-shadow: var(--shadow);
   z-index: 100;
 }
+
+/* ---------- Combat tracker ---------- */
+
+.combat-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+.combat-bar-spacer { flex: 1; }
+.combat-round {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  padding: 0 6px;
+}
+
+.combat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.combat-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px 9px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.combat-row.active {
+  border-color: var(--accent);
+  background: var(--bg-elev-2);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.combat-row.down { opacity: 0.6; }
+.combat-turn-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.combat-order { width: 16px; text-align: center; font-size: 12px; }
+.combat-init {
+  width: 52px;
+  text-align: center;
+  padding: 6px 4px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.combat-name-cell { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.combat-name { display: flex; align-items: center; gap: 7px; }
+.combat-pc-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 4px;
+  text-transform: uppercase;
+}
+.combat-ac {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 44px;
+}
+
+.combat-hp { display: flex; align-items: center; gap: 5px; }
+.combat-hp-num { display: inline-flex; align-items: center; gap: 3px; }
+.combat-hp-cur, .combat-hp-max {
+  width: 46px;
+  text-align: center;
+  padding: 5px 4px;
+}
+.combat-hp-cur { font-weight: 600; }
+.combat-hp-amt {
+  width: 52px;
+  text-align: center;
+  padding: 5px 4px;
+  margin-left: 4px;
+}
+.combat-hp-add { color: var(--text-dim); }
+
+/* Conditions */
+.combat-conds { position: relative; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.combat-cond-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text);
+  background: rgba(167, 139, 250, 0.14);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 7px;
+  cursor: pointer;
+}
+.combat-cond-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  cursor: pointer;
+}
+.combat-cond-add:hover { color: var(--text); border-color: var(--accent); }
+.combat-cond-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  width: 210px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.combat-cond-opt { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; }
+
+/* Add-combatant panels */
+.combat-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 20px;
+  align-items: start;
+}
+.combat-addform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.combat-npc-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+
+@media (max-width: 780px) {
+  .combat-add { grid-template-columns: 1fr; }
+}

@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
 import { createEncounter, updateEncounter, deleteEncounter } from '../db/repo'
@@ -32,6 +32,7 @@ const MAX_ROWS = 80
  */
 export function EncountersPage() {
   const confirm = useConfirm()
+  const navigate = useNavigate()
 
   // DM campaigns available as "save to" targets, and a name lookup for labels.
   const dmCampaigns = useLiveQuery(
@@ -226,6 +227,13 @@ export function EncountersPage() {
                         <div className="faint" style={{ fontSize: 11 }}>
                           <span style={{ color: camp?.color }}>●</span> {camp?.name ?? 'Unknown'} · {e.combatants.reduce((n, c) => n + c.count, 0)} creatures
                         </div>
+                      </button>
+                      <button
+                        className="btn small"
+                        onClick={() => navigate('/tools/combat', { state: { runEncounterId: e.id } })}
+                        title="Run this encounter in the combat tracker"
+                      >
+                        <Icon name="swords" size={13} color="inherit" /> Run
                       </button>
                       <button className="btn ghost small" onClick={() => removeSaved(e.id, e.name)} aria-label="Delete"><Icon name="trash" size={14} /></button>
                     </div>

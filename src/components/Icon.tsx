@@ -31,6 +31,12 @@ export type IconName =
   | 'minimize'
   | 'settings'
   | 'bug'
+  | 'swords'
+  | 'shield'
+  | 'heart'
+  | 'skull'
+  | 'chevron-right'
+  | 'chevron-left'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -199,6 +205,30 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M17.7 17c1.8.2 3.3 1.8 3.3 3.8" />
     </>
   ),
+  swords: (
+    <>
+      <path d="M14.5 17.5 3 6V3h3l11.5 11.5" />
+      <path d="m13 19 6-6" />
+      <path d="m16 16 4 4" />
+      <path d="m19 21 2-2" />
+      <path d="M9.5 17.5 21 6V3h-3L6.5 14.5" />
+      <path d="m5 19 6-6" />
+      <path d="m2 21 3-3" />
+      <path d="m3 19 2 2" />
+    </>
+  ),
+  shield: <path d="M12 3 5 6v6c0 4 3 6.5 7 9 4-2.5 7-5 7-9V6l-7-3Z" />,
+  heart: <path d="M12 20s-7-4.4-9.3-8.3C1.2 9 2.3 5.8 5.3 5.2c1.9-.4 3.6.6 4.7 2 1.1-1.4 2.8-2.4 4.7-2 3 .6 4.1 3.8 2.6 6.5C19 15.6 12 20 12 20Z" />,
+  skull: (
+    <>
+      <circle cx="9" cy="12" r="1.2" />
+      <circle cx="15" cy="12" r="1.2" />
+      <path d="M12 3a8 8 0 0 0-4 15v3h8v-3a8 8 0 0 0-4-15Z" />
+      <path d="M10 20v-2m4 2v-2" />
+    </>
+  ),
+  'chevron-right': <path d="m9 6 6 6-6 6" />,
+  'chevron-left': <path d="m15 6-6 6 6 6" />,
 }
 
 export function Icon({

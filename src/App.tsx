@@ -25,6 +25,7 @@ import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
 import { EncountersPage } from './pages/EncountersPage'
+import { CombatTrackerPage } from './pages/CombatTrackerPage'
 import { GalleryPage } from './pages/GalleryPage'
 import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
@@ -153,9 +154,14 @@ function ToolsMenu() {
         <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{open ? '▾' : '▸'}</span>
       </button>
       {open && (
-        <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
-          <span className="ico">⚔️</span> Encounter Builder
-        </NavLink>
+        <>
+          <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico">⚔️</span> Encounter Builder
+          </NavLink>
+          <NavLink to="/tools/combat" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico"><Icon name="swords" size={15} /></span> Combat Tracker
+          </NavLink>
+        </>
       )}
     </>
   )
@@ -252,6 +258,7 @@ export function App() {
             <Route path="/" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
+            <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
