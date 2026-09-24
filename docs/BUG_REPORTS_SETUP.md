@@ -28,10 +28,15 @@ In Supabase → SQL Editor, run `supabase/migrations/0009_bug_reports.sql`.
   `onboarding@resend.dev` can email **your own** signup address. To send to a
   different inbox later, verify a domain in Resend and set `BUG_REPORT_FROM`.
 
-### 3. Get the Supabase service-role key
-Supabase → Project Settings → API → `service_role` secret. This is powerful
-(full DB access) — it only ever lives in the Cloudflare Function env, never in the
-client bundle.
+### 3. Get a Supabase secret key
+Supabase → Project Settings → **API Keys** → **Secret keys** → **Create new secret
+key** (an `sb_secret_…` value, shown once). This is the modern replacement for the
+legacy `service_role` key — same full DB access, and it bypasses RLS. (The old
+`service_role` under the Legacy tab still works, but new keys are the way forward,
+matching the `sb_publishable_…` key the app already uses.) This is powerful — it
+only ever lives in the Cloudflare Function env, never in the client bundle. The
+function passes it as both the `apikey` and `Authorization: Bearer` header, so no
+code change is needed regardless of which you use.
 
 ### 4. Set Cloudflare Pages environment variables
 Cloudflare → Pages project → Settings → Environment variables → **Production**
@@ -42,7 +47,7 @@ build vars and are read server-side by the function:
 | --- | --- |
 | `RESEND_API_KEY` | your Resend API key |
 | `BUG_REPORT_TO` | the inbox that receives reports (your email) |
-| `SUPABASE_SERVICE_ROLE_KEY` | the service-role secret from step 3 |
+| `SUPABASE_SERVICE_ROLE_KEY` | the `sb_secret_…` (or legacy service-role) key from step 3 |
 | `BUG_REPORT_FROM` | *(optional)* e.g. `D&D Codex <bugs@yourdomain>`; defaults to `onboarding@resend.dev` |
 | `SUPABASE_URL` | *(optional)* defaults to the project URL baked into the function |
 
