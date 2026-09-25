@@ -1594,3 +1594,47 @@ kbd {
 .recap-src.dm { color: var(--accent); background: rgba(167, 139, 250, 0.14); border: 1px solid var(--accent); }
 .recap-src.you { color: var(--text-dim); background: rgba(148, 163, 184, 0.12); border: 1px solid var(--border); }
 .recap-body { padding: 2px 0 10px; font-size: 14px; }
+
+/* Party loot & gold tracker (PartyLoot.tsx). */
+.loot { display: flex; flex-direction: column; gap: 14px; }
+.loot-purse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--panel, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.loot-purse-coins { display: flex; flex-wrap: wrap; gap: 10px; }
+.loot-coin { display: flex; flex-direction: column; gap: 3px; }
+.loot-coin-label { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-dim); }
+.loot-coin-input { width: 68px; text-align: right; padding: 4px 8px; }
+.loot-total { margin-left: auto; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+.loot-table { display: flex; flex-direction: column; }
+.loot-row {
+  display: grid;
+  grid-template-columns: 1fr 62px 92px 132px 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+.loot-row .input { padding: 5px 8px; }
+.loot-head { padding: 0 0 4px; }
+.loot-head span { font-size: 11px; color: var(--text-dim); font-weight: 600; }
+.loot-add {
+  display: grid;
+  grid-template-columns: 1fr 62px 92px 132px auto;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 560px) {
+  .loot-row, .loot-add { grid-template-columns: 1fr 52px 70px; }
+  .loot-row > *:nth-child(4), .loot-head span:nth-child(4) { grid-column: 1 / -1; }
+  .loot-add > *:nth-child(4) { grid-column: 1 / 3; }
+  .loot-add > *:nth-child(5) { grid-column: 3 / 4; }
+}

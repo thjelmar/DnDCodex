@@ -18,6 +18,7 @@ import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
+import { PartyLoot } from '../components/PartyLoot'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -231,6 +232,15 @@ export function PlayerNotesPage() {
         <div className="player-main">
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
+      )}
+
+      {campaign.linkedCampaignId && (
+        <div style={{ marginBottom: 24 }}>
+          <h2 className="mb-0" style={{ fontSize: 20, marginBottom: 8 }}>
+            <span aria-hidden style={{ marginRight: 8 }}>💰</span>Party Loot
+          </h2>
+          <PartyLoot cloudCampaignId={campaign.linkedCampaignId} />
+        </div>
       )}
 
       {SECTIONS.map((section) => {

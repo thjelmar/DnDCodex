@@ -213,3 +213,103 @@ export async function getSharedEntities(cloudCampaignId: string): Promise<Shared
     pushedAt: r.pushed_at as string,
   }))
 }
+
+// ── Party loot & gold tracker (shared, member-writable, live) ──────────────
+// Both the DM and players read + write these. See migration 0011.
+
+export type CoinKey = 'pp' | 'gp' | 'ep' | 'sp' | 'cp'
+export type Treasury = Record<CoinKey, number>
+export const EMPTY_TREASURY: Treasury = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }
+
+export interface LootItem {
+  id: string
+  name: string
+  qty: number
+  value: string
+  claimedBy: string
+  notes: string
+  createdAt: string
+}
+
+/** The campaign's shared coin purse (zeros if no row exists yet). */
+export async function getTreasury(cloudCampaignId: string): Promise<Treasury> {
+  if (!supabase) return { ...EMPTY_TREASURY }
+  const { data } = await supabase
+    .from('party_treasury')
+    .select('pp, gp, ep, sp, cp')
+    .eq('campaign_id', cloudCampaignId)
+    .maybeSingle()
+  if (!data) return { ...EMPTY_TREASURY }
+  return { pp: data.pp ?? 0, gp: data.gp ?? 0, ep: data.ep ?? 0, sp: data.sp ?? 0, cp: data.cp ?? 0 }
+}
+
+/** Replace the shared coin purse (last write wins). */
+export async function setTreasury(cloudCampaignId: string, coins: Treasury, userId: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in')
+  const { error } = await supabase.from('party_treasury').upsert(
+    { campaign_id: cloudCampaignId, ...coins, updated_at: new Date().toISOString(), updated_by: userId },
+    { onConflict: 'campaign_id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** The campaign's shared loot list, oldest first. */
+export async function getLoot(cloudCampaignId: string): Promise<LootItem[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('party_loot')
+    .select('id, name, qty, value, claimed_by, notes, created_at')
+    .eq('campaign_id', cloudCampaignId)
+    .order('created_at', { ascending: true })
+  if (error || !data) return []
+  return data.map((r) => ({
+    id: r.id as string,
+    name: (r.name as string) ?? '',
+    qty: (r.qty as number) ?? 1,
+    value: (r.value as string) ?? '',
+    claimedBy: (r.claimed_by as string) ?? '',
+    notes: (r.notes as string) ?? '',
+    createdAt: r.created_at as string,
+  }))
+}
+
+export async function addLootItem(
+  cloudCampaignId: string,
+  id: string,
+  item: { name: string; qty: number; value: string; claimedBy: string; notes: string },
+  userId: string,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in')
+  const { error } = await supabase.from('party_loot').insert({
+    id,
+    campaign_id: cloudCampaignId,
+    name: item.name,
+    qty: item.qty,
+    value: item.value,
+    claimed_by: item.claimedBy,
+    notes: item.notes,
+    created_by: userId,
+  })
+  if (error) throw new Error(error.message)
+}
+
+export async function updateLootItem(
+  id: string,
+  patch: Partial<{ name: string; qty: number; value: string; claimedBy: string; notes: string }>,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in')
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (patch.name !== undefined) row.name = patch.name
+  if (patch.qty !== undefined) row.qty = patch.qty
+  if (patch.value !== undefined) row.value = patch.value
+  if (patch.claimedBy !== undefined) row.claimed_by = patch.claimedBy
+  if (patch.notes !== undefined) row.notes = patch.notes
+  const { error } = await supabase.from('party_loot').update(row).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function deleteLootItem(id: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('party_loot').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}

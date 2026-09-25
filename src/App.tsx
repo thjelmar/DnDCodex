@@ -27,6 +27,7 @@ import { RollTablesPage } from './pages/RollTablesPage'
 import { EncountersPage } from './pages/EncountersPage'
 import { CombatTrackerPage } from './pages/CombatTrackerPage'
 import { GalleryPage } from './pages/GalleryPage'
+import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
@@ -278,6 +279,7 @@ export function App() {
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
+              <Route path="loot" element={<LootPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />
             </Route>
