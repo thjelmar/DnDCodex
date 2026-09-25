@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { newId } from '../db/db'
 import { Icon } from './Icon'
+import { NumberField } from './NumberField'
 import { useConfirm } from './ConfirmDialog'
 import {
   getTreasury, setTreasury, getLoot, addLootItem, updateLootItem, deleteLootItem,
@@ -102,10 +103,11 @@ export function PartyLoot({ cloudCampaignId }: { cloudCampaignId: string }) {
     } catch { /* transient — a later edit or realtime tick reconciles */ }
   }
 
-  function commitCoins() {
+  function commitCoin(key: CoinKey, v: number) {
     editing.current = false
-    const changed = COINS.some((c) => (coins[c.key] || 0) !== (treasury[c.key] || 0))
-    if (changed) saveCoins(coins)
+    const next = { ...coins, [key]: v }
+    const changed = COINS.some((c) => (next[c.key] || 0) !== (treasury[c.key] || 0))
+    if (changed) saveCoins(next)
   }
 
   async function addItem(item: { name: string; qty: number; value: string; claimedBy: string; notes: string }) {
@@ -134,16 +136,13 @@ export function PartyLoot({ cloudCampaignId }: { cloudCampaignId: string }) {
           {COINS.map((c) => (
             <label key={c.key} className="loot-coin">
               <span className="loot-coin-label">{c.label}</span>
-              <input
-                className="input loot-coin-input"
-                type="number"
-                min={0}
+              <NumberField
+                className="loot-coin-field"
                 value={coins[c.key]}
-                onFocus={() => { editing.current = true }}
-                onChange={(e) => setCoins((prev) => ({ ...prev, [c.key]: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))}
-                onBlur={commitCoins}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                aria-label={`${c.label} coins`}
+                min={0}
+                onChange={(v) => { editing.current = true; setCoins((prev) => ({ ...prev, [c.key]: v ?? 0 })) }}
+                onCommit={(v) => commitCoin(c.key, v ?? 0)}
+                ariaLabel={`${c.label} coins`}
               />
             </label>
           ))}
@@ -194,6 +193,18 @@ function LootRow({ item, onRemove, onRefresh }: { item: LootItem; onRemove: () =
     } catch { setDraft(item) }
   }
 
+  // Commit an explicit value (for the stepper/wheel field, whose new value may not
+  // be in `draft` yet when the commit fires).
+  async function commitVal<K extends keyof LootItem>(key: K, val: LootItem[K]) {
+    editing.current = false
+    setDraft((d) => ({ ...d, [key]: val }))
+    if (val === item[key]) return
+    try {
+      await updateLootItem(item.id, { [key]: val } as never)
+      onRefresh()
+    } catch { setDraft(item) }
+  }
+
   return (
     <div className="loot-row">
       <input
@@ -202,11 +213,12 @@ function LootRow({ item, onRemove, onRefresh }: { item: LootItem; onRemove: () =
         onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
         onBlur={() => commit('name')} aria-label="Item name"
       />
-      <input
-        className="input" type="number" min={0} value={draft.qty}
-        onFocus={() => { editing.current = true }}
-        onChange={(e) => setDraft((d) => ({ ...d, qty: Math.max(0, Math.floor(Number(e.target.value) || 0)) }))}
-        onBlur={() => commit('qty')} aria-label="Quantity"
+      <NumberField
+        value={draft.qty}
+        min={0}
+        onChange={(v) => { editing.current = true; setDraft((d) => ({ ...d, qty: v ?? 0 })) }}
+        onCommit={(v) => commitVal('qty', v ?? 0)}
+        ariaLabel="Quantity"
       />
       <input
         className="input" value={draft.value} placeholder="—"
@@ -229,20 +241,20 @@ function LootRow({ item, onRemove, onRefresh }: { item: LootItem; onRemove: () =
 
 function AddLoot({ onAdd }: { onAdd: (item: { name: string; qty: number; value: string; claimedBy: string; notes: string }) => void }) {
   const [name, setName] = useState('')
-  const [qty, setQty] = useState('1')
+  const [qty, setQty] = useState(1)
   const [value, setValue] = useState('')
   const [claimedBy, setClaimedBy] = useState('')
 
   function submit() {
     if (!name.trim()) return
-    onAdd({ name: name.trim(), qty: Math.max(1, Math.floor(Number(qty) || 1)), value: value.trim(), claimedBy: claimedBy.trim(), notes: '' })
-    setName(''); setQty('1'); setValue(''); setClaimedBy('')
+    onAdd({ name: name.trim(), qty: Math.max(1, qty), value: value.trim(), claimedBy: claimedBy.trim(), notes: '' })
+    setName(''); setQty(1); setValue(''); setClaimedBy('')
   }
 
   return (
     <div className="loot-add" onKeyDown={(e) => { if (e.key === 'Enter') submit() }}>
       <input className="input" placeholder="Add item…" value={name} onChange={(e) => setName(e.target.value)} aria-label="New item name" />
-      <input className="input" type="number" min={1} placeholder="Qty" value={qty} onChange={(e) => setQty(e.target.value)} aria-label="New item quantity" />
+      <NumberField value={qty} min={1} onChange={(v) => setQty(v ?? 1)} ariaLabel="New item quantity" />
       <input className="input" placeholder="Value" value={value} onChange={(e) => setValue(e.target.value)} aria-label="New item value" />
       <input className="input" placeholder="Claimed by" value={claimedBy} onChange={(e) => setClaimedBy(e.target.value)} aria-label="New item claimed by" />
       <button className="btn small primary" onClick={submit} disabled={!name.trim()}>Add</button>

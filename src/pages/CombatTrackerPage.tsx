@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { Icon } from '../components/Icon'
+import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
 import { abilityMod } from '../lib/statblock'
 import {
@@ -283,14 +284,14 @@ function CombatantRow({
       {active && <div className="combat-turn-marker" aria-hidden />}
       <span className="combat-order faint">{index + 1}</span>
 
-      <input
-        className="input combat-init"
-        type="number"
-        value={c.initiative ?? ''}
+      <NumberField
+        inputClassName="combat-init"
+        steppers={false}
+        value={c.initiative}
         placeholder="–"
-        onChange={(e) => onPatch({ initiative: e.target.value === '' ? null : Number(e.target.value) })}
-        aria-label={`${c.name} initiative`}
-        title="Initiative"
+        onChange={(v) => onPatch({ initiative: v })}
+        ariaLabel={`${c.name} initiative`}
+        title="Initiative — scroll or ↑/↓ to adjust"
       />
 
       <div className="combat-name-cell">
@@ -354,20 +355,25 @@ function HpControl({
     <div className="combat-hp">
       <span className="combat-hp-num" title="Current / max HP">
         <Icon name="heart" size={14} color={c.hp <= 0 ? 'var(--text-dim)' : 'var(--danger)'} />
-        <input
-          className="input combat-hp-cur"
-          type="number"
+        <NumberField
+          inputClassName="combat-hp-cur"
+          steppers={false}
           value={c.hp}
-          onChange={(e) => onPatch({ hp: Math.max(0, Number(e.target.value) || 0) })}
-          aria-label={`${c.name} current HP`}
+          min={0}
+          max={c.maxHp ?? undefined}
+          onChange={(v) => onPatch({ hp: v ?? 0 })}
+          ariaLabel={`${c.name} current HP`}
+          title="Current HP — scroll or ↑/↓ to adjust"
         />
         <span className="faint">/</span>
-        <input
-          className="input combat-hp-max"
-          type="number"
-          value={c.maxHp ?? ''}
-          onChange={(e) => onPatch({ maxHp: e.target.value === '' ? null : Number(e.target.value) })}
-          aria-label={`${c.name} max HP`}
+        <NumberField
+          inputClassName="combat-hp-max"
+          steppers={false}
+          value={c.maxHp}
+          min={0}
+          onChange={(v) => onPatch({ maxHp: v })}
+          ariaLabel={`${c.name} max HP`}
+          title="Max HP"
         />
       </span>
       <input
