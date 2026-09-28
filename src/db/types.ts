@@ -346,6 +346,55 @@ export interface CharacterItem {
   type?: string
 }
 
+/** A feature or trait (racial trait, class/subclass feature). Import-derived. */
+export interface CharacterFeature {
+  name: string
+  /** Short one-line summary (HTML/template markup stripped). */
+  snippet?: string
+  /** Where it came from — e.g. "Dwarf", "Barbarian", "Path of Wild Magic". */
+  source?: string
+  /** Class/level a class feature is gained at. */
+  level?: number
+}
+
+/** A weapon or special attack, with the to-hit and damage we could compute. */
+export interface CharacterAttack {
+  name: string
+  /** e.g. "Melee", "Ranged", "Thrown (30/120)". */
+  range?: string
+  /** Attack bonus (e.g. +8) — null when we couldn't resolve it reliably. */
+  toHit?: number | null
+  /** Damage string incl. ability/magic mods, e.g. "1d12 + 6 slashing". */
+  damage?: string
+  /** Notes — properties (Heavy, Two-Handed…), magic bonus, or "verify". */
+  note?: string
+}
+
+/** One spell known/prepared. Level 0 = cantrip. */
+export interface CharacterSpell {
+  name: string
+  level: number
+  school?: string
+  prepared?: boolean
+  concentration?: boolean
+  ritual?: boolean
+  /** Where it came from — e.g. "Wizard", "Amulet of…", "Feat". */
+  source?: string
+}
+
+/** Spellcasting summary for the primary spellcasting class. */
+export interface Spellcasting {
+  ability?: AbilityKey
+  saveDc?: number | null
+  attackBonus?: number | null
+}
+
+/** One row of the spell-slot ladder. */
+export interface SpellSlot {
+  level: number
+  total: number
+}
+
 /**
  * A structured player character sheet (v1). Holds what we can reliably import
  * from D&D Beyond; freeform backstory stays in PlayerNote.body. Ability scores
@@ -385,6 +434,15 @@ export interface CharacterSheet {
   backgroundFeature?: string
   personality?: { traits?: string; ideals?: string; bonds?: string; flaws?: string }
   inventory?: CharacterItem[]
+  // Tier 2 sections — import-derived, shown read-only.
+  features?: CharacterFeature[]
+  attacks?: CharacterAttack[]
+  spells?: CharacterSpell[]
+  spellcasting?: Spellcasting
+  /** Spell-slot ladder (levels 1–9 that have any slots). */
+  spellSlots?: SpellSlot[]
+  /** Warlock Pact Magic slots, kept separate from regular slots. */
+  pactMagic?: SpellSlot[]
   /** Local StoredImage id for the portrait, once imported. */
   imageId?: Id | null
   /** Remote D&D Beyond avatar URL (source / fallback until stored locally). */

@@ -1952,3 +1952,43 @@ kbd {
 /* Inventory search (view). */
 .cv-inv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .cv-inv-search { max-width: 200px; padding: 5px 9px; font-size: 13px; }
+
+/* ── Character Tier 2 sections (features / attacks / spells; read-only) ─────── */
+.char-t2 { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* Attacks */
+.t2-attacks { display: flex; flex-direction: column; gap: 2px; }
+.t2-atk { display: grid; grid-template-columns: minmax(0, 1.6fr) 42px minmax(0, 1.4fr) minmax(0, 1.6fr); gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.t2-atk:last-child { border-bottom: 0; }
+.t2-atk-name { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.t2-atk-hit { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent); text-align: center; }
+.t2-atk-dmg { font-variant-numeric: tabular-nums; color: var(--text); }
+.t2-atk-note { font-size: 11.5px; overflow-wrap: anywhere; }
+
+/* Spells */
+.t2-spell-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12.5px; color: var(--text-dim); margin-bottom: 8px; }
+.t2-spell-meta b { color: var(--text); font-variant-numeric: tabular-nums; }
+.t2-slots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.t2-slot { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); }
+.t2-slot b { color: var(--text); }
+.t2-slot.t2-pact { border-color: var(--accent); color: var(--accent); }
+.t2-spell-group { display: grid; grid-template-columns: 46px 1fr; gap: 8px; align-items: baseline; margin-bottom: 6px; }
+.t2-spell-lvl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); padding-top: 3px; }
+.t2-spell-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.t2-spell { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--border); color: var(--text); background: var(--bg-elev); }
+.t2-spell.prepared { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.t2-spell-tag { font-size: 9px; font-weight: 700; color: var(--accent); border: 1px solid var(--border); border-radius: 3px; padding: 0 3px; line-height: 1.4; }
+
+/* Features & traits */
+.t2-features { display: flex; flex-direction: column; gap: 8px; }
+.t2-feat { padding: 6px 0; border-bottom: 1px solid var(--border); }
+.t2-feat:last-child { border-bottom: 0; }
+.t2-feat-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.t2-feat-name { font-weight: 600; color: var(--text); font-size: 13px; }
+.t2-feat-snip { font-size: 12px; color: var(--text-dim); margin-top: 2px; line-height: 1.45; }
+.t2-badge { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; }
+
+@media (max-width: 640px) {
+  .t2-atk { grid-template-columns: 1fr 40px minmax(0, 1fr); }
+  .t2-atk-note { grid-column: 1 / -1; }
+}

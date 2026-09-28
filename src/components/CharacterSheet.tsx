@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AbilityKey, CharacterClass, CharacterItem, CharacterSheet } from '../db/types'
 import { ABILITIES, abilityMod, signed } from '../lib/statblock'
-import { parseDdbId, fetchDdbCharacter, mapDdbCharacter } from '../lib/ddb'
+import { parseDdbId, fetchDdbCharacter, mapDdbCharacter, extractBackstoryHtml } from '../lib/ddb'
 import { NumberField } from './NumberField'
 import { Icon } from './Icon'
 
@@ -201,6 +201,9 @@ export function CharacterSheetEditor({ value, onChange }: { value: CharacterShee
 
       {/* Inventory */}
       <InventoryEditor items={value.inventory ?? []} onChange={(inv) => set({ inventory: inv })} />
+
+      {/* Tier 2 (imported, read-only): attacks, spells, features */}
+      <Tier2Sections value={value} />
     </div>
   )
 }
@@ -261,6 +264,113 @@ function InventoryView({ items }: { items: CharacterItem[] }) {
       </div>
       {more > 0 && <button className="btn ghost small" style={{ marginTop: 6 }} onClick={showMore}>Show more ({more} left)</button>}
     </div>
+  )
+}
+
+const SPELL_LEVEL_LABEL = ['Cantrips', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th']
+
+/** Features & Traits — searchable, progressive (import-derived, read-only). */
+function FeatureList({ features }: { features: NonNullable<CharacterSheet['features']> }) {
+  const { q, setQ, shown, more, showMore } = useItemSearch(features, 8)
+  return (
+    <div className="char-t2">
+      <div className="cv-inv-head">
+        <div className="cv-label">Features &amp; Traits <span className="faint">({features.length})</span></div>
+        {features.length > 8 && <input className="input cv-inv-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search features" />}
+      </div>
+      <div className="t2-features">
+        {shown.map(({ it, i }) => (
+          <div key={i} className="t2-feat">
+            <div className="t2-feat-head">
+              <span className="t2-feat-name">{it.name}</span>
+              {it.source && <span className="t2-badge">{it.source}{it.level ? ` ${it.level}` : ''}</span>}
+            </div>
+            {it.snippet && <div className="t2-feat-snip">{it.snippet}</div>}
+          </div>
+        ))}
+      </div>
+      {more > 0 && <button className="btn ghost small" style={{ marginTop: 6 }} onClick={showMore}>Show more ({more} left)</button>}
+    </div>
+  )
+}
+
+/** Attacks — weapons + special actions with computed to-hit / damage. */
+function AttackTable({ attacks }: { attacks: NonNullable<CharacterSheet['attacks']> }) {
+  return (
+    <div className="char-t2">
+      <div className="cv-label" style={{ marginBottom: 6 }}>Attacks <span className="faint">({attacks.length})</span></div>
+      <div className="t2-attacks">
+        {attacks.map((a, i) => (
+          <div key={i} className="t2-atk">
+            <span className="t2-atk-name">{a.name}</span>
+            <span className="t2-atk-hit">{a.toHit != null ? signed(a.toHit) : '—'}</span>
+            <span className="t2-atk-dmg">{a.damage || '—'}</span>
+            <span className="t2-atk-note faint">{[a.range, a.note].filter(Boolean).join(' · ')}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Spells — save DC / attack bonus, slot ladder, grouped by level. */
+function SpellList({ value }: { value: CharacterSheet }) {
+  const spells = value.spells ?? []
+  const sc = value.spellcasting
+  const byLevel = new Map<number, typeof spells>()
+  for (const s of spells) {
+    const arr = byLevel.get(s.level) ?? []
+    arr.push(s); byLevel.set(s.level, arr)
+  }
+  const levels = [...byLevel.keys()].sort((a, b) => a - b)
+  const slots = value.spellSlots ?? []
+  const pact = value.pactMagic ?? []
+  return (
+    <div className="char-t2">
+      <div className="cv-label" style={{ marginBottom: 6 }}>Spells <span className="faint">({spells.length})</span></div>
+      {sc && (sc.saveDc != null || sc.attackBonus != null) && (
+        <div className="t2-spell-meta">
+          {sc.ability && <span className="t2-badge">{sc.ability.toUpperCase()}</span>}
+          {sc.saveDc != null && <span>Save DC <b>{sc.saveDc}</b></span>}
+          {sc.attackBonus != null && <span>Attack <b>{signed(sc.attackBonus)}</b></span>}
+        </div>
+      )}
+      {(slots.length > 0 || pact.length > 0) && (
+        <div className="t2-slots">
+          {slots.map((s) => <span key={`s${s.level}`} className="t2-slot"><b>{SPELL_LEVEL_LABEL[s.level] ?? s.level}</b> ×{s.total}</span>)}
+          {pact.map((s) => <span key={`p${s.level}`} className="t2-slot t2-pact"><b>Pact {SPELL_LEVEL_LABEL[s.level] ?? s.level}</b> ×{s.total}</span>)}
+        </div>
+      )}
+      {levels.map((lvl) => (
+        <div key={lvl} className="t2-spell-group">
+          <div className="t2-spell-lvl">{SPELL_LEVEL_LABEL[lvl] ?? `L${lvl}`}</div>
+          <div className="t2-spell-chips">
+            {(byLevel.get(lvl) ?? []).map((s, i) => (
+              <span key={i} className={`t2-spell${s.prepared ? ' prepared' : ''}`} title={[s.school, s.source].filter(Boolean).join(' · ')}>
+                {s.name}
+                {s.concentration && <span className="t2-spell-tag" title="Concentration">C</span>}
+                {s.ritual && <span className="t2-spell-tag" title="Ritual">R</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** All Tier 2 sections that have data (import-derived, read-only). */
+function Tier2Sections({ value }: { value: CharacterSheet }) {
+  const hasFeatures = (value.features ?? []).length > 0
+  const hasAttacks = (value.attacks ?? []).length > 0
+  const hasSpells = (value.spells ?? []).length > 0
+  if (!hasFeatures && !hasAttacks && !hasSpells) return null
+  return (
+    <>
+      {hasAttacks && <AttackTable attacks={value.attacks!} />}
+      {hasSpells && <SpellList value={value} />}
+      {hasFeatures && <FeatureList features={value.features!} />}
+    </>
   )
 }
 
@@ -358,6 +468,8 @@ export function CharacterSheetView({ value, name }: { value: CharacterSheet; nam
         </div>
       )}
 
+      <Tier2Sections value={value} />
+
       {(value.inventory ?? []).length > 0 && <InventoryView items={value.inventory ?? []} />}
 
       {value.currency && (value.currency.pp || value.currency.gp || value.currency.ep || value.currency.sp || value.currency.cp) ? (
@@ -370,7 +482,7 @@ export function CharacterSheetView({ value, name }: { value: CharacterSheet; nam
 }
 
 /** Paste a D&D Beyond URL (or id) to import/refresh. Read-only, public chars only. */
-export function DdbImport({ existing, onImported }: { existing?: CharacterSheet['ddb']; onImported: (sheet: CharacterSheet, name?: string) => void }) {
+export function DdbImport({ existing, onImported }: { existing?: CharacterSheet['ddb']; onImported: (sheet: CharacterSheet, name?: string, backstory?: string) => void }) {
   const [url, setUrl] = useState(existing?.url ?? '')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -379,7 +491,7 @@ export function DdbImport({ existing, onImported }: { existing?: CharacterSheet[
     setBusy(true); setErr('')
     try {
       const raw = await fetchDdbCharacter(id)
-      onImported(mapDdbCharacter(raw), typeof raw?.name === 'string' ? raw.name : undefined)
+      onImported(mapDdbCharacter(raw), typeof raw?.name === 'string' ? raw.name : undefined, extractBackstoryHtml(raw))
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Import failed.')
     }

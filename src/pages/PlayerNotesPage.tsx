@@ -389,6 +389,11 @@ function SharedEntryRow({ row, onOpen }: { row: SharedEntityRow; onOpen: () => v
   )
 }
 
+/** True when rich-text HTML has no real content (empty, whitespace, empty tags). */
+function isBlankHtml(html: string): boolean {
+  return !html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+}
+
 function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => void }) {
   const confirm = useConfirm()
   const section = SECTIONS.find((s) => s.key === note.section)
@@ -459,9 +464,10 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
               </div>
               {charEdit ? (
                 <>
-                  <DdbImport existing={characterData.ddb} onImported={(sheet, name) => {
+                  <DdbImport existing={characterData.ddb} onImported={(sheet, name, backstory) => {
                     setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })
                     if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
+                    if (backstory && isBlankHtml(body)) setBody(backstory)
                   }} />
                   <CharacterSheetEditor value={characterData} onChange={setCharacterData} />
                 </>
@@ -473,9 +479,10 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
             <div className="char-empty">
               <p className="faint" style={{ marginTop: 0 }}>Make this a structured character sheet — build it by hand, or import from D&amp;D Beyond.</p>
               <button className="btn small" onClick={() => setCharacterData(emptyCharacterSheet())}><Icon name="plus" size={13} /> Create sheet</button>
-              <div style={{ marginTop: 12 }}><DdbImport onImported={(sheet, name) => {
+              <div style={{ marginTop: 12 }}><DdbImport onImported={(sheet, name, backstory) => {
                 setCharacterData(sheet)
                 if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
+                if (backstory && isBlankHtml(body)) setBody(backstory)
               }} /></div>
             </div>
           )}

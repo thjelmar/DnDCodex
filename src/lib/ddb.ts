@@ -10,7 +10,9 @@
 // currency) and leave the rest — notably AC and any choose-your-ability bumps —
 // unresolved (null / "verify"). A full modifier engine is v2.
 
-import type { AbilityKey, CharacterClass, CharacterSheet } from '../db/types'
+import type {
+  AbilityKey, CharacterAttack, CharacterClass, CharacterFeature, CharacterSheet, CharacterSpell, SpellSlot,
+} from '../db/types'
 import { abilityMod } from './statblock'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -53,6 +55,42 @@ export function parseDdbId(input: string): string | null {
   return m ? m[1] : null
 }
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+/** Plain text (with newlines) → paragraph HTML for the rich-text body. */
+function textToHtml(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
+    .join('')
+}
+
+/** Build a rich-text backstory/notes body from a DDB character's freeform
+ *  fields (backstory + appearance + allies/enemies/possessions/etc.). Returns
+ *  '' when the character has no freeform notes. */
+export function extractBackstoryHtml(raw: Raw): string {
+  const n = raw?.notes || {}
+  const cap = (s: unknown) => (typeof s === 'string' ? s.slice(0, 12000).trim() : '')
+  const sections: [string, string][] = [
+    ['', cap(n.backstory)],
+    ['Appearance', cap(raw?.traits?.appearance)],
+    ['Allies', cap(n.allies)],
+    ['Organizations', cap(n.organizations)],
+    ['Enemies', cap(n.enemies)],
+    ['Personal Possessions', cap(n.personalPossessions)],
+    ['Other Holdings', cap(n.otherHoldings)],
+    ['Other Notes', cap(n.otherNotes)],
+  ]
+  return sections
+    .filter(([, body]) => body)
+    .map(([heading, body]) => (heading ? `<h3>${heading}</h3>` : '') + textToHtml(body))
+    .join('')
+}
+
 /** Fetch + trim via our Pages Function. Throws a friendly Error on failure. */
 export async function fetchDdbCharacter(id: string): Promise<Raw> {
   const res = await fetch(`/api/ddb-character?id=${encodeURIComponent(id)}`)
@@ -87,6 +125,194 @@ function finalAbility(raw: Raw, mods: Mod[], key: AbilityKey, id: number, active
     .filter((m) => m.type === 'bonus' && m.subType === `${full}-score` && typeof m.value === 'number')
     .reduce((s, m) => s + (m.value as number), 0)
   return base + bonus + modBonus
+}
+
+/** Strip HTML tags and DDB `{{template}}` markup; collapse whitespace; cap length. */
+function cleanText(s: unknown, cap = 240): string {
+  if (typeof s !== 'string') return ''
+  const t = s
+    .replace(/\{\{[^}]*\}\}/g, '') // DDB scaling templates like {{scalevalue}}
+    .replace(/<[^>]+>/g, ' ') // HTML tags
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return t.length > cap ? t.slice(0, cap - 1).trimEnd() + '…' : t
+}
+
+// Boilerplate feature/trait names that duplicate other sheet sections — hidden.
+const FEATURE_SKIP = new Set([
+  'ability score increase', 'ability score improvement', 'languages', 'age', 'size', 'speed',
+  'proficiencies', 'hit points', 'equipment', 'alignment', 'ability scores', 'feat',
+])
+
+/** Racial traits + class/subclass features → a flat, deduped, filtered list.
+ *  DDB lists the FULL class progression in classFeatures, so gate each feature
+ *  on `requiredLevel` vs the level actually attained (class level for class
+ *  features, total level for racial traits). */
+function buildFeatures(raw: Raw, totalLevel: number): CharacterFeature[] {
+  const out: CharacterFeature[] = []
+  const seen = new Set<string>()
+  const add = (def: Raw, source: string, attained: number) => {
+    const name = def?.name
+    if (!name || def?.hideInSheet) return
+    const req = typeof def.requiredLevel === 'number' ? def.requiredLevel : 1
+    if (req > attained) return
+    const key = name.toLowerCase()
+    if (FEATURE_SKIP.has(key) || seen.has(key)) return
+    seen.add(key)
+    out.push({
+      name,
+      snippet: cleanText(def.snippet) || undefined,
+      source,
+      level: req > 1 ? req : undefined,
+    })
+  }
+
+  const speciesName = raw.race?.subRaceShortName || raw.race?.baseName || raw.race?.fullName || 'Species'
+  for (const t of (raw.race?.racialTraits || []) as Raw[]) add(t?.definition, speciesName, totalLevel)
+  for (const c of (raw.classes || []) as Raw[]) {
+    const cname = c?.definition?.name || 'Class'
+    const sub = c?.subclassDefinition?.name
+    const clvl = c?.level ?? totalLevel
+    for (const f of (c?.classFeatures || []) as Raw[]) {
+      add(f?.definition, f?.definition?.isSubClassFeature && sub ? sub : cname, clvl)
+    }
+  }
+  return out
+}
+
+const DAMAGE_TYPE_BY_ID: Record<number, string> = {
+  1: 'Bludgeoning', 2: 'Piercing', 3: 'Slashing', 4: 'Necrotic', 5: 'Acid', 6: 'Cold',
+  7: 'Fire', 8: 'Lightning', 9: 'Thunder', 10: 'Poison', 11: 'Psychic', 12: 'Radiant', 13: 'Force',
+}
+
+/** Equipped weapons (with computed to-hit/damage) + special attack actions. */
+function buildAttacks(
+  raw: Raw, abilities: Record<AbilityKey, number>, profBonus: number, mods: Mod[],
+): CharacterAttack[] {
+  const out: CharacterAttack[] = []
+  const strMod = abilityMod(abilities.str)
+  const dexMod = abilityMod(abilities.dex)
+
+  // Weapon proficiency: category (simple/martial) or a specific weapon slug.
+  const profSubs = new Set(
+    mods.filter((m) => m.type === 'proficiency').map((m) => (m.subType || '').toLowerCase()),
+  )
+  const isProficient = (categoryId: number, weaponType: string): boolean => {
+    if (categoryId === 1 && profSubs.has('simple-weapons')) return true
+    if (categoryId === 2 && profSubs.has('martial-weapons')) return true
+    return profSubs.has((weaponType || '').toLowerCase())
+  }
+
+  const weapons = (raw.inventory || []).filter((it: Raw) => it?.weapon)
+  const equipped = weapons.filter((it: Raw) => it.equipped)
+  for (const it of (equipped.length ? equipped : weapons) as Raw[]) {
+    const w = it.weapon
+    const props: string[] = w.properties || []
+    const finesse = props.includes('Finesse')
+    const thrown = props.includes('Thrown')
+    const ranged = w.attackType === 2
+    // Ability: ranged → DEX; finesse → better of STR/DEX; else STR.
+    const abMod = ranged ? dexMod : finesse ? Math.max(strMod, dexMod) : strMod
+
+    let magicHit = 0, magicDmg = 0
+    for (const gm of (w.grantedModifiers || []) as Raw[]) {
+      if (gm.subType === 'magic' && typeof gm.value === 'number') { magicHit += gm.value; magicDmg += gm.value }
+      else if (gm.subType === 'damage' && typeof gm.value === 'number') magicDmg += gm.value
+    }
+    const prof = isProficient(w.categoryId, w.weaponType)
+    const toHit = abMod + (prof ? profBonus : 0) + magicHit
+
+    const dmgMod = abMod + magicDmg
+    const dmgType = (w.damageType || '').toLowerCase()
+    const dice = w.damage || (w.fixedDamage != null ? String(w.fixedDamage) : '')
+    const modStr = dmgMod === 0 ? '' : dmgMod > 0 ? ` + ${dmgMod}` : ` − ${Math.abs(dmgMod)}`
+    const damage = dice ? `${dice}${modStr}${dmgType ? ' ' + dmgType : ''}` : undefined
+
+    let range: string
+    if (thrown) range = `Thrown (${w.range ?? 20}/${w.longRange ?? 60})`
+    else if (ranged) range = `Ranged (${w.range ?? 0}/${w.longRange ?? 0})`
+    else range = `Melee (${w.range ?? 5} ft.)`
+
+    const notes = props.filter((p) => p !== 'Thrown')
+    if (!prof) notes.push('not proficient')
+    out.push({
+      name: it.name, range, toHit, damage,
+      note: notes.length ? notes.join(', ') : undefined,
+    })
+  }
+
+  // Special attack actions DDB already computed a to-hit/damage for.
+  for (const a of (raw.actionAttacks || []) as Raw[]) {
+    if (!a?.dice) continue
+    const hasToHit = a.fixedToHit != null || a.abilityModifierStatId != null
+    if (!hasToHit) continue
+    let toHit: number | null = null
+    if (a.fixedToHit != null) toHit = a.fixedToHit
+    else if (a.abilityModifierStatId != null) {
+      const key = STAT_ID.find(([id]) => id === a.abilityModifierStatId)?.[1]
+      if (key) toHit = abilityMod(abilities[key]) + profBonus
+    }
+    const dt = a.damageTypeId != null ? DAMAGE_TYPE_BY_ID[a.damageTypeId] : ''
+    out.push({
+      name: a.name,
+      toHit,
+      damage: `${a.dice}${dt ? ' ' + dt.toLowerCase() : ''}`,
+      note: 'special',
+    })
+  }
+  return out
+}
+
+/** Slimmed spell list → deduped, sorted; plus save DC / attack bonus. */
+function buildSpells(
+  raw: Raw, abilities: Record<AbilityKey, number>, profBonus: number,
+): Pick<CharacterSheet, 'spells' | 'spellcasting' | 'spellSlots' | 'pactMagic'> {
+  const rawSpells = (raw.spells || []) as Raw[]
+  const byName = new Map<string, CharacterSpell>()
+  for (const s of rawSpells) {
+    if (!s?.name) continue
+    const key = s.name.toLowerCase()
+    const existing = byName.get(key)
+    if (existing) {
+      if (s.prepared) existing.prepared = true // prefer prepared across duplicate grants
+      continue
+    }
+    byName.set(key, {
+      name: s.name,
+      level: typeof s.level === 'number' ? s.level : 0,
+      school: s.school || undefined,
+      prepared: !!s.prepared,
+      concentration: !!s.concentration,
+      ritual: !!s.ritual,
+      source: s.source || undefined,
+    })
+  }
+  const spells = Array.from(byName.values()).sort(
+    (a, b) => a.level - b.level || a.name.localeCompare(b.name),
+  )
+
+  const slot = (arr: Raw): SpellSlot[] =>
+    Array.isArray(arr) ? arr.map((x: Raw) => ({ level: x.level, total: x.total })).filter((x) => x.total > 0) : []
+  const spellSlots = slot(raw.spellSlots)
+  const pactMagic = slot(raw.pactMagic)
+
+  let spellcasting: CharacterSheet['spellcasting']
+  const castId = raw.spellcastingAbilityId
+  if (typeof castId === 'number') {
+    const key = STAT_ID.find(([id]) => id === castId)?.[1]
+    if (key) {
+      const m = abilityMod(abilities[key])
+      spellcasting = { ability: key, saveDc: 8 + profBonus + m, attackBonus: profBonus + m }
+    }
+  }
+
+  return {
+    spells: spells.length ? spells : undefined,
+    spellcasting,
+    spellSlots: spellSlots.length ? spellSlots : undefined,
+    pactMagic: pactMagic.length ? pactMagic : undefined,
+  }
 }
 
 export function mapDdbCharacter(raw: Raw): CharacterSheet {
@@ -193,6 +419,11 @@ export function mapDdbCharacter(raw: Raw): CharacterSheet {
     rarity: it.rarity || undefined, type: it.type || undefined,
   }))
 
+  // ── Tier 2 sections ──────────────────────────────────────────────────────
+  const features = buildFeatures(raw, level)
+  const attacks = buildAttacks(raw, abilities, proficiencyBonus, mods)
+  const { spells, spellcasting, spellSlots, pactMagic } = buildSpells(raw, abilities, proficiencyBonus)
+
   return {
     species: raw.race?.fullName || raw.race?.baseRaceName || '',
     classes,
@@ -219,6 +450,12 @@ export function mapDdbCharacter(raw: Raw): CharacterSheet {
     backgroundFeature,
     personality,
     inventory,
+    features: features.length ? features : undefined,
+    attacks: attacks.length ? attacks : undefined,
+    spells,
+    spellcasting,
+    spellSlots,
+    pactMagic,
     imageId: null,
     avatarUrl: raw.decorations?.avatarUrl || undefined,
     ddb: {
