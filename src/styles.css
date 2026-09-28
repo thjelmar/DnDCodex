@@ -1647,29 +1647,40 @@ kbd {
 /* Number field with visible ▲▼ steppers + scroll-to-adjust (NumberField.tsx).
    The default (steppered) variant fills its container; the bare variant keeps its
    input's own width (for dense/centered fields like the combat tracker). */
-.numfield { position: relative; display: inline-flex; }
+/* The numfield is the bordered box; the input is borderless and flexes inside it,
+   with the steppers as a real flex-column sibling (NOT an absolute overlay — Safari
+   fails to size flex children of an absolutely-positioned box, hiding the arrows). */
+.numfield {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
 .numfield:not(.numfield--bare) { width: 100%; }
-.numfield:not(.numfield--bare) .numfield-input { width: 100%; padding-right: 22px; }
+.numfield:focus-within { border-color: var(--accent); }
 .numfield-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  background: transparent;
   -moz-appearance: textfield;
   appearance: textfield;
 }
+.numfield-input:focus { outline: none; }
 .numfield-input::-webkit-outer-spin-button,
 .numfield-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .numfield-steppers {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  bottom: 1px;
-  width: 18px;
   display: flex;
   flex-direction: column;
+  flex: 0 0 18px;
   border-left: 1px solid var(--border);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   overflow: hidden;
 }
 .numfield-step {
-  flex: 1;
+  flex: 1 1 50%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
