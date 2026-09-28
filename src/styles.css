@@ -1948,3 +1948,7 @@ kbd {
 .cv-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
 .cv-item-tag { font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 0 5px; }
 .cv-item-tag.faint { color: var(--text-dim); }
+
+/* Inventory search (view). */
+.cv-inv-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.cv-inv-search { max-width: 200px; padding: 5px 9px; font-size: 13px; }

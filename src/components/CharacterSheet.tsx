@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AbilityKey, CharacterClass, CharacterSheet } from '../db/types'
+import type { AbilityKey, CharacterClass, CharacterItem, CharacterSheet } from '../db/types'
 import { ABILITIES, abilityMod, signed } from '../lib/statblock'
 import { parseDdbId, fetchDdbCharacter, mapDdbCharacter } from '../lib/ddb'
 import { NumberField } from './NumberField'
@@ -200,23 +200,66 @@ export function CharacterSheetEditor({ value, onChange }: { value: CharacterShee
       </div>
 
       {/* Inventory */}
-      <div className="char-section">
-        <div className="row between" style={{ alignItems: 'center', marginBottom: 6 }}>
-          <span className="char-sub-label" style={{ margin: 0 }}>Inventory {(value.inventory?.length ?? 0) > 0 && <span className="faint">({value.inventory!.length})</span>}</span>
-          <button className="btn ghost small" onClick={() => set({ inventory: [...(value.inventory ?? []), { name: '', qty: 1, equipped: false }] })}><Icon name="plus" size={13} /> Add item</button>
-        </div>
-        <div className="char-inv">
-          {(value.inventory ?? []).map((it, i) => (
-            <div key={i} className="char-inv-row">
-              <input className="input" style={{ flex: '2 1 140px' }} value={it.name} onChange={(e) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} placeholder="Item" />
-              <NumberField className="char-lvl" value={it.qty} min={1} onChange={(v) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, qty: v ?? 1 } : x)) })} ariaLabel="Quantity" />
-              <label className="char-inv-eq"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, equipped: e.target.checked } : x)) })} /> eq</label>
-              {it.rarity && <span className="char-rarity">{it.rarity}</span>}
-              <button className="btn ghost small" onClick={() => set({ inventory: (value.inventory ?? []).filter((_, j) => j !== i) })} aria-label="Remove item"><Icon name="x" size={13} /></button>
-            </div>
-          ))}
-        </div>
+      <InventoryEditor items={value.inventory ?? []} onChange={(inv) => set({ inventory: inv })} />
+    </div>
+  )
+}
+
+/** Filter items by a search box; return the visible slice + a "show more" control. */
+function useItemSearch<T extends { name: string }>(items: T[], initial = 8) {
+  const [q, setQ] = useState('')
+  const [limit, setLimit] = useState(initial)
+  const idx = items.map((it, i) => ({ it, i }))
+  const filtered = q.trim() ? idx.filter((x) => x.it.name.toLowerCase().includes(q.trim().toLowerCase())) : idx
+  const shown = filtered.slice(0, limit)
+  const more = filtered.length - shown.length
+  return { q, setQ: (v: string) => { setQ(v); setLimit(initial) }, shown, more, showMore: () => setLimit((l) => l + 12), setLimit }
+}
+
+function InventoryEditor({ items, onChange }: { items: CharacterItem[]; onChange: (items: CharacterItem[]) => void }) {
+  const { q, setQ, shown, more, showMore, setLimit } = useItemSearch(items)
+  const setItem = (i: number, p: Partial<CharacterItem>) => onChange(items.map((x, j) => (j === i ? { ...x, ...p } : x)))
+  return (
+    <div className="char-section">
+      <div className="row between" style={{ alignItems: 'center', marginBottom: 6, gap: 8 }}>
+        <span className="char-sub-label" style={{ margin: 0 }}>Inventory {items.length > 0 && <span className="faint">({items.length})</span>}</span>
+        <button className="btn ghost small" onClick={() => { onChange([...items, { name: '', qty: 1, equipped: false }]); setQ(''); setLimit(items.length + 1) }}><Icon name="plus" size={13} /> Add item</button>
       </div>
+      {items.length > 6 && <input className="input" style={{ marginBottom: 8 }} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search items…" aria-label="Search inventory" />}
+      <div className="char-inv">
+        {shown.map(({ it, i }) => (
+          <div key={i} className="char-inv-row">
+            <input className="input" style={{ flex: '2 1 140px' }} value={it.name} onChange={(e) => setItem(i, { name: e.target.value })} placeholder="Item" />
+            <NumberField className="char-lvl" value={it.qty} min={1} onChange={(v) => setItem(i, { qty: v ?? 1 })} ariaLabel="Quantity" />
+            <label className="char-inv-eq"><input type="checkbox" checked={it.equipped} onChange={(e) => setItem(i, { equipped: e.target.checked })} /> eq</label>
+            {it.rarity && <span className="char-rarity">{it.rarity}</span>}
+            <button className="btn ghost small" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label="Remove item"><Icon name="x" size={13} /></button>
+          </div>
+        ))}
+      </div>
+      {more > 0 && <button className="btn ghost small" style={{ marginTop: 6 }} onClick={showMore}>Show more ({more} left)</button>}
+    </div>
+  )
+}
+
+function InventoryView({ items }: { items: CharacterItem[] }) {
+  const { q, setQ, shown, more, showMore } = useItemSearch(items)
+  return (
+    <div className="cv-inv">
+      <div className="cv-inv-head">
+        <div className="cv-label">Inventory <span className="faint">({items.length})</span></div>
+        {items.length > 6 && <input className="input cv-inv-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" aria-label="Search inventory" />}
+      </div>
+      <div className="cv-inv-list">
+        {shown.map(({ it, i }) => (
+          <span key={i} className="cv-item">
+            {it.name}{it.qty > 1 ? ` ×${it.qty}` : ''}
+            {it.equipped && <span className="cv-item-tag">equipped</span>}
+            {it.rarity && <span className="cv-item-tag faint">{it.rarity}</span>}
+          </span>
+        ))}
+      </div>
+      {more > 0 && <button className="btn ghost small" style={{ marginTop: 6 }} onClick={showMore}>Show more ({more} left)</button>}
     </div>
   )
 }
@@ -315,20 +358,7 @@ export function CharacterSheetView({ value, name }: { value: CharacterSheet; nam
         </div>
       )}
 
-      {(value.inventory ?? []).length > 0 && (
-        <div className="cv-inv">
-          <div className="cv-label" style={{ marginBottom: 4 }}>Inventory</div>
-          <div className="cv-inv-list">
-            {value.inventory!.map((it, i) => (
-              <span key={i} className="cv-item">
-                {it.name}{it.qty > 1 ? ` ×${it.qty}` : ''}
-                {it.equipped && <span className="cv-item-tag">equipped</span>}
-                {it.rarity && <span className="cv-item-tag faint">{it.rarity}</span>}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {(value.inventory ?? []).length > 0 && <InventoryView items={value.inventory ?? []} />}
 
       {value.currency && (value.currency.pp || value.currency.gp || value.currency.ep || value.currency.sp || value.currency.cp) ? (
         <div className="cv-line"><span className="cv-label">Currency</span> {
