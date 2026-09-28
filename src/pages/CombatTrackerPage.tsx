@@ -285,13 +285,13 @@ function CombatantRow({
       <span className="combat-order faint">{index + 1}</span>
 
       <NumberField
+        className="combat-init-f"
         inputClassName="combat-init"
-        steppers={false}
         value={c.initiative}
         placeholder="–"
         onChange={(v) => onPatch({ initiative: v })}
         ariaLabel={`${c.name} initiative`}
-        title="Initiative — scroll or ↑/↓ to adjust"
+        title="Initiative — click ▲▼, or focus and scroll"
       />
 
       <div className="combat-name-cell">
@@ -356,19 +356,19 @@ function HpControl({
       <span className="combat-hp-num" title="Current / max HP">
         <Icon name="heart" size={14} color={c.hp <= 0 ? 'var(--text-dim)' : 'var(--danger)'} />
         <NumberField
+          className="combat-hp-f"
           inputClassName="combat-hp-cur"
-          steppers={false}
           value={c.hp}
           min={0}
           max={c.maxHp ?? undefined}
           onChange={(v) => onPatch({ hp: v ?? 0 })}
           ariaLabel={`${c.name} current HP`}
-          title="Current HP — scroll or ↑/↓ to adjust"
+          title="Current HP — click ▲▼, or focus and scroll"
         />
         <span className="faint">/</span>
         <NumberField
+          className="combat-hp-f"
           inputClassName="combat-hp-max"
-          steppers={false}
           value={c.maxHp}
           min={0}
           onChange={(v) => onPatch({ maxHp: v })}

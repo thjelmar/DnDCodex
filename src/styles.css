@@ -1417,12 +1417,13 @@ kbd {
 }
 .combat-order { width: 16px; text-align: center; font-size: 12px; }
 .combat-init {
-  width: 52px;
   text-align: center;
   padding: 6px 4px;
   font-weight: 700;
   font-size: 15px;
 }
+.numfield.combat-init-f { width: 60px; }
+.numfield.combat-hp-f { width: 58px; }
 .combat-name-cell { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .combat-name { display: flex; align-items: center; gap: 7px; }
 .combat-pc-tag {
@@ -1446,7 +1447,6 @@ kbd {
 .combat-hp { display: flex; align-items: center; gap: 5px; }
 .combat-hp-num { display: inline-flex; align-items: center; gap: 3px; }
 .combat-hp-cur, .combat-hp-max {
-  width: 46px;
   text-align: center;
   padding: 5px 4px;
 }
