@@ -329,6 +329,51 @@ export interface Note extends BaseRecord {
 /** Sections of a player campaign's home. */
 export type PlayerNoteSection = 'journal' | 'character' | 'quests' | 'people' | 'notes'
 
+/** One class entry on a character sheet (multiclass = more than one). */
+export interface CharacterClass {
+  name: string
+  level: number
+  subclass?: string
+}
+
+/**
+ * A structured player character sheet (v1). Holds what we can reliably import
+ * from D&D Beyond; freeform backstory stays in PlayerNote.body. Ability scores
+ * and HP are the FINAL values (after racial/feat modifiers). AC and other
+ * derived values may be absent (flagged "verify" in the UI) until a full
+ * modifier engine lands (v2). Non-indexed — no Dexie migration, like
+ * NPC.statBlockData.
+ */
+export interface CharacterSheet {
+  species: string
+  classes: CharacterClass[]
+  background: string
+  alignment: string
+  /** Total character level (sum of class levels). */
+  level: number
+  xp?: number
+  /** Final ability scores (after modifiers). */
+  abilities: Record<AbilityKey, number>
+  saveProficiencies: AbilityKey[]
+  /** Skill names the character is proficient in (from DDB proficiency modifiers). */
+  skillProficiencies: string[]
+  proficiencyBonus?: number
+  /** Armor Class — null when we couldn't compute it reliably (verify). */
+  ac?: number | null
+  maxHp?: number | null
+  currentHp?: number | null
+  tempHp?: number
+  speeds: { walk?: number; fly?: number; swim?: number; climb?: number; burrow?: number }
+  senses?: string
+  currency?: { pp: number; gp: number; ep: number; sp: number; cp: number }
+  /** Local StoredImage id for the portrait, once imported. */
+  imageId?: Id | null
+  /** Remote D&D Beyond avatar URL (source / fallback until stored locally). */
+  avatarUrl?: string
+  /** Import provenance — present only on DDB-linked sheets. */
+  ddb?: { characterId: number; url: string; lastImportedAt: ISODate }
+}
+
 /**
  * A player's personal entry for a campaign — kept separate from the DM's World
  * Notes. Each entry lives in a section of the player's campaign home.
@@ -345,6 +390,9 @@ export interface PlayerNote extends BaseRecord {
   date: string
   /** Quests: 'active' | 'completed' | 'failed'. Empty otherwise. */
   status: string
+  /** "My Character" entries (section === 'character'): a structured sheet.
+   *  Non-indexed like NPC.statBlockData — no Dexie migration. */
+  characterData?: CharacterSheet | null
 }
 
 /** One row of a roll table. Weight controls how many die faces it covers. */
