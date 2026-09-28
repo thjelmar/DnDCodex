@@ -60,11 +60,14 @@ export function RichTextEditor({
     },
   })
 
-  // Keep read-only editors in sync when their source value changes.
+  // Sync the editor when its source value changes externally — always for
+  // read-only editors, and for editable ones only while unfocused, so a
+  // programmatic fill (e.g. importing a backstory) shows up without ever
+  // disrupting the user's active typing.
   useEffect(() => {
-    if (editor && !editable && value !== editor.getHTML()) {
-      editor.commands.setContent(value || '', { emitUpdate: false })
-    }
+    if (!editor || value === editor.getHTML()) return
+    if (editable && editor.isFocused) return
+    editor.commands.setContent(value || '', { emitUpdate: false })
   }, [value, editable, editor])
 
   async function handleFiles(files: FileList | null) {
