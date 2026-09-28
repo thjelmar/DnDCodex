@@ -1922,3 +1922,29 @@ kbd {
 .char-inv-row .input { padding: 5px 8px; }
 .char-inv-eq { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 .char-rarity { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+
+/* Personality fields full-width (longer lines). */
+.char-personality { display: flex; flex-direction: column; gap: 10px; }
+
+/* Character sheet read view — NPC-stat-block style (CharacterSheetView). */
+.char-view { display: flex; flex-direction: column; gap: 12px; margin: 8px 0 4px; }
+.cv-head { display: flex; gap: 14px; align-items: center; }
+.cv-name { font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.15; }
+.cv-sub { color: var(--text-dim); font-size: 13px; }
+.cv-vitals { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 14px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; }
+.cv-stat { display: flex; flex-direction: column; gap: 2px; }
+.cv-stat span { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-dim); font-weight: 700; }
+.cv-stat b { font-size: 18px; font-family: var(--serif); }
+.cv-abilities { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.cv-ability { display: flex; flex-direction: column; align-items: center; gap: 1px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; }
+.cv-ab-label { font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.cv-ab-score { font-size: 20px; font-family: var(--serif); font-weight: 700; }
+.cv-ab-mod { font-size: 13px; color: var(--text-dim); }
+.cv-lines { display: flex; flex-direction: column; gap: 5px; padding-top: 8px; border-top: 1px solid var(--border); }
+.cv-line { font-size: 14px; line-height: 1.5; white-space: pre-line; }
+.cv-label { color: var(--accent); font-weight: 700; }
+.cv-inv { padding-top: 8px; border-top: 1px solid var(--border); }
+.cv-inv-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.cv-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
+.cv-item-tag { font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 0 5px; }
+.cv-item-tag.faint { color: var(--text-dim); }

@@ -12,7 +12,7 @@ import {
   createLink,
 } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
-import { CharacterSheetEditor, DdbImport, emptyCharacterSheet, totalLevel } from '../components/CharacterSheet'
+import { CharacterSheetEditor, CharacterSheetView, DdbImport, emptyCharacterSheet, totalLevel } from '../components/CharacterSheet'
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
@@ -398,6 +398,7 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
   const [date, setDate] = useState(note.date)
   const [status, setStatus] = useState(note.status)
   const [characterData, setCharacterData] = useState<CharacterSheet | null>(note.characterData ?? null)
+  const [charEdit, setCharEdit] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -450,11 +451,23 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
         <div className="field">
           {characterData ? (
             <>
-              <DdbImport existing={characterData.ddb} onImported={(sheet, name) => {
-                setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })
-                if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
-              }} />
-              <CharacterSheetEditor value={characterData} onChange={setCharacterData} />
+              <div className="row between" style={{ alignItems: 'center', marginBottom: 8 }}>
+                <span className="char-sub-label" style={{ margin: 0 }}>Character sheet</span>
+                <button className="btn ghost small" onClick={() => setCharEdit((e) => !e)}>
+                  <Icon name={charEdit ? 'eye' : 'pencil'} size={13} /> {charEdit ? 'View' : 'Edit'}
+                </button>
+              </div>
+              {charEdit ? (
+                <>
+                  <DdbImport existing={characterData.ddb} onImported={(sheet, name) => {
+                    setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })
+                    if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
+                  }} />
+                  <CharacterSheetEditor value={characterData} onChange={setCharacterData} />
+                </>
+              ) : (
+                <CharacterSheetView value={characterData} name={title} />
+              )}
             </>
           ) : (
             <div className="char-empty">

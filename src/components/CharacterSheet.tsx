@@ -188,7 +188,7 @@ export function CharacterSheetEditor({ value, onChange }: { value: CharacterShee
         <label className="field" style={{ marginBottom: 10 }}><span>Background feature</span>
           <input className="input" value={value.backgroundFeature ?? ''} onChange={(e) => set({ backgroundFeature: e.target.value })} placeholder="e.g. Heart of Darkness" />
         </label>
-        <div className="char-id-grid">
+        <div className="char-personality">
           {(['traits', 'ideals', 'bonds', 'flaws'] as const).map((k) => (
             <label key={k} className="field">
               <span style={{ textTransform: 'capitalize' }}>{k === 'traits' ? 'Personality traits' : k}</span>
@@ -246,6 +246,95 @@ function Vital({ label, hint, children }: { label: string; hint?: string; childr
     <div className="char-vital">
       <span className="char-vital-label">{label}{hint && <span className="char-verify"> {hint}</span>}</span>
       {children}
+    </div>
+  )
+}
+
+/** Read-only display of a character sheet, styled like an NPC stat block. */
+export function CharacterSheetView({ value, name }: { value: CharacterSheet; name?: string }) {
+  const level = totalLevel(value)
+  const pb = value.proficiencyBonus ?? profBonus(level)
+  const classLine = value.classes.map((c) => `${c.name}${c.subclass ? ` (${c.subclass})` : ''} ${c.level}`).join(' / ')
+  const meta = [value.species, classLine, value.background, value.alignment].filter(Boolean).join(' · ')
+  const saves = ABILITIES.filter((a) => value.saveProficiencies.includes(a.key))
+    .map((a) => `${a.label} ${signed(abilityMod(value.abilities[a.key]) + pb)}`)
+  const skills = SKILLS.filter((s) => (value.skillProficiencies ?? []).includes(s.name))
+    .map((s) => `${s.name} ${signed(abilityMod(value.abilities[s.ability]) + pb)}`)
+  const P = value.personality
+  const line = (label: string, val?: string | null) =>
+    val ? <div className="cv-line"><span className="cv-label">{label}</span> {val}</div> : null
+
+  return (
+    <div className="char-view">
+      <div className="cv-head">
+        {value.avatarUrl && <img className="char-portrait" src={value.avatarUrl} alt="" />}
+        <div style={{ minWidth: 0 }}>
+          {name && <div className="cv-name">{name}</div>}
+          <div className="cv-sub">{meta || `Level ${level}`}</div>
+        </div>
+      </div>
+
+      <div className="cv-vitals">
+        {value.ac != null && <div className="cv-stat"><span>AC</span><b>{value.ac}</b></div>}
+        <div className="cv-stat"><span>HP</span><b>{value.currentHp ?? '—'} / {value.maxHp ?? '—'}</b></div>
+        {value.speeds.walk && <div className="cv-stat"><span>Speed</span><b>{value.speeds.walk} ft</b></div>}
+        <div className="cv-stat"><span>Init</span><b>{signed(abilityMod(value.abilities.dex))}</b></div>
+        <div className="cv-stat"><span>Prof</span><b>{signed(pb)}</b></div>
+      </div>
+
+      <div className="cv-abilities">
+        {ABILITIES.map((a) => (
+          <div key={a.key} className="cv-ability">
+            <span className="cv-ab-label">{a.label}</span>
+            <span className="cv-ab-score">{value.abilities[a.key]}</span>
+            <span className="cv-ab-mod">{signed(abilityMod(value.abilities[a.key]))}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="cv-lines">
+        {line('Saving Throws', saves.join(', '))}
+        {line('Skills', skills.join(', '))}
+        {line('Senses', value.senses)}
+        {line('Languages', (value.languages ?? []).join(', '))}
+        {line('Damage Resistances', (value.resistances ?? []).join(', '))}
+        {line('Damage Immunities', (value.immunities ?? []).join(', '))}
+        {line('Armor', (value.proficiencies?.armor ?? []).join(', '))}
+        {line('Weapons', (value.proficiencies?.weapons ?? []).join(', '))}
+        {line('Tools', (value.proficiencies?.tools ?? []).join(', '))}
+        {line('Feats', (value.feats ?? []).join(', '))}
+        {line('Background Feature', value.backgroundFeature)}
+      </div>
+
+      {(P?.traits || P?.ideals || P?.bonds || P?.flaws) && (
+        <div className="cv-lines">
+          {line('Personality', P?.traits)}
+          {line('Ideals', P?.ideals)}
+          {line('Bonds', P?.bonds)}
+          {line('Flaws', P?.flaws)}
+        </div>
+      )}
+
+      {(value.inventory ?? []).length > 0 && (
+        <div className="cv-inv">
+          <div className="cv-label" style={{ marginBottom: 4 }}>Inventory</div>
+          <div className="cv-inv-list">
+            {value.inventory!.map((it, i) => (
+              <span key={i} className="cv-item">
+                {it.name}{it.qty > 1 ? ` ×${it.qty}` : ''}
+                {it.equipped && <span className="cv-item-tag">equipped</span>}
+                {it.rarity && <span className="cv-item-tag faint">{it.rarity}</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {value.currency && (value.currency.pp || value.currency.gp || value.currency.ep || value.currency.sp || value.currency.cp) ? (
+        <div className="cv-line"><span className="cv-label">Currency</span> {
+          (['pp', 'gp', 'ep', 'sp', 'cp'] as const).filter((c) => value.currency![c]).map((c) => `${value.currency![c]} ${c}`).join(', ')
+        }</div>
+      ) : null}
     </div>
   )
 }
