@@ -174,7 +174,7 @@ function Vital({ label, hint, children }: { label: string; hint?: string; childr
 }
 
 /** Paste a D&D Beyond URL (or id) to import/refresh. Read-only, public chars only. */
-export function DdbImport({ existing, onImported }: { existing?: CharacterSheet['ddb']; onImported: (sheet: CharacterSheet) => void }) {
+export function DdbImport({ existing, onImported }: { existing?: CharacterSheet['ddb']; onImported: (sheet: CharacterSheet, name?: string) => void }) {
   const [url, setUrl] = useState(existing?.url ?? '')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -183,7 +183,7 @@ export function DdbImport({ existing, onImported }: { existing?: CharacterSheet[
     setBusy(true); setErr('')
     try {
       const raw = await fetchDdbCharacter(id)
-      onImported(mapDdbCharacter(raw))
+      onImported(mapDdbCharacter(raw), typeof raw?.name === 'string' ? raw.name : undefined)
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Import failed.')
     }

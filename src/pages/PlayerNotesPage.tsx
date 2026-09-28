@@ -450,14 +450,20 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
         <div className="field">
           {characterData ? (
             <>
-              <DdbImport existing={characterData.ddb} onImported={(sheet) => setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })} />
+              <DdbImport existing={characterData.ddb} onImported={(sheet, name) => {
+                setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })
+                if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
+              }} />
               <CharacterSheetEditor value={characterData} onChange={setCharacterData} />
             </>
           ) : (
             <div className="char-empty">
               <p className="faint" style={{ marginTop: 0 }}>Make this a structured character sheet — build it by hand, or import from D&amp;D Beyond.</p>
               <button className="btn small" onClick={() => setCharacterData(emptyCharacterSheet())}><Icon name="plus" size={13} /> Create sheet</button>
-              <div style={{ marginTop: 12 }}><DdbImport onImported={setCharacterData} /></div>
+              <div style={{ marginTop: 12 }}><DdbImport onImported={(sheet, name) => {
+                setCharacterData(sheet)
+                if (name && (!title.trim() || title === 'Untitled')) setTitle(name)
+              }} /></div>
             </div>
           )}
         </div>
