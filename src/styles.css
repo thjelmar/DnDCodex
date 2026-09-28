@@ -1698,6 +1698,9 @@ kbd {
 
 .loot-coin-field { width: 80px; }
 .loot-coin-field .numfield-input { text-align: right; padding-left: 8px; }
+/* Add-combatant form number fields (scoped high-specificity so the generic
+   .numfield{width:100%} can't stretch them in the flex form). */
+.combat-addform .numfield.combat-add-num { width: 72px; flex: 0 0 auto; }
 
 /* Run mode (RunPage.tsx): full-height, three-column at-the-table screen. */
 .run-page {

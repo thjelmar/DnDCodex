@@ -292,23 +292,15 @@ function ConditionPicker({ value, onChange }: { value: string[]; onChange: (v: s
 
 export function AddCustom({ onAdd }: { onAdd: (row: Combatant) => void }) {
   const [name, setName] = useState('')
-  const [hp, setHp] = useState('')
-  const [ac, setAc] = useState('')
-  const [init, setInit] = useState('')
+  const [hp, setHp] = useState<number | null>(null)
+  const [ac, setAc] = useState<number | null>(null)
+  const [init, setInit] = useState<number | null>(null)
   const [isPC, setIsPC] = useState(false)
 
   function submit() {
     if (!name.trim()) return
-    onAdd(
-      makeCombatant({
-        name,
-        isPC,
-        hp: hp === '' ? null : Number(hp),
-        ac: ac === '' ? null : Number(ac),
-        initiative: init === '' ? null : Number(init),
-      }),
-    )
-    setName(''); setHp(''); setAc(''); setInit('')
+    onAdd(makeCombatant({ name, isPC, hp, ac, initiative: init }))
+    setName(''); setHp(null); setAc(null); setInit(null)
   }
 
   return (
@@ -316,9 +308,9 @@ export function AddCustom({ onAdd }: { onAdd: (row: Combatant) => void }) {
       <div className="sidebar-heading" style={{ margin: '0 0 10px' }}>Add combatant</div>
       <div className="combat-addform" onKeyDown={(e) => { if (e.key === 'Enter') submit() }}>
         <input className="input" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: '2 1 140px' }} />
-        <input className="input" type="number" placeholder="Init" value={init} onChange={(e) => setInit(e.target.value)} style={{ width: 64 }} aria-label="Initiative" />
-        <input className="input" type="number" placeholder="HP" value={hp} onChange={(e) => setHp(e.target.value)} style={{ width: 70 }} aria-label="HP" />
-        <input className="input" type="number" placeholder="AC" value={ac} onChange={(e) => setAc(e.target.value)} style={{ width: 64 }} aria-label="AC" />
+        <NumberField className="combat-add-num" value={init} min={0} placeholder="Init" onChange={setInit} ariaLabel="Initiative" />
+        <NumberField className="combat-add-num" value={hp} min={0} placeholder="HP" onChange={setHp} ariaLabel="HP" />
+        <NumberField className="combat-add-num" value={ac} min={0} placeholder="AC" onChange={setAc} ariaLabel="AC" />
         <label className="row" style={{ gap: 6, alignItems: 'center', fontSize: 13 }}>
           <input type="checkbox" checked={isPC} onChange={(e) => setIsPC(e.target.checked)} /> PC
         </label>
