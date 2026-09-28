@@ -59,5 +59,17 @@ export const onRequestGet: (context: { request: Request }) => Promise<Response> 
   const trimmed: Record<string, unknown> = {}
   for (const k of Object.keys(data)) if (!DROP.has(k)) trimmed[k] = data[k]
 
+  // A slim inventory — just what the mapper needs to know which item "set"
+  // modifiers (Belt/Gauntlets/Amulet ability overrides) are actually active.
+  const inv = Array.isArray(data.inventory) ? data.inventory : []
+  trimmed.inventory = inv.map((it: Record<string, any>) => ({
+    id: it?.id,
+    defId: it?.definition?.id,
+    name: it?.definition?.name,
+    equipped: !!it?.equipped,
+    isAttuned: !!it?.isAttuned,
+    canAttune: !!it?.definition?.canAttune,
+  }))
+
   return json(200, { ok: true, id: data.id, name: data.name, character: trimmed })
 }

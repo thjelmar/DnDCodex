@@ -33,7 +33,7 @@ const SKILL_SLUGS = new Set([
   'performance', 'persuasion', 'religion', 'sleight-of-hand', 'stealth', 'survival',
 ])
 
-interface Mod { type: string; subType: string; value: number | null; friendlySubtypeName?: string }
+interface Mod { type: string; subType: string; value: number | null; friendlySubtypeName?: string; componentId?: number }
 
 function allMods(raw: Raw): Mod[] {
   const m = raw?.modifiers || {}
@@ -66,12 +66,16 @@ export async function fetchDdbCharacter(id: string): Promise<Raw> {
   return body.character
 }
 
-/** Final score for one ability: an item "set" (highest wins) overrides everything;
- *  otherwise base + manual bonus + fixed racial/feat "…-score" bonuses. The
- *  ambiguous "choose-an-ability-score" bumps aren't placed (needs choice data). */
-function finalAbility(raw: Raw, mods: Mod[], key: AbilityKey, id: number): number {
+/** Final score for one ability: an ACTIVE item "set" (equipped/attuned; highest
+ *  wins) overrides everything; otherwise base + manual bonus + fixed racial/feat
+ *  "…-score" bonuses. The ambiguous "choose-an-ability-score" bumps aren't placed
+ *  (needs choice data). `activeIds` gates item sets to gear that's actually on. */
+function finalAbility(raw: Raw, mods: Mod[], key: AbilityKey, id: number, activeIds: Set<number>): number {
   const full = ABILITY_FULL[key]
-  const sets = mods.filter((m) => m.type === 'set' && m.subType === `${full}-score` && typeof m.value === 'number')
+  const sets = mods.filter(
+    (m) => m.type === 'set' && m.subType === `${full}-score` && typeof m.value === 'number' &&
+      (m.componentId == null || activeIds.has(m.componentId)),
+  )
   if (sets.length) return Math.max(...sets.map((m) => m.value as number))
 
   const override = statValue(raw.overrideStats, id)
@@ -88,8 +92,18 @@ function finalAbility(raw: Raw, mods: Mod[], key: AbilityKey, id: number): numbe
 export function mapDdbCharacter(raw: Raw): CharacterSheet {
   const mods = allMods(raw)
 
+  // Which item ids are "active" (equipped, and attuned if the item needs it) —
+  // used to decide whether an ability-setting item (Belt/Gauntlets/Amulet) counts.
+  const activeIds = new Set<number>()
+  for (const it of (raw.inventory || []) as Raw[]) {
+    if (it?.equipped && (it.isAttuned || !it.canAttune)) {
+      if (typeof it.id === 'number') activeIds.add(it.id)
+      if (typeof it.defId === 'number') activeIds.add(it.defId)
+    }
+  }
+
   const abilities = {} as Record<AbilityKey, number>
-  for (const [id, key] of STAT_ID) abilities[key] = finalAbility(raw, mods, key, id)
+  for (const [id, key] of STAT_ID) abilities[key] = finalAbility(raw, mods, key, id, activeIds)
 
   const classes: CharacterClass[] = (raw.classes || []).map((c: Raw) => ({
     name: c?.definition?.name ?? 'Class',
@@ -131,10 +145,17 @@ export function mapDdbCharacter(raw: Raw): CharacterSheet {
     : (raw.baseHitPoints ?? 0) + conMod * level + perLevelHp * level + flatHp
   const currentHp = Math.max(0, maxHp - (raw.removedHitPoints || 0))
 
+  // Speed: DDB gives the final walk as a `set speed-walking` modifier when items/
+  // class features change it (e.g. Barbarian Fast Movement); otherwise race base
+  // plus any `bonus speed`. Other movement types fall back to the racial base.
   const sp = raw.race?.weightSpeeds?.normal || {}
+  const walkSet = mods.find((m) => m.type === 'set' && m.subType === 'speed-walking' && typeof m.value === 'number')
+  const walkBonus = mods
+    .filter((m) => m.type === 'bonus' && m.subType === 'speed' && typeof m.value === 'number')
+    .reduce((s, m) => s + (m.value as number), 0)
   const speeds = {
-    walk: sp.walk || undefined, fly: sp.fly || undefined, swim: sp.swim || undefined,
-    climb: sp.climb || undefined, burrow: sp.burrow || undefined,
+    walk: (walkSet ? (walkSet.value as number) : (sp.walk || 0) + walkBonus) || undefined,
+    fly: sp.fly || undefined, swim: sp.swim || undefined, climb: sp.climb || undefined, burrow: sp.burrow || undefined,
   }
 
   const c = raw.currencies || {}
