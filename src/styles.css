@@ -1906,3 +1906,10 @@ kbd {
 .ddb-import { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 7px; }
 .ddb-import-row { display: flex; gap: 8px; align-items: center; }
 .ddb-import-row .input { flex: 1; min-width: 0; }
+
+/* Fix: character-sheet number fields are fixed-width — don't let flex rows shrink
+   them (the ability score was collapsing to ~22px and clipping the number). */
+.char-sheet .numfield { flex: 0 0 auto; }
+.char-sheet .numfield.char-ability-score .numfield-input { padding: 6px 4px; text-align: center; }
+.char-sheet .numfield.char-num .numfield-input,
+.char-sheet .numfield.char-lvl .numfield-input { padding-left: 8px; padding-right: 4px; }
