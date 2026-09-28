@@ -12,6 +12,7 @@ import {
   createLink,
 } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { CharacterSheetEditor, DdbImport, emptyCharacterSheet, totalLevel } from '../components/CharacterSheet'
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
@@ -25,7 +26,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { disconnectEdge, disconnectNode, type CampaignGraph } from '../lib/graph'
 import { buildPlayerGraph, PLAYER_KIND_META, PLAYER_MAP_SECTIONS } from '../lib/playerGraph'
 import { formatDate } from '../lib/format'
-import type { PlayerNote, PlayerNoteSection } from '../db/types'
+import type { CharacterSheet, PlayerNote, PlayerNoteSection } from '../db/types'
 
 interface SectionDef {
   key: PlayerNoteSection
@@ -352,6 +353,11 @@ function EntryRow({ note, campaignId, onOpen }: { note: PlayerNote; campaignId: 
         <span className="title" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {note.title}
         </span>
+        {note.section === 'character' && note.characterData && (
+          <span className="faint" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+            {note.characterData.species} {note.characterData.classes.map((c) => `${c.name} ${c.level}`).join(' / ')} · L{totalLevel(note.characterData)}
+          </span>
+        )}
       </div>
       <TagChips campaignId={campaignId} tags={note.tags} size="small" />
     </div>
@@ -391,13 +397,14 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
   const [body, setBody] = useState(note.body)
   const [date, setDate] = useState(note.date)
   const [status, setStatus] = useState(note.status)
+  const [characterData, setCharacterData] = useState<CharacterSheet | null>(note.characterData ?? null)
 
   useEffect(() => {
     const t = setTimeout(() => {
-      updatePlayerNote(note.id, { title, tags, body, date, status })
+      updatePlayerNote(note.id, { title, tags, body, date, status, characterData })
     }, 500)
     return () => clearTimeout(t)
-  }, [title, tags, body, date, status, note.id])
+  }, [title, tags, body, date, status, characterData, note.id])
 
   return (
     <SidePanel
@@ -435,9 +442,26 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
       }
     >
       <div className="field">
-        <label>Title</label>
+        <label>{note.section === 'character' ? 'Character name' : 'Title'}</label>
         <input className="input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
       </div>
+
+      {note.section === 'character' && (
+        <div className="field">
+          {characterData ? (
+            <>
+              <DdbImport existing={characterData.ddb} onImported={(sheet) => setCharacterData({ ...sheet, ac: sheet.ac ?? characterData.ac })} />
+              <CharacterSheetEditor value={characterData} onChange={setCharacterData} />
+            </>
+          ) : (
+            <div className="char-empty">
+              <p className="faint" style={{ marginTop: 0 }}>Make this a structured character sheet — build it by hand, or import from D&amp;D Beyond.</p>
+              <button className="btn small" onClick={() => setCharacterData(emptyCharacterSheet())}><Icon name="plus" size={13} /> Create sheet</button>
+              <div style={{ marginTop: 12 }}><DdbImport onImported={setCharacterData} /></div>
+            </div>
+          )}
+        </div>
+      )}
 
       {note.section === 'journal' && (
         <div className="field" style={{ maxWidth: 200 }}>
@@ -465,7 +489,7 @@ function PlayerEntryModal({ note, onClose }: { note: PlayerNote; onClose: () => 
         campaignId={note.campaignId}
         value={body}
         onChange={setBody}
-        label="Notes"
+        label={note.section === 'character' ? 'Backstory & notes' : 'Notes'}
         placeholder="Write freely — supports formatting, [[wiki links]], and images."
         minHeight={180}
       />

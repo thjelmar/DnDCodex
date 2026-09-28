@@ -1859,3 +1859,50 @@ kbd {
   .run-grid { grid-template-columns: 1fr; }
   .run-col { overflow: visible; padding-bottom: 10px; }
 }
+
+/* "My Character" structured sheet (CharacterSheet.tsx). */
+.char-sheet { display: flex; flex-direction: column; gap: 16px; margin: 10px 0 4px; }
+.char-sheet .field > span { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.char-readout {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 11px; font-weight: 600;
+}
+.char-sub-label { font-size: 12px; color: var(--text-dim); font-weight: 600; display: block; margin-bottom: 5px; }
+
+.char-identity { display: flex; gap: 14px; align-items: flex-start; }
+.char-portrait { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; }
+.char-id-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.char-id-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.char-classes { display: flex; flex-direction: column; gap: 6px; }
+.char-class-row { display: flex; gap: 6px; align-items: center; }
+.char-sheet .numfield.char-lvl { width: 62px; flex: 0 0 auto; }
+
+.char-vitals { display: flex; flex-wrap: wrap; gap: 12px; }
+.char-vital { display: flex; flex-direction: column; gap: 3px; }
+.char-vital-label { font-size: 11px; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.char-verify { color: var(--accent); font-weight: 600; text-transform: none; letter-spacing: 0; }
+.char-sheet .numfield.char-num { width: 84px; }
+
+.char-abilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.char-ability { display: flex; align-items: center; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; }
+.char-ability-label { font-weight: 700; font-size: 12px; width: 30px; color: var(--text-dim); }
+.char-sheet .numfield.char-ability-score { width: 64px; }
+.char-ability-mod { font-weight: 700; font-size: 16px; min-width: 30px; text-align: center; }
+.char-save { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-dim); margin-left: auto; cursor: pointer; white-space: nowrap; }
+
+.char-skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 1px 14px; }
+.char-skill { display: flex; align-items: center; gap: 7px; font-size: 13px; padding: 3px 0; cursor: pointer; color: var(--text-dim); }
+.char-skill.prof { color: var(--text); }
+.char-skill-bonus { font-weight: 700; min-width: 26px; text-align: right; }
+.char-skill-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.char-skill-ab { font-size: 10px; }
+
+.char-coins { display: flex; gap: 8px; flex-wrap: wrap; }
+.char-coin { display: flex; flex-direction: column; gap: 3px; align-items: center; }
+.char-coin > span { font-size: 10px; color: var(--text-dim); font-weight: 700; }
+.char-coins .numfield.char-num { width: 66px; }
+
+.char-empty { background: var(--bg-elev); border: 1px dashed var(--border); border-radius: 8px; padding: 14px; }
+.ddb-import { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 7px; }
+.ddb-import-row { display: flex; gap: 8px; align-items: center; }
+.ddb-import-row .input { flex: 1; min-width: 0; }
