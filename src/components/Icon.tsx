@@ -38,6 +38,8 @@ export type IconName =
   | 'chevron-right'
   | 'chevron-left'
   | 'inbox'
+  | 'play'
+  | 'pin'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -204,6 +206,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M17.7 9c1.8-.2 3.3-1.8 3.3-3.8" />
       <path d="M6.3 17C4.5 17.2 3 18.8 3 20.8" />
       <path d="M17.7 17c1.8.2 3.3 1.8 3.3 3.8" />
+    </>
+  ),
+  play: <path d="M7 4.5v15l12-7.5-12-7.5Z" />,
+  pin: (
+    <>
+      <path d="M12 17v5" />
+      <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z" />
     </>
   ),
   swords: (

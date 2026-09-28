@@ -24,3 +24,20 @@ export function isRichTextEmpty(html: string): boolean {
   // Consider it non-empty if any text remains or there's an image.
   return withoutTags === '' && !/<img\b/i.test(html)
 }
+
+/** The distinct [[wiki link]] targets in a rich-text field, in document order. */
+export function wikiTargets(html: string): string[] {
+  if (!html || !html.includes('data-wikilink')) return []
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const out: string[] = []
+  const seen = new Set<string>()
+  doc.querySelectorAll('a[data-wikilink]').forEach((a) => {
+    const target = (a.getAttribute('data-wikilink') || a.textContent || '').trim()
+    const key = target.toLowerCase()
+    if (target && !seen.has(key)) {
+      seen.add(key)
+      out.push(target)
+    }
+  })
+  return out
+}

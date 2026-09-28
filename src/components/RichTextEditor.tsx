@@ -23,6 +23,7 @@ export function RichTextEditor({
   editable = true,
   minHeight,
   revealNeedsConfirm = false,
+  onWikiLink,
 }: {
   campaignId: Id
   value: string
@@ -33,6 +34,8 @@ export function RichTextEditor({
   minHeight?: number
   /** When true (the entity is already shared), unmarking a spoiler asks first. */
   revealNeedsConfirm?: boolean
+  /** Overrides wiki-link clicks (e.g. the Run screen peeks instead of navigating). */
+  onWikiLink?: (target: string) => void
 }) {
   const { follow } = useWikiResolver(campaignId)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -85,7 +88,8 @@ export function RichTextEditor({
     if (anchor) {
       e.preventDefault()
       const target = anchor.getAttribute('data-wikilink') || anchor.textContent || ''
-      follow(target)
+      if (onWikiLink) onWikiLink(target)
+      else follow(target)
     }
   }
 

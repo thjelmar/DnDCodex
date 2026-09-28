@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSession, updateSession, deleteSession } from '../db/repo'
@@ -112,7 +112,10 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
 
   return (
     <div>
-      <div className="share-bar">
+      <div className="share-bar" style={{ gap: 8 }}>
+        <Link to={`/run/${session.campaignId}?session=${session.id}`} className="btn ghost small" title="Open this session in Run mode">
+          <Icon name="play" size={12} /> Run this session
+        </Link>
         <ShareControl campaignId={session.campaignId} kind="session" entity={session} />
       </div>
       <div className="form-row" style={{ gridTemplateColumns: '1fr 160px' }}>

@@ -26,6 +26,7 @@ import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
 import { EncountersPage } from './pages/EncountersPage'
 import { CombatTrackerPage } from './pages/CombatTrackerPage'
+import { RunPage } from './pages/RunPage'
 import { GalleryPage } from './pages/GalleryPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
@@ -268,6 +269,7 @@ export function App() {
             <Route path="/bug-reports" element={<BugReportsPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
+            <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>

@@ -118,6 +118,9 @@ export function CampaignLayout() {
           )}
         </div>
         <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to={`/run/${campaign.id}`} className="btn primary small" title="At-the-table screen: session notes, what's in play, combat and dice">
+            <Icon name="play" size={12} color="inherit" /> Run session
+          </Link>
           <PushChangesPanel campaignId={campaign.id} />
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
           <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />

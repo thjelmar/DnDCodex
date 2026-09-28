@@ -16,6 +16,25 @@ function loadHistory(): RollResult[] {
 }
 
 export function DiceRoller({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null
+  return (
+    <Modal
+      title="🎲 Dice Roller"
+      onClose={onClose}
+      footer={
+        <button className="btn" onClick={onClose}>
+          Close
+        </button>
+      }
+    >
+      <DicePanel />
+    </Modal>
+  )
+}
+
+/** The roller itself — used in the ⌘E modal and inline on the Run screen.
+ *  `compact` tightens spacing for a narrow column. */
+export function DicePanel({ compact = false }: { compact?: boolean }) {
   const [count, setCount] = useState(1)
   const [modifier, setModifier] = useState(0)
   const [mode, setMode] = useState<RollMode>('normal')
@@ -48,33 +67,13 @@ export function DiceRoller({ open, onClose }: { open: boolean; onClose: () => vo
     }
   }
 
-  if (!open) return null
-
   return (
-    <Modal
-      title="🎲 Dice Roller"
-      onClose={onClose}
-      footer={
-        <>
-          {history.length > 0 && (
-            <button className="btn ghost" style={{ marginRight: 'auto' }} onClick={() => setHistory([])}>
-              Clear log
-            </button>
-          )}
-          <button className="btn" onClick={onClose}>
-            Close
-          </button>
-        </>
-      }
-    >
+    <div className={`dice-panel${compact ? ' compact' : ''}`}>
       {/* Latest result */}
-      <div
-        className="card"
-        style={{ cursor: 'default', textAlign: 'center', padding: '18px 16px', marginBottom: 16 }}
-      >
+      <div className="card dice-latest">
         {latest ? (
           <>
-            <div style={{ fontSize: 46, fontFamily: 'var(--serif)', lineHeight: 1, color: 'var(--accent)' }}>
+            <div style={{ fontSize: compact ? 34 : 46, fontFamily: 'var(--serif)', lineHeight: 1, color: 'var(--accent)' }}>
               {latest.total}
             </div>
             <div className="muted" style={{ marginTop: 8 }}>
@@ -178,8 +177,13 @@ export function DiceRoller({ open, onClose }: { open: boolean; onClose: () => vo
       {/* History */}
       {history.length > 1 && (
         <div style={{ marginTop: 18 }}>
-          <div className="sidebar-heading" style={{ margin: '0 0 6px' }}>
-            Log
+          <div className="row between" style={{ alignItems: 'center', marginBottom: 6 }}>
+            <div className="sidebar-heading" style={{ margin: 0 }}>
+              Log
+            </div>
+            <button className="btn ghost small" onClick={() => setHistory([])}>
+              Clear
+            </button>
           </div>
           <div style={{ maxHeight: 150, overflowY: 'auto' }}>
             {history.slice(1).map((r, i) => (
@@ -197,7 +201,7 @@ export function DiceRoller({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
         </div>
       )}
-    </Modal>
+    </div>
   )
 }
 
