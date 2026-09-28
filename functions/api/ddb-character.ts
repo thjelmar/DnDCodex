@@ -69,6 +69,9 @@ export const onRequestGet: (context: { request: Request }) => Promise<Response> 
     equipped: !!it?.equipped,
     isAttuned: !!it?.isAttuned,
     canAttune: !!it?.definition?.canAttune,
+    qty: it?.quantity ?? 1,
+    rarity: it?.definition?.rarity,
+    type: it?.definition?.filterType,
   }))
 
   return json(200, { ok: true, id: data.id, name: data.name, character: trimmed })

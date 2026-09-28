@@ -1913,3 +1913,12 @@ kbd {
 .char-sheet .numfield.char-ability-score .numfield-input { padding: 6px 4px; text-align: center; }
 .char-sheet .numfield.char-num .numfield-input,
 .char-sheet .numfield.char-lvl .numfield-input { padding-left: 8px; padding-right: 4px; }
+
+/* Character sheet Tier 1 sections (proficiencies/defenses/background/inventory). */
+.char-section { display: flex; flex-direction: column; }
+.char-sheet .textarea { min-height: 44px; resize: vertical; font-size: 13px; }
+.char-inv { display: flex; flex-direction: column; gap: 5px; max-height: 280px; overflow-y: auto; }
+.char-inv-row { display: flex; gap: 6px; align-items: center; }
+.char-inv-row .input { padding: 5px 8px; }
+.char-inv-eq { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+.char-rarity { font-size: 10px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }

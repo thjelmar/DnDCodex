@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AbilityKey, CharacterClass, CharacterSheet } from '../db/types'
 import { ABILITIES, abilityMod, signed } from '../lib/statblock'
 import { parseDdbId, fetchDdbCharacter, mapDdbCharacter } from '../lib/ddb'
@@ -160,7 +160,84 @@ export function CharacterSheetEditor({ value, onChange }: { value: CharacterShee
           </div>
         </div>
       </div>
+
+      {/* Proficiencies & Languages */}
+      <div className="char-section">
+        <span className="char-sub-label">Proficiencies &amp; Languages</span>
+        <div className="char-id-grid">
+          <ListField label="Armor" value={value.proficiencies?.armor} onChange={(a) => set({ proficiencies: { armor: a, weapons: value.proficiencies?.weapons ?? [], tools: value.proficiencies?.tools ?? [] } })} />
+          <ListField label="Weapons" value={value.proficiencies?.weapons} onChange={(a) => set({ proficiencies: { armor: value.proficiencies?.armor ?? [], weapons: a, tools: value.proficiencies?.tools ?? [] } })} />
+          <ListField label="Tools" value={value.proficiencies?.tools} onChange={(a) => set({ proficiencies: { armor: value.proficiencies?.armor ?? [], weapons: value.proficiencies?.weapons ?? [], tools: a } })} />
+          <ListField label="Languages" value={value.languages} onChange={(a) => set({ languages: a })} />
+        </div>
+      </div>
+
+      {/* Defenses + feats */}
+      <div className="char-section">
+        <span className="char-sub-label">Defenses &amp; Feats</span>
+        <div className="char-id-grid">
+          <ListField label="Resistances" value={value.resistances} onChange={(a) => set({ resistances: a })} />
+          <ListField label="Immunities" value={value.immunities} onChange={(a) => set({ immunities: a })} />
+          <ListField label="Feats" value={value.feats} onChange={(a) => set({ feats: a })} />
+        </div>
+      </div>
+
+      {/* Background & Personality */}
+      <div className="char-section">
+        <span className="char-sub-label">Background &amp; Personality</span>
+        <label className="field" style={{ marginBottom: 10 }}><span>Background feature</span>
+          <input className="input" value={value.backgroundFeature ?? ''} onChange={(e) => set({ backgroundFeature: e.target.value })} placeholder="e.g. Heart of Darkness" />
+        </label>
+        <div className="char-id-grid">
+          {(['traits', 'ideals', 'bonds', 'flaws'] as const).map((k) => (
+            <label key={k} className="field">
+              <span style={{ textTransform: 'capitalize' }}>{k === 'traits' ? 'Personality traits' : k}</span>
+              <textarea className="textarea" rows={2} value={value.personality?.[k] ?? ''}
+                onChange={(e) => set({ personality: { ...value.personality, [k]: e.target.value } })} />
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Inventory */}
+      <div className="char-section">
+        <div className="row between" style={{ alignItems: 'center', marginBottom: 6 }}>
+          <span className="char-sub-label" style={{ margin: 0 }}>Inventory {(value.inventory?.length ?? 0) > 0 && <span className="faint">({value.inventory!.length})</span>}</span>
+          <button className="btn ghost small" onClick={() => set({ inventory: [...(value.inventory ?? []), { name: '', qty: 1, equipped: false }] })}><Icon name="plus" size={13} /> Add item</button>
+        </div>
+        <div className="char-inv">
+          {(value.inventory ?? []).map((it, i) => (
+            <div key={i} className="char-inv-row">
+              <input className="input" style={{ flex: '2 1 140px' }} value={it.name} onChange={(e) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} placeholder="Item" />
+              <NumberField className="char-lvl" value={it.qty} min={1} onChange={(v) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, qty: v ?? 1 } : x)) })} ariaLabel="Quantity" />
+              <label className="char-inv-eq"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ inventory: (value.inventory ?? []).map((x, j) => (j === i ? { ...x, equipped: e.target.checked } : x)) })} /> eq</label>
+              {it.rarity && <span className="char-rarity">{it.rarity}</span>}
+              <button className="btn ghost small" onClick={() => set({ inventory: (value.inventory ?? []).filter((_, j) => j !== i) })} aria-label="Remove item"><Icon name="x" size={13} /></button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
+  )
+}
+
+/** A comma-separated list, edited as text and committed to string[] on blur. */
+function ListField({ label, value, onChange }: { label: string; value?: string[]; onChange: (a: string[]) => void }) {
+  const [raw, setRaw] = useState((value ?? []).join(', '))
+  const editing = useRef(false)
+  useEffect(() => { if (!editing.current) setRaw((value ?? []).join(', ')) }, [value])
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        className="input"
+        value={raw}
+        placeholder="comma-separated"
+        onFocus={() => { editing.current = true }}
+        onChange={(e) => setRaw(e.target.value)}
+        onBlur={() => { editing.current = false; onChange(raw.split(',').map((s) => s.trim()).filter(Boolean)) }}
+      />
+    </label>
   )
 }
 

@@ -336,6 +336,16 @@ export interface CharacterClass {
   subclass?: string
 }
 
+/** One inventory line on a character sheet. */
+export interface CharacterItem {
+  name: string
+  qty: number
+  equipped: boolean
+  attuned?: boolean
+  rarity?: string
+  type?: string
+}
+
 /**
  * A structured player character sheet (v1). Holds what we can reliably import
  * from D&D Beyond; freeform backstory stays in PlayerNote.body. Ability scores
@@ -366,6 +376,15 @@ export interface CharacterSheet {
   speeds: { walk?: number; fly?: number; swim?: number; climb?: number; burrow?: number }
   senses?: string
   currency?: { pp: number; gp: number; ep: number; sp: number; cp: number }
+  // Tier 1 sections (matching D&D Beyond) — all optional / import-driven.
+  languages?: string[]
+  proficiencies?: { armor: string[]; weapons: string[]; tools: string[] }
+  resistances?: string[]
+  immunities?: string[]
+  feats?: string[]
+  backgroundFeature?: string
+  personality?: { traits?: string; ideals?: string; bonds?: string; flaws?: string }
+  inventory?: CharacterItem[]
   /** Local StoredImage id for the portrait, once imported. */
   imageId?: Id | null
   /** Remote D&D Beyond avatar URL (source / fallback until stored locally). */

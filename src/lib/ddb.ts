@@ -161,6 +161,38 @@ export function mapDdbCharacter(raw: Raw): CharacterSheet {
   const c = raw.currencies || {}
   const currency = { pp: c.pp || 0, gp: c.gp || 0, ep: c.ep || 0, sp: c.sp || 0, cp: c.cp || 0 }
 
+  // ── Tier 1 sections ──────────────────────────────────────────────────────
+  const uniq = (a: (string | undefined)[]) => Array.from(new Set(a.filter((x): x is string => !!x)))
+  const nameOf = (m: Mod) => m.friendlySubtypeName || m.subType
+
+  const languages = uniq(mods.filter((m) => m.type === 'language').map(nameOf))
+  const resistances = uniq(mods.filter((m) => m.type === 'resistance').map(nameOf))
+  const immunities = uniq(mods.filter((m) => m.type === 'immunity').map(nameOf))
+
+  const TOOL_HINTS = ['supplies', 'tools', 'kit', 'instrument', 'utensil', 'gaming-set', 'vehicles', 'thieves']
+  const armorP: string[] = [], weaponP: string[] = [], toolP: string[] = []
+  for (const m of mods) {
+    if (m.type !== 'proficiency') continue
+    const sub = m.subType || ''
+    if (SKILL_SLUGS.has(sub) || sub.endsWith('-saving-throws') || sub.startsWith('choose-')) continue
+    const label = nameOf(m)
+    if (sub === 'shields' || sub.endsWith('-armor')) armorP.push(label)
+    else if (TOOL_HINTS.some((h) => sub.includes(h))) toolP.push(label)
+    else weaponP.push(label)
+  }
+  const proficiencies = { armor: uniq(armorP), weapons: uniq(weaponP), tools: uniq(toolP) }
+
+  const feats = uniq((raw.feats || []).map((f: Raw) => f?.definition?.name))
+  const backgroundFeature = raw.background?.definition?.featureName || undefined
+  const t = raw.traits || {}
+  const personality = (t.personalityTraits || t.ideals || t.bonds || t.flaws)
+    ? { traits: t.personalityTraits || undefined, ideals: t.ideals || undefined, bonds: t.bonds || undefined, flaws: t.flaws || undefined }
+    : undefined
+  const inventory = (raw.inventory || []).map((it: Raw) => ({
+    name: it.name || 'Item', qty: it.qty ?? 1, equipped: !!it.equipped, attuned: !!it.isAttuned,
+    rarity: it.rarity || undefined, type: it.type || undefined,
+  }))
+
   return {
     species: raw.race?.fullName || raw.race?.baseRaceName || '',
     classes,
@@ -179,6 +211,14 @@ export function mapDdbCharacter(raw: Raw): CharacterSheet {
     speeds,
     senses,
     currency,
+    languages,
+    proficiencies,
+    resistances,
+    immunities,
+    feats,
+    backgroundFeature,
+    personality,
+    inventory,
     imageId: null,
     avatarUrl: raw.decorations?.avatarUrl || undefined,
     ddb: {
