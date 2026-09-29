@@ -3,11 +3,13 @@ import type { SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
   MIN_CELL_SCREEN,
+  cellIsFree,
   cellKey,
   cellToPx,
   clampZoom,
   gridPath,
   initials,
+  nearestFreeCell,
   pxToCell,
   snapCenterToCell,
   tokenCenter,
@@ -322,7 +324,9 @@ export function Tabletop({
     } else if (d.kind === 'token') {
       const t = tokens.find((x) => x.id === d.id)
       if (t && d.moved && dragPos && dragPos.id === d.id) {
-        const cell = snapCenterToCell(grid, dragPos.x, dragPos.y, t.size)
+        const raw = snapCenterToCell(grid, dragPos.x, dragPos.y, t.size)
+        // Land on the nearest open cell so tokens don't stack (overlapping labels).
+        const cell = nearestFreeCell(tokens, t.id, raw.col, raw.row, t.size)
         if (cell.col !== t.col || cell.row !== t.row) onMoveToken(t.id, cell.col, cell.row)
       }
       setDragPos(null)
@@ -347,7 +351,8 @@ export function Tabletop({
     if (moves[e.key]) {
       e.preventDefault()
       const [dc, dr] = moves[e.key]
-      onMoveToken(t.id, t.col + dc, t.row + dr)
+      // Don't nudge onto a cell another token holds.
+      if (cellIsFree(tokens, t.id, t.col + dc, t.row + dr, t.size)) onMoveToken(t.id, t.col + dc, t.row + dr)
     } else if (!editable) {
       if (e.key === 'Escape') onSelect(null)
     } else if (e.key === '+' || e.key === '=') {
@@ -468,8 +473,10 @@ export function Tabletop({
               const statH = hpTracked ? barH : showDmg ? dmgFont : 0
               const statTop = r + belowGap
               const nameTop = r + belowGap + (statH > 0 ? statH + belowGap : 0)
-              // Ghost of the snap target while dragging.
-              const snap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
+              // Ghost of the snap target while dragging — the nearest open cell,
+              // so it previews where a collision will actually drop the token.
+              const rawSnap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
+              const snap = rawSnap ? nearestFreeCell(tokens, t.id, rawSnap.col, rawSnap.row, t.size) : null
               const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
               return (
                 <g key={t.id}>

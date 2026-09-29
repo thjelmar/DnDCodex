@@ -130,6 +130,41 @@ export function boardCellKeys(grid: SceneGrid, width: number, height: number): s
   return keys
 }
 
+// ── Token collision ──────────────────────────────────────────────────────────
+
+/** Do two token footprints (top-left cell + square size) overlap? */
+export function footprintsOverlap(
+  aCol: number, aRow: number, aSize: number,
+  bCol: number, bRow: number, bSize: number,
+): boolean {
+  return aCol < bCol + bSize && bCol < aCol + aSize && aRow < bRow + bSize && bRow < aRow + aSize
+}
+
+/** True if a size×size footprint at (col,row) hits no OTHER token. */
+export function cellIsFree(tokens: SceneToken[], movingId: string, col: number, row: number, size: number): boolean {
+  return !tokens.some((t) => t.id !== movingId && footprintsOverlap(col, row, size, t.col, t.row, t.size))
+}
+
+/**
+ * The free cell nearest (col,row) for a token of `size`, so dropping a token on
+ * an occupied cell nudges it to open space instead of stacking (which would pile
+ * one token's label/HP/conditions on top of another's). Searches outward ring by
+ * ring, nearest first; returns the target unchanged if nothing free is close.
+ */
+export function nearestFreeCell(
+  tokens: SceneToken[], movingId: string, col: number, row: number, size: number, maxRadius = 12,
+): { col: number; row: number } {
+  if (cellIsFree(tokens, movingId, col, row, size)) return { col, row }
+  for (let r = 1; r <= maxRadius; r++) {
+    const ring: [number, number][] = []
+    for (let dc = -r; dc <= r; dc++)
+      for (let dr = -r; dr <= r; dr++) if (Math.max(Math.abs(dc), Math.abs(dr)) === r) ring.push([dc, dr])
+    ring.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]))
+    for (const [dc, dr] of ring) if (cellIsFree(tokens, movingId, col + dc, row + dr, size)) return { col: col + dc, row: row + dr }
+  }
+  return { col, row }
+}
+
 /** True if any of a token's footprint cells is revealed (so players see it). */
 export function tokenRevealed(t: SceneToken, revealed: Set<string>): boolean {
   for (let dc = 0; dc < t.size; dc++)
