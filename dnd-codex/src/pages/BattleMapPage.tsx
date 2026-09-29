@@ -13,6 +13,7 @@ import { Icon } from '../components/Icon'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
+import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import {
   MAP_MAX_DIM,
@@ -118,13 +119,28 @@ export function SceneEditor({
   const [size, setSize] = useState({ width: scene.width, height: scene.height })
   const [imageId, setImageId] = useState<Id | null>(scene.imageId)
   const dirty = useRef(false)
+  // The latest unsaved draft, flushed on unmount (e.g. switching Run mode's
+  // pane or map inside the 400ms debounce) so the last edit isn't lost.
+  const unsaved = useRef<Partial<Scene> | null>(null)
   useEffect(() => {
     if (!dirty.current) return
+    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height }
+    unsaved.current = patch
     const t = setTimeout(() => {
-      updateScene(scene.id, { name, grid, tokens, imageId, width: size.width, height: size.height })
+      unsaved.current = null
+      updateScene(scene.id, patch)
     }, 400)
     return () => clearTimeout(t)
   }, [name, grid, tokens, imageId, size, scene.id])
+  useEffect(
+    () => () => {
+      if (unsaved.current) updateScene(scene.id, unsaved.current)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
+  // While this editor is open it keeps the live map in sync (not the keeper).
+  useRegisterSceneEditor(scene.id)
   const touch = () => {
     dirty.current = true
   }
@@ -363,78 +379,17 @@ export function SceneEditor({
         : (world[`${peek.kind}s` as 'npcs' | 'locations' | 'items'] as { id: Id; name: string }[]).find((x) => x.id === peek.id)?.name
       : undefined
 
-  return (
-    <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => uploadMap(e.target.files?.[0])}
-      />
-
-      <div className="row between" style={{ gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <input
-          className="input"
-          style={{ maxWidth: 320, fontWeight: 600 }}
-          value={name}
-          onChange={(e) => {
-            touch()
-            setName(e.target.value)
-          }}
-          aria-label="Battle map name"
-        />
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          {live.available && (
-            live.isShowing ? (
-              <button className="btn small battlemap-live-on" disabled={live.busy} onClick={live.stop} title="Players can see this map live. Click to take it down.">
-                <span className="battlemap-live-dot" aria-hidden /> {live.busy ? 'Working…' : 'Live · Stop showing'}
-              </button>
-            ) : (
-              <button
-                className="btn primary small"
-                disabled={live.busy}
-                onClick={live.show}
-                title={live.otherShowing ? `Players are seeing “${live.otherName}”. This swaps it for this map.` : 'Show this map to your players, live'}
-              >
-                <Icon name="eye" size={14} color="inherit" /> {live.busy ? 'Working…' : live.otherShowing ? 'Show this map instead' : 'Show to players'}
-              </button>
-            )
-          )}
-          <button
-            className={`btn small${preview ? ' primary' : ''}`}
-            onClick={() => {
-              setPreview((p) => !p)
-              setSelectedToken(null)
-              setAligning(false)
-            }}
-            title="See the map exactly as players will: hidden tokens gone, no DM controls"
-          >
-            <Icon name={preview ? 'eye-off' : 'eye'} size={14} color={preview ? 'inherit' : undefined} /> {preview ? 'Exit player preview' : 'Preview as player'}
-          </button>
-          {expanded && (
-            <button
-              className={`btn small${notesOpen ? ' primary' : ''}`}
-              onClick={() => setNotesOpen((o) => !o)}
-              title={notesOpen ? 'Hide session notes' : 'Show session notes beside the map'}
-            >
-              📝 {notesOpen ? 'Hide notes' : 'Notes'}
-            </button>
-          )}
+  // Less-used toolbar actions; inline normally, in a "More" menu when tight.
+  const tight = compact && !expanded
+  const moreRef = useRef<HTMLDetailsElement>(null)
+  const secondary = (
+    <>
           <button
             className="btn ghost small"
             onClick={() => setPanelOpen((o) => !o)}
             title={panelOpen ? 'Hide the grid & token panel for a bigger board' : 'Show the grid & token panel'}
           >
             <Icon name={panelOpen ? 'chevron-right' : 'chevron-left'} size={14} /> {panelOpen ? 'Hide panel' : 'Show panel'}
-          </button>
-          <button
-            className={`btn small${expanded ? ' primary' : ''}`}
-            onClick={expanded ? exitFullscreen : enterFullscreen}
-            title={expanded ? 'Exit full screen (Esc)' : 'Fill the whole screen with the battle map'}
-          >
-            <Icon name={expanded ? 'minimize' : 'maximize'} size={14} color={expanded ? 'inherit' : undefined} />{' '}
-            {expanded ? 'Exit full screen' : 'Full screen'}
           </button>
           <button className="btn small" disabled={uploading} onClick={() => fileRef.current?.click()}>
             <Icon name="upload" size={14} /> {uploading ? 'Processing…' : imageId ? 'Replace map' : 'Upload map'}
@@ -457,6 +412,9 @@ export function SceneEditor({
               })
               if (ok) {
                 dirty.current = false
+                unsaved.current = null
+                // Players shouldn't keep seeing a map that no longer exists.
+                if (live.isShowing) await live.stop()
                 await deleteScene(scene.id)
                 onDeleted()
               }
@@ -464,6 +422,96 @@ export function SceneEditor({
           >
             <Icon name="trash" size={14} color="inherit" /> Delete
           </button>
+    </>
+  )
+
+  return (
+    <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => uploadMap(e.target.files?.[0])}
+      />
+
+      <div className="row between" style={{ gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <input
+          className="input"
+          style={{ flex: tight ? '1 1 100%' : '1 1 140px', minWidth: 120, maxWidth: tight ? undefined : 320, fontWeight: 600 }}
+          value={name}
+          onChange={(e) => {
+            touch()
+            setName(e.target.value)
+          }}
+          aria-label="Battle map name"
+        />
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          {live.available && (
+            live.isShowing ? (
+              <button className="btn small battlemap-live-on" disabled={live.busy} onClick={live.stop} title="Players can see this map live. Click to take it down.">
+                <span className="battlemap-live-dot" aria-hidden /> {live.busy ? 'Working…' : 'Live · Stop showing'}
+              </button>
+            ) : (
+              live.sessionLive ? (
+                <button
+                  className="btn primary small"
+                  disabled={live.busy}
+                  onClick={live.show}
+                  title={live.otherShowing ? `Players are seeing “${live.otherName}”. This swaps it for this map.` : 'Show this map in your players’ live session'}
+                >
+                  <Icon name="eye" size={14} color="inherit" /> {live.busy ? 'Working…' : live.otherShowing ? 'Show this map instead' : 'Show to players'}
+                </button>
+              ) : (
+                // Players only see maps inside a live session (Run mode).
+                <span className="battlemap-needs-session" title="Players see battle maps during a live session. Start one from Run mode.">
+                  <button className="btn small" disabled>
+                    <Icon name="eye" size={14} /> Show to players
+                  </button>
+                  {!tight && <span className="faint">Start a live session first</span>}
+                </span>
+              )
+            )
+          )}
+          <button
+            className={`btn small${preview ? ' primary' : ''}`}
+            onClick={() => {
+              setPreview((p) => !p)
+              setSelectedToken(null)
+              setAligning(false)
+            }}
+            title="See the map exactly as players will: hidden tokens gone, no DM controls"
+          >
+            <Icon name={preview ? 'eye-off' : 'eye'} size={14} color={preview ? 'inherit' : undefined} /> {tight ? null : preview ? 'Exit player preview' : 'Preview as player'}
+          </button>
+          {expanded && (
+            <button
+              className={`btn small${notesOpen ? ' primary' : ''}`}
+              onClick={() => setNotesOpen((o) => !o)}
+              title={notesOpen ? 'Hide session notes' : 'Show session notes beside the map'}
+            >
+              📝 {notesOpen ? 'Hide notes' : 'Notes'}
+            </button>
+          )}
+          <button
+            className={`btn small${expanded ? ' primary' : ''}`}
+            onClick={expanded ? exitFullscreen : enterFullscreen}
+            title={expanded ? 'Exit full screen (Esc)' : 'Fill the whole screen with the battle map'}
+          >
+            <Icon name={expanded ? 'minimize' : 'maximize'} size={14} color={expanded ? 'inherit' : undefined} />
+            {!tight && (expanded ? ' Exit full screen' : ' Full screen')}
+          </button>
+          {tight ? (
+            // Narrow (Run mode's pane): tuck the less-used actions into a menu.
+            <details className="battlemap-more" ref={moreRef}>
+              <summary className="btn ghost small" title="More actions">⋯</summary>
+              <div className="battlemap-more-menu" onClick={() => moreRef.current?.removeAttribute('open')}>
+                {secondary}
+              </div>
+            </details>
+          ) : (
+            secondary
+          )}
         </div>
       </div>
       {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}

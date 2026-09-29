@@ -16,12 +16,13 @@ import { formatDate } from '../lib/format'
  * session running (Run mode → "Start live session"): shows the handouts the DM
  * is currently sharing, a notes area that writes to a Journal entry for this
  * session (so it also feeds the player's Journal + "Story So Far"), and the
- * DM's live battle map in the Tabletop card (see PlayerLiveBoard); its full
+ * DM's live battle map in the Tabletop (see PlayerLiveBoardView); its full
  * screen puts these same session notes beside the map.
  */
 export function PlayerSessionPage() {
   const { campaignId = '' } = useParams()
-  const campaign = useLiveQuery(() => db.campaigns.get(campaignId), [campaignId])
+  // `?? null` so a missing campaign reads as "not found", not "still loading".
+  const campaign = useLiveQuery(async () => (await db.campaigns.get(campaignId)) ?? null, [campaignId])
   const live = useLiveSession(campaign?.linkedCampaignId)
   const sessionRef = live ? live.sessionId ?? 'live' : null
   // While the Tabletop is full screen, its notes panel owns the notes editor.
@@ -61,7 +62,14 @@ export function PlayerSessionPage() {
     })()
   }, [live, noteId, campaignId, sessionRef])
 
-  if (!campaign) return null
+  if (campaign === undefined) return <div className="content faint">Loading…</div>
+  if (!campaign) {
+    return (
+      <div className="content">
+        <SessionEmpty campaignId={campaignId} message="That campaign doesn’t exist in this browser." />
+      </div>
+    )
+  }
 
   if (!campaign.linkedCampaignId) {
     return (

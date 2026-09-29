@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { HashRouter, Routes, Route, NavLink, Link, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
@@ -37,7 +37,6 @@ import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
-import { PlayerBattleMapPage } from './pages/PlayerBattleMapPage'
 import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
 import { PlayerSessionPage } from './pages/PlayerSessionPage'
 import { BugReportsPage } from './pages/BugReportsPage'
@@ -338,7 +337,8 @@ export function App() {
             <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
             <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
-            <Route path="/player/:campaignId/battlemap" element={<PlayerBattleMapPage />} />
+            {/* Battle maps are part of the live session now; old links land there. */}
+            <Route path="/player/:campaignId/battlemap" element={<PlayerBattlemapRedirect />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="sessions" element={<SessionsPage />} />
@@ -363,4 +363,10 @@ export function App() {
     </SyncProvider>
     </AuthProvider>
   )
+}
+
+/** /player/:id/battlemap (from before maps moved into live sessions). */
+function PlayerBattlemapRedirect() {
+  const { campaignId } = useParams()
+  return <Navigate to={`/player/${campaignId}/session`} replace />
 }

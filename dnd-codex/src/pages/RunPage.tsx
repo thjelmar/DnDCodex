@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createScene, createSession, updateSession } from '../db/repo'
 import { SceneEditor } from './BattleMapPage'
+import { LiveSceneKeeper } from './LiveSceneKeeper'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SidePanel } from '../components/SidePanel'
 import { StatBlockView } from '../components/StatBlockEditor'
@@ -14,7 +15,7 @@ import { RunHandouts } from '../components/RunHandouts'
 import { useAuth } from '../auth/AuthProvider'
 import { useLiveSession } from '../lib/useLiveSession'
 import { startLiveSession, endLiveSession } from '../auth/cloud'
-import { getLiveScene } from '../auth/liveScene'
+import { getLiveScene, stopLiveScene } from '../auth/liveScene'
 import { showSceneToPlayers } from './useDmLiveScene'
 import { parseLeadingInt } from '../lib/combat'
 import { formatDate, todayISODate } from '../lib/format'
@@ -179,6 +180,7 @@ export function RunPage() {
 
   return (
     <div className="run-page">
+      <LiveSceneKeeper campaign={campaign} />
       <div className="run-header">
         <span aria-hidden className="run-dot" style={{ background: campaign.color }} />
         <h1 className="mb-0 run-title">{campaign.name}</h1>
@@ -212,7 +214,7 @@ export function RunPage() {
         </Link>
       </div>
 
-      <div className="run-grid">
+      <div className={`run-grid${center === 'map' ? ' map-mode' : ''}`}>
         {/* In play */}
         <aside className="run-col run-play">
           <div className="run-col-heading">In play</div>
@@ -566,6 +568,10 @@ function LiveSessionControl({
   async function end() {
     setBusy(true); setErr(null)
     try {
+      // The battle map is part of the session: take it down with it. A failure
+      // there mustn't stop the session ending (players leave the session page,
+      // so a stranded map row isn't visible to them).
+      try { await stopLiveScene(campaignId) } catch { /* ended anyway */ }
       await endLiveSession(campaignId)
       setOffer(false)
     } catch {
@@ -578,10 +584,10 @@ function LiveSessionControl({
       {live ? (
         <>
           <span className="run-live-on"><span className="run-live-dot" /> Live</span>
-          <button className="btn ghost small" disabled={busy} onClick={end}>End session</button>
+          <button className="btn ghost small" disabled={busy} onClick={end} title="Ends the session and takes down any battle map players can see">End session</button>
         </>
       ) : (
-        <button className="btn small primary" disabled={busy} onClick={start} title="Let players join and see the handouts you show">
+        <button className="btn small primary" disabled={busy} onClick={start} title="Let players join and see the handouts and battle map you show">
           <Icon name="play" size={13} color="inherit" /> {busy ? 'Starting…' : 'Start live session'}
         </button>
       )}

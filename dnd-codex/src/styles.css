@@ -1967,7 +1967,11 @@ kbd {
 .run-notes { padding-left: 4px; padding-right: 4px; }
 .run-center-switch { margin-bottom: 12px; }
 .run-map-pick { width: auto; max-width: 320px; margin-bottom: 10px; }
-.run-map .tabletop-view { height: calc(100vh - 290px); min-height: 380px; }
+.run-map .tabletop-view { height: calc(100vh - 250px); min-height: 380px; }
+/* Battle Map pane: give the board the room (narrower In-play and tools columns). */
+.run-grid.map-mode { grid-template-columns: 200px minmax(0, 1fr) 340px; }
+@media (max-width: 1280px) { .run-grid.map-mode { grid-template-columns: 180px minmax(0, 1fr) 320px; } }
+@media (max-width: 1050px) { .run-grid.map-mode { grid-template-columns: 1fr; } }
 .run-session-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .run-session-title h2 { font-size: 20px; }
 
@@ -2254,21 +2258,22 @@ kbd {
 .battlemap-fields label, .battlemap-token-edit label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .battlemap-fields input[type='color'] { width: 100%; height: 34px; padding: 2px; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 6px; }
 .battlemap-check, .battlemap-token-edit .battlemap-check { display: flex; flex-direction: row; align-items: center; gap: 8px; font-size: 13px; color: var(--text); cursor: pointer; }
+.battlemap-more { position: relative; }
+.battlemap-more > summary { list-style: none; cursor: pointer; }
+.battlemap-more > summary::-webkit-details-marker { display: none; }
+.battlemap-more-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 170px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 6px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.battlemap-more-menu .btn { justify-content: flex-start; width: 100%; }
+.battlemap-needs-session { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; }
 .battlemap-live-on { border-color: var(--good); color: var(--good); }
 .battlemap-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: inline-block; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); animation: battlemap-pulse 1.6s ease-in-out infinite; }
 @keyframes battlemap-pulse { 50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); } }
 .battlemap-preview-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: rgba(167, 139, 250, 0.1); }
 .battlemap-live-pill { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--good); vertical-align: middle; }
-.battlemap-card {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding: 12px 14px;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev);
-  color: var(--text); text-decoration: none;
-}
-.battlemap-card:hover { border-color: var(--accent); }
-.battlemap-card.live { border-color: rgba(74, 222, 128, 0.55); }
-.battlemap-card-icon { font-size: 22px; }
-.battlemap-card-text { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 13px; }
-.battlemap-card-text strong { font-size: 15px; }
 .battlemap-align-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .battlemap-align-opts > label:not(.battlemap-check) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .battlemap-align-opts .faint { font-size: 12px; margin: 0; }

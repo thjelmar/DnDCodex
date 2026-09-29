@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { enableCampaignSharing, getCampaignMembers, type Member } from '../auth/cloud'
 import {
+  deleteLiveMap,
   deleteLiveTokens,
   stopLiveScene,
   upsertLiveMap,
@@ -14,6 +15,7 @@ import {
   type LiveToken,
 } from '../auth/liveScene'
 import { makeThumbnail } from '../lib/image'
+import { useLiveSession } from '../lib/useLiveSession'
 import type { Campaign, Id, Scene, SceneGrid, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
@@ -109,6 +111,9 @@ export function useDmLiveScene(
   const { user } = useAuth()
   const available = !!supabase && !!user
   const live = useLiveScene(available ? campaign.id : null)
+  // Players see battle maps only inside a live session (Run mode → Start live
+  // session), so showing needs one; ending the session takes the map down.
+  const sessionLive = !!useLiveSession(available ? campaign.id : null)
   const isShowing = !!live.scene && live.scene.sceneId === draft.sceneId
   const otherShowing = !!live.scene && !isShowing
 
@@ -138,7 +143,8 @@ export function useDmLiveScene(
       })
     load()
     const channel = supabase
-      .channel(`members-${campaign.id}`)
+      // Unique per subscriber (see useLiveSession: repeated names collide).
+      .channel(`members-${campaign.id}-${crypto.randomUUID().slice(0, 8)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'campaign_members', filter: `campaign_id=eq.${campaign.id}` }, load)
       .subscribe()
     return () => {
@@ -154,18 +160,36 @@ export function useDmLiveScene(
     a.label === b.label && a.color === b.color && a.col === b.col && a.row === b.row &&
     a.size === b.size && a.portrait === b.portrait && a.controlledBy === b.controlledBy
 
-  /** Mirror the draft to the cloud, sending only what changed. */
+  /**
+   * Mirror the draft to the cloud, sending only what changed. What we send is
+   * recorded BEFORE the network call, so our own Realtime echo (which can beat
+   * the upsert's response) matches it and isn't mistaken for a player's move.
+   * On failure the records are dropped so the next push resends.
+   */
   const push = useRef(async (_d: Draft) => {})
   push.current = async (d: Draft) => {
     if (d.imageId !== pushedMapId.current) {
-      await uploadMap(campaign.id, d.imageId)
+      const previous = pushedMapId.current
       pushedMapId.current = d.imageId
+      try {
+        await uploadMap(campaign.id, d.imageId)
+        // Don't leave replaced map images (up to a few MB each) in the cloud.
+        if (previous) await deleteLiveMap(previous)
+      } catch (e) {
+        pushedMapId.current = previous
+        throw e
+      }
     }
     const scene = liveSceneOf(campaign.id, d)
     const sceneKey = JSON.stringify(scene)
     if (sceneKey !== pushedScene.current) {
-      await upsertLiveScene(scene)
       pushedScene.current = sceneKey
+      try {
+        await upsertLiveScene(scene)
+      } catch (e) {
+        pushedScene.current = null
+        throw e
+      }
     }
     const next = await toLiveTokens(d.tokens, members, thumbs.current)
     const changed = next.filter((t) => {
@@ -173,23 +197,49 @@ export function useDmLiveScene(
       return !prev || !same(prev, t)
     })
     const gone = [...pushedTokens.current.keys()].filter((id) => !next.some((t) => t.id === id))
-    await upsertLiveTokens(campaign.id, changed)
-    await deleteLiveTokens(gone)
     for (const t of changed) pushedTokens.current.set(t.id, t)
     for (const id of gone) pushedTokens.current.delete(id)
+    try {
+      await upsertLiveTokens(campaign.id, changed)
+      await deleteLiveTokens(gone)
+    } catch (e) {
+      for (const t of changed) pushedTokens.current.delete(t.id)
+      throw e
+    }
   }
 
-  // Debounced mirror while this map is the one on show.
+  // Pushes run one at a time, in order: overlapping pushes could land out of
+  // order (older position wins) or upload the same map twice.
+  const queue = useRef<Promise<void>>(Promise.resolve())
+  const enqueuePush = (d: Draft) => {
+    queue.current = queue.current
+      .then(() => push.current(d))
+      .catch((e) => setError(e instanceof Error ? e.message : 'Could not update the players’ map.'))
+    return queue.current
+  }
+
+  // Debounced mirror while this map is the one on show. A push still waiting
+  // on the debounce is flushed if the editor unmounts (switching panes/maps).
   const { sceneId, name, grid, width, height, imageId, tokens } = draft
+  const pending = useRef<Draft | null>(null)
   useEffect(() => {
     if (!isShowing || !seeded) return
+    const d = { sceneId, name, grid, width, height, imageId, tokens }
+    pending.current = d
     const t = setTimeout(() => {
-      push.current({ sceneId, name, grid, width, height, imageId, tokens }).catch((e) =>
-        setError(e instanceof Error ? e.message : 'Could not update the players’ map.'),
-      )
+      pending.current = null
+      enqueuePush(d)
     }, PUSH_DELAY)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, members])
+  useEffect(
+    () => () => {
+      if (pending.current) enqueuePush(pending.current)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
 
   // Player moves: a controlled token whose cloud position differs from what we
   // last pushed was moved by its player. (Only players' RPC moves can do that;
@@ -225,6 +275,10 @@ export function useDmLiveScene(
 
   async function show() {
     if (!user) return
+    if (!sessionLive) {
+      setError('Start a live session in Run mode first — players see battle maps during a session.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -235,7 +289,7 @@ export function useDmLiveScene(
       pushedTokens.current.clear()
       pushedScene.current = null
       pushedMapId.current = undefined
-      await push.current(draft)
+      await enqueuePush(draft)
       setSeeded(true)
       await live.refresh()
     } catch (e) {
@@ -261,5 +315,5 @@ export function useDmLiveScene(
     }
   }
 
-  return { available, isShowing, otherShowing, otherName: live.scene?.name ?? '', busy, error, members, colorFor, show, stop }
+  return { available, sessionLive, isShowing, otherShowing, otherName: live.scene?.name ?? '', busy, error, members, colorFor, show, stop }
 }

@@ -23,7 +23,6 @@ import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import { PartyLoot } from '../components/PartyLoot'
-import { LiveMapLink } from './PlayerBattleMapPage'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -246,9 +245,6 @@ export function PlayerNotesPage() {
         </Link>
       )}
 
-      {campaign.linkedCampaignId && (
-        <LiveMapLink campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
-      )}
 
       <div className="player-layout">
         <div className="player-main">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { liveTokensForBoard, moveMyToken, useLiveScene } from '../auth/liveScene'
 import { getMyColor, setMyColor } from '../auth/cloud'
@@ -7,26 +7,11 @@ import { TOKEN_COLORS } from '../lib/tabletop'
 import { Tabletop } from './Tabletop'
 import { Icon } from './Icon'
 
-// The player's view of the DM's live battle map, shared by the live-session
-// page (its Tabletop card) and the standalone player map page. Players pan and
+// The player's view of the DM's live battle map, in the live-session page's
+// Tabletop (players only see maps during a session). Players pan and
 // zoom their own view, drag only the token assigned to them (green dashed
 // ring), pick the color their tokens wear, and can go full screen with `notes`
 // beside the map.
-
-type BoardProps = {
-  linkedCampaignId: string
-  notes?: ReactNode
-  notesLabel?: string
-  compact?: boolean
-  empty?: ReactNode
-  onExpandedChange?: (expanded: boolean) => void
-}
-
-/** The board with its own live subscription. */
-export function PlayerLiveBoard(props: BoardProps) {
-  const live = useLiveScene(props.linkedCampaignId)
-  return <PlayerLiveBoardView {...props} live={live} />
-}
 
 /**
  * The board for a page that already holds the live subscription (e.g. one that
@@ -58,10 +43,14 @@ export function PlayerLiveBoardView({
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fs = useFullscreen()
+  const onExpandedRef = useRef(onExpandedChange)
+  onExpandedRef.current = onExpandedChange
   useEffect(() => {
-    onExpandedChange?.(fs.expanded)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    onExpandedRef.current?.(fs.expanded)
   }, [fs.expanded])
+  // Unmounting while expanded (e.g. the page moves the board when the DM stops
+  // the map) must still tell the page full screen is over.
+  useEffect(() => () => onExpandedRef.current?.(false), [])
   const [notesOpen, setNotesOpen] = useState(true)
 
   // My color (per campaign). Applied to my tokens right away so picking feels

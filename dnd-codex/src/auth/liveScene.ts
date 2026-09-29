@@ -161,6 +161,13 @@ export async function upsertLiveMap(campaignId: string, id: string, dataUrl: str
   check(error)
 }
 
+/** Remove one uploaded map image (e.g. one the DM replaced mid-session). */
+export async function deleteLiveMap(id: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('shared_scene_maps').delete().eq('id', id)
+  check(error)
+}
+
 /** Stop showing any battle map: players' view goes empty immediately. */
 export async function stopLiveScene(campaignId: string): Promise<void> {
   if (!supabase) return
@@ -229,7 +236,8 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
       if (!cancelled) setLoading(false)
     })
     const channel = supabase
-      .channel(`live-scene-${cloudCampaignId}`)
+      // Unique per subscriber (see useLiveSession: repeated names collide).
+      .channel(`live-scene-${cloudCampaignId}-${crypto.randomUUID().slice(0, 8)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'shared_scenes', filter: `campaign_id=eq.${cloudCampaignId}` },

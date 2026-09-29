@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'rea
 import type { SceneGrid, SceneToken } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
+  MIN_CELL_SCREEN,
   cellToPx,
   clampZoom,
   gridPath,
@@ -87,6 +88,7 @@ export function Tabletop({
     }
   }
 
+  /** Show the whole board (the Fit button). */
   function fit() {
     const el = wrapRef.current
     if (!el) return
@@ -94,11 +96,38 @@ export function Tabletop({
     const k = clampZoom(Math.min(w / width, h / height) * 0.95)
     setTransform({ k, tx: (w - width * k) / 2, ty: (h - height * k) / 2 })
   }
-  // Fit the whole board on first render and whenever the board size changes.
-  useEffect(fit, [width, height]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * The opening view: the whole board, unless that would shrink squares below a
+   * usable size (a big map in a small pane). Then zoom to MIN_CELL_SCREEN px per
+   * square, centered on the tokens (or the board's middle if there are none).
+   */
+  function initialView() {
+    const el = wrapRef.current
+    if (!el) return
+    const { clientWidth: w, clientHeight: h } = el
+    const fitK = clampZoom(Math.min(w / width, h / height) * 0.95)
+    if (fitK * grid.cellPx >= MIN_CELL_SCREEN) return fit()
+    const k = clampZoom(MIN_CELL_SCREEN / grid.cellPx)
+    let cx = width / 2
+    let cy = height / 2
+    const ts = tokensRef.current
+    if (ts.length) {
+      const cs = ts.map((t) => tokenCenter(grid, t))
+      const xs = cs.map((c) => c.x)
+      const ys = cs.map((c) => c.y)
+      cx = (Math.min(...xs) + Math.max(...xs)) / 2
+      cy = (Math.min(...ys) + Math.max(...ys)) / 2
+    }
+    setTransform({ k, tx: w / 2 - cx * k, ty: h / 2 - cy * k })
+  }
+  const tokensRef = useRef(tokens)
+  tokensRef.current = tokens
+  // Opening view on first render and whenever the board size changes.
+  useEffect(initialView, [width, height]) // eslint-disable-line react-hooks/exhaustive-deps
   // ...and when the viewport itself is resized (full screen, panel toggled).
-  const fitRef = useRef(fit)
-  fitRef.current = fit
+  const fitRef = useRef(initialView)
+  fitRef.current = initialView
   useEffect(() => {
     const el = wrapRef.current
     if (!el || typeof ResizeObserver === 'undefined') return

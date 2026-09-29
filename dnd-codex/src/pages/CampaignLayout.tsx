@@ -7,6 +7,7 @@ import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
 import { PushChangesPanel } from '../components/PushChangesPanel'
 import { Icon } from '../components/Icon'
+import { LiveSceneKeeper } from './LiveSceneKeeper'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -152,6 +153,8 @@ export function CampaignLayout() {
       </div>
 
       <Outlet context={{ campaign } satisfies CampaignContext} />
+      {/* Keeps a live battle map in sync when its editor isn't open. */}
+      <LiveSceneKeeper campaign={campaign} />
     </div>
   )
 }

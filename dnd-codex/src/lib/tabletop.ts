@@ -6,6 +6,8 @@ import type { SceneGrid, SceneToken } from '../db/types'
 export const MAP_MAX_DIM = 3072
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
+/** Smallest on-screen square for the opening view, so tokens are clickable. */
+export const MIN_CELL_SCREEN = 22
 /** Largest token footprint, in cells per side. */
 export const MAX_TOKEN_SIZE = 8
 
