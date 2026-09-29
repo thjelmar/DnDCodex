@@ -56,6 +56,8 @@ interface Props {
   fog?: SceneFog | null
   /** When set, dragging the board paints fog instead of panning. */
   fogTool?: 'reveal' | 'hide' | null
+  /** Brush radius in cells: 0 = one cell, 1 = 3×3, 2 = 5×5, … */
+  fogBrush?: number
   /** Commit a painted stroke: reveal or hide the given cell keys. */
   onPaintFog?: (cellKeys: string[], reveal: boolean) => void
 }
@@ -81,6 +83,7 @@ export function Tabletop({
   ownIds,
   fog,
   fogTool,
+  fogBrush = 0,
   onPaintFog,
 }: Props) {
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
@@ -96,6 +99,9 @@ export function Tabletop({
   // Cells painted in the current fog stroke (applied to the mask live, committed
   // to the parent on pointer-up).
   const [fogStroke, setFogStroke] = useState<{ reveal: boolean; cells: Set<string> } | null>(null)
+  // Cell under the cursor while in fog mode (for the brush-size preview outline).
+  const [fogHover, setFogHover] = useState<{ col: number; row: number } | null>(null)
+  const fogLastCell = useRef<string | null>(null)
 
   const toBoard = (clientX: number, clientY: number) => {
     const rect = wrapRef.current!.getBoundingClientRect()
@@ -104,6 +110,19 @@ export function Tabletop({
       y: (clientY - rect.top - transform.ty) / transform.k,
     }
   }
+
+  // Cells a brush stroke touches at (col,row): a square of side 2·fogBrush+1.
+  const brushRadius = Math.max(0, Math.round(fogBrush))
+  const brushKeys = (col: number, row: number): string[] => {
+    const keys: string[] = []
+    for (let dc = -brushRadius; dc <= brushRadius; dc++)
+      for (let dr = -brushRadius; dr <= brushRadius; dr++) keys.push(cellKey(col + dc, row + dr))
+    return keys
+  }
+  // Drop the brush preview when leaving fog mode.
+  useEffect(() => {
+    if (!fogTool) setFogHover(null)
+  }, [fogTool])
 
   /** Show the whole board (the Fit button). */
   function fit() {
@@ -207,8 +226,9 @@ export function Tabletop({
     if (fogTool) {
       const p = toBoard(e.clientX, e.clientY)
       const c = pxToCell(grid, p.x, p.y)
+      fogLastCell.current = cellKey(c.col, c.row)
       drag.current = { kind: 'fog', reveal: fogTool === 'reveal' }
-      setFogStroke({ reveal: fogTool === 'reveal', cells: new Set([cellKey(c.col, c.row)]) })
+      setFogStroke({ reveal: fogTool === 'reveal', cells: new Set(brushKeys(c.col, c.row)) })
       return
     }
     if (aligning) {
@@ -245,7 +265,15 @@ export function Tabletop({
 
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current
-    if (!d) return
+    if (!d) {
+      // Not dragging: while in fog mode, track the hovered cell for the brush preview.
+      if (fogTool) {
+        const p = toBoard(e.clientX, e.clientY)
+        const c = pxToCell(grid, p.x, p.y)
+        setFogHover((h) => (h && h.col === c.col && h.row === c.row ? h : c))
+      }
+      return
+    }
     if (d.kind === 'resize') {
       // Size follows the handle: the footprint is anchored at the top-left cell.
       const p = toBoard(e.clientX, e.clientY)
@@ -261,7 +289,14 @@ export function Tabletop({
       const p = toBoard(e.clientX, e.clientY)
       const c = pxToCell(grid, p.x, p.y)
       const key = cellKey(c.col, c.row)
-      setFogStroke((s) => (s && !s.cells.has(key) ? { ...s, cells: new Set(s.cells).add(key) } : s))
+      if (key === fogLastCell.current) return
+      fogLastCell.current = key
+      setFogStroke((s) => {
+        if (!s) return s
+        const next = new Set(s.cells)
+        for (const k of brushKeys(c.col, c.row)) next.add(k)
+        return { ...s, cells: next }
+      })
     } else {
       const p = toBoard(e.clientX, e.clientY)
       setBox({ x1: d.x1, y1: d.y1, x2: p.x, y2: p.y })
@@ -352,6 +387,7 @@ export function Tabletop({
         onPointerDown={onBgPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerLeave={() => setFogHover(null)}
         onKeyDown={onKeyDown}
         aria-label="Battle map board"
       >
@@ -394,6 +430,17 @@ export function Tabletop({
                   pointerEvents="none"
                 />
               </>
+            )}
+
+            {/* Brush-size preview: outline the cells the next stroke will touch. */}
+            {fogTool && fogHover && !fogStroke && (
+              <rect
+                {...cellToPx(grid, fogHover.col - brushRadius, fogHover.row - brushRadius)}
+                width={(2 * brushRadius + 1) * grid.cellPx}
+                height={(2 * brushRadius + 1) * grid.cellPx}
+                className="tabletop-fog-brush"
+                pointerEvents="none"
+              />
             )}
 
             {ordered.map((raw) => {

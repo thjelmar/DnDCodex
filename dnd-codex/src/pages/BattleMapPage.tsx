@@ -165,6 +165,8 @@ export function SceneEditor({
   // Fog of war: paint tool (null = not in fog mode). Painting a stroke commits a
   // set of revealed/hidden cells; the whole fog state syncs like the tokens.
   const [fogTool, setFogTool] = useState<'reveal' | 'hide' | null>(null)
+  const [fogBrush, setFogBrush] = useState(0) // brush radius in cells (0 = 1×1)
+  const FOG_BRUSH_MAX = 6
   function paintFog(keys: string[], reveal: boolean) {
     touch()
     setFog((f) => {
@@ -586,6 +588,12 @@ export function SceneEditor({
             <button className={fogTool === 'reveal' ? 'active' : ''} onClick={() => setFogTool('reveal')}>Reveal</button>
             <button className={fogTool === 'hide' ? 'active' : ''} onClick={() => setFogTool('hide')}>Cover</button>
           </div>
+          <div className="battlemap-fogbrush" title="Brush size (squares painted per stroke)">
+            <span className="faint">Brush</span>
+            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.max(0, b - 1))} disabled={fogBrush === 0} aria-label="Smaller brush">−</button>
+            <span className="battlemap-fogbrush-val" aria-live="polite">{2 * fogBrush + 1}×{2 * fogBrush + 1}</span>
+            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.min(FOG_BRUSH_MAX, b + 1))} disabled={fogBrush === FOG_BRUSH_MAX} aria-label="Larger brush">+</button>
+          </div>
           <span className="faint">Drag across the map to {fogTool === 'reveal' ? 'reveal' : 'cover'} squares.</span>
           <div className="battlemap-fogbar-actions">
             <button className="btn ghost small" onClick={revealAllFog}>Reveal all</button>
@@ -624,6 +632,7 @@ export function SceneEditor({
           canMoveToken={preview ? () => false : undefined}
           fog={fog.enabled ? fog : null}
           fogTool={preview ? null : fogTool}
+          fogBrush={fogBrush}
           onPaintFog={paintFog}
         />
 
