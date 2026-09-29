@@ -23,6 +23,7 @@ export function RichTextEditor({
   editable = true,
   minHeight,
   revealNeedsConfirm = false,
+  shareable = false,
   onWikiLink,
 }: {
   campaignId: Id
@@ -34,6 +35,9 @@ export function RichTextEditor({
   minHeight?: number
   /** When true (the entity is already shared), unmarking a spoiler asks first. */
   revealNeedsConfirm?: boolean
+  /** When true, this field can be shared with players — show the spoiler legend
+   *  so hidden (locked) regions are visible at a glance. */
+  shareable?: boolean
   /** Overrides wiki-link clicks (e.g. the Run screen peeks instead of navigating). */
   onWikiLink?: (target: string) => void
 }) {
@@ -104,6 +108,8 @@ export function RichTextEditor({
     )
   }
 
+  const spoilerCount = shareable ? (value.match(/data-spoiler/g) || []).length : 0
+
   return (
     <div className="field">
       {label && <label>{label}</label>}
@@ -113,6 +119,15 @@ export function RichTextEditor({
           <EditorContent editor={editor} />
         </div>
       </div>
+      {shareable && spoilerCount > 0 && (
+        <div
+          className="rte-spoiler-legend"
+          title="These regions are hidden from players when you share. To reveal one, select it and click the lock again, then re-share."
+        >
+          <Icon name="lock" size={12} color="currentColor" />
+          {spoilerCount} hidden from players
+        </div>
+      )}
       <input
         ref={fileRef}
         type="file"

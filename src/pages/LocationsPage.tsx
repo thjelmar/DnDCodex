@@ -468,6 +468,7 @@ function LocationEditor({
         placeholder="What's here, its history, notable features, [[wiki links]]…"
         minHeight={160}
         revealNeedsConfirm={location.sharedWithPlayers === true}
+        shareable
       />
 
       {groups.includes('departments') && (
@@ -487,6 +488,7 @@ function LocationEditor({
           label="Points of interest"
           placeholder="Landmarks, taverns, temples, shops worth visiting…"
           revealNeedsConfirm={location.sharedWithPlayers === true}
+          shareable
         />
       )}
 

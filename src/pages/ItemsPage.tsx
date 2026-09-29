@@ -228,6 +228,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         label="Description"
         placeholder="What it does, its history, attunement notes…"
         revealNeedsConfirm={item.sharedWithPlayers === true}
+        shareable
       />
     </SidePanel>
   )

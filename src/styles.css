@@ -840,6 +840,17 @@ button {
   -webkit-mask: var(--lock-mask);
   mask: var(--lock-mask);
 }
+/* DM-side legend under a shareable editor: how many regions are locked. */
+.rte-spoiler-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: default;
+}
+
 /* Player-side stat-block "section is hidden" marker. */
 .sb-hidden-row {
   display: flex;

@@ -215,7 +215,9 @@ export function ShareControl({
             {shared ? 'Sections players can see' : 'Share with players'}
           </div>
           <div className="faint" style={{ fontSize: 12, marginBottom: 8 }}>
-            Choose which sections to publish. Spoiler-marked text is always hidden.
+            Choose which sections players see. Any text you lock
+            {' '}<Icon name="lock" size={11} color="currentColor" style={{ verticalAlign: '-1px' }} />{' '}
+            in the editor stays hidden from them.
           </div>
           <div className="pushchanges-list">
             {allSections.map((s) => (

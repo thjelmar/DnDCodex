@@ -204,6 +204,7 @@ function NpcEditor({
         label="Description"
         placeholder="Appearance, personality, secrets, [[wiki links]]…"
         revealNeedsConfirm={npc.sharedWithPlayers === true}
+        shareable
       />
       <div className="field">
         <label>Stat block</label>
@@ -216,6 +217,7 @@ function NpcEditor({
         label="Additional notes"
         placeholder="Tactics, secrets, lair actions, mechanical reminders… (use the lock button to mark spoilers)"
         revealNeedsConfirm={npc.sharedWithPlayers === true}
+        shareable
       />
 
       <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
