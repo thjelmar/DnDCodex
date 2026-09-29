@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updateScene } from '../db/repo'
@@ -42,14 +42,67 @@ function useIsSceneEditorOpen(sceneId: Id | null): boolean {
   )
 }
 
+// The `openEditors` registry above is a per-tab module singleton, so two DM tabs
+// each ran their own background keeper and both pushed to the cloud. Elect a
+// single keeper per campaign across all tabs with the Web Locks API: only the
+// tab holding the lock runs the keeper. The lock is released automatically when
+// that tab navigates away, closes, or crashes, so another tab takes over. Where
+// Web Locks aren't available, fall back to the old behaviour (every tab keeps —
+// harmless duplicates). Only the passive keeper is gated; an open editor always
+// pushes its own edits, so a DM's changes are never withheld.
+const supportsLocks = typeof navigator !== 'undefined' && 'locks' in navigator
+
+function useIsKeeperLeader(campaignId: Id | null): boolean {
+  const [leader, setLeader] = useState(false)
+  useEffect(() => {
+    if (!campaignId) {
+      setLeader(false)
+      return
+    }
+    if (!supportsLocks) {
+      setLeader(true)
+      return
+    }
+    setLeader(false)
+    const ac = new AbortController()
+    let release: (() => void) | null = null
+    let done = false
+    navigator.locks
+      .request(`codex.scenePush.${campaignId}`, { signal: ac.signal }, () =>
+        // Hold the lock (stay leader) until we release on cleanup.
+        new Promise<void>((resolve) => {
+          if (done) {
+            resolve()
+            return
+          }
+          setLeader(true)
+          release = () => {
+            setLeader(false)
+            resolve()
+          }
+        }),
+      )
+      .catch(() => {
+        // AbortError on unmount while still waiting for the lock — not an error.
+      })
+    return () => {
+      done = true
+      ac.abort() // cancels a still-pending acquire
+      release?.() // releases the held lock so another tab can take over
+    }
+  }, [campaignId])
+  return leader
+}
+
 /** Mount once on DM campaign screens (campaign layout, Run mode). Renders nothing. */
 export function LiveSceneKeeper({ campaign }: { campaign: Campaign }) {
   const { user } = useAuth()
   const live = useLiveScene(supabase && user ? campaign.id : null)
   const sceneId = live.scene?.sceneId ?? null
   const editorOpen = useIsSceneEditorOpen(sceneId)
+  const isLeader = useIsKeeperLeader(supabase && user ? campaign.id : null)
   const scene = useLiveQuery(() => (sceneId ? db.scenes.get(sceneId) : undefined), [sceneId])
-  if (!sceneId || editorOpen || !scene) return null
+  if (!sceneId || editorOpen || !scene || !isLeader) return null
   return <KeeperFor key={scene.id} campaign={campaign} scene={scene} />
 }
 
