@@ -16,6 +16,8 @@ import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog } from './lib/errorLog'
 import { CampaignsPage } from './pages/CampaignsPage'
 import { BackupPage } from './pages/BackupPage'
+import { ChangelogPage } from './pages/ChangelogPage'
+import { useChangelogUnseen } from './lib/useChangelog'
 import { CampaignLayout } from './pages/CampaignLayout'
 import { OverviewPage } from './pages/OverviewPage'
 import { SessionsPage } from './pages/SessionsPage'
@@ -61,6 +63,7 @@ function Sidebar({
   onOpenBug: () => void
 }) {
   const { user } = useAuth()
+  const changelogUnseen = useChangelogUnseen()
   // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
     () =>
@@ -102,6 +105,11 @@ function Sidebar({
       <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
         <span className="ico"><Icon name="settings" /></span> Preferences
       </button>
+      <NavLink to="/changelog" className="nav-link">
+        <span className="ico" aria-hidden>✨</span>
+        <span>What’s New</span>
+        {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
+      </NavLink>
       {user && (
         <NavLink to="/bug-reports" className="nav-link">
           <span className="ico"><Icon name="inbox" /></span> Bug reports
@@ -266,6 +274,7 @@ export function App() {
           <Routes>
             <Route path="/" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
+            <Route path="/changelog" element={<ChangelogPage />} />
             <Route path="/bug-reports" element={<BugReportsPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
