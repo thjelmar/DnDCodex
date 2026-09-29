@@ -99,6 +99,8 @@ function Sidebar({
           <kbd>E</kbd>
         </span>
       </button>
+      {/* App: settings, updates, and data */}
+      <div className="sidebar-heading">App</div>
       <NavLink to="/backup" className="nav-link">
         <span className="ico"><Icon name="save" /></span> Backup &amp; Data
       </NavLink>
@@ -106,7 +108,7 @@ function Sidebar({
         <span className="ico"><Icon name="settings" /></span> Preferences
       </button>
       <NavLink to="/changelog" className="nav-link">
-        <span className="ico" aria-hidden>✨</span>
+        <span className="ico"><Icon name="sparkles" /></span>
         <span>What’s New</span>
         {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
       </NavLink>
