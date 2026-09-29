@@ -10,6 +10,9 @@ import { DicePanel } from '../components/DiceRoller'
 import { Icon } from '../components/Icon'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { RunHandouts } from '../components/RunHandouts'
+import { useAuth } from '../auth/AuthProvider'
+import { useLiveSession } from '../lib/useLiveSession'
+import { startLiveSession, endLiveSession } from '../auth/cloud'
 import { parseLeadingInt } from '../lib/combat'
 import { formatDate, todayISODate } from '../lib/format'
 import { isRichTextEmpty, wikiTargets } from '../lib/richtext'
@@ -181,6 +184,7 @@ export function RunPage() {
           <Icon name="plus" size={13} /> New session
         </button>
         <div style={{ flex: 1 }} />
+        <LiveSessionControl campaignId={campaign.id} session={session} />
         <Link to={`/campaign/${campaign.id}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Exit run mode
         </Link>
@@ -387,6 +391,53 @@ function PinPicker({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/** DM control to broadcast a live session so players can join (or end it).
+ *  Prep happens in Run mode privately until the DM explicitly starts it. */
+function LiveSessionControl({ campaignId, session }: { campaignId: string; session: Session | null }) {
+  const { user } = useAuth()
+  const live = useLiveSession(campaignId)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  if (!user) return null
+
+  async function start() {
+    setBusy(true); setErr(null)
+    try {
+      await startLiveSession(campaignId, {
+        sessionId: session?.id ?? null,
+        title: session?.title || 'Session',
+        sessionDate: session?.date || '',
+      })
+    } catch {
+      setErr('Enable sync / invite players first.')
+    } finally { setBusy(false) }
+  }
+  async function end() {
+    setBusy(true); setErr(null)
+    try {
+      await endLiveSession(campaignId)
+    } catch {
+      setErr('Couldn’t end — check connection.')
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="run-live">
+      {live ? (
+        <>
+          <span className="run-live-on"><span className="run-live-dot" /> Live</span>
+          <button className="btn ghost small" disabled={busy} onClick={end}>End session</button>
+        </>
+      ) : (
+        <button className="btn small primary" disabled={busy} onClick={start} title="Let players join and see the handouts you show">
+          <Icon name="play" size={13} color="inherit" /> {busy ? 'Starting…' : 'Start live session'}
+        </button>
+      )}
+      {err && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{err}</span>}
     </div>
   )
 }

@@ -1143,6 +1143,38 @@ button {
 .run-ho-state { font-size: 11px; color: var(--text-faint); }
 .run-ho-state.vis { color: var(--good); }
 
+/* ── Live session (DM control + player join + player session view) ─────────── */
+.run-live { display: inline-flex; align-items: center; gap: 8px; }
+.run-live-on { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--good); }
+.run-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); animation: live-pulse 1.8s ease-in-out infinite; }
+@keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* Player-home "your DM started a session" banner. */
+.join-session {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; margin-bottom: 20px;
+  border: 1px solid rgba(74, 222, 128, 0.45); border-radius: var(--radius);
+  background: rgba(74, 222, 128, 0.08); color: var(--text); text-decoration: none;
+}
+.join-session:hover { border-color: var(--good); text-decoration: none; }
+.join-session-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); flex-shrink: 0; animation: live-pulse 1.8s ease-in-out infinite; }
+.join-session-text { display: flex; flex-direction: column; min-width: 0; }
+.join-session-text .faint { font-size: 12.5px; }
+.join-session-btn { margin-left: auto; flex-shrink: 0; }
+
+/* Player session view. */
+.session-page { padding: 16px 20px; }
+.session-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.session-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; }
+.session-notes { min-width: 0; }
+.session-aside { min-width: 0; }
+.session-vtt-slot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 30px 16px; color: var(--text-dim);
+  border: 1px dashed var(--border); border-radius: var(--radius-sm);
+}
+@media (max-width: 860px) { .session-grid { grid-template-columns: 1fr; } }
+
 /* ---------- NPC stat block ---------- */
 
 .sb-empty { padding: 4px 0; }

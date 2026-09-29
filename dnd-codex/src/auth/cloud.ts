@@ -172,6 +172,63 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
   }))
 }
 
+// --- Live session ----------------------------------------------------------
+// A single row per campaign, present only while the DM has an active live
+// session (from Run mode's "Start live session"). Players read it to show a
+// "Join session" prompt; ending the session deletes the row.
+
+export interface LiveSession {
+  campaignId: string
+  sessionId: string | null
+  title: string
+  sessionDate: string
+  startedAt: string
+}
+
+/** Start (or refresh) the live session for a campaign — DM only. */
+export async function startLiveSession(
+  campaignId: string,
+  s: { sessionId?: string | null; title?: string; sessionDate?: string },
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('live_sessions').upsert(
+    {
+      campaign_id: campaignId,
+      session_id: s.sessionId ?? null,
+      title: s.title ?? '',
+      session_date: s.sessionDate ?? '',
+      started_at: new Date().toISOString(),
+    },
+    { onConflict: 'campaign_id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** End the live session — removes the row so players can no longer join. */
+export async function endLiveSession(campaignId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('live_sessions').delete().eq('campaign_id', campaignId)
+  if (error) throw new Error(error.message)
+}
+
+/** The current live session for a campaign the user belongs to, or null. */
+export async function getLiveSession(cloudCampaignId: string): Promise<LiveSession | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('live_sessions')
+    .select('campaign_id, session_id, title, session_date, started_at')
+    .eq('campaign_id', cloudCampaignId)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    campaignId: data.campaign_id as string,
+    sessionId: (data.session_id as string) ?? null,
+    title: (data.title as string) ?? '',
+    sessionDate: (data.session_date as string) ?? '',
+    startedAt: data.started_at as string,
+  }
+}
+
 // --- Shared entities (Phase 3c) --------------------------------------------
 // Live published entity copies. `pushEntity` uploads the reveal-safe, spoiler-
 // redacted snapshot (see lib/reveal.ts); it is the DM's explicit "publish" step,

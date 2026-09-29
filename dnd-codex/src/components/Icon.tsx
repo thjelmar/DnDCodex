@@ -41,6 +41,7 @@ export type IconName =
   | 'play'
   | 'pin'
   | 'sparkles'
+  | 'map'
 
 const PATHS: Record<IconName, ReactNode> = {
   lock: (
@@ -253,6 +254,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M22 5h-4" />
       <path d="M4 17v2" />
       <path d="M5 18H3" />
+    </>
+  ),
+  map: (
+    <>
+      <path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z" />
+      <path d="M9 3v15" />
+      <path d="M15 6v15" />
     </>
   ),
 }

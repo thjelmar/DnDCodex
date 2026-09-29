@@ -473,6 +473,10 @@ export interface PlayerNote extends BaseRecord {
   /** "My Character" entries (section === 'character'): a structured sheet.
    *  Non-indexed like NPC.statBlockData — no Dexie migration. */
   characterData?: CharacterSheet | null
+  /** Journal entries written from a live session: the DM's Session id this entry
+   *  belongs to, so re-joining the same session reopens the same notes.
+   *  Non-indexed — no Dexie migration. */
+  sessionRef?: string
 }
 
 /** One row of a roll table. Weight controls how many die faces it covers. */

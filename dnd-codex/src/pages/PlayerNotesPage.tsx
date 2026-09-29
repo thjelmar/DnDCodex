@@ -18,6 +18,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
 import { SharedHandouts } from '../components/SharedHandouts'
+import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import { PartyLoot } from '../components/PartyLoot'
@@ -89,6 +90,7 @@ export function PlayerNotesPage() {
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
+  const liveSession = useLiveSession(campaign?.linkedCampaignId)
   // Resolve the open panel's row from the LIVE list (not a snapshot), so a
   // realtime re-push updates the open card and an un-share closes it.
   const viewShared = viewSharedId ? sharedRows.find((r) => r.id === viewSharedId) ?? null : null
@@ -232,6 +234,17 @@ export function PlayerNotesPage() {
 
       <div className="player-layout">
         <div className="player-main">
+      {liveSession && (
+        <Link to={`/player/${campaign.id}/session`} className="join-session">
+          <span className="join-session-dot" />
+          <span className="join-session-text">
+            <strong>Your DM started a session</strong>
+            <span className="faint">{liveSession.title || 'Session'} — join to see handouts and take notes</span>
+          </span>
+          <span className="btn small primary join-session-btn"><Icon name="play" size={13} color="inherit" /> Join session</span>
+        </Link>
+      )}
+
       {campaign.linkedCampaignId && (
         <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} />
       )}
