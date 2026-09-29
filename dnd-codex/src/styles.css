@@ -2277,6 +2277,9 @@ kbd {
 .tabletop-view.fogging { cursor: crosshair; }
 .tabletop-fog-opaque { fill: #05070d; }
 .tabletop-fog-dim { fill: rgba(6, 10, 20, 0.5); }
+.tabletop-fog-brush { fill: rgba(167, 139, 250, 0.14); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.battlemap-fogbrush { display: inline-flex; align-items: center; gap: 4px; }
+.battlemap-fogbrush-val { min-width: 34px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 .battlemap-fogbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev); }
 .battlemap-fogbar-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .battlemap-fogbar .faint { margin: 0; font-size: 12px; }
