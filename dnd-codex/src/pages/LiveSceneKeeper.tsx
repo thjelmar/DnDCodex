@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { useLiveScene } from '../auth/liveScene'
 import { useDmLiveScene } from './useDmLiveScene'
+import { useCombatState } from '../components/CombatRoster'
 import type { Campaign, Id, Scene } from '../db/types'
 
 // Keeps the map players are seeing in sync while its editor ISN'T open (e.g. it
@@ -107,6 +108,7 @@ export function LiveSceneKeeper({ campaign }: { campaign: Campaign }) {
 }
 
 function KeeperFor({ campaign, scene }: { campaign: Campaign; scene: Scene }) {
+  const combat = useCombatState()
   useDmLiveScene(
     campaign,
     {
@@ -118,6 +120,7 @@ function KeeperFor({ campaign, scene }: { campaign: Campaign; scene: Scene }) {
       imageId: scene.imageId,
       tokens: scene.tokens,
       fog: scene.fog ?? null,
+      combat,
     },
     async (moves) => {
       // Read fresh so concurrent edits aren't clobbered by a stale copy.

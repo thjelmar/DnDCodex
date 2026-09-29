@@ -14,6 +14,31 @@ export const CONDITIONS = [
   'Restrained', 'Stunned', 'Unconscious', 'Exhaustion',
 ] as const
 
+/** A short code + color for each condition, for the pips drawn on tokens
+ *  (Owlbear-style status badges). Full name shows on hover. */
+export const CONDITION_META: Record<string, { code: string; color: string }> = {
+  Blinded: { code: 'Bl', color: '#475569' },
+  Charmed: { code: 'Ch', color: '#db2777' },
+  Concentration: { code: 'Co', color: '#0891b2' },
+  Deafened: { code: 'Df', color: '#64748b' },
+  Frightened: { code: 'Fr', color: '#b45309' },
+  Grappled: { code: 'Gr', color: '#78716c' },
+  Incapacitated: { code: 'In', color: '#7c3aed' },
+  Invisible: { code: 'Iv', color: '#38bdf8' },
+  Paralyzed: { code: 'Pz', color: '#ca8a04' },
+  Petrified: { code: 'Pt', color: '#57534e' },
+  Poisoned: { code: 'Po', color: '#16a34a' },
+  Prone: { code: 'Pr', color: '#a16207' },
+  Restrained: { code: 'Rs', color: '#9a3412' },
+  Stunned: { code: 'St', color: '#eab308' },
+  Unconscious: { code: 'Un', color: '#dc2626' },
+  Exhaustion: { code: 'Ex', color: '#9333ea' },
+}
+
+export function conditionMeta(name: string): { code: string; color: string } {
+  return CONDITION_META[name] ?? { code: name.slice(0, 2), color: '#64748b' }
+}
+
 export interface Combatant {
   id: Id
   name: string
@@ -30,6 +55,9 @@ export interface Combatant {
   conditions: string[]
   /** Rows sharing a group roll one initiative together (a monster pack). */
   groupKey?: string | null
+  /** Running total damage taken (net of healing, floored at 0). Lets players
+   *  see how hurt an enemy is without ever seeing its HP pool. */
+  damageTaken?: number
 }
 
 export interface CombatState {
@@ -65,6 +93,40 @@ export function saveCombat(state: CombatState): void {
   } catch {
     /* private mode / quota — the in-memory state still works this session */
   }
+}
+
+// ── Shared store ─────────────────────────────────────────────────────────────
+// One combat, shared live across every view in the tab (tracker, Run panel, the
+// battle-map overlay, the live push) via useSyncExternalStore. Writes persist to
+// localStorage and notify all subscribers; a `storage` event syncs other tabs.
+
+let current: CombatState = loadCombat()
+const listeners = new Set<() => void>()
+
+export function getCombat(): CombatState {
+  return current
+}
+
+export function subscribeCombat(cb: () => void): () => void {
+  listeners.add(cb)
+  return () => listeners.delete(cb)
+}
+
+/** Replace the combat (value or updater), persist it, and notify subscribers. */
+export function setCombat(next: CombatState | ((s: CombatState) => CombatState)): void {
+  const value = typeof next === 'function' ? (next as (s: CombatState) => CombatState)(current) : next
+  if (value === current) return
+  current = value
+  saveCombat(current)
+  listeners.forEach((l) => l())
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY) return
+    current = loadCombat()
+    listeners.forEach((l) => l())
+  })
 }
 
 /** A single d20 + DEX modifier. */
@@ -135,5 +197,6 @@ export function makeCombatant(input: {
     ac: input.ac ?? null,
     conditions: [],
     groupKey: input.groupKey ?? null,
+    damageTaken: 0,
   }
 }

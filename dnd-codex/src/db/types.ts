@@ -631,6 +631,22 @@ export interface SceneToken {
   hidden?: boolean
   /** The player (account id) allowed to move this token on the live map. */
   controlledBy?: string | null
+  /** Combatant (in the DM's combat tracker) this token represents, if linked. */
+  combatantId?: Id | null
+  /** DM-marked ally: players see this token's real HP even though the DM runs
+   *  it (e.g. an allied NPC). PCs and player-controlled tokens are allies too. */
+  friendly?: boolean
+}
+
+/** Combat info overlaid on a battle-map token. Privacy-filtered by whoever
+ *  builds it: the DM board gets full hp/maxHp; players get hp/maxHp only for
+ *  ally tokens and just `damageTaken` for enemies. */
+export interface TokenCombat {
+  active?: boolean
+  conditions?: string[]
+  hp?: number | null
+  maxHp?: number | null
+  damageTaken?: number
 }
 
 /** Fog of war: the DM reveals grid cells; players see only revealed ones and

@@ -2278,6 +2278,20 @@ kbd {
 .tabletop-fog-opaque { fill: #05070d; }
 .tabletop-fog-dim { fill: rgba(6, 10, 20, 0.5); }
 .tabletop-fog-brush { fill: rgba(167, 139, 250, 0.14); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+/* Combat overlay on tokens */
+.tabletop-combat-active { fill: none; stroke: #fbbf24; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.tabletop-hp-bg { fill: rgba(0, 0, 0, 0.55); }
+.tabletop-hp-fill.hp-hi { fill: #22c55e; }
+.tabletop-hp-fill.hp-mid { fill: #eab308; }
+.tabletop-hp-fill.hp-lo { fill: #ef4444; }
+.tabletop-dmg { fill: #fca5a5; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.85); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.tabletop-cond-pip { stroke: rgba(0, 0, 0, 0.55); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.tabletop-cond-pip.more { fill: #334155; }
+.tabletop-cond-code { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.35); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.tabletop-cond-glyph { stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.battlemap-combat-ctl { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev); }
+.battlemap-dmg-row { display: flex; align-items: center; gap: 6px; }
+.battlemap-dmg-row .input { flex: 0 0 auto; }
 .battlemap-fogbrush { display: inline-flex; align-items: center; gap: 4px; }
 .battlemap-fogbrush-val { min-width: 34px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 .battlemap-fogbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev); }
