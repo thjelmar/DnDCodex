@@ -14,6 +14,8 @@ import { RunHandouts } from '../components/RunHandouts'
 import { useAuth } from '../auth/AuthProvider'
 import { useLiveSession } from '../lib/useLiveSession'
 import { startLiveSession, endLiveSession } from '../auth/cloud'
+import { getLiveScene } from '../auth/liveScene'
+import { showSceneToPlayers } from './useDmLiveScene'
 import { parseLeadingInt } from '../lib/combat'
 import { formatDate, todayISODate } from '../lib/format'
 import { isRichTextEmpty, wikiTargets } from '../lib/richtext'
@@ -93,6 +95,8 @@ export function RunPage() {
   const [center, setCenterState] = useState<'notes' | 'map'>(() => {
     try { return localStorage.getItem(centerKey) === 'map' ? 'map' : 'notes' } catch { return 'notes' }
   })
+  // A map just shown from the "Start live session" offer: open it in the pane.
+  const [requestedMap, setRequestedMap] = useState<Id | null>(null)
   const setCenter = (c: 'notes' | 'map') => {
     setCenterState(c)
     try { localStorage.setItem(centerKey, c) } catch { /* ignore */ }
@@ -195,7 +199,14 @@ export function RunPage() {
           <Icon name="plus" size={13} /> New session
         </button>
         <div style={{ flex: 1 }} />
-        <LiveSessionControl campaignId={campaign.id} session={session} />
+        <LiveSessionControl
+          campaign={campaign}
+          session={session}
+          onShowMap={(sceneId) => {
+            setRequestedMap(sceneId)
+            setCenter('map')
+          }}
+        />
         <Link to={`/campaign/${campaign.id}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Exit run mode
         </Link>
@@ -257,7 +268,7 @@ export function RunPage() {
             </button>
           </div>
           {center === 'map' ? (
-            <RunBattleMap campaign={campaign} sessionId={session?.id ?? null} />
+            <RunBattleMap campaign={campaign} sessionId={session?.id ?? null} requestedSceneId={requestedMap} />
           ) : session ? (
             <RunSessionNotes key={session.id} session={session} onWikiLink={peekByName} />
           ) : (
@@ -313,7 +324,16 @@ export function RunPage() {
  * Run mode's battle map pane: pick a map, then the full DM editor (compact:
  * side panel starts closed). Full screen from here shows this session's notes.
  */
-function RunBattleMap({ campaign, sessionId }: { campaign: Campaign; sessionId: Id | null }) {
+function RunBattleMap({
+  campaign,
+  sessionId,
+  requestedSceneId,
+}: {
+  campaign: Campaign
+  sessionId: Id | null
+  /** Switch to this map when it changes (set by the live-session offer). */
+  requestedSceneId?: Id | null
+}) {
   const scenes = useLiveQuery(
     () => db.scenes.where('campaignId').equals(campaign.id).reverse().sortBy('updatedAt'),
     [campaign.id],
@@ -326,6 +346,10 @@ function RunBattleMap({ campaign, sessionId }: { campaign: Campaign; sessionId: 
     setPickedState(id)
     try { if (id) localStorage.setItem(pickKey, id); else localStorage.removeItem(pickKey) } catch { /* ignore */ }
   }
+  useEffect(() => {
+    if (requestedSceneId) setPicked(requestedSceneId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedSceneId])
   if (!scenes) return null
   const scene = scenes.find((s) => s.id === picked) ?? scenes[0] ?? null
 
@@ -479,12 +503,52 @@ function PinPicker({
 
 /** DM control to broadcast a live session so players can join (or end it).
  *  Prep happens in Run mode privately until the DM explicitly starts it. */
-function LiveSessionControl({ campaignId, session }: { campaignId: string; session: Session | null }) {
+function LiveSessionControl({
+  campaign,
+  session,
+  onShowMap,
+}: {
+  campaign: Campaign
+  session: Session | null
+  /** Called after a map is shown from the offer, to open it in Run mode. */
+  onShowMap: (sceneId: Id) => void
+}) {
+  const campaignId = campaign.id
   const { user } = useAuth()
   const live = useLiveSession(campaignId)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  // After starting: offer to put a battle map in front of players too.
+  const scenes = useLiveQuery(
+    () => db.scenes.where('campaignId').equals(campaignId).reverse().sortBy('updatedAt'),
+    [campaignId],
+  )
+  const [offer, setOffer] = useState(false)
+  const [offerScene, setOfferScene] = useState<Id | ''>('')
+  const [showing, setShowing] = useState(false)
   if (!user) return null
+
+  async function openOffer() {
+    if (!scenes || scenes.length === 0) return
+    // Nothing to offer if a map is already in front of players.
+    if (await getLiveScene(campaignId)) return
+    let last: string | null = null
+    try { last = localStorage.getItem(`codex.runMap.${campaignId}`) } catch { /* ignore */ }
+    setOfferScene(scenes.find((s) => s.id === last)?.id ?? scenes[0].id)
+    setOffer(true)
+  }
+  async function showMap() {
+    const scene = scenes?.find((s) => s.id === offerScene)
+    if (!scene || !user) return
+    setShowing(true); setErr(null)
+    try {
+      await showSceneToPlayers(campaign, scene, user.id)
+      setOffer(false)
+      onShowMap(scene.id)
+    } catch {
+      setErr('Couldn’t show the map — check connection.')
+    } finally { setShowing(false) }
+  }
 
   async function start() {
     setBusy(true); setErr(null)
@@ -494,6 +558,7 @@ function LiveSessionControl({ campaignId, session }: { campaignId: string; sessi
         title: session?.title || 'Session',
         sessionDate: session?.date || '',
       })
+      await openOffer()
     } catch {
       setErr('Enable sync / invite players first.')
     } finally { setBusy(false) }
@@ -502,6 +567,7 @@ function LiveSessionControl({ campaignId, session }: { campaignId: string; sessi
     setBusy(true); setErr(null)
     try {
       await endLiveSession(campaignId)
+      setOffer(false)
     } catch {
       setErr('Couldn’t end — check connection.')
     } finally { setBusy(false) }
@@ -520,6 +586,25 @@ function LiveSessionControl({ campaignId, session }: { campaignId: string; sessi
         </button>
       )}
       {err && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{err}</span>}
+      {offer && live && scenes && scenes.length > 0 && (
+        <div className="run-live-offer" role="dialog" aria-label="Show a battle map">
+          <div className="run-live-offer-title"><Icon name="map" size={15} /> Show a battle map too?</div>
+          <p className="faint">Players will see it live in their session’s Tabletop.</p>
+          {scenes.length > 1 && (
+            <select className="select" value={offerScene} onChange={(e) => setOfferScene(e.target.value)} aria-label="Battle map">
+              {scenes.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
+          <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <button className="btn ghost small" onClick={() => setOffer(false)}>Not now</button>
+            <button className="btn primary small" disabled={showing} onClick={showMap}>
+              {showing ? 'Showing…' : scenes.length === 1 ? `Show “${scenes[0].name}”` : 'Show map'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

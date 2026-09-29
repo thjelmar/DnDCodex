@@ -14,7 +14,7 @@ import {
   type LiveToken,
 } from '../auth/liveScene'
 import { makeThumbnail } from '../lib/image'
-import type { Campaign, Id, SceneGrid, SceneToken } from '../db/types'
+import type { Campaign, Id, Scene, SceneGrid, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
 // to players, every (debounced) change is mirrored to the cloud: the scene row,
@@ -34,6 +34,72 @@ interface Draft {
 
 const PUSH_DELAY = 250
 const PORTRAIT_PX = 96
+
+/** A token's color on every screen: its controller's pick, else the DM's. */
+function tokenColor(t: SceneToken, members: Member[]): string {
+  return (t.controlledBy && members.find((m) => m.userId === t.controlledBy)?.color) || t.color
+}
+
+/** Small portrait thumbnail for a token image, memoized in `cache`. */
+async function portraitFor(imageId: Id | null | undefined, cache: Map<string, string | null>): Promise<string | null> {
+  if (!imageId) return null
+  if (cache.has(imageId)) return cache.get(imageId)!
+  const img = await db.images.get(imageId)
+  const thumb = img ? (await makeThumbnail(img.dataUrl, PORTRAIT_PX)).dataUrl : null
+  cache.set(imageId, thumb)
+  return thumb
+}
+
+/** The tokens players get: visible ones only, in their controller's color. */
+async function toLiveTokens(tokens: SceneToken[], members: Member[], cache: Map<string, string | null>): Promise<LiveToken[]> {
+  return Promise.all(
+    tokens
+      .filter((t) => !t.hidden)
+      .map(async (t) => ({
+        id: t.id,
+        label: t.label,
+        color: tokenColor(t, members),
+        col: t.col,
+        row: t.row,
+        size: t.size,
+        portrait: await portraitFor(t.imageId, cache),
+        controlledBy: t.controlledBy ?? null,
+      })),
+  )
+}
+
+async function uploadMap(campaignId: Id, imageId: Id | null) {
+  if (!imageId) return
+  const img = await db.images.get(imageId)
+  if (img) await upsertLiveMap(campaignId, img.id, img.dataUrl, img.width, img.height)
+}
+
+function liveSceneOf(campaignId: Id, d: Draft): LiveScene {
+  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId }
+}
+
+/**
+ * Show a battle map to players without its editor open (e.g. from Run mode's
+ * "Start live session" offer). Replaces whatever map was on show. If the map's
+ * editor is opened later, it picks up from the cloud and keeps it in sync.
+ */
+export async function showSceneToPlayers(campaign: Campaign, scene: Scene, userId: string): Promise<void> {
+  await enableCampaignSharing({ id: campaign.id, name: campaign.name }, userId)
+  await stopLiveScene(campaign.id)
+  const members = await getCampaignMembers(campaign.id)
+  const draft: Draft = {
+    sceneId: scene.id,
+    name: scene.name,
+    grid: scene.grid,
+    width: scene.width,
+    height: scene.height,
+    imageId: scene.imageId,
+    tokens: scene.tokens,
+  }
+  await uploadMap(campaign.id, draft.imageId)
+  await upsertLiveScene(liveSceneOf(campaign.id, draft))
+  await upsertLiveTokens(campaign.id, await toLiveTokens(draft.tokens, members, new Map()))
+}
 
 export function useDmLiveScene(
   campaign: Campaign,
@@ -82,33 +148,7 @@ export function useDmLiveScene(
   }, [available, campaign.id, user?.id, token])
 
   /** A token's color on every screen: its controller's pick, else the DM's. */
-  const colorFor = (t: SceneToken): string =>
-    (t.controlledBy && members.find((m) => m.userId === t.controlledBy)?.color) || t.color
-
-  async function portraitFor(imageId: Id | null | undefined): Promise<string | null> {
-    if (!imageId) return null
-    if (thumbs.current.has(imageId)) return thumbs.current.get(imageId)!
-    const img = await db.images.get(imageId)
-    const thumb = img ? (await makeThumbnail(img.dataUrl, PORTRAIT_PX)).dataUrl : null
-    thumbs.current.set(imageId, thumb)
-    return thumb
-  }
-
-  async function liveTokens(tokens: SceneToken[]): Promise<LiveToken[]> {
-    const visible = tokens.filter((t) => !t.hidden)
-    return Promise.all(
-      visible.map(async (t) => ({
-        id: t.id,
-        label: t.label,
-        color: colorFor(t),
-        col: t.col,
-        row: t.row,
-        size: t.size,
-        portrait: await portraitFor(t.imageId),
-        controlledBy: t.controlledBy ?? null,
-      })),
-    )
-  }
+  const colorFor = (t: SceneToken): string => tokenColor(t, members)
 
   const same = (a: LiveToken, b: LiveToken) =>
     a.label === b.label && a.color === b.color && a.col === b.col && a.row === b.row &&
@@ -118,27 +158,16 @@ export function useDmLiveScene(
   const push = useRef(async (_d: Draft) => {})
   push.current = async (d: Draft) => {
     if (d.imageId !== pushedMapId.current) {
-      if (d.imageId) {
-        const img = await db.images.get(d.imageId)
-        if (img) await upsertLiveMap(campaign.id, img.id, img.dataUrl, img.width, img.height)
-      }
+      await uploadMap(campaign.id, d.imageId)
       pushedMapId.current = d.imageId
     }
-    const scene: LiveScene = {
-      campaignId: campaign.id,
-      sceneId: d.sceneId,
-      name: d.name,
-      width: d.width,
-      height: d.height,
-      grid: d.grid,
-      mapImageId: d.imageId,
-    }
+    const scene = liveSceneOf(campaign.id, d)
     const sceneKey = JSON.stringify(scene)
     if (sceneKey !== pushedScene.current) {
       await upsertLiveScene(scene)
       pushedScene.current = sceneKey
     }
-    const next = await liveTokens(d.tokens)
+    const next = await toLiveTokens(d.tokens, members, thumbs.current)
     const changed = next.filter((t) => {
       const prev = pushedTokens.current.get(t.id)
       return !prev || !same(prev, t)

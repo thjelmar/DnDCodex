@@ -1144,7 +1144,15 @@ button {
 .run-ho-state.vis { color: var(--good); }
 
 /* ── Live session (DM control + player join + player session view) ─────────── */
-.run-live { display: inline-flex; align-items: center; gap: 8px; }
+.run-live { display: inline-flex; align-items: center; gap: 8px; position: relative; }
+.run-live-offer {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 280px;
+  display: flex; flex-direction: column; gap: 8px; padding: 12px;
+  background: var(--bg-elev); border: 1px solid var(--accent); border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.run-live-offer-title { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; }
+.run-live-offer .faint { font-size: 12px; margin: 0; }
 .run-live-on { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--good); }
 .run-live-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); animation: live-pulse 1.8s ease-in-out infinite; }
 @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
@@ -1167,6 +1175,10 @@ button {
 .session-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
 .session-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; }
 .session-notes { min-width: 0; }
+.session-map { min-width: 0; }
+.session-map .tabletop-view { height: calc(100vh - 250px); min-height: 420px; }
+.session-notes-rail { margin-bottom: 14px; }
+.session-notes-rail .rte-editable { min-height: 180px; }
 .session-aside { min-width: 0; }
 .session-vtt-slot {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -2216,6 +2228,11 @@ kbd {
 .battlemap-body.player { grid-template-columns: minmax(0, 1fr); }
 .battlemap-body.player.with-notes { grid-template-columns: minmax(300px, 380px) minmax(0, 1fr); }
 .player-battlemap.expanded { max-width: none; }
+.player-live-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.player-live-name { font-size: 16px; display: inline-flex; align-items: center; }
+.player-live-board.compact:not(.expanded) .tabletop-view { height: 300px; min-height: 0; }
+.player-live-board.compact:not(.expanded) .battlemap-mycolor { flex-wrap: wrap; }
+.player-live-board.compact:not(.expanded) .player-live-bar > .row { margin-left: 0; }
 .battlemap-mycolor { display: flex; align-items: center; gap: 5px; font-size: 12px; }
 .battlemap-mycolor .faint { margin-right: 2px; }
 .battlemap-color-custom { width: 26px; height: 26px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: none; cursor: pointer; }

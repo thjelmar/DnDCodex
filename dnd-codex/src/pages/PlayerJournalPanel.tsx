@@ -30,7 +30,7 @@ export function PlayerJournalPanel({ campaignId }: { campaignId: Id }) {
   }
 
   return (
-    <aside className="battlemap-notes">
+    <>
       <div className="row" style={{ gap: 8 }}>
         {entries && entries.length > 1 && (
           <select className="select" style={{ flex: 1 }} value={entry?.id ?? ''} onChange={(e) => setPicked(e.target.value)} aria-label="Journal entry">
@@ -48,7 +48,7 @@ export function PlayerJournalPanel({ campaignId }: { campaignId: Id }) {
       ) : entries ? (
         <p className="faint">No journal entries yet. Start one to take notes while you play.</p>
       ) : null}
-    </aside>
+    </>
   )
 }
 

@@ -5,6 +5,8 @@ import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SharedHandouts } from '../components/SharedHandouts'
+import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
+import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
 import { useLiveSession } from '../lib/useLiveSession'
 import { formatDate } from '../lib/format'
@@ -13,14 +15,21 @@ import { formatDate } from '../lib/format'
  * The player's live-session workspace. Reachable only while the DM has a live
  * session running (Run mode → "Start live session"): shows the handouts the DM
  * is currently sharing, a notes area that writes to a Journal entry for this
- * session (so it also feeds the player's Journal + "Story So Far"), and a slot
- * for the DM's VTT (wired later).
+ * session (so it also feeds the player's Journal + "Story So Far"), and the
+ * DM's live battle map in the Tabletop card (see PlayerLiveBoard); its full
+ * screen puts these same session notes beside the map.
  */
 export function PlayerSessionPage() {
   const { campaignId = '' } = useParams()
   const campaign = useLiveQuery(() => db.campaigns.get(campaignId), [campaignId])
   const live = useLiveSession(campaign?.linkedCampaignId)
   const sessionRef = live ? live.sessionId ?? 'live' : null
+  // While the Tabletop is full screen, its notes panel owns the notes editor.
+  const [mapFull, setMapFull] = useState(false)
+  // The DM's live battle map (one subscription for the page, so the board can
+  // move between columns without re-subscribing).
+  const liveMap = useLiveScene(campaign?.linkedCampaignId)
+  const mapLive = !!liveMap.scene
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -70,6 +79,47 @@ export function PlayerSessionPage() {
     )
   }
 
+  const linkedId = campaign.linkedCampaignId
+  const notesEditor = noteId ? (
+    <SessionNotes noteId={noteId} campaignId={campaignId} />
+  ) : (
+    <p className="faint" style={{ fontSize: 13 }}>Preparing your notes…</p>
+  )
+  const notesCard = (
+    <>
+      <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
+      {mapFull ? (
+        // The full-screen map shows these notes beside it; unmount this copy
+        // so it reloads fresh afterwards instead of saving a stale body.
+        <p className="faint" style={{ fontSize: 13 }}>Your notes are open beside the full-screen map.</p>
+      ) : (
+        notesEditor
+      )}
+      <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>Saved to your Journal and the “Story So Far” recap.</p>
+    </>
+  )
+  const board = (compact: boolean) => (
+    <PlayerLiveBoardView
+      live={liveMap}
+      linkedCampaignId={linkedId}
+      compact={compact}
+      onExpandedChange={setMapFull}
+      notesLabel="Notes"
+      notes={
+        <>
+          <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
+          {notesEditor}
+        </>
+      }
+      empty={
+        <div className="session-vtt-slot">
+          <Icon name="map" size={28} strokeWidth={1.3} />
+          <p className="faint" style={{ fontSize: 13, margin: '8px 0 0' }}>Your DM’s battle map appears here when they show one.</p>
+        </div>
+      }
+    />
+  )
+
   return (
     <div className="session-page">
       <div className="session-header">
@@ -83,22 +133,29 @@ export function PlayerSessionPage() {
         </Link>
       </div>
 
-      <div className="session-grid">
-        <section className="session-notes">
-          <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
-          {noteId ? <SessionNotes noteId={noteId} campaignId={campaignId} /> : <p className="faint" style={{ fontSize: 13 }}>Preparing your notes…</p>}
-          <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>Saved to your Journal and the “Story So Far” recap.</p>
-        </section>
+      {/* While the DM is showing a map it takes the main column and your notes
+          move to the rail; otherwise notes lead and the Tabletop waits there. */}
+      <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
+        {mapLive ? (
+          <section className="session-map">
+            <div className="card run-card session-vtt">
+              <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
+              {board(false)}
+            </div>
+          </section>
+        ) : (
+          <section className="session-notes">{notesCard}</section>
+        )}
 
         <aside className="session-aside">
+          {mapLive && <div className="card run-card session-notes-rail">{notesCard}</div>}
           <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} />
-          <div className="card run-card session-vtt">
-            <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
-            <div className="session-vtt-slot">
-              <Icon name="map" size={28} strokeWidth={1.3} />
-              <p className="faint" style={{ fontSize: 13, margin: '8px 0 0' }}>Your DM’s virtual tabletop will appear here.</p>
+          {!mapLive && (
+            <div className="card run-card session-vtt">
+              <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
+              {board(true)}
             </div>
-          </div>
+          )}
         </aside>
       </div>
     </div>
@@ -118,6 +175,18 @@ function SessionNotes({ noteId, campaignId }: { noteId: string; campaignId: stri
       setBody(note.body)
     }
   }, [note])
+
+  // Save on unmount too (e.g. the page moving notes between columns), so a
+  // keystroke still inside the 500ms debounce isn't lost.
+  const latest = useRef({ id: noteId, body, saved: '' })
+  latest.current = { id: noteId, body, saved: note?.body ?? latest.current.saved }
+  useEffect(
+    () => () => {
+      const { id, body: b, saved } = latest.current
+      if (loaded.current === id && b !== saved) updatePlayerNote(id, { body: b })
+    },
+    [],
+  )
 
   // Autosave 500ms after the last keystroke.
   useEffect(() => {
