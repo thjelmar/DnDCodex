@@ -11,11 +11,14 @@ import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { formatBytes, processImageFile } from '../lib/image'
+import { detectGrid } from '../lib/gridDetect'
 import {
   MAP_MAX_DIM,
   TOKEN_COLORS,
   TOKEN_SIZES,
   defaultGrid,
+  gridFromBox,
+  round2,
   normalizeOffset,
   snapCenterToCell,
 } from '../lib/tabletop'
@@ -106,6 +109,12 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
 
   const [selectedToken, setSelectedToken] = useState<string | null>(null)
   const [aligning, setAligning] = useState(false)
+  // Align options: how many squares the box spans across, and whether to snap
+  // the result to the grid lines drawn on the map image.
+  const [alignSquares, setAlignSquares] = useState(1)
+  const [snapToLines, setSnapToLines] = useState(true)
+  const [alignNote, setAlignNote] = useState<{ ok: boolean; text: string } | null>(null)
+  const [aligningBusy, setAligningBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [peek, setPeek] = useState<{ kind: PeekKind; id: Id } | null>(null)
@@ -287,8 +296,8 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
     touch()
     const next = { ...grid, ...patch }
     next.cellPx = Math.max(8, next.cellPx)
-    next.offsetX = normalizeOffset(next.offsetX, next.cellPx)
-    next.offsetY = normalizeOffset(next.offsetY, next.cellPx)
+    next.offsetX = round2(normalizeOffset(next.offsetX, next.cellPx))
+    next.offsetY = round2(normalizeOffset(next.offsetY, next.cellPx))
     // A blank board is sized in squares, so it grows/shrinks with the square size.
     if (!imageId && next.cellPx !== grid.cellPx) {
       setSize({
@@ -297,6 +306,38 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
       })
     }
     setGrid(next)
+  }
+
+  async function applyAlign(box: { x1: number; y1: number; x2: number; y2: number }) {
+    const drawn = gridFromBox(grid, box.x1, box.y1, box.x2, box.y2, alignSquares)
+    if (!drawn) return
+    let next = drawn
+    let note: { ok: boolean; text: string }
+    if (snapToLines && mapImage) {
+      setAligningBusy(true)
+      try {
+        const found = await detectGrid(mapImage.dataUrl, drawn.cellPx)
+        if (found) {
+          next = { ...drawn, cellPx: found.cellPx, offsetX: found.offsetX, offsetY: found.offsetY }
+          note = { ok: true, text: `Snapped to the map's grid lines: ${found.cellPx}px squares.` }
+        } else {
+          note = {
+            ok: false,
+            text: "Couldn't find drawn grid lines on this map, so your box was used as drawn. For more accuracy, box several squares and set the count.",
+          }
+        }
+      } catch {
+        note = { ok: false, text: 'Could not analyze the map image; your box was used as drawn.' }
+      } finally {
+        setAligningBusy(false)
+      }
+    } else {
+      note = { ok: true, text: `Grid set from your box: ${drawn.cellPx}px squares.` }
+    }
+    touch()
+    setGrid(next)
+    setAlignNote(note)
+    setAligning(false)
   }
 
   // Blank boards are sized in cells, so they follow the cell size.
@@ -424,11 +465,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           onDeleteToken={removeToken}
           onOpenToken={openToken}
           aligning={aligning}
-          onAlign={(g) => {
-            touch()
-            setGrid(g)
-            setAligning(false)
-          }}
+          onAlign={applyAlign}
           centerRef={centerRef}
         />
 
@@ -442,15 +479,15 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
             <div className="battlemap-fields">
               <label>
                 Square size (px)
-                <NumberField value={grid.cellPx} min={8} max={1000} onChange={(v) => v != null && setGridField({ cellPx: v })} ariaLabel="Square size in pixels" />
+                <NumberField value={grid.cellPx} min={8} max={1000} step={0.1} decimals={2} onChange={(v) => v != null && setGridField({ cellPx: v })} ariaLabel="Square size in pixels" />
               </label>
               <label>
                 Offset X
-                <NumberField value={Math.round(grid.offsetX)} min={-1000} max={1000} onChange={(v) => v != null && setGridField({ offsetX: v })} ariaLabel="Grid offset X" />
+                <NumberField value={grid.offsetX} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetX: v })} ariaLabel="Grid offset X" />
               </label>
               <label>
                 Offset Y
-                <NumberField value={Math.round(grid.offsetY)} min={-1000} max={1000} onChange={(v) => v != null && setGridField({ offsetY: v })} ariaLabel="Grid offset Y" />
+                <NumberField value={grid.offsetY} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetY: v })} ariaLabel="Grid offset Y" />
               </label>
               <label>
                 Line color
@@ -458,14 +495,38 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
               </label>
             </div>
             {imageId ? (
-              <button
-                className={`btn small${aligning ? ' primary' : ''}`}
-                style={{ width: '100%' }}
-                onClick={() => setAligning((a) => !a)}
-                title="Draw a box around one square of the map to match the grid to it"
-              >
-                {aligning ? 'Cancel align' : 'Align grid to map'}
-              </button>
+              <>
+                <button
+                  className={`btn small${aligning ? ' primary' : ''}`}
+                  style={{ width: '100%' }}
+                  disabled={aligningBusy}
+                  onClick={() => {
+                    setAlignNote(null)
+                    setAligning((a) => !a)
+                  }}
+                  title="Draw a box around map squares to match the grid to them"
+                >
+                  {aligningBusy ? 'Matching…' : aligning ? 'Cancel align' : 'Align grid to map'}
+                </button>
+                {aligning && (
+                  <div className="battlemap-align-opts">
+                    <label>
+                      Squares across in your box
+                      <NumberField value={alignSquares} min={1} max={50} onChange={(v) => v != null && setAlignSquares(v)} ariaLabel="Squares across in the align box" />
+                    </label>
+                    <label className="battlemap-check" title="Fine-tune your box to the grid lines drawn on the map image">
+                      <input type="checkbox" checked={snapToLines} onChange={(e) => setSnapToLines(e.target.checked)} />
+                      Snap to the map's grid lines
+                    </label>
+                    <p className="faint">
+                      Tip: boxing several squares (say 5 across) is far more accurate than one.
+                    </p>
+                  </div>
+                )}
+                {alignNote && !aligning && (
+                  <p className={`battlemap-align-note${alignNote.ok ? '' : ' warn'}`}>{alignNote.text}</p>
+                )}
+              </>
             ) : (
               <div className="battlemap-fields">
                 <label>

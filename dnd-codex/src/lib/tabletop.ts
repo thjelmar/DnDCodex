@@ -62,8 +62,10 @@ export function defaultGrid(width: number): SceneGrid {
 }
 
 /**
- * Grid from a user-drawn box around one map square (the "align" gesture). The
- * box need not be exactly square; we average its sides.
+ * Grid from a user-drawn box (the "align" gesture). The box spans `squares`
+ * squares across; its height decides how many it spans down. Boxing several
+ * squares divides the hand-drawing error by that many. Sizes stay fractional:
+ * rounding a 102.4px square to 102 drifts ~12px across a 30-square map.
  */
 export function gridFromBox(
   prev: SceneGrid,
@@ -71,17 +73,33 @@ export function gridFromBox(
   y1: number,
   x2: number,
   y2: number,
+  squares = 1,
 ): SceneGrid | null {
   const w = Math.abs(x2 - x1)
   const h = Math.abs(y2 - y1)
-  const cellPx = Math.round((w + h) / 2)
-  if (cellPx < 8) return null
+  const across = Math.max(1, Math.round(squares))
+  const guess = w / across
+  if (guess < 8) return null
+  const down = Math.max(1, Math.round(h / guess))
+  const cellPx = round2((w / across + h / down) / 2)
   return {
     ...prev,
     cellPx,
-    offsetX: Math.round(normalizeOffset(Math.min(x1, x2), cellPx)),
-    offsetY: Math.round(normalizeOffset(Math.min(y1, y2), cellPx)),
+    offsetX: round2(normalizeOffset(Math.min(x1, x2), cellPx)),
+    offsetY: round2(normalizeOffset(Math.min(y1, y2), cellPx)),
   }
+}
+
+export function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+/** Evenly spaced grid lines across the board, as one SVG path. */
+export function gridPath(grid: SceneGrid, width: number, height: number): string {
+  const parts: string[] = []
+  for (let x = normalizeOffset(grid.offsetX, grid.cellPx); x <= width; x += grid.cellPx) parts.push(`M${x} 0V${height}`)
+  for (let y = normalizeOffset(grid.offsetY, grid.cellPx); y <= height; y += grid.cellPx) parts.push(`M0 ${y}H${width}`)
+  return parts.join('')
 }
 
 /** Short initials for a token without a portrait. */

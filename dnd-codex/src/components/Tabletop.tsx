@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import type { SceneGrid, SceneToken } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
   cellToPx,
   clampZoom,
-  gridFromBox,
+  gridPath,
   initials,
   snapCenterToCell,
   tokenCenter,
@@ -35,9 +35,10 @@ interface Props {
   onResizeToken: (id: string, size: number) => void
   onDeleteToken: (id: string) => void
   onOpenToken: (token: SceneToken) => void
-  /** When true, dragging draws a box around one map square to set the grid. */
+  /** When true, dragging draws a box around map squares to set the grid. */
   aligning: boolean
-  onAlign: (grid: SceneGrid) => void
+  /** The finished align box, in board px. */
+  onAlign: (box: { x1: number; y1: number; x2: number; y2: number }) => void
   /** Kept up to date with the board point at the center of the viewport. */
   centerRef?: MutableRefObject<{ x: number; y: number }>
 }
@@ -215,9 +216,8 @@ export function Tabletop({
       }
       setDragPos(null)
     } else if (box) {
-      const g = gridFromBox(grid, box.x1, box.y1, box.x2, box.y2)
       setBox(null)
-      if (g) onAlign(g)
+      if (Math.abs(box.x2 - box.x1) >= 8 && Math.abs(box.y2 - box.y1) >= 8) onAlign(box)
     }
   }
 
@@ -250,7 +250,9 @@ export function Tabletop({
     }
   }
 
-  const gridPath = `M ${grid.cellPx} 0 L 0 0 0 ${grid.cellPx}`
+  // Real lines (not a tiled <pattern>) so fractional square sizes stay exact
+  // and the stroke isn't half-clipped at tile edges.
+  const lines = useMemo(() => gridPath(grid, width, height), [grid, width, height])
   // Draw selected + dragged tokens last so they sit on top.
   const ordered = [...tokens].sort(
     (a, b) => Number(a.id === selectedId || a.id === dragPos?.id) - Number(b.id === selectedId || b.id === dragPos?.id),
@@ -269,22 +271,20 @@ export function Tabletop({
         aria-label="Battle map board"
       >
         <svg width="100%" height="100%">
-          <defs>
-            <pattern
-              id="tt-grid"
-              patternUnits="userSpaceOnUse"
-              width={grid.cellPx}
-              height={grid.cellPx}
-              x={grid.offsetX}
-              y={grid.offsetY}
-            >
-              <path d={gridPath} fill="none" stroke={grid.color} strokeOpacity={0.45} strokeWidth={1} vectorEffect="non-scaling-stroke" />
-            </pattern>
-          </defs>
           <g transform={`translate(${transform.tx} ${transform.ty}) scale(${transform.k})`}>
             <rect x={0} y={0} width={width} height={height} className="tabletop-board" />
             {mapUrl && <image href={mapUrl} x={0} y={0} width={width} height={height} preserveAspectRatio="none" />}
-            {grid.show && <rect x={0} y={0} width={width} height={height} fill="url(#tt-grid)" pointerEvents="none" />}
+            {(grid.show || aligning) && (
+              <path
+                d={lines}
+                fill="none"
+                stroke={grid.color}
+                strokeOpacity={0.55}
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
 
             {ordered.map((raw) => {
               const t = resizing?.id === raw.id ? { ...raw, size: resizing.size } : raw
@@ -382,7 +382,7 @@ export function Tabletop({
           </g>
         </svg>
         {aligning && (
-          <div className="tabletop-hint">Zoom in, then drag a box around exactly one square on the map to set the grid.</div>
+          <div className="tabletop-hint">Zoom in, then drag a box around one or more whole squares, edge to edge on the map's lines.</div>
         )}
       </div>
       <div className="tabletop-zoom">

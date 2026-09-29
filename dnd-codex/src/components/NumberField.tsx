@@ -23,10 +23,13 @@ interface Props {
   ariaLabel?: string
   placeholder?: string
   title?: string
+  /** Allow this many decimal places (default 0: whole numbers only). */
+  decimals?: number
 }
 
-function clamp(n: number, min?: number, max?: number): number {
-  let v = Math.floor(n)
+function clamp(n: number, min?: number, max?: number, decimals = 0): number {
+  const f = 10 ** decimals
+  let v = decimals > 0 ? Math.round(n * f) / f : Math.floor(n)
   if (min != null) v = Math.max(min, v)
   if (max != null) v = Math.min(max, v)
   return v
@@ -34,13 +37,13 @@ function clamp(n: number, min?: number, max?: number): number {
 
 export function NumberField({
   value, onChange, onCommit, min = 0, max, step = 1,
-  steppers = true, className, inputClassName, ariaLabel, placeholder, title,
+  steppers = true, className, inputClassName, ariaLabel, placeholder, title, decimals = 0,
 }: Props) {
   const ref = useRef<HTMLInputElement>(null)
   // Keep the latest props in a ref so the once-registered wheel listener always
   // reads current values without re-subscribing.
-  const st = useRef({ value, min, max, step, onChange })
-  st.current = { value, min, max, step, onChange }
+  const st = useRef({ value, min, max, step, onChange, decimals })
+  st.current = { value, min, max, step, onChange, decimals }
 
   useEffect(() => {
     const el = ref.current
@@ -53,7 +56,7 @@ export function NumberField({
       e.preventDefault()
       const s = st.current
       const base = s.value ?? (s.min ?? 0)
-      s.onChange(clamp(base + (e.deltaY < 0 ? s.step : -s.step), s.min, s.max))
+      s.onChange(clamp(base + (e.deltaY < 0 ? s.step : -s.step), s.min, s.max, s.decimals))
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
@@ -62,7 +65,7 @@ export function NumberField({
   function bump(dir: 1 | -1) {
     const s = st.current
     const base = s.value ?? (s.min ?? 0)
-    const next = clamp(base + dir * s.step, s.min, s.max)
+    const next = clamp(base + dir * s.step, s.min, s.max, s.decimals)
     s.onChange(next)
     onCommit?.(next)
   }
@@ -76,9 +79,10 @@ export function NumberField({
         value={value ?? ''}
         min={min}
         max={max}
+        step={decimals > 0 ? step : undefined}
         placeholder={placeholder}
         title={title}
-        onChange={(e) => onChange(e.target.value === '' ? null : clamp(Number(e.target.value) || 0, min, max))}
+        onChange={(e) => onChange(e.target.value === '' ? null : clamp(Number(e.target.value) || 0, min, max, decimals))}
         onBlur={() => onCommit?.(value)}
         aria-label={ariaLabel}
       />
