@@ -16,7 +16,8 @@ import {
 } from '../auth/liveScene'
 import { makeThumbnail } from '../lib/image'
 import { useLiveSession } from '../lib/useLiveSession'
-import type { Campaign, Id, Scene, SceneGrid, SceneToken } from '../db/types'
+import { tokenRevealed } from '../lib/tabletop'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
 // to players, every (debounced) change is mirrored to the cloud: the scene row,
@@ -32,6 +33,7 @@ interface Draft {
   height: number
   imageId: Id | null
   tokens: SceneToken[]
+  fog: SceneFog | null
 }
 
 const PUSH_DELAY = 250
@@ -52,11 +54,19 @@ async function portraitFor(imageId: Id | null | undefined, cache: Map<string, st
   return thumb
 }
 
-/** The tokens players get: visible ones only, in their controller's color. */
-async function toLiveTokens(tokens: SceneToken[], members: Member[], cache: Map<string, string | null>): Promise<LiveToken[]> {
+/** The tokens players get: visible ones only, in their controller's color.
+ *  Under fog, a token standing entirely in covered cells is withheld too, so its
+ *  position never leaks (the map is opaque there but tokens draw on top). */
+async function toLiveTokens(
+  tokens: SceneToken[],
+  members: Member[],
+  cache: Map<string, string | null>,
+  fog: SceneFog | null,
+): Promise<LiveToken[]> {
+  const revealed = fog?.enabled ? new Set(fog.revealed) : null
   return Promise.all(
     tokens
-      .filter((t) => !t.hidden)
+      .filter((t) => !t.hidden && (!revealed || tokenRevealed(t, revealed)))
       .map(async (t) => ({
         id: t.id,
         label: t.label,
@@ -77,7 +87,7 @@ async function uploadMap(campaignId: Id, imageId: Id | null) {
 }
 
 function liveSceneOf(campaignId: Id, d: Draft): LiveScene {
-  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId }
+  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId, fog: d.fog }
 }
 
 /**
@@ -97,10 +107,11 @@ export async function showSceneToPlayers(campaign: Campaign, scene: Scene, userI
     height: scene.height,
     imageId: scene.imageId,
     tokens: scene.tokens,
+    fog: scene.fog ?? null,
   }
   await uploadMap(campaign.id, draft.imageId)
   await upsertLiveScene(liveSceneOf(campaign.id, draft))
-  await upsertLiveTokens(campaign.id, await toLiveTokens(draft.tokens, members, new Map()))
+  await upsertLiveTokens(campaign.id, await toLiveTokens(draft.tokens, members, new Map(), draft.fog))
 }
 
 export function useDmLiveScene(
@@ -191,7 +202,7 @@ export function useDmLiveScene(
         throw e
       }
     }
-    const next = await toLiveTokens(d.tokens, members, thumbs.current)
+    const next = await toLiveTokens(d.tokens, members, thumbs.current, d.fog)
     const changed = next.filter((t) => {
       const prev = pushedTokens.current.get(t.id)
       return !prev || !same(prev, t)
@@ -220,11 +231,11 @@ export function useDmLiveScene(
 
   // Debounced mirror while this map is the one on show. A push still waiting
   // on the debounce is flushed if the editor unmounts (switching panes/maps).
-  const { sceneId, name, grid, width, height, imageId, tokens } = draft
+  const { sceneId, name, grid, width, height, imageId, tokens, fog } = draft
   const pending = useRef<Draft | null>(null)
   useEffect(() => {
     if (!isShowing || !seeded) return
-    const d = { sceneId, name, grid, width, height, imageId, tokens }
+    const d = { sceneId, name, grid, width, height, imageId, tokens, fog }
     pending.current = d
     const t = setTimeout(() => {
       pending.current = null
@@ -232,7 +243,7 @@ export function useDmLiveScene(
     }, PUSH_DELAY)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, members])
+  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, members])
   useEffect(
     () => () => {
       if (pending.current) enqueuePush(pending.current)

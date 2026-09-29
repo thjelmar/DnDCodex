@@ -19,13 +19,15 @@ import {
   MAP_MAX_DIM,
   TOKEN_COLORS,
   TOKEN_SIZES,
+  boardCellKeys,
   defaultGrid,
   gridFromBox,
   round2,
   normalizeOffset,
   snapCenterToCell,
+  tokenRevealed,
 } from '../lib/tabletop'
-import type { Campaign, Id, Scene, SceneGrid, SceneToken } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken } from '../db/types'
 import { SessionNotesPanel } from './SessionNotesPanel'
 
 // Battle Map tab: the built-in VTT. A scene list on the left; the selected
@@ -118,20 +120,21 @@ export function SceneEditor({
   const [tokens, setTokens] = useState<SceneToken[]>(scene.tokens)
   const [size, setSize] = useState({ width: scene.width, height: scene.height })
   const [imageId, setImageId] = useState<Id | null>(scene.imageId)
+  const [fog, setFog] = useState<SceneFog>(scene.fog ?? { enabled: false, revealed: [] })
   const dirty = useRef(false)
   // The latest unsaved draft, flushed on unmount (e.g. switching Run mode's
   // pane or map inside the 400ms debounce) so the last edit isn't lost.
   const unsaved = useRef<Partial<Scene> | null>(null)
   useEffect(() => {
     if (!dirty.current) return
-    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height }
+    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog }
     unsaved.current = patch
     const t = setTimeout(() => {
       unsaved.current = null
       updateScene(scene.id, patch)
     }, 400)
     return () => clearTimeout(t)
-  }, [name, grid, tokens, imageId, size, scene.id])
+  }, [name, grid, tokens, imageId, size, fog, scene.id])
   useEffect(
     () => () => {
       if (unsaved.current) updateScene(scene.id, unsaved.current)
@@ -149,7 +152,7 @@ export function SceneEditor({
   const [preview, setPreview] = useState(false)
   const live = useDmLiveScene(
     campaign,
-    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens },
+    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog },
     (moves) => {
       touch()
       setTokens((ts) => ts.map((t) => {
@@ -159,6 +162,40 @@ export function SceneEditor({
     },
   )
   const [aligning, setAligning] = useState(false)
+  // Fog of war: paint tool (null = not in fog mode). Painting a stroke commits a
+  // set of revealed/hidden cells; the whole fog state syncs like the tokens.
+  const [fogTool, setFogTool] = useState<'reveal' | 'hide' | null>(null)
+  function paintFog(keys: string[], reveal: boolean) {
+    touch()
+    setFog((f) => {
+      const s = new Set(f.revealed)
+      keys.forEach((k) => (reveal ? s.add(k) : s.delete(k)))
+      return { ...f, revealed: [...s] }
+    })
+  }
+  function enterFog() {
+    touch()
+    setAligning(false)
+    setPreview(false)
+    setFog((f) => ({ ...f, enabled: true }))
+    setFogTool('reveal')
+  }
+  function exitFog() {
+    setFogTool(null)
+  }
+  function disableFog() {
+    touch()
+    setFogTool(null)
+    setFog((f) => ({ ...f, enabled: false }))
+  }
+  function revealAllFog() {
+    touch()
+    setFog((f) => ({ ...f, revealed: boardCellKeys(grid, size.width, size.height) }))
+  }
+  function coverAllFog() {
+    touch()
+    setFog((f) => ({ ...f, revealed: [] }))
+  }
   // Align options: how many squares the box spans across, and whether to snap
   // the result to the grid lines drawn on the map image.
   const [alignSquares, setAlignSquares] = useState(1)
@@ -425,6 +462,17 @@ export function SceneEditor({
     </>
   )
 
+  // Tokens as drawn on the board. In player preview, drop hidden tokens and any
+  // token standing entirely in fog — exactly what players receive.
+  const revealedSet = fog.enabled ? new Set(fog.revealed) : null
+  const boardTokens = (
+    preview ? tokens.filter((t) => !t.hidden && (!revealedSet || tokenRevealed(t, revealedSet))) : tokens
+  ).map((t) => {
+    // Tokens a player controls wear that player's color.
+    const c = live.colorFor(t)
+    return c === t.color ? t : { ...t, color: c }
+  })
+
   return (
     <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
       <input
@@ -479,10 +527,18 @@ export function SceneEditor({
               setPreview((p) => !p)
               setSelectedToken(null)
               setAligning(false)
+              setFogTool(null)
             }}
             title="See the map exactly as players will: hidden tokens gone, no DM controls"
           >
             <Icon name={preview ? 'eye-off' : 'eye'} size={14} color={preview ? 'inherit' : undefined} /> {tight ? null : preview ? 'Exit player preview' : 'Preview as player'}
+          </button>
+          <button
+            className={`btn small${fogTool ? ' primary' : ''}`}
+            onClick={fogTool ? exitFog : enterFog}
+            title="Fog of war: cover the map and reveal only where the party has been"
+          >
+            <Icon name="cloud" size={14} color={fogTool ? 'inherit' : undefined} /> {tight ? null : fogTool ? 'Done' : 'Fog'}
           </button>
           {expanded && (
             <button
@@ -523,6 +579,21 @@ export function SceneEditor({
           {!live.isShowing && live.available && ' This map isn’t shown to players yet.'}
         </div>
       )}
+      {fogTool && (
+        <div className="battlemap-fogbar">
+          <span className="battlemap-fogbar-label"><Icon name="cloud" size={14} /> Fog</span>
+          <div className="seg-filter" role="group" aria-label="Fog brush">
+            <button className={fogTool === 'reveal' ? 'active' : ''} onClick={() => setFogTool('reveal')}>Reveal</button>
+            <button className={fogTool === 'hide' ? 'active' : ''} onClick={() => setFogTool('hide')}>Cover</button>
+          </div>
+          <span className="faint">Drag across the map to {fogTool === 'reveal' ? 'reveal' : 'cover'} squares.</span>
+          <div className="battlemap-fogbar-actions">
+            <button className="btn ghost small" onClick={revealAllFog}>Reveal all</button>
+            <button className="btn ghost small" onClick={coverAllFog}>Cover all</button>
+            <button className="btn ghost small" onClick={disableFog} title="Turn fog off — players see the whole map again">Turn off</button>
+          </div>
+        </div>
+      )}
       {mapImage && (
         <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
           {mapImage.width}×{mapImage.height}px · {formatBytes(mapImage.bytes)} · {cols}×{rows} squares
@@ -537,11 +608,7 @@ export function SceneEditor({
           width={size.width}
           height={size.height}
           grid={grid}
-          tokens={(preview ? tokens.filter((t) => !t.hidden) : tokens).map((t) => {
-            // Tokens a player controls wear that player's color.
-            const c = live.colorFor(t)
-            return c === t.color ? t : { ...t, color: c }
-          })}
+          tokens={boardTokens}
           mapUrl={mapImage?.dataUrl ?? null}
           portraits={portraits ?? {}}
           selectedId={selectedToken}
@@ -555,6 +622,9 @@ export function SceneEditor({
           centerRef={centerRef}
           editable={!preview}
           canMoveToken={preview ? () => false : undefined}
+          fog={fog.enabled ? fog : null}
+          fogTool={preview ? null : fogTool}
+          onPaintFog={paintFog}
         />
 
         <aside className="battlemap-side" hidden={!panelOpen || preview}>
@@ -590,6 +660,7 @@ export function SceneEditor({
                   disabled={aligningBusy}
                   onClick={() => {
                     setAlignNote(null)
+                    setFogTool(null)
                     setAligning((a) => !a)
                   }}
                   title="Draw a box around map squares to match the grid to them"

@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import type { SceneGrid, SceneToken } from '../db/types'
+import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import type { SceneFog, SceneGrid, SceneToken } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
   MIN_CELL_SCREEN,
+  cellKey,
   cellToPx,
   clampZoom,
   gridPath,
   initials,
+  pxToCell,
   snapCenterToCell,
   tokenCenter,
 } from '../lib/tabletop'
@@ -21,6 +23,7 @@ type Drag =
   | { kind: 'token'; id: string; dx: number; dy: number; moved: boolean }
   | { kind: 'align'; x1: number; y1: number }
   | { kind: 'resize'; id: string; left: number; top: number }
+  | { kind: 'fog'; reveal: boolean }
 
 interface Props {
   width: number
@@ -48,6 +51,13 @@ interface Props {
   canMoveToken?: (t: SceneToken) => boolean
   /** Tokens to ring as "yours" (the player's own). */
   ownIds?: Set<string>
+  /** Fog of war to render, or null for none. Covered cells are dimmed for the
+   *  DM (editable) and opaque for players (viewer mode). */
+  fog?: SceneFog | null
+  /** When set, dragging the board paints fog instead of panning. */
+  fogTool?: 'reveal' | 'hide' | null
+  /** Commit a painted stroke: reveal or hide the given cell keys. */
+  onPaintFog?: (cellKeys: string[], reveal: boolean) => void
 }
 
 export function Tabletop({
@@ -69,9 +79,13 @@ export function Tabletop({
   editable = true,
   canMoveToken,
   ownIds,
+  fog,
+  fogTool,
+  onPaintFog,
 }: Props) {
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const maskId = useId()
   const [transform, setTransform] = useState({ k: 1, tx: 0, ty: 0 })
   const drag = useRef<Drag | null>(null)
   // Live position of a token being dragged (board px, center) and the align box.
@@ -79,6 +93,9 @@ export function Tabletop({
   const [box, setBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
   // Live footprint while dragging a token's resize handle.
   const [resizing, setResizing] = useState<{ id: string; size: number } | null>(null)
+  // Cells painted in the current fog stroke (applied to the mask live, committed
+  // to the parent on pointer-up).
+  const [fogStroke, setFogStroke] = useState<{ reveal: boolean; cells: Set<string> } | null>(null)
 
   const toBoard = (clientX: number, clientY: number) => {
     const rect = wrapRef.current!.getBoundingClientRect()
@@ -187,6 +204,13 @@ export function Tabletop({
     if (e.button !== 0) return
     wrapRef.current?.focus()
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    if (fogTool) {
+      const p = toBoard(e.clientX, e.clientY)
+      const c = pxToCell(grid, p.x, p.y)
+      drag.current = { kind: 'fog', reveal: fogTool === 'reveal' }
+      setFogStroke({ reveal: fogTool === 'reveal', cells: new Set([cellKey(c.col, c.row)]) })
+      return
+    }
     if (aligning) {
       const p = toBoard(e.clientX, e.clientY)
       drag.current = { kind: 'align', x1: p.x, y1: p.y }
@@ -197,7 +221,8 @@ export function Tabletop({
   }
 
   function onTokenPointerDown(e: React.PointerEvent, t: SceneToken) {
-    if (e.button !== 0 || aligning) return
+    // In fog-paint mode let the press fall through to the background painter.
+    if (e.button !== 0 || aligning || fogTool) return
     // Non-movable tokens let the press fall through to panning.
     if (!movable(t)) return
     e.stopPropagation()
@@ -232,6 +257,11 @@ export function Tabletop({
       const p = toBoard(e.clientX, e.clientY)
       d.moved = true
       setDragPos({ id: d.id, x: p.x + d.dx, y: p.y + d.dy })
+    } else if (d.kind === 'fog') {
+      const p = toBoard(e.clientX, e.clientY)
+      const c = pxToCell(grid, p.x, p.y)
+      const key = cellKey(c.col, c.row)
+      setFogStroke((s) => (s && !s.cells.has(key) ? { ...s, cells: new Set(s.cells).add(key) } : s))
     } else {
       const p = toBoard(e.clientX, e.clientY)
       setBox({ x1: d.x1, y1: d.y1, x2: p.x, y2: p.y })
@@ -256,6 +286,9 @@ export function Tabletop({
         if (cell.col !== t.col || cell.row !== t.row) onMoveToken(t.id, cell.col, cell.row)
       }
       setDragPos(null)
+    } else if (d.kind === 'fog') {
+      if (fogStroke && fogStroke.cells.size) onPaintFog?.([...fogStroke.cells], fogStroke.reveal)
+      setFogStroke(null)
     } else if (box) {
       setBox(null)
       if (Math.abs(box.x2 - box.x1) >= 8 && Math.abs(box.y2 - box.y1) >= 8) onAlign(box)
@@ -300,12 +333,21 @@ export function Tabletop({
   const ordered = [...tokens].sort(
     (a, b) => Number(a.id === selectedId || a.id === dragPos?.id) - Number(b.id === selectedId || b.id === dragPos?.id),
   )
+  // Revealed cells for the fog mask, with the in-progress stroke applied live.
+  const fogRevealed = useMemo(() => {
+    if (!fog?.enabled) return null
+    const s = new Set(fog.revealed)
+    if (fogStroke) for (const k of fogStroke.cells) fogStroke.reveal ? s.add(k) : s.delete(k)
+    return s
+  }, [fog, fogStroke])
+  // DM (editable) sees a dim veil over covered cells; players see it opaque.
+  const fogOpaque = !editable
 
   return (
     <div className="tabletop">
       <div
         ref={wrapRef}
-        className={`tabletop-view${aligning ? ' aligning' : ''}`}
+        className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}`}
         tabIndex={0}
         onPointerDown={onBgPointerDown}
         onPointerMove={onPointerMove}
@@ -327,6 +369,31 @@ export function Tabletop({
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
               />
+            )}
+
+            {/* Fog of war: a veil over every cell that isn't revealed. The mask
+                is white (veil shows) everywhere except revealed cells, which are
+                black (veil hidden). Drawn under the tokens. */}
+            {fog?.enabled && fogRevealed && (
+              <>
+                <mask id={`fog-${maskId}`} maskUnits="userSpaceOnUse" x={0} y={0} width={width} height={height}>
+                  <rect x={0} y={0} width={width} height={height} fill="#fff" />
+                  {[...fogRevealed].map((k) => {
+                    const [c, r] = k.split(',').map(Number)
+                    const p = cellToPx(grid, c, r)
+                    return <rect key={k} x={p.x} y={p.y} width={grid.cellPx} height={grid.cellPx} fill="#000" />
+                  })}
+                </mask>
+                <rect
+                  x={0}
+                  y={0}
+                  width={width}
+                  height={height}
+                  className={fogOpaque ? 'tabletop-fog-opaque' : 'tabletop-fog-dim'}
+                  mask={`url(#fog-${maskId})`}
+                  pointerEvents="none"
+                />
+              </>
             )}
 
             {ordered.map((raw) => {

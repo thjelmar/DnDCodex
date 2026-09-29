@@ -104,6 +104,39 @@ export function gridPath(grid: SceneGrid, width: number, height: number): string
   return parts.join('')
 }
 
+// ── Fog of war ───────────────────────────────────────────────────────────────
+
+/** Key for a grid cell, used in the fog's revealed set. */
+export function cellKey(col: number, row: number): string {
+  return `${col},${row}`
+}
+
+/** The grid cell containing a board-space point. */
+export function pxToCell(grid: SceneGrid, x: number, y: number): { col: number; row: number } {
+  return {
+    col: Math.floor((x - grid.offsetX) / grid.cellPx),
+    row: Math.floor((y - grid.offsetY) / grid.cellPx),
+  }
+}
+
+/** Every cell key overlapping the board (for "reveal the whole map"). */
+export function boardCellKeys(grid: SceneGrid, width: number, height: number): string[] {
+  const c0 = Math.floor((0 - grid.offsetX) / grid.cellPx)
+  const c1 = Math.floor((width - 1 - grid.offsetX) / grid.cellPx)
+  const r0 = Math.floor((0 - grid.offsetY) / grid.cellPx)
+  const r1 = Math.floor((height - 1 - grid.offsetY) / grid.cellPx)
+  const keys: string[] = []
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) keys.push(cellKey(c, r))
+  return keys
+}
+
+/** True if any of a token's footprint cells is revealed (so players see it). */
+export function tokenRevealed(t: SceneToken, revealed: Set<string>): boolean {
+  for (let dc = 0; dc < t.size; dc++)
+    for (let dr = 0; dr < t.size; dr++) if (revealed.has(cellKey(t.col + dc, t.row + dr))) return true
+  return false
+}
+
 /** Short initials for a token without a portrait. */
 export function initials(label: string): string {
   const words = label.trim().split(/\s+/).filter(Boolean)
