@@ -30,6 +30,7 @@ import { EncountersPage } from './pages/EncountersPage'
 import { CombatTrackerPage } from './pages/CombatTrackerPage'
 import { RunPage } from './pages/RunPage'
 import { GalleryPage } from './pages/GalleryPage'
+import { HandoutsPage } from './pages/HandoutsPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
@@ -340,6 +341,7 @@ export function App() {
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
+              <Route path="handouts" element={<HandoutsPage />} />
               <Route path="loot" element={<LootPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />

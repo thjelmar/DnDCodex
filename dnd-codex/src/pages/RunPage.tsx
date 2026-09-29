@@ -9,6 +9,7 @@ import { StatBlockView } from '../components/StatBlockEditor'
 import { DicePanel } from '../components/DiceRoller'
 import { Icon } from '../components/Icon'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
+import { RunHandouts } from '../components/RunHandouts'
 import { parseLeadingInt } from '../lib/combat'
 import { formatDate, todayISODate } from '../lib/format'
 import { isRichTextEmpty, wikiTargets } from '../lib/richtext'
@@ -248,6 +249,7 @@ export function RunPage() {
         {/* Combat + dice */}
         <aside className="run-col run-tools">
           <RunCombat combat={combat} />
+          <RunHandouts campaignId={campaignId} />
           <div className="card run-card">
             <div className="run-col-heading"><Icon name="dice" size={15} /> Dice</div>
             <DicePanel compact />

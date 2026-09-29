@@ -17,6 +17,7 @@ import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
+import { SharedHandouts } from '../components/SharedHandouts'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import { PartyLoot } from '../components/PartyLoot'
@@ -231,6 +232,10 @@ export function PlayerNotesPage() {
 
       <div className="player-layout">
         <div className="player-main">
+      {campaign.linkedCampaignId && (
+        <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} />
+      )}
+
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}

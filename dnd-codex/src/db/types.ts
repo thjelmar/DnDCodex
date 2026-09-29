@@ -82,6 +82,9 @@ export interface StoredImage extends BaseRecord {
   bytes: number
   /** True for images uploaded into the campaign Gallery (vs. a cover/portrait). */
   inGallery?: boolean
+  /** True for images uploaded as a Handout (its own surface, separate from the
+   *  Gallery album). Handouts publish to shared_images with kind = 'handout'. */
+  isHandout?: boolean
   /** Optional caption shown in the gallery and to players. */
   caption?: string
   /** True when this gallery image is shared to the campaign's players (live). */

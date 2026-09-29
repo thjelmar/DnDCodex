@@ -107,19 +107,27 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
 // the inbox, nothing is imported — players read `shared_images` directly (RLS
 // restricts it to campaign members).
 
+/** How a shared image is surfaced to players: the passive gallery album (also
+ *  covers entity portraits) vs. a deliberate handout the DM hands over. */
+export type SharedImageKind = 'gallery' | 'handout'
+
 export interface SharedImage {
   id: string
   dataUrl: string
   caption: string | null
   width: number | null
   height: number | null
+  kind: SharedImageKind
   createdAt: string
 }
 
-/** Share (or update) a gallery image so every campaign member sees it live. */
+/** Share (or update) an image so every campaign member sees it live. `kind`
+ *  distinguishes gallery/portrait images from handouts (defaults to gallery so
+ *  existing callers — the gallery and entity portraits — are unchanged). */
 export async function shareImageToCampaign(
   campaignId: string,
   img: { id: string; dataUrl: string; caption?: string; width?: number; height?: number },
+  kind: SharedImageKind = 'gallery',
 ): Promise<void> {
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_images').upsert(
@@ -130,6 +138,7 @@ export async function shareImageToCampaign(
       caption: img.caption ?? null,
       width: img.width ?? null,
       height: img.height ?? null,
+      kind,
     },
     { onConflict: 'id' },
   )
@@ -148,7 +157,7 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
   if (!supabase) return []
   const { data, error } = await supabase
     .from('shared_images')
-    .select('id, data_url, caption, width, height, created_at')
+    .select('id, data_url, caption, width, height, kind, created_at')
     .eq('campaign_id', cloudCampaignId)
     .order('created_at', { ascending: false })
   if (error || !data) return []
@@ -158,6 +167,7 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
     caption: (r.caption as string) ?? null,
     width: (r.width as number) ?? null,
     height: (r.height as number) ?? null,
+    kind: ((r.kind as string) === 'handout' ? 'handout' : 'gallery') as SharedImageKind,
     createdAt: r.created_at as string,
   }))
 }
