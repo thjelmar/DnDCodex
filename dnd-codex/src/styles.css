@@ -2273,6 +2273,14 @@ kbd {
 .battlemap-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: inline-block; box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25); animation: battlemap-pulse 1.6s ease-in-out infinite; }
 @keyframes battlemap-pulse { 50% { box-shadow: 0 0 0 6px rgba(74, 222, 128, 0); } }
 .battlemap-preview-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--accent); border-radius: var(--radius-sm); background: rgba(167, 139, 250, 0.1); }
+/* Fog of war */
+.tabletop-view.fogging { cursor: crosshair; }
+.tabletop-fog-opaque { fill: #05070d; }
+.tabletop-fog-dim { fill: rgba(6, 10, 20, 0.5); }
+.battlemap-fogbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; padding: 8px 12px; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev); }
+.battlemap-fogbar-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.battlemap-fogbar .faint { margin: 0; font-size: 12px; }
+.battlemap-fogbar-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
 .battlemap-live-pill { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--good); vertical-align: middle; }
 .battlemap-align-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .battlemap-align-opts > label:not(.battlemap-check) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }

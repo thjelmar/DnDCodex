@@ -117,6 +117,7 @@ function KeeperFor({ campaign, scene }: { campaign: Campaign; scene: Scene }) {
       height: scene.height,
       imageId: scene.imageId,
       tokens: scene.tokens,
+      fog: scene.fog ?? null,
     },
     async (moves) => {
       // Read fresh so concurrent edits aren't clobbered by a stale copy.

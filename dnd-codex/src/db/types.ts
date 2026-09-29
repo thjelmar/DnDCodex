@@ -633,6 +633,14 @@ export interface SceneToken {
   controlledBy?: string | null
 }
 
+/** Fog of war: the DM reveals grid cells; players see only revealed ones and
+ *  never the tokens standing entirely in fog. */
+export interface SceneFog {
+  enabled: boolean
+  /** Revealed cells as "col,row" keys; every other cell is covered. */
+  revealed: string[]
+}
+
 /** A battle map (VTT scene): a map image, its grid, and the tokens on it. */
 export interface Scene extends BaseRecord {
   campaignId: Id
@@ -644,6 +652,8 @@ export interface Scene extends BaseRecord {
   height: number
   grid: SceneGrid
   tokens: SceneToken[]
+  /** Fog of war state; absent/undefined = no fog (players see the whole map). */
+  fog?: SceneFog
 }
 
 /** Discriminated union used by generic helpers and the export payload. */
