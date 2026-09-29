@@ -2317,6 +2317,9 @@ kbd {
   paint-order: stroke;
   stroke: rgba(0, 0, 0, 0.8);
   stroke-width: 3px;
+  /* Constant on-screen outline: without this the stroke scales with the board
+     and thins to nothing at low zoom, right when the label needs contrast. */
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
 .tabletop-snap { fill: rgba(167, 139, 250, 0.18); stroke: var(--accent); stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }

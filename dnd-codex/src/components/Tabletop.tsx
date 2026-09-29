@@ -391,7 +391,16 @@ export function Tabletop({
                       </text>
                     )}
                     <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
-                    <text className="tabletop-label" y={r + grid.cellPx * 0.28} textAnchor="middle" fontSize={Math.max(10, grid.cellPx * 0.26)}>
+                    {/* Font/offset are in board units (inside scale(k)), so they'd
+                        collapse when zoomed out. Floor the on-screen size (…/k keeps
+                        a constant screen px) so labels stay readable at low zoom,
+                        while the board-relative value still wins when zoomed in. */}
+                    <text
+                      className="tabletop-label"
+                      y={r + Math.max(grid.cellPx * 0.28, 9 / transform.k)}
+                      textAnchor="middle"
+                      fontSize={Math.max(grid.cellPx * 0.26, 11 / transform.k)}
+                    >
                       {t.label}
                     </text>
                     {own && <circle r={r + Math.max(3, r * 0.14)} className="tabletop-own-ring" />}
