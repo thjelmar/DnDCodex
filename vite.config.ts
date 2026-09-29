@@ -20,4 +20,11 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(commit),
   },
+  // Listen on all addresses (IPv4 + IPv6) so the dev server is reachable at
+  // http://localhost:5173 regardless of whether the browser resolves
+  // "localhost" to 127.0.0.1 or ::1 — Node 17+ otherwise binds only ::1, which
+  // Safari (resolving to 127.0.0.1) can't reach. Dev only; not in the build.
+  server: {
+    host: true,
+  },
 })
