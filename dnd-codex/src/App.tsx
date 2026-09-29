@@ -36,6 +36,7 @@ import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
+import { PlayerBattleMapPage } from './pages/PlayerBattleMapPage'
 import { BugReportsPage } from './pages/BugReportsPage'
 
 // Start capturing client errors as early as possible so a bug report includes
@@ -332,6 +333,7 @@ export function App() {
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
+            <Route path="/player/:campaignId/battlemap" element={<PlayerBattleMapPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="sessions" element={<SessionsPage />} />

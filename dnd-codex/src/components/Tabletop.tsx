@@ -41,6 +41,12 @@ interface Props {
   onAlign: (box: { x1: number; y1: number; x2: number; y2: number }) => void
   /** Kept up to date with the board point at the center of the viewport. */
   centerRef?: MutableRefObject<{ x: number; y: number }>
+  /** False = viewer mode (players, DM preview): no resizing, deleting, or
+   *  aligning; only tokens passing `canMoveToken` can be dragged. */
+  editable?: boolean
+  canMoveToken?: (t: SceneToken) => boolean
+  /** Tokens to ring as "yours" (the player's own). */
+  ownIds?: Set<string>
 }
 
 export function Tabletop({
@@ -59,7 +65,11 @@ export function Tabletop({
   aligning,
   onAlign,
   centerRef,
+  editable = true,
+  canMoveToken,
+  ownIds,
 }: Props) {
+  const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
   const [transform, setTransform] = useState({ k: 1, tx: 0, ty: 0 })
   const drag = useRef<Drag | null>(null)
@@ -159,6 +169,8 @@ export function Tabletop({
 
   function onTokenPointerDown(e: React.PointerEvent, t: SceneToken) {
     if (e.button !== 0 || aligning) return
+    // Non-movable tokens let the press fall through to panning.
+    if (!movable(t)) return
     e.stopPropagation()
     wrapRef.current?.focus()
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
@@ -223,7 +235,7 @@ export function Tabletop({
 
   function onKeyDown(e: React.KeyboardEvent) {
     const t = tokens.find((x) => x.id === selectedId)
-    if (!t) return
+    if (!t || !movable(t)) return
     const moves: Record<string, [number, number]> = {
       ArrowLeft: [-1, 0],
       ArrowRight: [1, 0],
@@ -234,6 +246,8 @@ export function Tabletop({
       e.preventDefault()
       const [dc, dr] = moves[e.key]
       onMoveToken(t.id, t.col + dc, t.row + dr)
+    } else if (!editable) {
+      if (e.key === 'Escape') onSelect(null)
     } else if (e.key === '+' || e.key === '=') {
       e.preventDefault()
       onResizeToken(t.id, Math.min(MAX_TOKEN_SIZE, t.size + 1))
@@ -293,6 +307,7 @@ export function Tabletop({
               const r = (t.size * grid.cellPx) / 2 - Math.max(1.5, grid.cellPx * 0.05)
               const portrait = t.imageId ? portraits[t.imageId] : undefined
               const sel = t.id === selectedId
+              const own = ownIds?.has(t.id) ?? false
               // Ghost of the snap target while dragging.
               const snap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
               const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
@@ -319,7 +334,7 @@ export function Tabletop({
                   )}
                   <g
                     transform={`translate(${c.x} ${c.y})`}
-                    className={`tabletop-token${sel ? ' selected' : ''}${t.hidden ? ' hidden-token' : ''}`}
+                    className={`tabletop-token${sel ? ' selected' : ''}${t.hidden ? ' hidden-token' : ''}${movable(t) ? '' : ' fixed'}${own ? ' own' : ''}`}
                     onPointerDown={(e) => onTokenPointerDown(e, t)}
                     onDoubleClick={(e) => {
                       e.stopPropagation()
@@ -350,7 +365,8 @@ export function Tabletop({
                     <text className="tabletop-label" y={r + grid.cellPx * 0.28} textAnchor="middle" fontSize={Math.max(10, grid.cellPx * 0.26)}>
                       {t.label}
                     </text>
-                    {sel && !live && (
+                    {own && <circle r={r + Math.max(3, r * 0.14)} className="tabletop-own-ring" />}
+                    {sel && !live && editable && (
                       <g
                         className="tabletop-resize"
                         transform={`translate(${r * 0.72} ${r * 0.72})`}

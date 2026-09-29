@@ -20,6 +20,7 @@ import { SharedGallery } from '../components/SharedGallery'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import { PartyLoot } from '../components/PartyLoot'
+import { LiveMapLink } from './PlayerBattleMapPage'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -70,7 +71,8 @@ export function PlayerNotesPage() {
   const confirm = useConfirm()
 
   const campaign = useLiveQuery(
-    () => (campaignId ? db.campaigns.get(campaignId) : undefined),
+    // `?? null` so a missing campaign reads as "not found", not "still loading".
+    async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
     [campaignId],
   )
   const notes = useLiveQuery(
@@ -231,6 +233,9 @@ export function PlayerNotesPage() {
 
       <div className="player-layout">
         <div className="player-main">
+      {campaign.linkedCampaignId && (
+        <LiveMapLink campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
+      )}
       {campaign.linkedCampaignId && (
         <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
       )}

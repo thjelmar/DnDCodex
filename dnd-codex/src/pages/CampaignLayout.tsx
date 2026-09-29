@@ -36,7 +36,8 @@ const TABS = [
 export function CampaignLayout() {
   const { campaignId } = useParams()
   const campaign = useLiveQuery(
-    () => (campaignId ? db.campaigns.get(campaignId) : undefined),
+    // `?? null` so a missing campaign reads as "not found", not "still loading".
+    async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
     [campaignId],
   )
   const [renaming, setRenaming] = useState(false)

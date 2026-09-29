@@ -620,8 +620,10 @@ export interface SceneToken {
   npcId?: Id | null
   /** Portrait image (StoredImage id), usually the NPC's. */
   imageId?: Id | null
-  /** Kept off the players' view once live battle maps are shared. */
+  /** Never sent to players (not even as a placeholder). */
   hidden?: boolean
+  /** The player (account id) allowed to move this token on the live map. */
+  controlledBy?: string | null
 }
 
 /** A battle map (VTT scene): a map image, its grid, and the tokens on it. */

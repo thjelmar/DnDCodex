@@ -12,6 +12,8 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
+import { useDmLiveScene } from './useDmLiveScene'
+import { useFullscreen } from '../lib/useFullscreen'
 import {
   MAP_MAX_DIM,
   TOKEN_COLORS,
@@ -22,11 +24,13 @@ import {
   normalizeOffset,
   snapCenterToCell,
 } from '../lib/tabletop'
-import type { Id, Scene, SceneGrid, SceneToken } from '../db/types'
+import type { Campaign, Id, Scene, SceneGrid, SceneToken } from '../db/types'
+import { SessionNotesPanel } from './SessionNotesPanel'
 
-// Battle Map tab: the built-in VTT (v1 = map + grid + tokens, DM-side). A scene
-// list on the left; the selected scene's board, grid calibration, and tokens on
-// the right. Scenes sync and back up like any other campaign record.
+// Battle Map tab: the built-in VTT. A scene list on the left; the selected
+// scene's board, grid calibration, and tokens on the right. Scenes sync and back
+// up like any other campaign record. One map at a time can be shown to players
+// live (see useDmLiveScene); "Preview as player" shows what they'd see.
 
 export function BattleMapPage() {
   const campaign = useCampaign()
@@ -72,7 +76,7 @@ export function BattleMapPage() {
 
       <div style={{ minWidth: 0 }}>
         {selected ? (
-          <SceneEditor key={selected.id} scene={selected} onDeleted={() => setSelectedId(null)} />
+          <SceneEditor key={selected.id} campaign={campaign} scene={selected} onDeleted={() => setSelectedId(null)} />
         ) : (
           <div className="empty">
             <div className="big">🗺️</div>
@@ -84,7 +88,25 @@ export function BattleMapPage() {
   )
 }
 
-function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void }) {
+/**
+ * The DM's editor for one battle map. Used by the Battle Map tab and by Run
+ * mode (which passes its selected session so full screen's notes follow it).
+ */
+export function SceneEditor({
+  campaign,
+  scene,
+  onDeleted,
+  notesSessionId,
+  compact = false,
+}: {
+  campaign: Campaign
+  scene: Scene
+  onDeleted: () => void
+  /** Session whose notes the full-screen notes panel opens on (default: newest). */
+  notesSessionId?: Id | null
+  /** Embedded in a narrower pane (Run mode): start with the side panel closed. */
+  compact?: boolean
+}) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
   const centerRef = useRef({ x: scene.width / 2, y: scene.height / 2 })
@@ -108,6 +130,18 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
   }
 
   const [selectedToken, setSelectedToken] = useState<string | null>(null)
+  const [preview, setPreview] = useState(false)
+  const live = useDmLiveScene(
+    campaign,
+    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens },
+    (moves) => {
+      touch()
+      setTokens((ts) => ts.map((t) => {
+        const m = moves.find((x) => x.id === t.id)
+        return m ? { ...t, col: m.col, row: m.row } : t
+      }))
+    },
+  )
   const [aligning, setAligning] = useState(false)
   // Align options: how many squares the box spans across, and whether to snap
   // the result to the grid lines drawn on the map image.
@@ -119,63 +153,16 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [peek, setPeek] = useState<{ kind: PeekKind; id: Id } | null>(null)
 
-  // Full-screen mode: the editor covers the whole window (and the browser goes
-  // full screen when it allows). Fullscreening the document — not just the board
-  // — keeps app dialogs (confirm, stat-block peek) visible on top.
-  const [expanded, setExpanded] = useState(false)
-  const [panelOpen, setPanelOpen] = useState(true)
-  const usedFullscreenApi = useRef(false)
+  // Full screen (see useFullscreen); Esc closes the stat-block peek first.
   const peekOpen = useRef(false)
   peekOpen.current = peek != null
-  function enterFullscreen() {
-    setExpanded(true)
-    const el = document.documentElement
-    if (el.requestFullscreen && !document.fullscreenElement) {
-      el.requestFullscreen()
-        .then(() => {
-          usedFullscreenApi.current = true
-        })
-        .catch(() => {
-          /* not allowed here — the in-page overlay still works */
-        })
-    }
-  }
-  function exitFullscreen() {
-    setExpanded(false)
-    if (usedFullscreenApi.current && document.fullscreenElement) document.exitFullscreen().catch(() => {})
-    usedFullscreenApi.current = false
-  }
-  useEffect(() => {
-    if (!expanded) return
-    // The browser's own Esc leaves real full screen; follow it out.
-    const onFsChange = () => {
-      if (!document.fullscreenElement && usedFullscreenApi.current) {
-        usedFullscreenApi.current = false
-        setExpanded(false)
-      }
-    }
-    document.addEventListener('fullscreenchange', onFsChange)
-    // Overlay-only fallback (browser refused real full screen): Esc exits too,
-    // unless it's closing the stat-block peek.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !usedFullscreenApi.current && !peekOpen.current) setExpanded(false)
-    }
-    document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('fullscreenchange', onFsChange)
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
-    }
-  }, [expanded])
-  // Leaving the page while expanded must not strand the browser in full screen.
-  useEffect(
-    () => () => {
-      if (usedFullscreenApi.current && document.fullscreenElement) document.exitFullscreen().catch(() => {})
-    },
-    [],
-  )
+  const fs = useFullscreen(() => peekOpen.current)
+  const { expanded } = fs
+  const enterFullscreen = fs.enter
+  const exitFullscreen = fs.exit
+  const [panelOpen, setPanelOpen] = useState(!compact)
+  // Full screen only: session notes beside the map.
+  const [notesOpen, setNotesOpen] = useState(true)
 
   const npcs = useLiveQuery(() => db.npcs.where('campaignId').equals(scene.campaignId).sortBy('name'), [scene.campaignId])
   const world = useLiveQuery(
@@ -398,6 +385,42 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           aria-label="Battle map name"
         />
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          {live.available && (
+            live.isShowing ? (
+              <button className="btn small battlemap-live-on" disabled={live.busy} onClick={live.stop} title="Players can see this map live. Click to take it down.">
+                <span className="battlemap-live-dot" aria-hidden /> {live.busy ? 'Working…' : 'Live · Stop showing'}
+              </button>
+            ) : (
+              <button
+                className="btn primary small"
+                disabled={live.busy}
+                onClick={live.show}
+                title={live.otherShowing ? `Players are seeing “${live.otherName}”. This swaps it for this map.` : 'Show this map to your players, live'}
+              >
+                <Icon name="eye" size={14} color="inherit" /> {live.busy ? 'Working…' : live.otherShowing ? 'Show this map instead' : 'Show to players'}
+              </button>
+            )
+          )}
+          <button
+            className={`btn small${preview ? ' primary' : ''}`}
+            onClick={() => {
+              setPreview((p) => !p)
+              setSelectedToken(null)
+              setAligning(false)
+            }}
+            title="See the map exactly as players will: hidden tokens gone, no DM controls"
+          >
+            <Icon name={preview ? 'eye-off' : 'eye'} size={14} color={preview ? 'inherit' : undefined} /> {preview ? 'Exit player preview' : 'Preview as player'}
+          </button>
+          {expanded && (
+            <button
+              className={`btn small${notesOpen ? ' primary' : ''}`}
+              onClick={() => setNotesOpen((o) => !o)}
+              title={notesOpen ? 'Hide session notes' : 'Show session notes beside the map'}
+            >
+              📝 {notesOpen ? 'Hide notes' : 'Notes'}
+            </button>
+          )}
           <button
             className="btn ghost small"
             onClick={() => setPanelOpen((o) => !o)}
@@ -444,18 +467,33 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
         </div>
       </div>
       {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
+      {live.error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{live.error}</p>}
+      {preview && (
+        <div className="battlemap-preview-banner">
+          <Icon name="eye" size={14} /> Player preview: this is what players see
+          {tokens.some((t) => t.hidden) ? ` (${tokens.filter((t) => t.hidden).length} hidden token${tokens.filter((t) => t.hidden).length === 1 ? '' : 's'} not shown)` : ''}.
+          {!live.isShowing && live.available && ' This map isn’t shown to players yet.'}
+        </div>
+      )}
       {mapImage && (
         <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
           {mapImage.width}×{mapImage.height}px · {formatBytes(mapImage.bytes)} · {cols}×{rows} squares
         </p>
       )}
 
-      <div className="battlemap-body">
+      <div className={`battlemap-body${expanded && notesOpen ? ' with-notes' : ''}`}>
+        {expanded && notesOpen && (
+          <SessionNotesPanel campaignId={campaign.id} initialSessionId={notesSessionId} onWikiLink={peekByName} />
+        )}
         <Tabletop
           width={size.width}
           height={size.height}
           grid={grid}
-          tokens={tokens}
+          tokens={(preview ? tokens.filter((t) => !t.hidden) : tokens).map((t) => {
+            // Tokens a player controls wear that player's color.
+            const c = live.colorFor(t)
+            return c === t.color ? t : { ...t, color: c }
+          })}
           mapUrl={mapImage?.dataUrl ?? null}
           portraits={portraits ?? {}}
           selectedId={selectedToken}
@@ -467,9 +505,11 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           aligning={aligning}
           onAlign={applyAlign}
           centerRef={centerRef}
+          editable={!preview}
+          canMoveToken={preview ? () => false : undefined}
         />
 
-        <aside className="battlemap-side" hidden={!panelOpen}>
+        <aside className="battlemap-side" hidden={!panelOpen || preview}>
           <section>
             <h4>Grid</h4>
             <label className="battlemap-check">
@@ -574,6 +614,11 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
                     ))}
                   </select>
                 </label>
+                {live.colorFor(current) !== current.color && (
+                  <span className="faint" style={{ fontSize: 11 }}>
+                    Shown in {live.members.find((m) => m.userId === current.controlledBy)?.displayName ?? 'the player'}’s color while they control it.
+                  </span>
+                )}
                 <div className="battlemap-swatches" role="radiogroup" aria-label="Token color">
                   {TOKEN_COLORS.map((c) => (
                     <button
@@ -587,10 +632,29 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
                     />
                   ))}
                 </div>
-                <label className="battlemap-check" title="Stored now; respected once players can see battle maps">
+                <label className="battlemap-check" title="Hidden tokens are never sent to players">
                   <input type="checkbox" checked={current.hidden === true} onChange={(e) => patchToken(current.id, { hidden: e.target.checked })} />
                   Hidden from players
                 </label>
+                {live.available && (
+                  <label>
+                    Controlled by
+                    <select
+                      className="select"
+                      value={current.controlledBy ?? ''}
+                      onChange={(e) => patchToken(current.id, { controlledBy: e.target.value || null })}
+                      title="The player who can move this token on their screen"
+                    >
+                      <option value="">DM only</option>
+                      {live.members.map((m) => (
+                        <option key={m.userId} value={m.userId}>{m.displayName}</option>
+                      ))}
+                    </select>
+                    {live.members.length === 0 && (
+                      <span className="faint" style={{ fontSize: 11 }}>Players appear here once they join with your invite code.</span>
+                    )}
+                  </label>
+                )}
                 <div className="row" style={{ gap: 6 }}>
                   {current.npcId && (
                     <button className="btn small" onClick={() => openToken(current)}>View NPC</button>
@@ -614,7 +678,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
                       className={`linklike${t.id === selectedToken ? ' on' : ''}`}
                       onClick={() => setSelectedToken(t.id)}
                     >
-                      <span className="battlemap-dot" style={{ background: t.color }} />
+                      <span className="battlemap-dot" style={{ background: live.colorFor(t) }} />
                       {t.label}
                       {t.hidden && <Icon name="eye-off" size={12} />}
                     </button>
@@ -648,3 +712,4 @@ function sizeFromStatBlock(size: string | undefined): number {
       return 1
   }
 }
+

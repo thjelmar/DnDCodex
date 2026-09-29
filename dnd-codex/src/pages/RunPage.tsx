@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createSession, updateSession } from '../db/repo'
+import { createScene, createSession, updateSession } from '../db/repo'
+import { SceneEditor } from './BattleMapPage'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SidePanel } from '../components/SidePanel'
 import { StatBlockView } from '../components/StatBlockEditor'
@@ -12,7 +13,7 @@ import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../compone
 import { parseLeadingInt } from '../lib/combat'
 import { formatDate, todayISODate } from '../lib/format'
 import { isRichTextEmpty, wikiTargets } from '../lib/richtext'
-import type { Id, Item, Location, Note, NPC, Session } from '../db/types'
+import type { Campaign, Id, Item, Location, Note, NPC, Session } from '../db/types'
 
 // Run mode: the DM's at-the-table screen for one session. Three columns — what's
 // in play (entities the session's notes link to, plus manual pins), the session's
@@ -53,7 +54,8 @@ export function RunPage() {
   const [params, setParams] = useSearchParams()
   const combat = useCombat()
 
-  const campaign = useLiveQuery(() => db.campaigns.get(campaignId), [campaignId])
+  // `?? null` so a missing campaign reads as "not found", not "still loading".
+  const campaign = useLiveQuery(async () => (await db.campaigns.get(campaignId)) ?? null, [campaignId])
   const sessions = useLiveQuery(
     () => db.sessions.where('campaignId').equals(campaignId).reverse().sortBy('date'),
     [campaignId],
@@ -82,6 +84,15 @@ export function RunPage() {
   }
 
   const [peek, setPeek] = useState<{ kind: PeekKind; id: Id } | null>(null)
+  // Center pane: session notes or the battle map (remembered per campaign).
+  const centerKey = `codex.runCenter.${campaignId}`
+  const [center, setCenterState] = useState<'notes' | 'map'>(() => {
+    try { return localStorage.getItem(centerKey) === 'map' ? 'map' : 'notes' } catch { return 'notes' }
+  })
+  const setCenter = (c: 'notes' | 'map') => {
+    setCenterState(c)
+    try { localStorage.setItem(centerKey, c) } catch { /* ignore */ }
+  }
 
   // Every NPC/location/item/note as a lookup, by composite key and by name.
   const index = useMemo(() => {
@@ -230,9 +241,19 @@ export function RunPage() {
           )}
         </aside>
 
-        {/* Session notes */}
-        <section className="run-col run-notes">
-          {session ? (
+        {/* Session notes, or the battle map */}
+        <section className={`run-col run-notes${center === 'map' ? ' run-map' : ''}`}>
+          <div className="seg-filter run-center-switch" role="tablist" aria-label="Center pane">
+            <button role="tab" aria-selected={center === 'notes'} className={center === 'notes' ? 'active' : ''} onClick={() => setCenter('notes')}>
+              📝 Notes
+            </button>
+            <button role="tab" aria-selected={center === 'map'} className={center === 'map' ? 'active' : ''} onClick={() => setCenter('map')}>
+              🗺️ Battle Map
+            </button>
+          </div>
+          {center === 'map' ? (
+            <RunBattleMap campaign={campaign} sessionId={session?.id ?? null} />
+          ) : session ? (
             <RunSessionNotes key={session.id} session={session} onWikiLink={peekByName} />
           ) : (
             <div className="empty">
@@ -282,9 +303,70 @@ export function RunPage() {
   )
 }
 
+/**
+ * Run mode's battle map pane: pick a map, then the full DM editor (compact:
+ * side panel starts closed). Full screen from here shows this session's notes.
+ */
+function RunBattleMap({ campaign, sessionId }: { campaign: Campaign; sessionId: Id | null }) {
+  const scenes = useLiveQuery(
+    () => db.scenes.where('campaignId').equals(campaign.id).reverse().sortBy('updatedAt'),
+    [campaign.id],
+  )
+  const pickKey = `codex.runMap.${campaign.id}`
+  const [picked, setPickedState] = useState<Id | null>(() => {
+    try { return localStorage.getItem(pickKey) } catch { return null }
+  })
+  const setPicked = (id: Id | null) => {
+    setPickedState(id)
+    try { if (id) localStorage.setItem(pickKey, id); else localStorage.removeItem(pickKey) } catch { /* ignore */ }
+  }
+  if (!scenes) return null
+  const scene = scenes.find((s) => s.id === picked) ?? scenes[0] ?? null
+
+  if (!scene) {
+    return (
+      <div className="empty">
+        <div className="big">🗺️</div>
+        <p>No battle maps in this campaign yet.</p>
+        <button
+          className="btn primary"
+          onClick={async () => setPicked((await createScene(campaign.id, { name: 'Battle Map 1' })).id)}
+        >
+          <Icon name="plus" size={15} color="inherit" /> New battle map
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {scenes.length > 1 && (
+        <select
+          className="select run-map-pick"
+          value={scene.id}
+          onChange={(e) => setPicked(e.target.value)}
+          aria-label="Battle map"
+        >
+          {scenes.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+      )}
+      <SceneEditor
+        key={scene.id}
+        campaign={campaign}
+        scene={scene}
+        onDeleted={() => setPicked(null)}
+        notesSessionId={sessionId}
+        compact
+      />
+    </>
+  )
+}
+
 /** The session's DM notes (prep, on top — what you read mid-session) and the
  *  player-facing notes (the log of what happened). Autosaves like the editor. */
-function RunSessionNotes({ session, onWikiLink }: { session: Session; onWikiLink: (t: string) => void }) {
+export function RunSessionNotes({ session, onWikiLink }: { session: Session; onWikiLink: (t: string) => void }) {
   const [notes, setNotes] = useState(session.notes)
   const [dmNotes, setDmNotes] = useState(session.dmNotes)
 
