@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
 import type { SceneGrid, SceneToken } from '../db/types'
 
-// Live battle maps (migration 0012). The DM shows ONE battle map per campaign to
+// Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
 // players; the scene row, its visible tokens, and its map image are mirrored to
 // shared_scenes / shared_scene_tokens / shared_scene_maps. Members read them live
 // over Realtime; a player moves only their own token through move_scene_token().

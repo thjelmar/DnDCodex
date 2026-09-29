@@ -17,6 +17,9 @@ import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
+import { SharedHandouts } from '../components/SharedHandouts'
+import { CollapsibleSection } from '../components/CollapsibleSection'
+import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
 import { PartyLoot } from '../components/PartyLoot'
@@ -90,6 +93,7 @@ export function PlayerNotesPage() {
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
+  const liveSession = useLiveSession(campaign?.linkedCampaignId)
   // Resolve the open panel's row from the LIVE list (not a snapshot), so a
   // realtime re-push updates the open card and an un-share closes it.
   const viewShared = viewSharedId ? sharedRows.find((r) => r.id === viewSharedId) ?? null : null
@@ -231,24 +235,23 @@ export function PlayerNotesPage() {
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
       </div>
 
-      <div className="player-layout">
-        <div className="player-main">
+      {liveSession && (
+        <Link to={`/player/${campaign.id}/session`} className="join-session">
+          <span className="join-session-dot" />
+          <span className="join-session-text">
+            <strong>Your DM started a session</strong>
+            <span className="faint">{liveSession.title || 'Session'} — join to see handouts and take notes</span>
+          </span>
+          <span className="btn small primary join-session-btn"><Icon name="play" size={13} color="inherit" /> Join session</span>
+        </Link>
+      )}
+
       {campaign.linkedCampaignId && (
         <LiveMapLink campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
       )}
-      {campaign.linkedCampaignId && (
-        <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} limit={3} />
-      )}
 
-      {campaign.linkedCampaignId && (
-        <div style={{ marginBottom: 24 }}>
-          <h2 className="mb-0" style={{ fontSize: 20, marginBottom: 8 }}>
-            <span aria-hidden style={{ marginRight: 8 }}>💰</span>Party Loot
-          </h2>
-          <PartyLoot cloudCampaignId={campaign.linkedCampaignId} />
-        </div>
-      )}
-
+      <div className="player-layout">
+        <div className="player-main">
       {SECTIONS.map((section) => {
         const mine = bySection.get(section.key) ?? []
         const shared = sharedBySection.get(section.key) ?? []
@@ -258,16 +261,14 @@ export function PlayerNotesPage() {
         const count = mine.length + shared.length
         const isEmpty = (showMine ? mine.length : 0) + (showShared ? shared.length : 0) === 0
         return (
-          <div key={section.key} style={{ marginBottom: 24 }}>
-            <div className="row between" style={{ marginBottom: 4 }}>
-              <h2 className="mb-0" style={{ fontSize: 20 }}>
-                <span aria-hidden style={{ marginRight: 8 }}>{section.icon}</span>
-                {section.label}
-                {count > 0 && (
-                  <span className="faint" style={{ fontSize: 14, marginLeft: 8 }}>{count}</span>
-                )}
-              </h2>
-              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <CollapsibleSection
+            key={section.key}
+            storageKey={`player.${campaign.id}.${section.key}`}
+            icon={section.icon}
+            label={section.label}
+            count={count}
+            headerRight={
+              <>
                 {shared.length > 0 && (
                   <div className="seg-filter" role="group" aria-label={`Filter ${section.label}`}>
                     {(['all', 'mine', 'shared'] as SectionFilter[]).map((f) => (
@@ -284,46 +285,53 @@ export function PlayerNotesPage() {
                 <button className="btn small" onClick={() => addTo(section.key)}>
                   <Icon name="plus" size={13} /> {section.addLabel}
                 </button>
-              </div>
-            </div>
+              </>
+            }
+          >
             {isEmpty ? (
-              <p className="faint" style={{ margin: '4px 0 0' }}>{section.blurb}</p>
+              <p className="faint" style={{ margin: '2px 0 0' }}>{section.blurb}</p>
             ) : (
-              <div style={{ marginTop: 8 }}>
+              <>
                 {showShared && shared.map((r) => (
                   <SharedEntryRow key={r.id} row={r} onOpen={() => setViewSharedId(r.id)} />
                 ))}
                 {showMine && mine.map((n) => (
                   <EntryRow key={n.id} note={n} campaignId={campaign.id} onOpen={() => setEditingId(n.id)} />
                 ))}
-              </div>
+              </>
             )}
-          </div>
+          </CollapsibleSection>
         )
       })}
 
-      <div style={{ marginBottom: 24 }}>
-        <div className="row between" style={{ marginBottom: 4 }}>
-          <h2 className="mb-0" style={{ fontSize: 20 }}>
-            <span aria-hidden style={{ marginRight: 8 }}>🕸️</span>
-            Map
-          </h2>
-        </div>
-        <p className="faint" style={{ margin: '4px 0 10px' }}>
+      {campaign.linkedCampaignId && (
+        <CollapsibleSection storageKey={`player.${campaign.id}.loot`} icon="💰" label="Party Loot">
+          <PartyLoot cloudCampaignId={campaign.linkedCampaignId} />
+        </CollapsibleSection>
+      )}
+
+      <CollapsibleSection storageKey={`player.${campaign.id}.map`} defaultOpen={false} icon="🕸️" label="Map">
+        <p className="faint" style={{ margin: '2px 0 10px' }}>
           Your People &amp; Places and Quests as a web — drag a bubble onto another to connect them, and spot who
           you haven’t tied in yet.
         </p>
         <ThoughtMap graph={playerGraph} config={mapConfig} />
-      </div>
+      </CollapsibleSection>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '28px 0 16px' }} />
       <button className="btn danger small" onClick={removeCampaign}>
         Remove this campaign
       </button>
         </div>
-        {showStory && (
+        {(campaign.linkedCampaignId || showStory) && (
           <aside className="player-aside">
-            <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />
+            {campaign.linkedCampaignId && (
+              <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} compact campaignId={campaign.id} />
+            )}
+            {campaign.linkedCampaignId && (
+              <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} linkOnly />
+            )}
+            {showStory && <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />}
           </aside>
         )}
       </div>

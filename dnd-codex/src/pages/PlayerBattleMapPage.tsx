@@ -195,7 +195,7 @@ export function PlayerBattleMapPage() {
 }
 
 /**
- * Player-home entry point: a card that lights up while the DM is showing a map.
+ * Player-home entry point: a card that appears while the DM is showing a map.
  * Watches only the scene row (not tokens or the map image) to stay light.
  */
 export function LiveMapLink({ campaignId, linkedCampaignId }: { campaignId: string; linkedCampaignId: string }) {
@@ -221,14 +221,16 @@ export function LiveMapLink({ campaignId, linkedCampaignId }: { campaignId: stri
     }
   }, [linkedCampaignId, token])
 
+  // Only while the DM is showing a map (the player home stays uncluttered).
+  if (!name) return null
   return (
-    <Link to={`/player/${campaignId}/battlemap`} className={`battlemap-card${name ? ' live' : ''}`}>
+    <Link to={`/player/${campaignId}/battlemap`} className="battlemap-card live">
       <span className="battlemap-card-icon" aria-hidden>🗺️</span>
       <span className="battlemap-card-text">
         <strong>Battle Map</strong>
-        <span className="faint">{name ? `Your DM is showing “${name}”, live` : 'Nothing on the table right now'}</span>
+        <span className="faint">Your DM is showing “{name}”, live</span>
       </span>
-      {name && <span className="battlemap-live-pill"><span className="battlemap-live-dot" aria-hidden /> Live</span>}
+      <span className="battlemap-live-pill"><span className="battlemap-live-dot" aria-hidden /> Live</span>
     </Link>
   )
 }

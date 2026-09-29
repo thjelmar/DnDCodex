@@ -30,6 +30,7 @@ import { EncountersPage } from './pages/EncountersPage'
 import { CombatTrackerPage } from './pages/CombatTrackerPage'
 import { RunPage } from './pages/RunPage'
 import { GalleryPage } from './pages/GalleryPage'
+import { HandoutsPage } from './pages/HandoutsPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
 import { BattleMapPage } from './pages/BattleMapPage'
@@ -37,6 +38,8 @@ import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
 import { PlayerBattleMapPage } from './pages/PlayerBattleMapPage'
+import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
+import { PlayerSessionPage } from './pages/PlayerSessionPage'
 import { BugReportsPage } from './pages/BugReportsPage'
 
 // Start capturing client errors as early as possible so a bug report includes
@@ -332,6 +335,8 @@ export function App() {
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
+            <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
+            <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/player/:campaignId/battlemap" element={<PlayerBattleMapPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
@@ -344,6 +349,7 @@ export function App() {
               <Route path="map" element={<MapPage />} />
               <Route path="battlemap" element={<BattleMapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
+              <Route path="handouts" element={<HandoutsPage />} />
               <Route path="loot" element={<LootPage />} />
               <Route path="tags" element={<TagsPage />} />
               <Route path="notes" element={<NotesPage />} />
