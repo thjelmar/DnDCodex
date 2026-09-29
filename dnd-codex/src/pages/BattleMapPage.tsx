@@ -110,6 +110,64 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [peek, setPeek] = useState<{ kind: PeekKind; id: Id } | null>(null)
 
+  // Full-screen mode: the editor covers the whole window (and the browser goes
+  // full screen when it allows). Fullscreening the document — not just the board
+  // — keeps app dialogs (confirm, stat-block peek) visible on top.
+  const [expanded, setExpanded] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(true)
+  const usedFullscreenApi = useRef(false)
+  const peekOpen = useRef(false)
+  peekOpen.current = peek != null
+  function enterFullscreen() {
+    setExpanded(true)
+    const el = document.documentElement
+    if (el.requestFullscreen && !document.fullscreenElement) {
+      el.requestFullscreen()
+        .then(() => {
+          usedFullscreenApi.current = true
+        })
+        .catch(() => {
+          /* not allowed here — the in-page overlay still works */
+        })
+    }
+  }
+  function exitFullscreen() {
+    setExpanded(false)
+    if (usedFullscreenApi.current && document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    usedFullscreenApi.current = false
+  }
+  useEffect(() => {
+    if (!expanded) return
+    // The browser's own Esc leaves real full screen; follow it out.
+    const onFsChange = () => {
+      if (!document.fullscreenElement && usedFullscreenApi.current) {
+        usedFullscreenApi.current = false
+        setExpanded(false)
+      }
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    // Overlay-only fallback (browser refused real full screen): Esc exits too,
+    // unless it's closing the stat-block peek.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !usedFullscreenApi.current && !peekOpen.current) setExpanded(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange)
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [expanded])
+  // Leaving the page while expanded must not strand the browser in full screen.
+  useEffect(
+    () => () => {
+      if (usedFullscreenApi.current && document.fullscreenElement) document.exitFullscreen().catch(() => {})
+    },
+    [],
+  )
+
   const npcs = useLiveQuery(() => db.npcs.where('campaignId').equals(scene.campaignId).sortBy('name'), [scene.campaignId])
   const world = useLiveQuery(
     async () => ({
@@ -278,7 +336,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
       : undefined
 
   return (
-    <div>
+    <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
       <input
         ref={fileRef}
         type="file"
@@ -299,6 +357,21 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           aria-label="Battle map name"
         />
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button
+            className="btn ghost small"
+            onClick={() => setPanelOpen((o) => !o)}
+            title={panelOpen ? 'Hide the grid & token panel for a bigger board' : 'Show the grid & token panel'}
+          >
+            <Icon name={panelOpen ? 'chevron-right' : 'chevron-left'} size={14} /> {panelOpen ? 'Hide panel' : 'Show panel'}
+          </button>
+          <button
+            className={`btn small${expanded ? ' primary' : ''}`}
+            onClick={expanded ? exitFullscreen : enterFullscreen}
+            title={expanded ? 'Exit full screen (Esc)' : 'Fill the whole screen with the battle map'}
+          >
+            <Icon name={expanded ? 'minimize' : 'maximize'} size={14} color={expanded ? 'inherit' : undefined} />{' '}
+            {expanded ? 'Exit full screen' : 'Full screen'}
+          </button>
           <button className="btn small" disabled={uploading} onClick={() => fileRef.current?.click()}>
             <Icon name="upload" size={14} /> {uploading ? 'Processing…' : imageId ? 'Replace map' : 'Upload map'}
           </button>
@@ -347,6 +420,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           selectedId={selectedToken}
           onSelect={setSelectedToken}
           onMoveToken={(id, col, row) => patchToken(id, { col, row })}
+          onResizeToken={(id, size) => patchToken(id, { size })}
           onDeleteToken={removeToken}
           onOpenToken={openToken}
           aligning={aligning}
@@ -358,7 +432,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
           centerRef={centerRef}
         />
 
-        <aside className="battlemap-side">
+        <aside className="battlemap-side" hidden={!panelOpen}>
           <section>
             <h4>Grid</h4>
             <label className="battlemap-check">
@@ -467,7 +541,7 @@ function SceneEditor({ scene, onDeleted }: { scene: Scene; onDeleted: () => void
               </div>
             ) : (
               <p className="faint" style={{ fontSize: 12, marginTop: 10 }}>
-                Drag tokens to move them; they snap to the grid. Click a token to edit it, arrow keys nudge it, Delete removes it, and double-click an NPC token to see its stat block.
+                Drag tokens to move them; they snap to the grid. Click a token to select it, then drag its corner handle (or press + / −) to resize. Arrow keys nudge it, Delete removes it, and double-click an NPC token to see its stat block.
               </p>
             )}
 

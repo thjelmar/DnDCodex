@@ -6,6 +6,8 @@ import type { SceneGrid, SceneToken } from '../db/types'
 export const MAP_MAX_DIM = 3072
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
+/** Largest token footprint, in cells per side. */
+export const MAX_TOKEN_SIZE = 8
 
 export const TOKEN_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04', '#7c3aed', '#db2777', '#0891b2', '#475569']
 
@@ -14,6 +16,8 @@ export const TOKEN_SIZES: { cells: number; label: string }[] = [
   { cells: 2, label: 'Large (2×2)' },
   { cells: 3, label: 'Huge (3×3)' },
   { cells: 4, label: 'Gargantuan (4×4)' },
+  // Bigger still for set pieces (dragons, vehicles, colossi).
+  ...[5, 6, 7, 8].map((n) => ({ cells: n, label: `${n}×${n}` })),
 ]
 
 export function clampZoom(k: number): number {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import type { SceneGrid, SceneToken } from '../db/types'
 import {
+  MAX_TOKEN_SIZE,
   cellToPx,
   clampZoom,
   gridFromBox,
@@ -18,6 +19,7 @@ type Drag =
   | { kind: 'pan'; startX: number; startY: number; tx: number; ty: number }
   | { kind: 'token'; id: string; dx: number; dy: number; moved: boolean }
   | { kind: 'align'; x1: number; y1: number }
+  | { kind: 'resize'; id: string; left: number; top: number }
 
 interface Props {
   width: number
@@ -30,6 +32,7 @@ interface Props {
   selectedId: string | null
   onSelect: (id: string | null) => void
   onMoveToken: (id: string, col: number, row: number) => void
+  onResizeToken: (id: string, size: number) => void
   onDeleteToken: (id: string) => void
   onOpenToken: (token: SceneToken) => void
   /** When true, dragging draws a box around one map square to set the grid. */
@@ -49,6 +52,7 @@ export function Tabletop({
   selectedId,
   onSelect,
   onMoveToken,
+  onResizeToken,
   onDeleteToken,
   onOpenToken,
   aligning,
@@ -61,6 +65,8 @@ export function Tabletop({
   // Live position of a token being dragged (board px, center) and the align box.
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null)
   const [box, setBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+  // Live footprint while dragging a token's resize handle.
+  const [resizing, setResizing] = useState<{ id: string; size: number } | null>(null)
 
   const toBoard = (clientX: number, clientY: number) => {
     const rect = wrapRef.current!.getBoundingClientRect()
@@ -79,6 +85,24 @@ export function Tabletop({
   }
   // Fit the whole board on first render and whenever the board size changes.
   useEffect(fit, [width, height]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ...and when the viewport itself is resized (full screen, panel toggled).
+  const fitRef = useRef(fit)
+  fitRef.current = fit
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    let last = { w: el.clientWidth, h: el.clientHeight }
+    const ro = new ResizeObserver(() => {
+      const w = el.clientWidth
+      const h = el.clientHeight
+      if (Math.abs(w - last.w) > 40 || Math.abs(h - last.h) > 40) {
+        last = { w, h }
+        fitRef.current()
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     const el = wrapRef.current
@@ -143,10 +167,24 @@ export function Tabletop({
     onSelect(t.id)
   }
 
+  function onHandlePointerDown(e: React.PointerEvent, t: SceneToken) {
+    if (e.button !== 0) return
+    e.stopPropagation()
+    ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    const p = cellToPx(grid, t.col, t.row)
+    drag.current = { kind: 'resize', id: t.id, left: p.x, top: p.y }
+    setResizing({ id: t.id, size: t.size })
+  }
+
   function onPointerMove(e: React.PointerEvent) {
     const d = drag.current
     if (!d) return
-    if (d.kind === 'pan') {
+    if (d.kind === 'resize') {
+      // Size follows the handle: the footprint is anchored at the top-left cell.
+      const p = toBoard(e.clientX, e.clientY)
+      const span = Math.max(p.x - d.left, p.y - d.top) / grid.cellPx
+      setResizing({ id: d.id, size: Math.min(MAX_TOKEN_SIZE, Math.max(1, Math.round(span))) })
+    } else if (d.kind === 'pan') {
       setTransform((t) => ({ ...t, tx: d.tx + (e.clientX - d.startX), ty: d.ty + (e.clientY - d.startY) }))
     } else if (d.kind === 'token') {
       const p = toBoard(e.clientX, e.clientY)
@@ -162,7 +200,11 @@ export function Tabletop({
     const d = drag.current
     drag.current = null
     if (!d) return
-    if (d.kind === 'pan') {
+    if (d.kind === 'resize') {
+      const t = tokens.find((x) => x.id === d.id)
+      if (t && resizing && resizing.size !== t.size) onResizeToken(t.id, resizing.size)
+      setResizing(null)
+    } else if (d.kind === 'pan') {
       // A click (not a pan) on empty board clears the selection.
       if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) onSelect(null)
     } else if (d.kind === 'token') {
@@ -192,6 +234,12 @@ export function Tabletop({
       e.preventDefault()
       const [dc, dr] = moves[e.key]
       onMoveToken(t.id, t.col + dc, t.row + dr)
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault()
+      onResizeToken(t.id, Math.min(MAX_TOKEN_SIZE, t.size + 1))
+    } else if (e.key === '-' || e.key === '_') {
+      e.preventDefault()
+      onResizeToken(t.id, Math.max(1, t.size - 1))
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault()
       onDeleteToken(t.id)
@@ -238,7 +286,8 @@ export function Tabletop({
             {mapUrl && <image href={mapUrl} x={0} y={0} width={width} height={height} preserveAspectRatio="none" />}
             {grid.show && <rect x={0} y={0} width={width} height={height} fill="url(#tt-grid)" pointerEvents="none" />}
 
-            {ordered.map((t) => {
+            {ordered.map((raw) => {
+              const t = resizing?.id === raw.id ? { ...raw, size: resizing.size } : raw
               const live = dragPos?.id === t.id ? dragPos : null
               const c = live ?? tokenCenter(grid, t)
               const r = (t.size * grid.cellPx) / 2 - Math.max(1.5, grid.cellPx * 0.05)
@@ -249,6 +298,15 @@ export function Tabletop({
               const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
               return (
                 <g key={t.id}>
+                  {resizing?.id === t.id && (
+                    <rect
+                      {...cellToPx(grid, t.col, t.row)}
+                      width={t.size * grid.cellPx}
+                      height={t.size * grid.cellPx}
+                      className="tabletop-snap"
+                      pointerEvents="none"
+                    />
+                  )}
                   {snapPx && (
                     <rect
                       x={snapPx.x}
@@ -292,6 +350,20 @@ export function Tabletop({
                     <text className="tabletop-label" y={r + grid.cellPx * 0.28} textAnchor="middle" fontSize={Math.max(10, grid.cellPx * 0.26)}>
                       {t.label}
                     </text>
+                    {sel && !live && (
+                      <g
+                        className="tabletop-resize"
+                        transform={`translate(${r * 0.72} ${r * 0.72})`}
+                        onPointerDown={(e) => onHandlePointerDown(e, raw)}
+                      >
+                        <title>Drag to resize ({t.size}×{t.size})</title>
+                        <circle r={9 / transform.k} />
+                        <path
+                          d={`M ${-3.5 / transform.k} ${3.5 / transform.k} L ${3.5 / transform.k} ${-3.5 / transform.k}`}
+                          strokeWidth={1.6 / transform.k}
+                        />
+                      </g>
+                    )}
                   </g>
                 </g>
               )

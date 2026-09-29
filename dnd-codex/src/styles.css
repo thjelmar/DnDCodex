@@ -2081,6 +2081,22 @@ kbd {
 --------------------------------------------------------------------------- */
 .battlemap-page { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
 .battlemap-body { display: grid; grid-template-columns: 1fr 250px; gap: 12px; align-items: start; }
+.battlemap-editor.panel-closed .battlemap-body { grid-template-columns: 1fr; }
+.battlemap-side[hidden] { display: none; }
+/* Full screen: the editor covers the window; the board takes all spare height. */
+.battlemap-editor.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.battlemap-editor.expanded .battlemap-body { flex: 1; min-height: 0; align-items: stretch; }
+.battlemap-editor.expanded .tabletop { height: 100%; }
+.battlemap-editor.expanded .tabletop-view { height: 100%; min-height: 0; }
+.battlemap-editor.expanded .battlemap-side { overflow: auto; }
 .battlemap-side { display: flex; flex-direction: column; gap: 14px; }
 .battlemap-side section {
   background: var(--bg-elev);
@@ -2104,8 +2120,8 @@ kbd {
 
 .tabletop { position: relative; }
 .tabletop-view {
-  height: 72vh;
-  min-height: 440px;
+  height: calc(100vh - 230px);
+  min-height: 480px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2145,6 +2161,9 @@ kbd {
   font-size: 13px;
   pointer-events: none;
 }
+.tabletop-resize { cursor: nwse-resize; }
+.tabletop-resize circle { fill: var(--accent-strong); stroke: #fff; stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.tabletop-resize path { stroke: #fff; fill: none; }
 .tabletop-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; background: rgba(20, 18, 26, 0.8); border-radius: 8px; padding: 4px; }
 
 @media (max-width: 1100px) {
