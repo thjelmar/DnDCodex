@@ -35,7 +35,10 @@ export function useLiveSession(linkedCampaignId: string | undefined | null): Liv
       timer = setTimeout(refresh, 300)
     }
     const channel = supabase
-      .channel(`live-session-${linkedCampaignId}`)
+      // Unique per subscriber: supabase.channel() returns the EXISTING channel for a
+      // repeated name, and adding callbacks to an already-subscribed one throws — so
+      // two components on one page (e.g. Run mode's header + its battle map) collide.
+      .channel(`live-session-${linkedCampaignId}-${crypto.randomUUID().slice(0, 8)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'live_sessions', filter: `campaign_id=eq.${linkedCampaignId}` },

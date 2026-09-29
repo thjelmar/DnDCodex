@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { HashRouter, Routes, Route, NavLink, Link, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
@@ -33,6 +33,7 @@ import { GalleryPage } from './pages/GalleryPage'
 import { HandoutsPage } from './pages/HandoutsPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
+import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
@@ -336,6 +337,8 @@ export function App() {
             <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
             <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
+            {/* Battle maps are part of the live session now; old links land there. */}
+            <Route path="/player/:campaignId/battlemap" element={<PlayerBattlemapRedirect />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="sessions" element={<SessionsPage />} />
@@ -344,6 +347,7 @@ export function App() {
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
+              <Route path="battlemap" element={<BattleMapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
               <Route path="handouts" element={<HandoutsPage />} />
               <Route path="loot" element={<LootPage />} />
@@ -359,4 +363,10 @@ export function App() {
     </SyncProvider>
     </AuthProvider>
   )
+}
+
+/** /player/:id/battlemap (from before maps moved into live sessions). */
+function PlayerBattlemapRedirect() {
+  const { campaignId } = useParams()
+  return <Navigate to={`/player/${campaignId}/session`} replace />
 }

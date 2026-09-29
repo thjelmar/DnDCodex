@@ -7,6 +7,7 @@ import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
 import { PushChangesPanel } from '../components/PushChangesPanel'
 import { Icon } from '../components/Icon'
+import { LiveSceneKeeper } from './LiveSceneKeeper'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -27,6 +28,7 @@ const TABS = [
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
   { to: 'map', label: 'Map' },
+  { to: 'battlemap', label: 'Battle Map' },
   { to: 'gallery', label: 'Gallery' },
   { to: 'handouts', label: 'Handouts' },
   { to: 'loot', label: 'Loot' },
@@ -36,7 +38,8 @@ const TABS = [
 export function CampaignLayout() {
   const { campaignId } = useParams()
   const campaign = useLiveQuery(
-    () => (campaignId ? db.campaigns.get(campaignId) : undefined),
+    // `?? null` so a missing campaign reads as "not found", not "still loading".
+    async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
     [campaignId],
   )
   const [renaming, setRenaming] = useState(false)
@@ -150,6 +153,8 @@ export function CampaignLayout() {
       </div>
 
       <Outlet context={{ campaign } satisfies CampaignContext} />
+      {/* Keeps a live battle map in sync when its editor isn't open. */}
+      <LiveSceneKeeper campaign={campaign} />
     </div>
   )
 }

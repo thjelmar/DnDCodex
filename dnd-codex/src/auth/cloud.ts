@@ -77,18 +77,21 @@ export interface Member {
   role: string
   displayName: string
   avatarUrl: string | null
+  /** The member's chosen battle-map color (#rrggbb), or null if unset. */
+  color: string | null
 }
 
 /** The members of a campaign (with profile display names), for the DM to pick
  *  share recipients. */
 export async function getCampaignMembers(campaignId: string): Promise<Member[]> {
   if (!supabase) return []
-  const { data, error } = await supabase
-    .from('campaign_members')
-    .select('user_id, role, profiles ( display_name, avatar_url )')
-    .eq('campaign_id', campaignId)
+  const query = (cols: string) =>
+    supabase!.from('campaign_members').select(cols).eq('campaign_id', campaignId)
+  let { data, error } = await query('user_id, role, color, profiles ( display_name, avatar_url )')
+  // Before migration 0016 there's no `color` column; fall back without it.
+  if (error) ({ data, error } = await query('user_id, role, profiles ( display_name, avatar_url )'))
   if (error || !data) return []
-  return data.map((r) => {
+  return (data as unknown as Record<string, unknown>[]).map((r) => {
     const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
       | { display_name: string | null; avatar_url: string | null }
       | undefined
@@ -97,8 +100,28 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
       role: r.role as string,
       displayName: p?.display_name || 'Player',
       avatarUrl: p?.avatar_url ?? null,
+      color: (r.color as string) ?? null,
     }
   })
+}
+
+/** The current user's own battle-map color in a campaign (null if unset). */
+export async function getMyColor(campaignId: string, userId: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('campaign_members')
+    .select('color')
+    .eq('campaign_id', campaignId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return (data?.color as string) ?? null
+}
+
+/** Set the current user's battle-map color (only their own; see 0016). */
+export async function setMyColor(campaignId: string, color: string | null): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.rpc('set_my_color', { cid: campaignId, new_color: color })
+  if (error) throw new Error(error.message)
 }
 
 // --- Shared gallery (Phase 3b) ---------------------------------------------

@@ -73,7 +73,8 @@ export function PlayerNotesPage() {
   const confirm = useConfirm()
 
   const campaign = useLiveQuery(
-    () => (campaignId ? db.campaigns.get(campaignId) : undefined),
+    // `?? null` so a missing campaign reads as "not found", not "still loading".
+    async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
     [campaignId],
   )
   const notes = useLiveQuery(
@@ -243,6 +244,7 @@ export function PlayerNotesPage() {
           <span className="btn small primary join-session-btn"><Icon name="play" size={13} color="inherit" /> Join session</span>
         </Link>
       )}
+
 
       <div className="player-layout">
         <div className="player-main">

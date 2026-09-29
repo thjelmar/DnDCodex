@@ -32,6 +32,7 @@ const CHILD_TABLES = [
   'images',
   'links',
   'encounters',
+  'scenes',
 ] as const
 
 /** The last account to be active on this browser, or null if never signed in. */

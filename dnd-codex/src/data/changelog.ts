@@ -17,6 +17,17 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-29',
+    title: 'Battle maps',
+    changes: [
+      { kind: 'new', text: 'DMs get a new “Battle Map” tab: upload a map, line the grid up with it (or use a blank grid), and drag tokens around. Tokens snap to squares, and big creatures take up 2×2 or more.' },
+      { kind: 'new', text: 'Drop an NPC onto the map as a token with its portrait, and double-click it to see its stat block.' },
+      { kind: 'new', text: 'Battle maps in live sessions: when the DM starts a session they can put a map on the table, and players see it live in their session’s Tabletop. The DM can hand a token to a player to move, and each player picks the color their tokens wear. Ending the session takes the map down.' },
+      { kind: 'new', text: 'Run mode can switch its center pane to the battle map, and full screen keeps your session notes beside the map.' },
+      { kind: 'new', text: 'Align the grid by boxing a few squares: it snaps to the grid lines drawn on your map so the grid lines up edge to edge. Resize tokens by dragging their corner, and go full screen for more room.' },
+    ],
+  },
+  {
+    date: '2026-09-29',
     title: 'A place to see what’s new',
     changes: [
       { kind: 'new', text: 'This page! A running list of what’s been added and fixed. Find it any time under “What’s New” in the sidebar.' },

@@ -538,6 +538,7 @@ export type SyncTable =
   | 'images'
   | 'links'
   | 'encounters'
+  | 'scenes'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -601,6 +602,50 @@ export interface Encounter extends BaseRecord {
   combatants: EncounterCombatant[]
 }
 
+/** A battle-map grid, in map-image pixels. Tokens sit in grid cells, so
+ *  re-calibrating the grid carries the tokens with it. */
+export interface SceneGrid {
+  /** Size of one square cell, in image pixels. */
+  cellPx: number
+  /** Where the grid's first cell line sits, in image pixels (0 ≤ offset < cellPx). */
+  offsetX: number
+  offsetY: number
+  show: boolean
+  color: string
+}
+
+/** One token on a battle map. `col`/`row` are the top-left cell it occupies. */
+export interface SceneToken {
+  id: Id
+  label: string
+  color: string
+  col: number
+  row: number
+  /** Footprint in cells (1 = Medium, 2 = Large, 3 = Huge, 4 = Gargantuan). */
+  size: number
+  /** Campaign NPC this token represents, if any. */
+  npcId?: Id | null
+  /** Portrait image (StoredImage id), usually the NPC's. */
+  imageId?: Id | null
+  /** Never sent to players (not even as a placeholder). */
+  hidden?: boolean
+  /** The player (account id) allowed to move this token on the live map. */
+  controlledBy?: string | null
+}
+
+/** A battle map (VTT scene): a map image, its grid, and the tokens on it. */
+export interface Scene extends BaseRecord {
+  campaignId: Id
+  name: string
+  /** Map image (StoredImage id), or null for a blank grid. */
+  imageId: Id | null
+  /** Board size in pixels (the map image's size, or a blank-grid default). */
+  width: number
+  height: number
+  grid: SceneGrid
+  tokens: SceneToken[]
+}
+
 /** Discriminated union used by generic helpers and the export payload. */
 export interface DatabaseSnapshot {
   version: number
@@ -616,4 +661,5 @@ export interface DatabaseSnapshot {
   images: StoredImage[]
   links: Link[]
   encounters?: Encounter[]
+  scenes?: Scene[]
 }
