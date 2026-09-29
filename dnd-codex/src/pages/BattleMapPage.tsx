@@ -15,6 +15,9 @@ import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
+import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
+import { makeCombatant, type Combatant } from '../lib/combat'
+import { tokenCombat } from '../lib/tokenCombat'
 import {
   MAP_MAX_DIM,
   TOKEN_COLORS,
@@ -27,7 +30,7 @@ import {
   snapCenterToCell,
   tokenRevealed,
 } from '../lib/tabletop'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
 import { SessionNotesPanel } from './SessionNotesPanel'
 
 // Battle Map tab: the built-in VTT. A scene list on the left; the selected
@@ -150,9 +153,11 @@ export function SceneEditor({
 
   const [selectedToken, setSelectedToken] = useState<string | null>(null)
   const [preview, setPreview] = useState(false)
+  // Shared combat store (tracker/Run panel/board all stay in sync).
+  const combat = useCombat()
   const live = useDmLiveScene(
     campaign,
-    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog },
+    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog, combat: combat.state },
     (moves) => {
       touch()
       setTokens((ts) => ts.map((t) => {
@@ -254,6 +259,31 @@ export function SceneEditor({
     setTokens((ts) => ts.filter((t) => t.id !== id))
     setSelectedToken((s) => (s === id ? null : s))
   }
+
+  // Combat link: a token can represent a combatant in the DM's tracker so the
+  // board shows its HP/conditions and highlights it on its turn.
+  async function addTokenToCombat(t: SceneToken) {
+    const npc = t.npcId ? await db.npcs.get(t.npcId) : undefined
+    const c = npc ? combatantFromNpc(npc) : makeCombatant({ name: t.label || 'Combatant' })
+    combat.addCombatants([c])
+    patchToken(t.id, { combatantId: c.id })
+  }
+  function removeTokenFromCombat(t: SceneToken) {
+    if (t.combatantId) combat.removeCombatant(t.combatantId)
+    patchToken(t.id, { combatantId: null })
+  }
+  // The overlay drawn on tokens. In player preview, filter it as players see it.
+  const combatByToken = useMemo(() => {
+    const st = combat.state
+    const activeId = st.active ? st.combatants[st.turnIndex]?.id ?? null : null
+    const map: Record<string, TokenCombat> = {}
+    for (const t of tokens) {
+      if (!t.combatantId) continue
+      const c = st.combatants.find((x) => x.id === t.combatantId)
+      if (c) map[t.id] = tokenCombat(t, c, activeId, preview)
+    }
+    return map
+  }, [tokens, combat.state, preview])
   function addToken(input: Pick<SceneToken, 'label'> & Partial<SceneToken>) {
     const tokenSize = input.size ?? 1
     // Drop new tokens at the middle of the current view, nudged so a batch of
@@ -634,6 +664,7 @@ export function SceneEditor({
           fogTool={preview ? null : fogTool}
           fogBrush={fogBrush}
           onPaintFog={paintFog}
+          combat={combatByToken}
         />
 
         <aside className="battlemap-side" hidden={!panelOpen || preview}>
@@ -783,6 +814,16 @@ export function SceneEditor({
                     )}
                   </label>
                 )}
+                <TokenCombatControl
+                  token={current}
+                  combatant={current.combatantId ? combat.state.combatants.find((c) => c.id === current.combatantId) ?? null : null}
+                  onAdd={() => addTokenToCombat(current)}
+                  onRemove={() => removeTokenFromCombat(current)}
+                  onFriendly={(v) => patchToken(current.id, { friendly: v })}
+                  onDamage={(n) => current.combatantId && combat.adjustHp(current.combatantId, -n)}
+                  onHeal={(n) => current.combatantId && combat.adjustHp(current.combatantId, n)}
+                  onConditions={(conds) => current.combatantId && combat.patch(current.combatantId, { conditions: conds })}
+                />
                 <div className="row" style={{ gap: 6 }}>
                   {current.npcId && (
                     <button className="btn small" onClick={() => openToken(current)}>View NPC</button>
@@ -841,3 +882,78 @@ function sizeFromStatBlock(size: string | undefined): number {
   }
 }
 
+
+/** The combat controls in a selected token's side panel: add/remove the token
+ *  from the tracker, apply damage/heal right on the map, and (for a DM-run
+ *  non-PC) mark it friendly so players see its HP. */
+function TokenCombatControl({
+  token,
+  combatant,
+  onAdd,
+  onRemove,
+  onFriendly,
+  onDamage,
+  onHeal,
+  onConditions,
+}: {
+  token: SceneToken
+  combatant: Combatant | null
+  onAdd: () => void
+  onRemove: () => void
+  onFriendly: (v: boolean) => void
+  onDamage: (n: number) => void
+  onHeal: (n: number) => void
+  onConditions: (conds: string[]) => void
+}) {
+  const [amount, setAmount] = useState('')
+  if (!combatant) {
+    return (
+      <button className="btn small" onClick={onAdd} title="Track this token in the combat tracker">
+        <Icon name="swords" size={13} /> Add to combat
+      </button>
+    )
+  }
+  const ally = combatant.isPC || !!token.controlledBy
+  const apply = (heal: boolean) => {
+    const n = parseInt(amount, 10)
+    if (!Number.isFinite(n) || n <= 0) return
+    heal ? onHeal(n) : onDamage(n)
+    setAmount('')
+  }
+  return (
+    <div className="battlemap-combat-ctl">
+      <div className="row between" style={{ alignItems: 'center' }}>
+        <span className="faint" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Icon name="swords" size={13} /> In combat
+          {combatant.hp != null && ` · ${combatant.hp}/${combatant.maxHp ?? combatant.hp} HP`}
+        </span>
+        <button className="btn ghost small" onClick={onRemove}>Remove</button>
+      </div>
+      <div className="battlemap-dmg-row">
+        <input
+          className="input"
+          type="number"
+          min={1}
+          inputMode="numeric"
+          placeholder="Amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') apply(e.shiftKey) }}
+          aria-label="Damage or heal amount"
+          style={{ width: 78 }}
+        />
+        <button className="btn small" onClick={() => apply(false)} title="Apply damage (Enter)">Damage</button>
+        <button className="btn ghost small" onClick={() => apply(true)} title="Heal (Shift+Enter)">Heal</button>
+      </div>
+      <ConditionPicker value={combatant.conditions} onChange={onConditions} />
+      {ally ? (
+        <span className="faint" style={{ fontSize: 11 }}>Players see its HP (party ally).</span>
+      ) : (
+        <label className="battlemap-check" title="Players see this token's real HP, like a party ally">
+          <input type="checkbox" checked={token.friendly === true} onChange={(e) => onFriendly(e.target.checked)} />
+          Friendly — players see its HP
+        </label>
+      )}
+    </div>
+  )
+}

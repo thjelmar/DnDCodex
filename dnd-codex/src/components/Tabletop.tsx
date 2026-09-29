@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import type { SceneFog, SceneGrid, SceneToken } from '../db/types'
+import type { SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
   MIN_CELL_SCREEN,
@@ -12,6 +12,8 @@ import {
   snapCenterToCell,
   tokenCenter,
 } from '../lib/tabletop'
+import { conditionMeta } from '../lib/combat'
+import { conditionIcon } from '../lib/conditionIcons'
 
 // The battle-map board: an SVG viewport with pan (drag the background), zoom
 // (wheel, around the cursor), a map image, a calibratable square grid, and
@@ -60,6 +62,8 @@ interface Props {
   fogBrush?: number
   /** Commit a painted stroke: reveal or hide the given cell keys. */
   onPaintFog?: (cellKeys: string[], reveal: boolean) => void
+  /** Per-token combat overlay: HP bar / damage taken, conditions, active turn. */
+  combat?: Record<string, TokenCombat>
 }
 
 export function Tabletop({
@@ -85,6 +89,7 @@ export function Tabletop({
   fogTool,
   fogBrush = 0,
   onPaintFog,
+  combat,
 }: Props) {
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -451,6 +456,18 @@ export function Tabletop({
               const portrait = t.imageId ? portraits[t.imageId] : undefined
               const sel = t.id === selectedId
               const own = ownIds?.has(t.id) ?? false
+              const cc = combat?.[t.id]
+              // Combat overlay stacks below the token — token → HP bar/damage →
+              // name — so the stat never covers the name. Conditions arc the top.
+              const belowGap = Math.max(2, 2.5 / transform.k)
+              const nameFont = Math.max(grid.cellPx * 0.26, 11 / transform.k)
+              const hpTracked = !!cc && cc.hp != null && cc.maxHp != null && cc.maxHp > 0
+              const showDmg = !!cc && !hpTracked && (cc.damageTaken ?? 0) > 0
+              const barH = Math.max(3.5, r * 0.16)
+              const dmgFont = Math.max(grid.cellPx * 0.24, 11 / transform.k)
+              const statH = hpTracked ? barH : showDmg ? dmgFont : 0
+              const statTop = r + belowGap
+              const nameTop = r + belowGap + (statH > 0 ? statH + belowGap : 0)
               // Ghost of the snap target while dragging.
               const snap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
               const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
@@ -505,19 +522,78 @@ export function Tabletop({
                       </text>
                     )}
                     <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
-                    {/* Font/offset are in board units (inside scale(k)), so they'd
-                        collapse when zoomed out. Floor the on-screen size (…/k keeps
-                        a constant screen px) so labels stay readable at low zoom,
-                        while the board-relative value still wins when zoomed in. */}
+
+                    {/* Active-turn ring, then the HP bar / damage number, then the
+                        name below it — the stat never overlaps the name. */}
+                    {cc?.active && <circle r={r + Math.max(4, r * 0.2)} className="tabletop-combat-active" pointerEvents="none" />}
+                    {hpTracked && (() => {
+                      const frac = Math.max(0, Math.min(1, (cc!.hp as number) / (cc!.maxHp as number)))
+                      const bw = r * 1.7
+                      const cls = frac > 0.5 ? 'hp-hi' : frac > 0.25 ? 'hp-mid' : 'hp-lo'
+                      return (
+                        <g pointerEvents="none">
+                          <rect x={-bw / 2} y={statTop} width={bw} height={barH} rx={barH / 2} className="tabletop-hp-bg" />
+                          <rect x={-bw / 2} y={statTop} width={bw * frac} height={barH} rx={barH / 2} className={`tabletop-hp-fill ${cls}`} />
+                        </g>
+                      )
+                    })()}
+                    {showDmg && (
+                      <text
+                        className="tabletop-dmg"
+                        y={statTop}
+                        textAnchor="middle"
+                        dominantBaseline="hanging"
+                        fontSize={dmgFont}
+                        pointerEvents="none"
+                      >
+                        −{cc!.damageTaken}
+                      </text>
+                    )}
                     <text
                       className="tabletop-label"
-                      y={r + Math.max(grid.cellPx * 0.28, 9 / transform.k)}
+                      y={nameTop}
                       textAnchor="middle"
-                      fontSize={Math.max(grid.cellPx * 0.26, 11 / transform.k)}
+                      dominantBaseline="hanging"
+                      fontSize={nameFont}
                     >
                       {t.label}
                     </text>
                     {own && <circle r={r + Math.max(3, r * 0.14)} className="tabletop-own-ring" />}
+
+                    {/* Conditions: colored status pips arced around the token's top
+                        edge (Owlbear-style), full names on hover. Clear of the name. */}
+                    {cc?.conditions && cc.conditions.length > 0 && (() => {
+                      const shown = cc.conditions.slice(0, 5)
+                      const extra = cc.conditions.length - shown.length
+                      const items = [...shown, ...(extra > 0 ? ['+'] : [])]
+                      const pr = Math.max(r * 0.26, 6 / transform.k)
+                      const ringR = r - pr * 0.2
+                      const step = Math.min(Math.PI / 3.2, (pr * 2.15) / ringR)
+                      const a0 = -Math.PI / 2 - ((items.length - 1) * step) / 2
+                      return (
+                        <g pointerEvents="none">
+                          <title>{cc.conditions.join(', ')}</title>
+                          {items.map((name, i) => {
+                            const a = a0 + i * step
+                            const x = ringR * Math.cos(a)
+                            const y = ringR * Math.sin(a)
+                            const isMore = name === '+'
+                            const meta = isMore ? null : conditionMeta(name)
+                            return (
+                              <g key={isMore ? 'more' : name} transform={`translate(${x} ${y})`}>
+                                <circle r={pr} fill={meta ? meta.color : undefined} className={`tabletop-cond-pip${isMore ? ' more' : ''}`} />
+                                {isMore ? (
+                                  <text className="tabletop-cond-code" textAnchor="middle" dominantBaseline="central" fontSize={pr * 1.02}>+{extra}</text>
+                                ) : (
+                                  <g className="tabletop-cond-glyph" transform={`scale(${pr / 10.5})`}>{conditionIcon(name)}</g>
+                                )}
+                              </g>
+                            )
+                          })}
+                        </g>
+                      )
+                    })()}
+
                     {sel && !live && editable && (
                       <g
                         className="tabletop-resize"

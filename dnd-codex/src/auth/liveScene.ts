@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
-import type { SceneFog, SceneGrid, SceneToken } from '../db/types'
+import type { SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
 
 // Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
 // players; the scene row, its visible tokens, and its map image are mirrored to
@@ -31,6 +31,8 @@ export interface LiveToken {
   size: number
   portrait: string | null
   controlledBy: string | null
+  /** Privacy-filtered combat overlay, or null when not in combat. */
+  combat: TokenCombat | null
 }
 
 type Row = Record<string, unknown>
@@ -58,6 +60,7 @@ function tokenFromRow(r: Row): LiveToken {
     size: Number(r.size) || 1,
     portrait: (r.portrait as string) ?? null,
     controlledBy: (r.controlled_by as string) ?? null,
+    combat: (r.combat as TokenCombat) ?? null,
   }
 }
 
@@ -72,15 +75,20 @@ export function tokenToRow(campaignId: string, t: LiveToken): Row {
     size: t.size,
     portrait: t.portrait,
     controlled_by: t.controlledBy,
+    combat: t.combat,
     updated_at: new Date().toISOString(),
   }
 }
 
-/** Board-ready tokens: portraits keyed by token id (Tabletop's `portraits`). */
-export function liveTokensForBoard(tokens: LiveToken[]): { tokens: SceneToken[]; portraits: Record<string, string> } {
+/** Board-ready tokens: portraits + combat overlay keyed by token id. */
+export function liveTokensForBoard(
+  tokens: LiveToken[],
+): { tokens: SceneToken[]; portraits: Record<string, string>; combat: Record<string, TokenCombat> } {
   const portraits: Record<string, string> = {}
+  const combat: Record<string, TokenCombat> = {}
   const out = tokens.map((t) => {
     if (t.portrait) portraits[t.id] = t.portrait
+    if (t.combat) combat[t.id] = t.combat
     return {
       id: t.id,
       label: t.label,
@@ -92,7 +100,7 @@ export function liveTokensForBoard(tokens: LiveToken[]): { tokens: SceneToken[];
       controlledBy: t.controlledBy,
     }
   })
-  return { tokens: out, portraits }
+  return { tokens: out, portraits, combat }
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────

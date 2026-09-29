@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Icon } from './Icon'
 import { NumberField } from './NumberField'
 import { useConfirm } from './ConfirmDialog'
 import {
   CONDITIONS,
   emptyCombat,
-  loadCombat,
-  saveCombat,
+  getCombat,
+  setCombat,
+  subscribeCombat,
   makeCombatant,
   rollInitiative,
   rollAllInitiative,
@@ -33,13 +34,18 @@ export function combatantFromNpc(npc: NPC): Combatant {
   })
 }
 
-/** The active combat plus every operation the tracker UIs need. */
+/** Read-only live view of the one combat, for surfaces that only display it
+ *  (e.g. the battle-map overlay, the live push). */
+export function useCombatState(): CombatState {
+  return useSyncExternalStore(subscribeCombat, getCombat)
+}
+
+/** The active combat plus every operation the tracker UIs need. Backed by the
+ *  shared store so the tracker, Run panel, and board overlay all stay in sync. */
 export function useCombat() {
   const confirm = useConfirm()
-  const [state, setState] = useState<CombatState>(() => loadCombat())
-
-  // Persist every change — combat is transient, DM-only, never synced/backed up.
-  useEffect(() => { saveCombat(state) }, [state])
+  const state = useSyncExternalStore(subscribeCombat, getCombat)
+  const setState = setCombat
 
   function patch(id: Id, p: Partial<Combatant>) {
     setState((s) => ({ ...s, combatants: s.combatants.map((c) => (c.id === id ? { ...c, ...p } : c)) }))
@@ -49,10 +55,14 @@ export function useCombat() {
     setState((s) => ({
       ...s,
       combatants: s.combatants.map((c) => {
-        if (c.id !== id || c.hp == null) return c
+        if (c.id !== id) return c
+        // delta < 0 = damage, > 0 = heal. Track cumulative net damage taken so
+        // players can see how hurt an enemy is without its HP pool.
+        const damageTaken = Math.max(0, (c.damageTaken ?? 0) - delta)
+        if (c.hp == null) return { ...c, damageTaken }
         const raw = c.hp + delta
         const hi = c.maxHp ?? raw
-        return { ...c, hp: Math.max(0, Math.min(raw, hi)) }
+        return { ...c, hp: Math.max(0, Math.min(raw, hi)), damageTaken }
       }),
     }))
   }
@@ -250,7 +260,7 @@ function HpControl({
   )
 }
 
-function ConditionPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+export function ConditionPicker({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {

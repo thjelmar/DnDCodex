@@ -192,6 +192,7 @@ export function PlayerLiveBoardView({
           canMoveToken={(t) => ownIds.has(t.id)}
           ownIds={ownIds}
           fog={live.scene.fog ?? null}
+          combat={board.combat}
         />
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (

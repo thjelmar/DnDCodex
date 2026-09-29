@@ -17,6 +17,8 @@ import {
 import { makeThumbnail } from '../lib/image'
 import { useLiveSession } from '../lib/useLiveSession'
 import { tokenRevealed } from '../lib/tabletop'
+import { tokenCombat } from '../lib/tokenCombat'
+import { getCombat, type CombatState } from '../lib/combat'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
@@ -34,6 +36,7 @@ interface Draft {
   imageId: Id | null
   tokens: SceneToken[]
   fog: SceneFog | null
+  combat: CombatState
 }
 
 const PUSH_DELAY = 250
@@ -62,21 +65,27 @@ async function toLiveTokens(
   members: Member[],
   cache: Map<string, string | null>,
   fog: SceneFog | null,
+  combat: CombatState,
 ): Promise<LiveToken[]> {
   const revealed = fog?.enabled ? new Set(fog.revealed) : null
+  const activeId = combat.active ? combat.combatants[combat.turnIndex]?.id ?? null : null
   return Promise.all(
     tokens
       .filter((t) => !t.hidden && (!revealed || tokenRevealed(t, revealed)))
-      .map(async (t) => ({
-        id: t.id,
-        label: t.label,
-        color: tokenColor(t, members),
-        col: t.col,
-        row: t.row,
-        size: t.size,
-        portrait: await portraitFor(t.imageId, cache),
-        controlledBy: t.controlledBy ?? null,
-      })),
+      .map(async (t) => {
+        const linked = t.combatantId ? combat.combatants.find((c) => c.id === t.combatantId) : null
+        return {
+          id: t.id,
+          label: t.label,
+          color: tokenColor(t, members),
+          col: t.col,
+          row: t.row,
+          size: t.size,
+          portrait: await portraitFor(t.imageId, cache),
+          controlledBy: t.controlledBy ?? null,
+          combat: linked ? tokenCombat(t, linked, activeId, true) : null,
+        }
+      }),
   )
 }
 
@@ -108,10 +117,11 @@ export async function showSceneToPlayers(campaign: Campaign, scene: Scene, userI
     imageId: scene.imageId,
     tokens: scene.tokens,
     fog: scene.fog ?? null,
+    combat: getCombat(),
   }
   await uploadMap(campaign.id, draft.imageId)
   await upsertLiveScene(liveSceneOf(campaign.id, draft))
-  await upsertLiveTokens(campaign.id, await toLiveTokens(draft.tokens, members, new Map(), draft.fog))
+  await upsertLiveTokens(campaign.id, await toLiveTokens(draft.tokens, members, new Map(), draft.fog, draft.combat))
 }
 
 export function useDmLiveScene(
@@ -169,7 +179,8 @@ export function useDmLiveScene(
 
   const same = (a: LiveToken, b: LiveToken) =>
     a.label === b.label && a.color === b.color && a.col === b.col && a.row === b.row &&
-    a.size === b.size && a.portrait === b.portrait && a.controlledBy === b.controlledBy
+    a.size === b.size && a.portrait === b.portrait && a.controlledBy === b.controlledBy &&
+    JSON.stringify(a.combat) === JSON.stringify(b.combat)
 
   /**
    * Mirror the draft to the cloud, sending only what changed. What we send is
@@ -202,7 +213,7 @@ export function useDmLiveScene(
         throw e
       }
     }
-    const next = await toLiveTokens(d.tokens, members, thumbs.current, d.fog)
+    const next = await toLiveTokens(d.tokens, members, thumbs.current, d.fog, d.combat)
     const changed = next.filter((t) => {
       const prev = pushedTokens.current.get(t.id)
       return !prev || !same(prev, t)
@@ -231,11 +242,11 @@ export function useDmLiveScene(
 
   // Debounced mirror while this map is the one on show. A push still waiting
   // on the debounce is flushed if the editor unmounts (switching panes/maps).
-  const { sceneId, name, grid, width, height, imageId, tokens, fog } = draft
+  const { sceneId, name, grid, width, height, imageId, tokens, fog, combat } = draft
   const pending = useRef<Draft | null>(null)
   useEffect(() => {
     if (!isShowing || !seeded) return
-    const d = { sceneId, name, grid, width, height, imageId, tokens, fog }
+    const d = { sceneId, name, grid, width, height, imageId, tokens, fog, combat }
     pending.current = d
     const t = setTimeout(() => {
       pending.current = null
@@ -243,7 +254,7 @@ export function useDmLiveScene(
     }, PUSH_DELAY)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, members])
+  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, combat, members])
   useEffect(
     () => () => {
       if (pending.current) enqueuePush(pending.current)
