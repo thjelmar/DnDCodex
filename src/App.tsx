@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, Link, Navigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
@@ -47,6 +47,54 @@ const ellipsis: React.CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+}
+
+/** Remember a sidebar section's open/closed state per browser. */
+function useNavCollapsed(key: string, defaultOpen: boolean) {
+  const storageKey = `codex.nav.${key}`
+  const [open, setOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem(storageKey)
+      return v == null ? defaultOpen : v === '1'
+    } catch {
+      return defaultOpen
+    }
+  })
+  const toggle = () =>
+    setOpen((o) => {
+      const next = !o
+      try {
+        localStorage.setItem(storageKey, next ? '1' : '0')
+      } catch {
+        /* private mode / blocked storage — state just won't persist */
+      }
+      return next
+    })
+  return [open, toggle] as const
+}
+
+/** A collapsible sidebar section with a heading toggle and a rotating caret. */
+function SidebarSection({
+  label,
+  sectionKey,
+  defaultOpen = true,
+  children,
+}: {
+  label: string
+  sectionKey: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, toggle] = useNavCollapsed(sectionKey, defaultOpen)
+  return (
+    <>
+      <button className="sidebar-heading sidebar-heading-btn" onClick={toggle} aria-expanded={open}>
+        <span>{label}</span>
+        <Icon name="chevron-right" size={12} color="currentColor" className={`sidebar-caret${open ? ' open' : ''}`} />
+      </button>
+      {open && children}
+    </>
+  )
 }
 
 function Sidebar({
@@ -100,47 +148,45 @@ function Sidebar({
         </span>
       </button>
       {/* App: settings, updates, and data */}
-      <div className="sidebar-heading">App</div>
-      <NavLink to="/backup" className="nav-link">
-        <span className="ico"><Icon name="save" /></span> Backup &amp; Data
-      </NavLink>
-      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
-        <span className="ico"><Icon name="settings" /></span> Preferences
-      </button>
-      <NavLink to="/changelog" className="nav-link">
-        <span className="ico"><Icon name="sparkles" /></span>
-        <span>What’s New</span>
-        {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
-      </NavLink>
-      {user && (
-        <NavLink to="/bug-reports" className="nav-link">
-          <span className="ico"><Icon name="inbox" /></span> Bug reports
+      <SidebarSection label="App" sectionKey="app">
+        <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
+          <span className="ico"><Icon name="settings" /></span> Preferences
+        </button>
+        <NavLink to="/changelog" className="nav-link">
+          <span className="ico"><Icon name="sparkles" /></span>
+          <span>What’s New</span>
+          {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
         </NavLink>
-      )}
+        {user && (
+          <NavLink to="/bug-reports" className="nav-link">
+            <span className="ico"><Icon name="inbox" /></span> Bug reports
+          </NavLink>
+        )}
+      </SidebarSection>
 
       {/* DM: campaign creation & management */}
-      <div className="sidebar-heading">DM</div>
-      <NavLink to="/" end className="nav-link">
-        <span className="ico">📚</span> Campaigns
-      </NavLink>
-      <Link to="/?new=1" className="nav-link">
-        <span className="ico"><Icon name="plus" /></span> New Campaign
-      </Link>
-      {recent?.map((c) => (
-        <NavLink key={c.id} to={`/campaign/${c.id}`} className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
-          <span className="ico" style={{ color: c.color }} aria-hidden>
-            ●
-          </span>
-          <span style={ellipsis}>{c.name}</span>
+      <SidebarSection label="DM" sectionKey="dm">
+        <NavLink to="/" end className="nav-link">
+          <span className="ico">📚</span> Campaigns
         </NavLink>
-      ))}
-      <ToolsMenu />
+        <Link to="/?new=1" className="nav-link">
+          <span className="ico"><Icon name="plus" /></span> New Campaign
+        </Link>
+        {recent?.map((c) => (
+          <NavLink key={c.id} to={`/campaign/${c.id}`} className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico" style={{ color: c.color }} aria-hidden>
+              ●
+            </span>
+            <span style={ellipsis}>{c.name}</span>
+          </NavLink>
+        ))}
+        <ToolsMenu />
+      </SidebarSection>
 
       {/* Player: campaigns you're playing in, each a notes home */}
-      <div className="sidebar-heading" style={{ display: 'flex', alignItems: 'center' }}>
-        Player
-      </div>
-      <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
+      <SidebarSection label="Player" sectionKey="player">
+        <PlayerNotesNav onAddPlayerCampaign={onAddPlayerCampaign} />
+      </SidebarSection>
 
       <div className="sidebar-spacer" />
       <button
@@ -158,19 +204,21 @@ function Sidebar({
   )
 }
 
-/** Collapsible DM "Tools" sub-menu: campaign-independent utilities. */
+/** Collapsible DM "Tools" sub-menu: campaign-independent utilities.
+ *  Collapsed by default (remembered per browser); the chevron signals it opens. */
 function ToolsMenu() {
-  const [open, setOpen] = useState(true)
+  const [open, toggle] = useNavCollapsed('tools', false)
   return (
     <>
       <button
         className="nav-link"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
+        aria-expanded={open}
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
       >
         <span className="ico"><Icon name="tools" /></span>
         <span>Tools</span>
-        <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>{open ? '▾' : '▸'}</span>
+        <Icon name="chevron-right" size={13} color="currentColor" className={`sidebar-caret${open ? ' open' : ''}`} />
       </button>
       {open && (
         <>

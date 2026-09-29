@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
+import { Icon } from './Icon'
 import {
   REVEAL_CONFIRM_KEY,
   SHAREABLE_KINDS,
@@ -25,6 +27,7 @@ const KIND_LABEL: Record<ShareableKind, string> = {
  * the panel mirrors each preference into state and writes through on change.
  */
 export function PreferencesModal({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate()
   const [askReveal, setAskReveal] = useState(() => !isConfirmSkipped(REVEAL_CONFIRM_KEY))
   const [defaults, setDefaults] = useState<Record<ShareableKind, string[] | null>>(() => {
     const d = {} as Record<ShareableKind, string[] | null>
@@ -61,6 +64,22 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
+      <div className="prefs-section">
+        <div className="row between" style={{ alignItems: 'center' }}>
+          <div className="prefs-section-title" style={{ margin: 0 }}>Backup &amp; Data</div>
+          <button
+            className="btn ghost small"
+            onClick={() => { onClose(); navigate('/backup') }}
+          >
+            <Icon name="save" size={14} /> Open
+          </button>
+        </div>
+        <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+          Export or import a full backup, download a session calendar (.ics), and see how much
+          is stored in this browser.
+        </div>
+      </div>
+
       <div className="prefs-section">
         <div className="prefs-section-title">Confirmation prompts</div>
         <label className="row" style={{ gap: 10, cursor: 'pointer', alignItems: 'flex-start' }}>
