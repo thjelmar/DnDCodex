@@ -118,16 +118,22 @@ export interface SharedImage {
   width: number | null
   height: number | null
   kind: SharedImageKind
+  /** The session a handout was given in (set when shown during a live session). */
+  sessionId: string | null
+  sessionTitle: string | null
+  sessionDate: string | null
   createdAt: string
 }
 
 /** Share (or update) an image so every campaign member sees it live. `kind`
  *  distinguishes gallery/portrait images from handouts (defaults to gallery so
- *  existing callers — the gallery and entity portraits — are unchanged). */
+ *  existing callers — the gallery and entity portraits — are unchanged).
+ *  `session` tags a handout with the session it was given in (else null). */
 export async function shareImageToCampaign(
   campaignId: string,
   img: { id: string; dataUrl: string; caption?: string; width?: number; height?: number },
   kind: SharedImageKind = 'gallery',
+  session?: { id?: string | null; title?: string | null; date?: string | null } | null,
 ): Promise<void> {
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_images').upsert(
@@ -139,6 +145,9 @@ export async function shareImageToCampaign(
       width: img.width ?? null,
       height: img.height ?? null,
       kind,
+      session_id: session?.id ?? null,
+      session_title: session?.title ?? null,
+      session_date: session?.date ?? null,
     },
     { onConflict: 'id' },
   )
@@ -157,7 +166,7 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
   if (!supabase) return []
   const { data, error } = await supabase
     .from('shared_images')
-    .select('id, data_url, caption, width, height, kind, created_at')
+    .select('id, data_url, caption, width, height, kind, session_id, session_title, session_date, created_at')
     .eq('campaign_id', cloudCampaignId)
     .order('created_at', { ascending: false })
   if (error || !data) return []
@@ -168,6 +177,9 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
     width: (r.width as number) ?? null,
     height: (r.height as number) ?? null,
     kind: ((r.kind as string) === 'handout' ? 'handout' : 'gallery') as SharedImageKind,
+    sessionId: (r.session_id as string) ?? null,
+    sessionTitle: (r.session_title as string) ?? null,
+    sessionDate: (r.session_date as string) ?? null,
     createdAt: r.created_at as string,
   }))
 }

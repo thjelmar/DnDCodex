@@ -36,6 +36,7 @@ import { MapPage } from './pages/MapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
+import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
 import { PlayerSessionPage } from './pages/PlayerSessionPage'
 import { BugReportsPage } from './pages/BugReportsPage'
 
@@ -333,6 +334,7 @@ export function App() {
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
+            <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />

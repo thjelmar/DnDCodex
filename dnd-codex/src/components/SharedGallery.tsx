@@ -20,6 +20,7 @@ export function SharedGallery({
   linkedCampaignId,
   limit,
   showHeading = true,
+  linkOnly = false,
 }: {
   /** The local player campaign id — used to build the "show all" link. */
   campaignId: string
@@ -27,6 +28,8 @@ export function SharedGallery({
   linkedCampaignId: string
   limit?: number
   showHeading?: boolean
+  /** Render just a one-line "Shared gallery (N) →" link (for the player rail). */
+  linkOnly?: boolean
 }) {
   const [images, setImages] = useState<SharedImage[]>([])
   const [lightbox, setLightbox] = useState<SharedImage | null>(null)
@@ -66,6 +69,17 @@ export function SharedGallery({
   }, [linkedCampaignId, token])
 
   if (images.length === 0) return null
+
+  if (linkOnly) {
+    return (
+      <Link className="rail-link-row" to={`/player/${campaignId}/gallery`}>
+        <Icon name="image" size={15} />
+        <span>Shared gallery</span>
+        <span className="faint">· {images.length}</span>
+        <span className="rail-link-arrow">→</span>
+      </Link>
+    )
+  }
 
   const shown = limit ? images.slice(0, limit) : images
   const remaining = images.length - shown.length

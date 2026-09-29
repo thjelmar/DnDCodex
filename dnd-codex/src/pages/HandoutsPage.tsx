@@ -7,7 +7,8 @@ import { processImageFile } from '../lib/image'
 import { useCampaign } from './CampaignLayout'
 import { useAuth } from '../auth/AuthProvider'
 import { useConfirm } from '../components/ConfirmDialog'
-import { shareImageToCampaign, unshareImageFromCampaign } from '../auth/cloud'
+import { unshareImageFromCampaign } from '../auth/cloud'
+import { showHandout, hideHandout } from '../lib/handouts'
 import type { StoredImage } from '../db/types'
 
 /**
@@ -123,12 +124,9 @@ function HandoutCard({
     if (title === (image.caption ?? '')) return
     await updateImage(image.id, { caption: title })
     if (shown) {
+      // Re-publish so players see the new title (keeps the session tag).
       try {
-        await shareImageToCampaign(
-          campaignId,
-          { id: image.id, dataUrl: image.dataUrl, caption: title, width: image.width, height: image.height },
-          'handout',
-        )
+        await showHandout({ ...image, caption: title }, campaignId)
       } catch {
         /* title stays local if the re-share fails */
       }
@@ -139,17 +137,8 @@ function HandoutCard({
     setWorking(true)
     setError(null)
     try {
-      if (shown) {
-        await unshareImageFromCampaign(image.id)
-        await updateImage(image.id, { sharedWithPlayers: false })
-      } else {
-        await shareImageToCampaign(
-          campaignId,
-          { id: image.id, dataUrl: image.dataUrl, caption: title, width: image.width, height: image.height },
-          'handout',
-        )
-        await updateImage(image.id, { sharedWithPlayers: true })
-      }
+      if (shown) await hideHandout(image)
+      else await showHandout({ ...image, caption: title }, campaignId)
     } catch {
       setError('Couldn’t show — enable sync or invite players for this campaign first.')
     } finally {
