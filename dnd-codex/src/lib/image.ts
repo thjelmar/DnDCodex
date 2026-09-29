@@ -35,7 +35,7 @@ function readAsDataUrl(file: Blob): Promise<string> {
  * Validates, downscales, and encodes an image file. Throws if the file is not
  * an image. Returns a data URL plus metadata.
  */
-export async function processImageFile(file: File): Promise<ProcessedImage> {
+export async function processImageFile(file: File, maxDim: number = MAX_DIM): Promise<ProcessedImage> {
   if (!file.type.startsWith('image/')) {
     throw new Error('That file is not an image.')
   }
@@ -49,7 +49,7 @@ export async function processImageFile(file: File): Promise<ProcessedImage> {
 
   // Decode respecting EXIF orientation so photos aren't sideways.
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-  const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height))
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height))
   const width = Math.max(1, Math.round(bitmap.width * scale))
   const height = Math.max(1, Math.round(bitmap.height * scale))
 

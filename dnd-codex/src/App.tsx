@@ -32,6 +32,7 @@ import { RunPage } from './pages/RunPage'
 import { GalleryPage } from './pages/GalleryPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
+import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
@@ -339,6 +340,7 @@ export function App() {
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
+              <Route path="battlemap" element={<BattleMapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
               <Route path="loot" element={<LootPage />} />
               <Route path="tags" element={<TagsPage />} />

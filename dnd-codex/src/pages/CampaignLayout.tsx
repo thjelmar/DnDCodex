@@ -27,6 +27,7 @@ const TABS = [
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
   { to: 'map', label: 'Map' },
+  { to: 'battlemap', label: 'Battle Map' },
   { to: 'gallery', label: 'Gallery' },
   { to: 'loot', label: 'Loot' },
   { to: 'tags', label: 'Tags' },

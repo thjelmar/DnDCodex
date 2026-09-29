@@ -20,7 +20,7 @@ import type { Id, Item, Location, Note, NPC, Session } from '../db/types'
 // data: notes autosave to the session, combat is the same localStorage combat as
 // the full tracker, and pins are a per-campaign localStorage list.
 
-type PeekKind = 'npc' | 'location' | 'item' | 'note'
+export type PeekKind = 'npc' | 'location' | 'item' | 'note'
 
 interface PlayEntity {
   kind: PeekKind
@@ -461,7 +461,7 @@ function RunCombat({ combat }: { combat: ReturnType<typeof useCombat> }) {
 }
 
 /** Read-only quick view of an entity, for glancing at mid-session. */
-function Peek({
+export function Peek({
   kind,
   id,
   world,

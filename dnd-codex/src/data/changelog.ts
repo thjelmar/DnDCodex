@@ -17,6 +17,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-29',
+    title: 'Battle maps',
+    changes: [
+      { kind: 'new', text: 'DMs get a new “Battle Map” tab: upload a map, line the grid up with it (or use a blank grid), and drag tokens around. Tokens snap to squares, and big creatures take up 2×2 or more.' },
+      { kind: 'new', text: 'Drop an NPC onto the map as a token with its portrait, and double-click it to see its stat block. Showing battle maps live to players is coming next.' },
+    ],
+  },
+  {
+    date: '2026-09-29',
     title: 'A place to see what’s new',
     changes: [
       { kind: 'new', text: 'This page! A running list of what’s been added and fixed. Find it any time under “What’s New” in the sidebar.' },
