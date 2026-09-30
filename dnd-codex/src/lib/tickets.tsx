@@ -48,6 +48,10 @@ export function priorityRank(p: string | null | undefined): number {
   return i === -1 ? PRIORITIES.length : i
 }
 
+export function stageLabel(s: string | null | undefined): string {
+  return STAGES.find((x) => x.key === s)?.label ?? String(s ?? '')
+}
+
 export function ticketId(n: number | null | undefined): string {
   return n == null ? 'T-?' : `T-${n}`
 }
@@ -93,6 +97,99 @@ export function StageBar({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- details text
+//
+// Ticket details are plain text with two list forms, so they read the same in the
+// CLI and on the page:
+//   - [ ] something to do      a checkbox (ticked: "- [x]"), struck through when ticked
+//   - a plain point            a bullet
+// scripts/tickets.mjs parses the same syntax for `show` and `check` — keep the two
+// patterns in step.
+
+const CHECK_RE = /^(\s*)[-*]\s+\[([ xX])\]\s?(.*)$/
+const BULLET_RE = /^(\s*)[-*]\s+(.*)$/
+
+export type DetailLine =
+  | { kind: 'check'; line: number; indent: number; done: boolean; text: string }
+  | { kind: 'bullet'; line: number; indent: number; text: string }
+  | { kind: 'text'; line: number; text: string }
+
+export function parseDetails(text: string | null | undefined): DetailLine[] {
+  return (text ?? '').split('\n').map((raw, line) => {
+    const c = CHECK_RE.exec(raw)
+    if (c) return { kind: 'check', line, indent: c[1].length, done: c[2] !== ' ', text: c[3] }
+    const b = BULLET_RE.exec(raw)
+    if (b) return { kind: 'bullet', line, indent: b[1].length, text: b[2] }
+    return { kind: 'text', line, text: raw }
+  })
+}
+
+/** Flip the checkbox on one line (by line index) and return the new text. */
+export function toggleCheck(text: string, line: number): string {
+  const lines = text.split('\n')
+  const m = CHECK_RE.exec(lines[line] ?? '')
+  if (!m) return text
+  lines[line] = lines[line].replace(/\[([ xX])\]/, m[2] === ' ' ? '[x]' : '[ ]')
+  return lines.join('\n')
+}
+
+/** Append a checklist item to the end of the details. */
+export function appendCheck(text: string | null | undefined, item: string): string {
+  const base = (text ?? '').replace(/\s+$/, '')
+  return `${base}${base ? '\n' : ''}- [ ] ${item.trim()}`
+}
+
+export function checklistProgress(text: string | null | undefined): { done: number; total: number } {
+  const checks = parseDetails(text).filter((l) => l.kind === 'check') as { done: boolean }[]
+  return { done: checks.filter((c) => c.done).length, total: checks.length }
+}
+
+/** Details rendered with live checkboxes; ticked items are struck through. */
+export function DetailsView({
+  text,
+  onToggle,
+}: {
+  text: string
+  onToggle?: (line: number) => void
+}) {
+  const lines = parseDetails(text)
+  return (
+    <div className="ticket-details">
+      {lines.map((l) => {
+        if (l.kind === 'check') {
+          return (
+            <label
+              key={l.line}
+              className={`ticket-check${l.done ? ' done' : ''}`}
+              style={{ marginLeft: l.indent * 8 }}
+            >
+              <input
+                type="checkbox"
+                checked={l.done}
+                disabled={!onToggle}
+                onChange={() => onToggle?.(l.line)}
+              />
+              <span>{l.text}</span>
+            </label>
+          )
+        }
+        if (l.kind === 'bullet') {
+          return (
+            <div key={l.line} className="ticket-bullet" style={{ marginLeft: l.indent * 8 }}>
+              {l.text}
+            </div>
+          )
+        }
+        return (
+          <div key={l.line} className="ticket-line">
+            {l.text || ' '}
+          </div>
+        )
+      })}
     </div>
   )
 }
