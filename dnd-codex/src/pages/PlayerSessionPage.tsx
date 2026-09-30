@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createPlayerNote, updatePlayerNote } from '../db/repo'
+import { createPlayerNote, deletePlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SharedHandouts } from '../components/SharedHandouts'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
@@ -43,24 +43,9 @@ export function PlayerSessionPage() {
     return n?.id ?? null
   }, [campaignId, sessionRef])
 
-  // Create it once when the player first joins and none exists yet.
-  const creating = useRef(false)
-  useEffect(() => {
-    if (!live || noteId !== null || creating.current) return
-    creating.current = true
-    ;(async () => {
-      try {
-        const n = await createPlayerNote(campaignId, {
-          section: 'journal',
-          title: live.title || 'Session',
-          date: live.sessionDate || undefined,
-        })
-        await updatePlayerNote(n.id, { sessionRef: sessionRef! })
-      } finally {
-        creating.current = false
-      }
-    })()
-  }, [live, noteId, campaignId, sessionRef])
+  // No note is created just for joining — the session note is created lazily the
+  // moment the player actually writes something (see SessionNotes), so joining a
+  // session never leaves an empty "Session" journal entry behind.
 
   if (campaign === undefined) return <div className="content faint">Loading…</div>
   if (!campaign) {
@@ -88,11 +73,22 @@ export function PlayerSessionPage() {
   }
 
   const linkedId = campaign.linkedCampaignId
-  const notesEditor = noteId ? (
-    <SessionNotes noteId={noteId} campaignId={campaignId} />
-  ) : (
-    <p className="faint" style={{ fontSize: 13 }}>Preparing your notes…</p>
-  )
+  // Title a new note after the session (the DM's session title, else its date) —
+  // never the bare word "Session".
+  const noteTitle = live.title || (live.sessionDate ? formatDate(live.sessionDate) : 'Session notes')
+  const notesEditor =
+    noteId === undefined ? (
+      <p className="faint" style={{ fontSize: 13 }}>Preparing your notes…</p>
+    ) : (
+      <SessionNotes
+        key={sessionRef ?? 'none'}
+        initialNoteId={noteId}
+        campaignId={campaignId}
+        sessionRef={sessionRef!}
+        defaultTitle={noteTitle}
+        date={live.sessionDate || undefined}
+      />
+    )
   const notesCard = (
     <>
       <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
@@ -170,40 +166,84 @@ export function PlayerSessionPage() {
   )
 }
 
-/** The session notes editor, bound to a Journal PlayerNote with autosave. */
-function SessionNotes({ noteId, campaignId }: { noteId: string; campaignId: string }) {
-  const note = useLiveQuery(() => db.playerNotes.get(noteId), [noteId])
+/** True if rich-text HTML holds anything real (text or an image), not just
+ *  empty paragraphs — so we never create/keep a blank session note. */
+function hasContent(html: string): boolean {
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().length > 0 || /<img/i.test(html)
+}
+
+/**
+ * The session notes editor. The Journal note is created LAZILY — only once the
+ * player actually writes something — and removed again if it's emptied, so
+ * joining a session never leaves a blank "Session" entry behind. Bound to any
+ * existing note (a re-join) via `initialNoteId`.
+ */
+function SessionNotes({
+  initialNoteId,
+  campaignId,
+  sessionRef,
+  defaultTitle,
+  date,
+}: {
+  initialNoteId: string | null
+  campaignId: string
+  sessionRef: string
+  defaultTitle: string
+  date?: string
+}) {
+  // The note we're bound to once it exists (starts from any existing note).
+  const idRef = useRef<string | null>(initialNoteId)
+  const existing = useLiveQuery(() => (initialNoteId ? db.playerNotes.get(initialNoteId) : undefined), [initialNoteId])
   const [body, setBody] = useState('')
-  const loaded = useRef<string | null>(null)
+  const loaded = useRef(false)
+  const saved = useRef('') // last body persisted (or loaded), to skip no-op saves
 
-  // Load the note body once per note (external updates handled by the editor).
+  // Load an existing note's body once.
   useEffect(() => {
-    if (note && loaded.current !== note.id) {
-      loaded.current = note.id
-      setBody(note.body)
+    if (existing && !loaded.current) {
+      loaded.current = true
+      saved.current = existing.body
+      setBody(existing.body)
     }
-  }, [note])
+  }, [existing])
 
-  // Save on unmount too (e.g. the page moving notes between columns), so a
-  // keystroke still inside the 500ms debounce isn't lost.
-  const latest = useRef({ id: noteId, body, saved: '' })
-  latest.current = { id: noteId, body, saved: note?.body ?? latest.current.saved }
-  useEffect(
-    () => () => {
-      const { id, body: b, saved } = latest.current
-      if (loaded.current === id && b !== saved) updatePlayerNote(id, { body: b })
-    },
-    [],
-  )
+  const bodyRef = useRef(body)
+  bodyRef.current = body
+
+  // Create on first real content; update after; delete if emptied.
+  async function persist(html: string) {
+    if (html === saved.current) return
+    if (idRef.current) {
+      if (hasContent(html)) {
+        await updatePlayerNote(idRef.current, { body: html })
+        saved.current = html
+      } else {
+        const id = idRef.current
+        idRef.current = null
+        loaded.current = false
+        saved.current = ''
+        await deletePlayerNote(id) // don't keep an empty session note
+      }
+    } else if (hasContent(html)) {
+      const n = await createPlayerNote(campaignId, { section: 'journal', title: defaultTitle, date })
+      await updatePlayerNote(n.id, { sessionRef, body: html })
+      idRef.current = n.id
+      loaded.current = true
+      saved.current = html
+    }
+  }
 
   // Autosave 500ms after the last keystroke.
   useEffect(() => {
-    if (!note || body === note.body) return
-    const t = setTimeout(() => updatePlayerNote(note.id, { body }), 500)
+    if (body === saved.current) return
+    const t = setTimeout(() => persist(body), 500)
     return () => clearTimeout(t)
-  }, [body, note])
+  }, [body])
 
-  if (!note) return null
+  // Flush on unmount too (the page moves the editor between columns), so a
+  // keystroke still inside the debounce isn't lost — and an emptied note is cleaned up.
+  useEffect(() => () => void persist(bodyRef.current), [])
+
   return (
     <RichTextEditor
       campaignId={campaignId}
