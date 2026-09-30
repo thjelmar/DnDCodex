@@ -41,11 +41,14 @@ const DEFAULT_FROM = 'D&D Codex <onboarding@resend.dev>'
 const MAX_DESCRIPTION = 8000
 // ~4MB of base64 ≈ a downscaled screenshot; reject anything wildly bigger.
 const MAX_SCREENSHOT = 6_000_000
+// Ticket categories the reporter picks from (the owner can change it later).
 const TYPES: Record<string, { label: string; emoji: string }> = {
-  bug: { label: 'Bug report', emoji: '🐛' },
-  idea: { label: 'Idea', emoji: '💡' },
-  question: { label: 'Question', emoji: '❓' },
+  issue: { label: 'Issue', emoji: '🐛' },
+  enhancement: { label: 'Enhancement', emoji: '✨' },
+  feature: { label: 'New feature', emoji: '💡' },
 }
+// Types sent by clients from before categories existed.
+const LEGACY_TYPES: Record<string, string> = { bug: 'issue', idea: 'feature', question: 'issue' }
 
 /** Split a data URL into a servable email attachment (base64 content + name). */
 function parseScreenshot(dataUrl: string | null | undefined): { filename: string; content: string } | null {
@@ -82,7 +85,8 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
   if (!description) return json(400, { error: 'A description is required.' })
   if (description.length > MAX_DESCRIPTION) return json(400, { error: 'Description too long.' })
 
-  const type = payload.type && TYPES[payload.type] ? payload.type : 'bug'
+  const rawType = payload.type ? LEGACY_TYPES[payload.type] ?? payload.type : 'issue'
+  const type = TYPES[rawType] ? rawType : 'issue'
   const screenshot =
     typeof payload.screenshot === 'string' &&
     payload.screenshot.startsWith('data:image/') &&
@@ -99,26 +103,33 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
     app_version: payload.appVersion ?? null,
     context: payload.context ?? {},
     report_type: type,
+    category: type,
+    source: 'site',
     screenshot,
   }
 
   // 1) Store it (best-effort — never fail the whole request just because storage
   //    is unconfigured or hiccups; the email is the primary channel).
   let stored = false
+  let ticketNumber: number | null = null
   if (env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const base = env.SUPABASE_URL || DEFAULT_SUPABASE_URL
-      const res = await fetch(`${base}/rest/v1/bug_reports`, {
+      const res = await fetch(`${base}/rest/v1/bug_reports?select=number`, {
         method: 'POST',
         headers: {
           apikey: env.SUPABASE_SERVICE_ROLE_KEY,
           authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
           'content-type': 'application/json',
-          prefer: 'return=minimal',
+          prefer: 'return=representation',
         },
         body: JSON.stringify(report),
       })
       stored = res.ok
+      if (res.ok) {
+        const rows = (await res.json().catch(() => [])) as { number?: number }[]
+        ticketNumber = rows[0]?.number ?? null
+      }
     } catch {
       stored = false
     }
@@ -141,7 +152,7 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
     ['App version', report.app_version || '(unknown)'],
     ['User agent', report.user_agent || '(unknown)'],
     ['Screenshot', screenshot ? 'attached' : 'none'],
-    ['Stored in Supabase', stored ? 'yes' : 'no'],
+    ['Stored in Supabase', stored ? (ticketNumber ? `yes, as T-${ticketNumber}` : 'yes') : 'no'],
   ]
   const metaText = rows.map(([k, v]) => `${k}: ${v}`).join('\n')
   const metaHtml = rows.map(([k, v]) => `<tr><td style="color:#8a83a0;padding:2px 12px 2px 0">${esc(k)}</td><td>${esc(v)}</td></tr>`).join('')
@@ -167,7 +178,7 @@ export const onRequestPost: (context: { request: Request; env: Env }) => Promise
         from: env.BUG_REPORT_FROM || DEFAULT_FROM,
         to: [env.BUG_REPORT_TO],
         reply_to: report.reporter_email || undefined,
-        subject: `${kind.emoji} ${kind.label}: ${summary}`,
+        subject: `${kind.emoji} ${ticketNumber ? `T-${ticketNumber} ` : ''}${kind.label}: ${summary}`,
         text,
         html,
         attachments: attachment ? [attachment] : undefined,

@@ -1,6 +1,6 @@
 // A tiny in-memory ring buffer of recent client-side errors, attached to the
 // window's error + unhandledrejection events. The bug reporter includes these so
-// a report carries whatever blew up right before the user hit "Report a bug".
+// a report carries whatever blew up right before the user hit "Report something".
 // Never persisted; capped and cheap.
 
 export interface LoggedError {

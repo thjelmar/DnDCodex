@@ -5,20 +5,21 @@ import { submitBugReport } from '../lib/bugReport'
 import { getRecentErrors } from '../lib/errorLog'
 import { processImageFile } from '../lib/image'
 
+// Ticket categories. The reporter picks one; the owner can re-categorize it later.
 const TYPES = [
-  { key: 'bug', label: '🐛 Bug' },
-  { key: 'idea', label: '💡 Idea' },
-  { key: 'question', label: '❓ Question' },
+  { key: 'issue', label: '🐛 Issue — something’s broken' },
+  { key: 'enhancement', label: '✨ Enhancement — make something better' },
+  { key: 'feature', label: '💡 New feature — something that doesn’t exist yet' },
 ]
 
 /**
- * "Report a bug" dialog. The user describes the problem; we auto-attach the
+ * "Report something" dialog. The user describes the problem; we auto-attach the
  * current route, browser, app version, and any recent client errors, then POST
  * it to the /api/bug-report function (stores in Supabase + emails the maintainer).
  */
 export function BugReportModal({ onClose }: { onClose: () => void }) {
   const { user } = useAuth()
-  const [type, setType] = useState('bug')
+  const [type, setType] = useState('issue')
   const [description, setDescription] = useState('')
   const [email, setEmail] = useState(user?.email ?? '')
   const [screenshot, setScreenshot] = useState<string | null>(null)
@@ -76,7 +77,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Report a bug"
+      title="Report something"
       onClose={onClose}
       footer={
         <>
@@ -88,7 +89,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="field">
-        <label htmlFor="bug-type">Type</label>
+        <label htmlFor="bug-type">What kind of report is this?</label>
         <select id="bug-type" className="select" value={type} onChange={(e) => setType(e.target.value)}>
           {TYPES.map((t) => (
             <option key={t.key} value={t.key}>{t.label}</option>
@@ -98,7 +99,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
 
       <div className="field">
         <label htmlFor="bug-desc">
-          {type === 'idea' ? 'Your idea' : type === 'question' ? 'Your question' : 'What went wrong?'}
+          {type === 'feature' ? 'Your idea' : type === 'enhancement' ? 'What could be better?' : 'What went wrong?'}
         </label>
         <textarea
           id="bug-desc"
@@ -106,10 +107,10 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
           rows={5}
           autoFocus
           placeholder={
-            type === 'idea'
-              ? 'Describe the feature or improvement you’d like.'
-              : type === 'question'
-                ? 'What would you like to know?'
+            type === 'feature'
+              ? 'Describe the feature you’d like, and what you’d use it for.'
+              : type === 'enhancement'
+                ? 'Which part of the app, and how it could work better.'
                 : 'Describe the problem, and what you were doing when it happened.'
           }
           value={description}
