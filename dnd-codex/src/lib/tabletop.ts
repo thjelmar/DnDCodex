@@ -47,6 +47,11 @@ export function tokenCenter(grid: SceneGrid, t: SceneToken): { x: number; y: num
   return { x: p.x + half, y: p.y + half }
 }
 
+/** Center pixel of a single grid cell (for magnetic snapping / the ruler). */
+export function cellCenterPx(grid: SceneGrid, col: number, row: number): { x: number; y: number } {
+  return { x: grid.offsetX + (col + 0.5) * grid.cellPx, y: grid.offsetY + (row + 0.5) * grid.cellPx }
+}
+
 /** Keep offsets in [0, cellPx) so the grid pattern is well-defined. */
 export function normalizeOffset(offset: number, cellPx: number): number {
   return ((offset % cellPx) + cellPx) % cellPx
