@@ -297,6 +297,13 @@ interface CloudRow {
 
 /** Applies pulled rows to Dexie via RAW writes (never through the outbox). */
 async function applyRows(rows: CloudRow[]): Promise<void> {
+  // Ids with a local delete still waiting in the outbox. Their cloud row is still
+  // non-deleted (we haven't pushed the tombstone yet), so a pull would otherwise
+  // resurrect a record the user just deleted. Skip re-inserting those until the
+  // tombstone pushes and the cloud row becomes deleted.
+  const pendingDeletes = new Set(
+    (await db.pending.filter((p) => p.op === 'del').toArray()).map((p) => `${p.table}|${p.recordId}`),
+  )
   for (const row of rows) {
     const table = tableForKind(row.kind)
     if (!table) continue // unknown/future kind — ignore
@@ -305,6 +312,8 @@ async function applyRows(rows: CloudRow[]): Promise<void> {
     const localAt = local?.updatedAt ?? ''
     if (row.deleted) {
       if (local && localAt <= remoteAt) await db.table(table).delete(row.id)
+    } else if (pendingDeletes.has(`${table}|${row.id}`)) {
+      continue // a local delete is pending for this id — don't resurrect it
     } else if (!local || localAt <= remoteAt) {
       let data = row.data
       // Map images sync without their base64 (it lives in Storage). Keep any
