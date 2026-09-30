@@ -39,7 +39,8 @@ import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
 import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
 import { PlayerSessionPage } from './pages/PlayerSessionPage'
-import { BugReportsPage } from './pages/BugReportsPage'
+import { TicketsPage } from './pages/TicketsPage'
+import { RoadmapPage } from './pages/RoadmapPage'
 
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
@@ -161,9 +162,12 @@ function Sidebar({
           <span>What’s New</span>
           {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
         </NavLink>
+        <NavLink to="/roadmap" className="nav-link">
+          <span className="ico"><Icon name="map" /></span> Roadmap
+        </NavLink>
         {user && (
-          <NavLink to="/bug-reports" className="nav-link">
-            <span className="ico"><Icon name="inbox" /></span> Bug reports
+          <NavLink to="/tickets" className="nav-link">
+            <span className="ico"><Icon name="inbox" /></span> Tickets
           </NavLink>
         )}
       </SidebarSection>
@@ -198,7 +202,7 @@ function Sidebar({
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
         onClick={onOpenBug}
       >
-        <span className="ico"><Icon name="bug" /></span> Report a bug
+        <span className="ico"><Icon name="bug" /></span> Report something
       </button>
       <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
@@ -329,7 +333,9 @@ export function App() {
             <Route path="/" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/changelog" element={<ChangelogPage />} />
-            <Route path="/bug-reports" element={<BugReportsPage />} />
+            <Route path="/tickets" element={<TicketsPage />} />
+            <Route path="/bug-reports" element={<Navigate to="/tickets" replace />} />
+            <Route path="/roadmap" element={<RoadmapPage onReport={() => setBugOpen(true)} />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />

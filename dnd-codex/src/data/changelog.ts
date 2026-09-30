@@ -16,6 +16,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-30',
+    title: 'See what’s on the way',
+    changes: [
+      { kind: 'new', text: 'A new “Roadmap” page in the sidebar shows the fixes and features being worked on, with a progress bar for each one from Planned through to Released.' },
+      { kind: 'improved', text: '“Report a bug” is now “Report something”: tell us whether it’s an issue, an enhancement to something that exists, or a brand-new feature.' },
+    ],
+  },
+  {
     date: '2026-09-29',
     title: 'Battle maps',
     changes: [

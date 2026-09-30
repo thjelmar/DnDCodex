@@ -62,5 +62,5 @@ endpoint alongside the site — no `wrangler.toml` needed.
 ## Viewing reports
 - **Email:** arrives at `BUG_REPORT_TO`, subject `🐛 Bug report: <first line>`,
   with `reply_to` set to the reporter's email when provided.
-- **Backlog:** Supabase → Table editor → `bug_reports` (has a `status` column for
-  triage: `new` by default).
+- **Backlog:** the in-app Tickets page (`#/tickets`), the `npm run tickets` CLI,
+  or Supabase → Table editor → `bug_reports`. See [TICKETS.md](TICKETS.md).

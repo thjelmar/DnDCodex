@@ -46,7 +46,7 @@ export function ChangelogPage() {
       </div>
 
       <div className="faint" style={{ fontSize: 12, marginTop: 24 }}>
-        Have an idea or found a bug? Use “Report a bug” in the sidebar.
+        Have an idea or found a bug? Use “Report something” in the sidebar, and see what’s on the way under “Roadmap”.
       </div>
     </div>
   )

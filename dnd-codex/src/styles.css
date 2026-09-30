@@ -327,39 +327,6 @@ button {
   font-size: 13px;
   margin: 10px 0 0;
 }
-.bug-status-chip {
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 1px 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.bug-status-chip.status-new {
-  color: var(--accent);
-  background: rgba(167, 139, 250, 0.14);
-  border: 1px solid var(--accent);
-}
-.bug-status-chip.status-in_progress {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.12);
-  border: 1px solid #fbbf24;
-}
-.bug-status-chip.status-resolved {
-  color: var(--good);
-  background: rgba(74, 222, 128, 0.12);
-  border: 1px solid var(--good);
-}
-.bug-type-chip {
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 999px;
-  padding: 1px 9px;
-  color: var(--text-dim);
-  background: var(--bg-elev-2);
-  border: 1px solid var(--border);
-  text-transform: capitalize;
-}
 .bug-report-meta {
   display: flex;
   flex-wrap: wrap;
@@ -406,6 +373,70 @@ button {
   box-shadow: var(--shadow);
   cursor: default;
 }
+
+/* Tickets (owner queue) + public roadmap */
+.ticket-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.ticket-new { margin-bottom: 16px; cursor: default; }
+.ticket-card.released { opacity: 0.75; }
+.ticket-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.ticket-toggle {
+  display: flex; gap: 10px; align-items: baseline; min-width: 0; flex: 1 1 260px;
+  background: none; border: none; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.ticket-num { color: var(--text-faint); font-size: 12px; font-variant-numeric: tabular-nums; flex: none; }
+.ticket-title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.ticket-src { display: inline-flex; margin-left: 6px; color: var(--text-faint); vertical-align: -2px; }
+.ticket-src svg { width: 14px; height: 14px; }
+.ticket-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ticket-controls .select { width: auto; padding: 4px 8px; font-size: 12.5px; }
+.ticket-public { display: inline-flex; gap: 5px; align-items: center; font-size: 12.5px; color: var(--text-dim); cursor: pointer; }
+.ticket-sub { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--text-faint); }
+.ticket-note { margin: 6px 0 0; font-size: 12.5px; color: var(--text-dim); }
+.ticket-body { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* Category colors, shared by the owner selects and the public chips. */
+.cat-issue { --cat: var(--danger); }
+.cat-enhancement { --cat: #60a5fa; }
+.cat-feature { --cat: var(--accent); }
+.cat-none { --cat: var(--text-faint); }
+.ticket-cat { color: var(--cat); border-color: var(--cat); }
+.ticket-chip {
+  font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 9px; flex: none;
+  color: var(--cat); border: 1px solid var(--cat); background: color-mix(in srgb, var(--cat) 14%, transparent);
+}
+
+/* Priority colors. */
+.pri-urgent { --pri: var(--danger); }
+.pri-high { --pri: #fbbf24; }
+.pri-medium { --pri: #60a5fa; }
+.pri-low { --pri: var(--text-faint); }
+.pri-none { --pri: var(--text-faint); }
+.ticket-pri { color: var(--pri); }
+
+.stage-bar { margin-top: 10px; container-type: inline-size; }
+.stage-track, .stage-labels { display: grid; gap: 3px; }
+.stage-track span { height: 6px; border-radius: 3px; background: var(--bg-elev-2); border: 1px solid var(--border); }
+.stage-track span.on { background: var(--accent); border-color: var(--accent); }
+.stage-bar.released .stage-track span.on { background: var(--good); border-color: var(--good); }
+.stage-labels { margin-top: 4px; font-size: 11px; color: var(--text-faint); }
+.stage-labels span { text-align: center; }
+.stage-labels span.current { color: var(--accent); font-weight: 600; }
+
+.roadmap-list { display: flex; flex-direction: column; gap: 10px; }
+.roadmap-heading { font-size: 15px; margin: 28px 0 10px; color: var(--text-dim); }
+.roadmap-card.released .roadmap-title { color: var(--text-dim); }
+.roadmap-head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.roadmap-title { font-weight: 600; flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.roadmap-pri { font-size: 12px; color: var(--pri); display: inline-flex; align-items: center; gap: 5px; }
+.pri-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pri); }
+.roadmap-released { font-size: 12px; color: var(--good); }
+.roadmap-src { font-size: 11.5px; color: var(--text-faint); margin-top: 4px; }
+/* Too narrow for every stage name: keep just the current one. */
+@container (max-width: 420px) {
+  .stage-labels span:not(.current) { visibility: hidden; }
+  .stage-labels span.current { white-space: nowrap; }
+}
+
 .textarea {
   resize: vertical;
   min-height: 90px;
