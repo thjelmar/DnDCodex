@@ -92,9 +92,12 @@ async function toLiveTokens(
 async function uploadMap(campaignId: Id, imageId: Id | null) {
   if (!imageId) return
   const img = await db.images.get(imageId)
-  // Upload the binary to the private Storage bucket (migration 0021); players
-  // download it via the bucket's member-read RLS. No more base64 in the DB.
-  if (img) await uploadMapImage(campaignId, img.id, img.dataUrl)
+  if (!img) return
+  // v1b maps are uploaded to Storage when added, so the object already exists —
+  // don't re-upload (and this device may not even hold the base64). Otherwise
+  // (a legacy base64 map being shared for the first time) upload it now.
+  if (img.storagePath) return
+  if (img.dataUrl) await uploadMapImage(campaignId, img.id, img.dataUrl)
 }
 
 function liveSceneOf(campaignId: Id, d: Draft): LiveScene {

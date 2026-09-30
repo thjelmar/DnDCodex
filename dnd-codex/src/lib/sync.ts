@@ -238,7 +238,16 @@ async function pushCampaign(campaignId: string, ownerId: string): Promise<void> 
       // Created then deleted before push — send a tombstone.
       rows.push({ campaign_id: campaignId, kind, id: c.recordId, data: { id: c.recordId, updatedAt: nowIso }, deleted: true })
     } else {
-      rows.push({ campaign_id: campaignId, kind, id: c.recordId, data: rec, deleted: false })
+      // Map images live in the `battlemaps` Storage bucket (migration 0021); never
+      // ship their base64 `dataUrl` to the records table — other devices re-fetch
+      // the binary from Storage. Everything else syncs whole, as before.
+      let data: unknown = rec
+      if (c.table === 'images' && (rec as { storagePath?: string }).storagePath) {
+        const stripped = { ...(rec as Record<string, unknown>) }
+        delete stripped.dataUrl
+        data = stripped
+      }
+      rows.push({ campaign_id: campaignId, kind, id: c.recordId, data, deleted: false })
     }
   }
 
@@ -297,7 +306,15 @@ async function applyRows(rows: CloudRow[]): Promise<void> {
     if (row.deleted) {
       if (local && localAt <= remoteAt) await db.table(table).delete(row.id)
     } else if (!local || localAt <= remoteAt) {
-      await db.table(table).put(row.data)
+      let data = row.data
+      // Map images sync without their base64 (it lives in Storage). Keep any
+      // locally cached dataUrl so we don't wipe it — and re-download — on every
+      // pull (remote is stripped; local may have hydrated it from Storage).
+      if (table === 'images' && row.data.storagePath && !row.data.dataUrl) {
+        const localUrl = (local as { dataUrl?: string } | undefined)?.dataUrl
+        if (localUrl) data = { ...row.data, dataUrl: localUrl }
+      }
+      await db.table(table).put(data)
     }
   }
 }
