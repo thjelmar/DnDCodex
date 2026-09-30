@@ -39,7 +39,8 @@ function buildEntries(sharedRows: SharedEntityRow[], journal: PlayerNote[]): Rec
   }
 
   for (const n of journal) {
-    if (!hasText(n.body) && !n.title.trim()) continue
+    // Skip empty-body entries even if titled (e.g. a blank auto-made session note).
+    if (!hasText(n.body)) continue
     entries.push({
       id: n.id,
       title: n.title.trim() || (n.date ? formatDate(n.date) : 'Journal entry'),
