@@ -52,6 +52,9 @@ export function PlayerLiveBoardView({
   // the map) must still tell the page full screen is over.
   useEffect(() => () => onExpandedRef.current?.(false), [])
   const [notesOpen, setNotesOpen] = useState(true)
+  // Ruler: drag the board to measure distance in feet (ephemeral, local — the
+  // player's own tool; nothing is shared or persisted).
+  const [measuring, setMeasuring] = useState(false)
 
   // My color (per campaign). Applied to my tokens right away so picking feels
   // instant; the DM's screen re-pushes it to everyone else a moment later.
@@ -150,6 +153,13 @@ export function PlayerLiveBoardView({
           />
         </div>
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
+          <button
+            className={`btn small${measuring ? ' primary' : ''}`}
+            onClick={() => setMeasuring((m) => !m)}
+            title="Ruler: drag on the map to measure distance in feet"
+          >
+            📏 {measuring ? 'Done' : 'Measure'}
+          </button>
           {fs.expanded && notes && (
             <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)}>
               📝 {notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}
@@ -164,9 +174,11 @@ export function PlayerLiveBoardView({
 
       {!fs.expanded && !compact && (
         <p className="faint" style={{ fontSize: 13, margin: '0 0 8px' }}>
-          {ownIds.size > 0
-            ? 'Drag your token (green ring) to move it. Scroll to zoom, drag the map to pan.'
-            : 'Scroll to zoom, drag to pan. Your DM moves the tokens.'}
+          {measuring
+            ? 'Drag across the map to measure distance in feet. Tap Done to move tokens again.'
+            : ownIds.size > 0
+              ? 'Drag your token (green ring) to move it. Scroll to zoom, drag the map to pan.'
+              : 'Scroll to zoom, drag to pan. Your DM moves the tokens.'}
         </p>
       )}
       {error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
@@ -194,6 +206,7 @@ export function PlayerLiveBoardView({
           fog={live.scene.fog ?? null}
           combat={board.combat}
           templates={live.scene.templates ?? undefined}
+          measureTool={measuring}
         />
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (
