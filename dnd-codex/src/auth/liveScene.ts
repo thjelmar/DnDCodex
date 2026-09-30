@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
-import type { SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
+import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TokenCombat } from '../db/types'
 
 // Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
 // players; the scene row, its visible tokens, and its map image are mirrored to
@@ -19,6 +19,8 @@ export interface LiveScene {
   mapImageId: string | null
   /** Fog of war, or null for none. Players render covered cells opaque. */
   fog: SceneFog | null
+  /** Placed area templates shared with players, or null for none. */
+  templates: SceneTemplate[] | null
 }
 
 /** A token as players see it (portrait inlined, no DM-only fields). */
@@ -47,6 +49,7 @@ function sceneFromRow(r: Row): LiveScene {
     grid: r.grid as SceneGrid,
     mapImageId: (r.map_image_id as string) ?? null,
     fog: (r.fog as SceneFog) ?? null,
+    templates: (r.templates as SceneTemplate[]) ?? null,
   }
 }
 
@@ -144,6 +147,7 @@ export async function upsertLiveScene(s: LiveScene): Promise<void> {
       grid: s.grid,
       map_image_id: s.mapImageId,
       fog: s.fog,
+      templates: s.templates,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'campaign_id' },

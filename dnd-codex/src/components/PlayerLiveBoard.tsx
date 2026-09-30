@@ -193,6 +193,7 @@ export function PlayerLiveBoardView({
           ownIds={ownIds}
           fog={live.scene.fog ?? null}
           combat={board.combat}
+          templates={live.scene.templates ?? undefined}
         />
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (
