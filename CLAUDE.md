@@ -12,6 +12,9 @@ when asked what to work on next:
    and offer the open tickets, highest priority first. Don't start one unasked.
 2. When you pick one up, run `show T-<n>` for the full report, and open any
    screenshot it saves. Then run `start T-<n> --as "Claude (main)"`.
+   If the details have a checklist, tick items off with `check T-<n> <item>`
+   as you finish them. Work that's left for later becomes a linked ticket:
+   `add "…" --follow-up-of T-<n>`.
 3. When the change is done, run `done T-<n> "<what changed, and where>"`. That
    moves it to Testing. Move it to `release` only once the change is pushed to
    `main` (which deploys it).

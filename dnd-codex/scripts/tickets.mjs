@@ -5,13 +5,17 @@
 //
 //   npm run tickets -- list [--released | --all] [--source site|owner] [--category issue|enhancement|feature]
 //   npm run tickets -- show T-18              full details; saves any screenshot to .tickets/T-18.png
-//   npm run tickets -- add "Title" [--category c] [--priority p] [--details "…"] [--public]
+//   npm run tickets -- add "Title" [--category c] [--priority p] [--details "…"] [--public] [--follow-up-of T-5]
 //   npm run tickets -- start T-18 [--as "Claude (main)"]   → In progress, and records who's on it
 //   npm run tickets -- done T-18 "What changed, and where"  → Testing, with a resolution note
 //   npm run tickets -- release T-18 ["note"]                → Released
 //   npm run tickets -- stage T-18 planned|in_progress|testing|released|reported
-//   npm run tickets -- set T-18 [--priority p] [--category c] [--title "…"] [--public | --private]
+//   npm run tickets -- set T-18 [--priority p] [--category c] [--title "…"] [--details "…"] [--public | --private]
 //   npm run tickets -- note T-18 "Resolution note"
+//   npm run tickets -- link T-20 T-5          T-20 is a follow-up of T-5
+//   npm run tickets -- unlink T-20
+//   npm run tickets -- check T-18 2 [3 …]     tick checklist items (numbers from `show`)
+//   npm run tickets -- uncheck T-18 2
 //
 // Setup: put the Supabase secret key in dnd-codex/.env.tickets (gitignored):
 //   SUPABASE_SERVICE_ROLE_KEY=sb_secret_…
@@ -75,7 +79,8 @@ function loadEnv() {
 
 const { key, url } = loadEnv()
 
-async function rest(path, init = {}) {
+// soft: return null instead of exiting on an error response.
+async function rest(path, init = {}, { soft = false } = {}) {
   const res = await fetch(`${url}/rest/v1/${path}`, {
     ...init,
     headers: {
@@ -86,6 +91,7 @@ async function rest(path, init = {}) {
     },
   })
   const text = await res.text()
+  if (!res.ok && soft) return null
   if (!res.ok) die(`Supabase said ${res.status}: ${text.slice(0, 300)}`)
   return text ? JSON.parse(text) : null
 }
@@ -130,6 +136,16 @@ function oneOf(value, allowed, what) {
 const tid = (t) => `T-${t.number}`
 const titleOf = (t) => t.title || (t.description ?? '').split('\n')[0].slice(0, 80) || '(untitled)'
 const pad = (s, n) => String(s ?? '').padEnd(n)
+// Details checklists: "- [ ] item" / "- [x] item" lines. Same syntax as
+// src/lib/tickets.tsx (parseDetails) — keep the two in step.
+const CHECK_RE = /^(\s*)[-*]\s+\[([ xX])\]\s?(.*)$/
+
+/** Line indexes of the checklist items, in order (item 1 is checks[0]). */
+function checkLines(text) {
+  const lines = (text ?? '').split('\n')
+  return lines.map((l, i) => (CHECK_RE.test(l) ? i : -1)).filter((i) => i !== -1)
+}
+
 const rank = (p) => (PRIORITIES.includes(p) ? PRIORITIES.indexOf(p) : PRIORITIES.length)
 
 async function getTicket(ref) {
@@ -152,12 +168,15 @@ async function patch(t, fields) {
 // ---------------------------------------------------------------- commands
 
 async function list(flags) {
-  const filters = ['select=number,title,description,category,priority,status,source,is_public,claimed_by']
+  const filters = ['select=number,title,description,category,priority,status,source,is_public,claimed_by,follow_up_of']
   if (flags.released) filters.push('status=eq.released')
   else if (!flags.all) filters.push('status=neq.released')
   if (flags.source) filters.push(`source=eq.${oneOf(flags.source, ['site', 'owner'], '--source')}`)
   if (flags.category) filters.push(`category=eq.${oneOf(flags.category, CATEGORIES, '--category')}`)
-  const rows = await rest(`bug_reports?${filters.join('&')}`)
+  // Before 0022_ticket_links.sql has run there's no follow_up_of column.
+  const rows =
+    (await rest(`bug_reports?${filters.join('&')}`, {}, { soft: true })) ??
+    (await rest(`bug_reports?${filters.join('&').replace(',follow_up_of', '')}`))
   rows.sort((a, b) => rank(a.priority) - rank(b.priority) || b.number - a.number)
   if (!rows.length) {
     console.log('No tickets in this view.')
@@ -166,9 +185,13 @@ async function list(flags) {
   console.log(`${pad('ID', 7)}${pad('PRI', 8)}${pad('CATEGORY', 13)}${pad('SOURCE', 7)}${pad('STAGE', 13)}TITLE`)
   for (const t of rows) {
     const who = t.claimed_by && t.status !== 'released' ? `  [${t.claimed_by}]` : ''
+    const parent = t.follow_up_of ? `  (follow-up of T-${t.follow_up_of})` : ''
+    const checks = checkLines(t.description)
+    const done = checks.filter((i) => CHECK_RE.exec(t.description.split('\n')[i])[2] !== ' ').length
+    const progress = checks.length ? `  [${done}/${checks.length} done]` : ''
     console.log(
       `${pad(tid(t), 7)}${pad(t.priority ?? '-', 8)}${pad(t.category ?? 'untriaged', 13)}` +
-        `${pad(t.source === 'owner' ? 'you' : 'site', 7)}${pad(t.status, 13)}${titleOf(t)}${t.is_public ? '  (public)' : ''}${who}`,
+        `${pad(t.source === 'owner' ? 'you' : 'site', 7)}${pad(t.status, 13)}${titleOf(t)}${t.is_public ? '  (public)' : ''}${parent}${progress}${who}`,
     )
   }
 }
@@ -182,7 +205,24 @@ async function show(ref) {
   )
   console.log(`Created ${t.created_at}${t.released_at ? ` · released ${t.released_at}` : ''}`)
   if (t.claimed_by) console.log(`Worked on by: ${t.claimed_by}`)
-  if (t.description) console.log(`\n${t.source === 'owner' ? 'Details' : 'Reported'}:\n${t.description}`)
+  if (t.follow_up_of) {
+    const [p] = await rest(`bug_reports?select=number,title,description,status&number=eq.${t.follow_up_of}`)
+    console.log(`Follow-up of: T-${t.follow_up_of}${p ? `  ${titleOf(p)} [${p.status}]` : '  (not found)'}`)
+  }
+  const kids = 'follow_up_of' in t
+    ? await rest(`bug_reports?select=number,title,description,status&follow_up_of=eq.${t.number}&order=number`)
+    : []
+  if (kids.length) console.log(`Follow-ups: ${kids.map((k) => `T-${k.number} ${titleOf(k)} [${k.status}]`).join('; ')}`)
+  if (t.description) {
+    // Number the checklist items so `check T-n <item>` can refer to them.
+    let item = 0
+    const body = t.description
+      .split('\n')
+      .map((l) => (CHECK_RE.test(l) ? l.replace(CHECK_RE, (_, ind, x, text) => `${ind}${x === ' ' ? '[ ]' : '[x]'} ${++item}. ${text}`) : l))
+      .join('\n')
+    console.log(`\n${t.source === 'owner' ? 'Details' : 'Reported'}:\n${body}`)
+    if (item) console.log(`(${item} checklist item${item === 1 ? '' : 's'}; tick with: npm run tickets -- check ${tid(t)} <n>)`)
+  }
   if (t.resolution_note) console.log(`\nResolution note: ${t.resolution_note}`)
   if (t.source === 'site') {
     console.log('\nReport context:')
@@ -215,12 +255,13 @@ async function add(title, flags) {
     priority: oneOf(flags.priority, PRIORITIES, '--priority') ?? 'medium',
     is_public: flags.public === true,
   }
+  if (flags['follow-up-of']) row.follow_up_of = (await getTicket(flags['follow-up-of'])).number
   const rows = await rest('bug_reports?select=number', {
     method: 'POST',
     headers: { prefer: 'return=representation' },
     body: JSON.stringify(row),
   })
-  console.log(`✓ Added T-${rows[0].number}: ${title}`)
+  console.log(`✓ Added T-${rows[0].number}: ${title}${row.follow_up_of ? ` (follow-up of T-${row.follow_up_of})` : ''}`)
 }
 
 async function set(ref, flags) {
@@ -229,12 +270,13 @@ async function set(ref, flags) {
   if (flags.priority) fields.priority = oneOf(flags.priority, PRIORITIES, '--priority')
   if (flags.category) fields.category = oneOf(flags.category, CATEGORIES, '--category')
   if (typeof flags.title === 'string') fields.title = flags.title
+  if (typeof flags.details === 'string') fields.description = flags.details
   if (flags.public) {
     if (!t.title && !fields.title) die('a public ticket needs a title first (--title "…")')
     fields.is_public = true
   }
   if (flags.private) fields.is_public = false
-  if (!Object.keys(fields).length) die('nothing to set (use --priority, --category, --title, --public or --private)')
+  if (!Object.keys(fields).length) die('nothing to set (use --priority, --category, --title, --details, --public or --private)')
   await patch(t, fields)
   console.log(`✓ ${tid(t)} updated`)
 }
@@ -245,6 +287,30 @@ async function stage(ref, next, extra = {}) {
   if (next === 'reported' && t.source === 'owner') die('your own tickets start at planned; they have no reported stage')
   await patch(t, { status: next, ...extra })
   console.log(`✓ ${tid(t)} → ${next}${extra.resolution_note ? ` (note: ${extra.resolution_note})` : ''}`)
+}
+
+async function link(ref, parentRef) {
+  const t = await getTicket(ref)
+  const parent = await getTicket(parentRef)
+  if (parent.number === t.number) die('a ticket can’t follow up itself')
+  await patch(t, { follow_up_of: parent.number })
+  console.log(`✓ ${tid(t)} is now a follow-up of ${tid(parent)} (${titleOf(parent)})`)
+}
+
+async function check(ref, items, done) {
+  const t = await getTicket(ref)
+  if (!items.length) die(`which item? e.g. npm run tickets -- ${done ? 'check' : 'uncheck'} ${tid(t)} 2`)
+  const at = checkLines(t.description)
+  if (!at.length) die(`${tid(t)} has no checklist`)
+  const lines = t.description.split('\n')
+  for (const raw of items) {
+    const n = Number(raw)
+    if (!Number.isInteger(n) || n < 1 || n > at.length) die(`item must be 1–${at.length}, got "${raw}"`)
+    lines[at[n - 1]] = lines[at[n - 1]].replace(/\[([ xX])\]/, done ? '[x]' : '[ ]')
+  }
+  await patch(t, { description: lines.join('\n') })
+  const ticked = lines.filter((l) => CHECK_RE.test(l) && CHECK_RE.exec(l)[2] !== ' ').length
+  console.log(`✓ ${tid(t)}: ${done ? 'ticked' : 'unticked'} ${items.join(', ')} (${ticked}/${at.length} done)`)
 }
 
 // ---------------------------------------------------------------- main
@@ -288,6 +354,20 @@ switch (command) {
     console.log(`✓ ${tid(t)} note saved`)
     break
   }
+  case 'link':
+    if (!positional[1]) die('link needs two tickets: npm run tickets -- link T-20 T-5  (T-20 follows up T-5)')
+    await link(positional[0], positional[1])
+    break
+  case 'unlink': {
+    const t = await getTicket(positional[0])
+    await patch(t, { follow_up_of: null })
+    console.log(`✓ ${tid(t)} is no longer linked`)
+    break
+  }
+  case 'check':
+  case 'uncheck':
+    await check(positional[0], positional.slice(1), command === 'check')
+    break
   default:
-    die(`unknown command "${command}". Try: list, show, add, start, done, release, stage, set, note`)
+    die(`unknown command "${command}". Try: list, show, add, start, done, release, stage, set, note, link, unlink, check, uncheck`)
 }
