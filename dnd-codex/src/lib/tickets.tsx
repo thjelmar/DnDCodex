@@ -128,6 +128,35 @@ export function parseDetails(text: string | null | undefined): DetailLine[] {
   })
 }
 
+// The same lines as DetailLine, but without the line index — the shape the
+// row editor edits and writes back. `serializeLines` is the exact inverse of
+// `parseDetails`, so editing round-trips without touching the stored syntax
+// (scripts/tickets.mjs still parses it).
+export type EditLine =
+  | { kind: 'check'; indent: number; done: boolean; text: string }
+  | { kind: 'bullet'; indent: number; text: string }
+  | { kind: 'text'; text: string }
+
+export function toEditLines(text: string | null | undefined): EditLine[] {
+  return parseDetails(text).map((l) =>
+    l.kind === 'check'
+      ? { kind: 'check', indent: l.indent, done: l.done, text: l.text }
+      : l.kind === 'bullet'
+        ? { kind: 'bullet', indent: l.indent, text: l.text }
+        : { kind: 'text', text: l.text },
+  )
+}
+
+export function serializeLines(lines: EditLine[]): string {
+  return lines
+    .map((l) => {
+      if (l.kind === 'check') return `${' '.repeat(l.indent)}- [${l.done ? 'x' : ' '}] ${l.text}`
+      if (l.kind === 'bullet') return `${' '.repeat(l.indent)}- ${l.text}`
+      return l.text
+    })
+    .join('\n')
+}
+
 /** Flip the checkbox on one line (by line index) and return the new text. */
 export function toggleCheck(text: string, line: number): string {
   const lines = text.split('\n')

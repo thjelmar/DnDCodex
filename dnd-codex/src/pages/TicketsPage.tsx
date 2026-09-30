@@ -1,19 +1,22 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import {
   CATEGORIES,
   DetailsView,
+  type EditLine,
   PRIORITIES,
   StageBar,
   appendCheck,
   categoryLabel,
   checklistProgress,
   priorityRank,
+  serializeLines,
   stageLabel,
   stagesFor,
   ticketId,
+  toEditLines,
   toggleCheck,
 } from '../lib/tickets'
 
@@ -418,7 +421,6 @@ function NewTicketForm({
         <label htmlFor="tk-desc">Details (optional, never shown publicly)</label>
         <DetailsEditor
           id="tk-desc"
-          rows={3}
           placeholder="What should change, and how you'll know it's done."
           value={description}
           onChange={setDescription}
@@ -685,7 +687,6 @@ function TicketCard({
                 <DetailsEditor
                   id={`td-${t.id}`}
                   autoFocus
-                  rows={Math.min(16, Math.max(4, draft.split('\n').length + 1))}
                   placeholder="What should change, and how you'll know it's done."
                   value={draft}
                   onChange={setDraft}
@@ -840,121 +841,240 @@ function TicketLink({ n, ticket, onGoTo }: { n: number; ticket: Ticket | undefin
   )
 }
 
-const LIST_LINE = /^(\s*)([-*])\s+(\[[ xX]\]\s?)?(.*)$/
-
 /**
- * Textarea for ticket details with light list editing: the Checklist button turns
- * the current line into "- [ ] …", and Enter on a list line starts the next item
- * (Enter on an empty item ends the list). Cmd/Ctrl+Enter saves, Esc cancels.
+ * Row editor for ticket details. Each stored line is one editable row that keeps
+ * the shape it has when rendered: a checklist item still shows its checkbox, a
+ * bullet its dot. Clicking the empty box beside a plain line turns that line INTO
+ * a checklist item in place, and the ¶ button on a check item demotes it back to
+ * plain text — so existing text becomes a checklist without retyping it. The
+ * stored "- [ ]" syntax is unchanged (scripts/tickets.mjs still parses it);
+ * toEditLines / serializeLines round-trip it. Cmd/Ctrl+Enter saves, Esc cancels.
  */
 function DetailsEditor({
   id,
   value,
   onChange,
-  rows,
   placeholder,
   autoFocus,
   onSubmit,
   onCancel,
 }: {
-  id: string
+  id?: string
   value: string
   onChange: (v: string) => void
-  rows: number
   placeholder?: string
   autoFocus?: boolean
   onSubmit?: () => void
   onCancel?: () => void
 }) {
-  const ref = useRef<HTMLTextAreaElement>(null)
+  const parsed = toEditLines(value)
+  // Empty details still needs a row to type into.
+  const rows: EditLine[] = parsed.length ? parsed : [{ kind: 'text', text: '' }]
+  // Which row to focus after the next change (-1 once consumed). Starts at the
+  // last row when opened with autoFocus, so editing lands at the end.
+  const focusRow = useRef<number>(autoFocus ? rows.length - 1 : -1)
 
-  // Open with the caret at the end, ready to add to the list.
-  useEffect(() => {
-    const el = ref.current
-    if (autoFocus && el) el.setSelectionRange(el.value.length, el.value.length)
-  }, [autoFocus])
-
-  /** Replace [from, to) with text and put the caret at `caret`. */
-  function splice(from: number, to: number, text: string, caret: number) {
-    onChange(value.slice(0, from) + text + value.slice(to))
-    requestAnimationFrame(() => {
-      const el = ref.current
-      if (el) {
-        el.focus()
-        el.setSelectionRange(caret, caret)
-      }
-    })
+  function commit(next: EditLine[], focus?: number) {
+    if (focus != null) focusRow.current = focus
+    onChange(serializeLines(next.length ? next : [{ kind: 'text', text: '' }]))
   }
 
-  function lineAt(pos: number) {
-    const start = value.lastIndexOf('\n', pos - 1) + 1
-    const nl = value.indexOf('\n', pos)
-    const end = nl === -1 ? value.length : nl
-    return { start, end, text: value.slice(start, end) }
+  function setText(i: number, text: string) {
+    // A pasted (or Shift+Enter) multi-line value splits into rows so the model
+    // stays one line per row.
+    const parts = text.split('\n')
+    if (parts.length === 1) {
+      commit(rows.map((r, j) => (j === i ? { ...r, text } : r)))
+      return
+    }
+    const made: EditLine[] = parts.map((p, k) => (k === 0 ? { ...rows[i], text: p } : { kind: 'text', text: p }))
+    commit([...rows.slice(0, i), ...made, ...rows.slice(i + 1)], i + made.length - 1)
   }
 
-  function makeChecklist() {
-    const el = ref.current
-    const pos = el ? el.selectionStart : value.length
-    const line = lineAt(pos)
-    const m = LIST_LINE.exec(line.text)
-    if (m?.[3]) return // already a checkbox
-    const body = m ? m[4] : line.text
-    const indent = m ? m[1] : ''
-    const next = `${indent}- [ ] ${body}`
-    splice(line.start, line.end, next, line.start + next.length)
+  function toggleDone(i: number) {
+    commit(rows.map((r, j) => (j === i && r.kind === 'check' ? { ...r, done: !r.done } : r)))
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  // The box beside a line: a plain/bullet line becomes a checklist item; a check
+  // item becomes plain text. Text and indent carry over, so nothing is retyped.
+  function toggleKind(i: number) {
+    const r = rows[i]
+    const next: EditLine =
+      r.kind === 'check'
+        ? { kind: 'text', text: r.text }
+        : { kind: 'check', indent: r.kind === 'bullet' ? r.indent : 0, done: false, text: r.text }
+    commit(rows.map((x, j) => (j === i ? next : x)), i)
+  }
+
+  function addRow(kind: 'check' | 'text', at = rows.length) {
+    const made: EditLine =
+      kind === 'check' ? { kind: 'check', indent: 0, done: false, text: '' } : { kind: 'text', text: '' }
+    commit([...rows.slice(0, at), made, ...rows.slice(at)], at)
+  }
+
+  function removeRow(i: number) {
+    commit(rows.filter((_, j) => j !== i), Math.max(0, i - 1))
+  }
+
+  function indentRow(i: number, delta: number) {
+    const r = rows[i]
+    if (r.kind === 'text') return
+    commit(rows.map((x, j) => (j === i ? { ...r, indent: Math.max(0, Math.min(8, r.indent + delta)) } : x)))
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>, i: number) {
+    const r = rows[i]
     if (e.key === 'Escape' && onCancel) {
       e.preventDefault()
       onCancel()
       return
     }
-    if (e.key !== 'Enter') return
-    if ((e.metaKey || e.ctrlKey) && onSubmit) {
+    if (e.key === 'Enter') {
+      if ((e.metaKey || e.ctrlKey) && onSubmit) {
+        e.preventDefault()
+        onSubmit()
+        return
+      }
+      if (e.shiftKey) return // soft newline → setText splits it into rows
       e.preventDefault()
-      onSubmit()
+      // Enter on an empty list item ends the list (becomes a plain row).
+      if (r.kind !== 'text' && !r.text.trim()) {
+        commit([...rows.slice(0, i), { kind: 'text', text: '' }, ...rows.slice(i + 1)], i)
+        return
+      }
+      addRow(r.kind === 'check' ? 'check' : 'text', i + 1)
       return
     }
-    if (e.shiftKey) return
-    const el = e.currentTarget
-    if (el.selectionStart !== el.selectionEnd) return
-    const pos = el.selectionStart
-    const line = lineAt(pos)
-    const m = LIST_LINE.exec(line.text)
-    if (!m || pos < line.start + (line.text.length - m[4].length)) return
-    e.preventDefault()
-    if (!m[4].trim()) {
-      // Empty item: end the list.
-      splice(line.start, line.end, '', line.start)
+    if (e.key === 'Backspace' && !r.text && rows.length > 1 && e.currentTarget.selectionStart === 0) {
+      e.preventDefault()
+      removeRow(i)
       return
     }
-    const prefix = `${m[1]}${m[2]} ${m[3] ? '[ ] ' : ''}`
-    splice(pos, pos, `\n${prefix}`, pos + 1 + prefix.length)
+    if (e.key === 'Tab' && r.kind !== 'text') {
+      e.preventDefault()
+      indentRow(i, e.shiftKey ? -1 : 1)
+    }
   }
 
   return (
-    <>
-      <textarea
-        id={id}
-        ref={ref}
-        className="textarea"
-        rows={rows}
-        autoFocus={autoFocus}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
+    <div className="ticket-editor">
+      <div className="ticket-rows">
+        {rows.map((r, i) => {
+          const focusMe = focusRow.current === i
+          if (focusMe) focusRow.current = -1
+          return (
+            <div
+              key={i}
+              className={`tk-row tk-${r.kind}${r.kind === 'check' && r.done ? ' done' : ''}`}
+              style={{ marginLeft: (r.kind === 'text' ? 0 : r.indent) * 10 }}
+            >
+              {r.kind === 'check' ? (
+                <input
+                  type="checkbox"
+                  className="tk-box"
+                  checked={r.done}
+                  onChange={() => toggleDone(i)}
+                  aria-label={r.done ? 'Mark not done' : 'Mark done'}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="tk-box tk-box-empty"
+                  onClick={() => toggleKind(i)}
+                  title="Make this a checklist item"
+                  aria-label="Make this a checklist item"
+                />
+              )}
+              <AutoRow
+                id={i === 0 ? id : undefined}
+                value={r.text}
+                placeholder={i === 0 && rows.length === 1 ? placeholder : undefined}
+                autoFocus={focusMe}
+                onChange={(v) => setText(i, v)}
+                onKeyDown={(e) => onKeyDown(e, i)}
+              />
+              {r.kind === 'check' && (
+                <button
+                  type="button"
+                  className="tk-kind"
+                  onClick={() => toggleKind(i)}
+                  title="Make this plain text"
+                  aria-label="Make this plain text"
+                >
+                  <Icon name="text" />
+                </button>
+              )}
+              <button
+                type="button"
+                className="tk-del"
+                onClick={() => removeRow(i)}
+                title="Remove line"
+                aria-label="Remove line"
+              >
+                <Icon name="x" />
+              </button>
+            </div>
+          )
+        })}
+      </div>
       <div className="ticket-editor-bar">
-        <button type="button" className="btn ghost small" onClick={makeChecklist}>
+        <button type="button" className="btn ghost small" onClick={() => addRow('check')}>
           <Icon name="check" /> Checklist item
         </button>
+        <button type="button" className="btn ghost small" onClick={() => addRow('text')}>
+          <Icon name="plus" /> Text line
+        </button>
         <span className="ticket-hint">
-          Start a line with “- [ ]” for a checkbox or “- ” for a bullet.
+          Click the box beside a line to make it a checklist item. Enter adds a line; Tab indents.
         </span>
       </div>
-    </>
+    </div>
+  )
+}
+
+/** A one-line-per-row input that grows to fit its text (wrapping long lines). */
+function AutoRow({
+  id,
+  value,
+  placeholder,
+  autoFocus,
+  onChange,
+  onKeyDown,
+}: {
+  id?: string
+  value: string
+  placeholder?: string
+  autoFocus?: boolean
+  onChange: (v: string) => void
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [value])
+
+  useEffect(() => {
+    const el = ref.current
+    if (autoFocus && el) {
+      el.focus()
+      el.setSelectionRange(el.value.length, el.value.length)
+    }
+  }, [autoFocus])
+
+  return (
+    <textarea
+      id={id}
+      ref={ref}
+      className="tk-input"
+      rows={1}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+    />
   )
 }
