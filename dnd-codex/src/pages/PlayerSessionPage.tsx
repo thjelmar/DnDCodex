@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createPlayerNote, deletePlayerNote, updatePlayerNote } from '../db/repo'
+import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SharedHandouts } from '../components/SharedHandouts'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
@@ -174,9 +174,8 @@ function hasContent(html: string): boolean {
 
 /**
  * The session notes editor. The Journal note is created LAZILY — only once the
- * player actually writes something — and removed again if it's emptied, so
- * joining a session never leaves a blank "Session" entry behind. Bound to any
- * existing note (a re-join) via `initialNoteId`.
+ * player actually writes something — so joining a session never leaves a blank
+ * "Session" entry behind. Bound to any existing note (a re-join) via `initialNoteId`.
  */
 function SessionNotes({
   initialNoteId,
@@ -210,20 +209,15 @@ function SessionNotes({
   const bodyRef = useRef(body)
   bodyRef.current = body
 
-  // Create on first real content; update after; delete if emptied.
+  // Create the note on first real content; after that, save what's typed —
+  // including an emptied note (WYSIWYG). We don't auto-delete an emptied note:
+  // it's the player's own entry, it's hidden from "Story So Far" while empty, and
+  // deleting a just-synced record raced the sync layer and the editor's reload.
   async function persist(html: string) {
     if (html === saved.current) return
     if (idRef.current) {
-      if (hasContent(html)) {
-        await updatePlayerNote(idRef.current, { body: html })
-        saved.current = html
-      } else {
-        const id = idRef.current
-        idRef.current = null
-        loaded.current = false
-        saved.current = ''
-        await deletePlayerNote(id) // don't keep an empty session note
-      }
+      await updatePlayerNote(idRef.current, { body: html })
+      saved.current = html
     } else if (hasContent(html)) {
       const n = await createPlayerNote(campaignId, { section: 'journal', title: defaultTitle, date })
       await updatePlayerNote(n.id, { sessionRef, body: html })
