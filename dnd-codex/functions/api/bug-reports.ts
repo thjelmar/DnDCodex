@@ -1,7 +1,7 @@
 // Cloudflare Pages Function: owner-only ticket API (site bug reports + your own
 // tickets share the bug_reports table).
 //   GET    /api/bug-reports   → list all tickets (newest first)
-//   POST   /api/bug-reports   → add an owner ticket ({ title, description?, category?, priority?, status?, is_public? })
+//   POST   /api/bug-reports   → add an owner ticket ({ title, description?, category?, priority?, status?, is_public?, follow_up_of? })
 //   PATCH  /api/bug-reports   → edit one ticket ({ id, ...fields })
 //   DELETE /api/bug-reports   → delete one ticket ({ id })
 //
@@ -60,6 +60,13 @@ function pickFields(body: Fields): { fields: Fields } | { error: string } {
     oneOf('category', CATEGORIES, true)
     oneOf('priority', PRIORITIES, true)
     oneOf('status', STATUSES, false)
+    if ('follow_up_of' in body) {
+      // The ticket NUMBER this one follows up (T-5 → 5), or null to unlink.
+      const v = body.follow_up_of
+      if (v === null) out.follow_up_of = null
+      else if (typeof v === 'number' && Number.isInteger(v) && v > 0) out.follow_up_of = v
+      else throw new Error('Invalid follow_up_of.')
+    }
     if ('is_public' in body) {
       if (typeof body.is_public !== 'boolean') throw new Error('Invalid is_public.')
       out.is_public = body.is_public
@@ -69,6 +76,14 @@ function pickFields(body: Fields): { fields: Fields } | { error: string } {
   }
   if ('status' in out) out.released_at = out.status === 'released' ? new Date().toISOString() : null
   return { fields: out }
+}
+
+/** A friendlier message for the link constraints (0022_ticket_links.sql). */
+function linkError(detail: string): string | null {
+  if (detail.includes('23503')) return 'There’s no ticket with that number.'
+  if (detail.includes('bug_reports_follow_up_not_self')) return 'A ticket can’t follow up itself.'
+  if (detail.includes('follow_up_of')) return 'Ticket links need the 0022_ticket_links.sql migration.'
+  return null
 }
 
 function rest(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
@@ -173,6 +188,8 @@ export const onRequestPost: Handler = async ({ request, env }) => {
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
+      const friendly = linkError(detail)
+      if (friendly) return json(400, { error: friendly })
       return json(502, { error: 'Could not add the ticket.', detail: detail.slice(0, 300) })
     }
     const rows = (await res.json()) as unknown[]
@@ -201,6 +218,8 @@ export const onRequestPatch: Handler = async ({ request, env }) => {
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
+      const friendly = linkError(detail)
+      if (friendly) return json(400, { error: friendly })
       return json(502, { error: 'Could not update the ticket.', detail: detail.slice(0, 300) })
     }
     return json(200, { ok: true })
