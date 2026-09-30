@@ -3,6 +3,7 @@ import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, Tok
 import {
   MAX_TOKEN_SIZE,
   MIN_CELL_SCREEN,
+  cellCenterPx,
   cellIsFree,
   cellKey,
   cellToPx,
@@ -560,7 +561,14 @@ export function Tabletop({
             {ordered.map((raw) => {
               const t = resizing?.id === raw.id ? { ...raw, size: resizing.size } : raw
               const live = dragPos?.id === t.id ? dragPos : null
-              const c = live ?? tokenCenter(grid, t)
+              // While dragging, the token snaps magnetically to the center of the
+              // nearest open cell (footprint-aware) rather than free-floating under
+              // the cursor; snapPx also frames that square (the ghost outline below).
+              const rawSnap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
+              const snap = rawSnap ? nearestFreeCell(tokens, t.id, rawSnap.col, rawSnap.row, t.size) : null
+              const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
+              const halfPx = (t.size * grid.cellPx) / 2
+              const c = snapPx ? { x: snapPx.x + halfPx, y: snapPx.y + halfPx } : tokenCenter(grid, t)
               const r = (t.size * grid.cellPx) / 2 - Math.max(1.5, grid.cellPx * 0.05)
               const portrait = t.imageId ? portraits[t.imageId] : undefined
               const sel = t.id === selectedId
@@ -577,11 +585,6 @@ export function Tabletop({
               const statH = hpTracked ? barH : showDmg ? dmgFont : 0
               const statTop = r + belowGap
               const nameTop = r + belowGap + (statH > 0 ? statH + belowGap : 0)
-              // Ghost of the snap target while dragging — the nearest open cell,
-              // so it previews where a collision will actually drop the token.
-              const rawSnap = live ? snapCenterToCell(grid, live.x, live.y, t.size) : null
-              const snap = rawSnap ? nearestFreeCell(tokens, t.id, rawSnap.col, rawSnap.row, t.size) : null
-              const snapPx = snap ? cellToPx(grid, snap.col, snap.row) : null
               return (
                 <g key={t.id}>
                   {resizing?.id === t.id && (
@@ -735,19 +738,27 @@ export function Tabletop({
               />
             )}
 
-            {/* Ruler: a live line with the distance in feet, drawn over everything. */}
-            {measure && (
-              <g className="tabletop-ruler" pointerEvents="none">
-                <line x1={measure.x1} y1={measure.y1} x2={measure.x2} y2={measure.y2} vectorEffect="non-scaling-stroke" />
-                <circle cx={measure.x1} cy={measure.y1} r={4 / transform.k} />
-                <circle cx={measure.x2} cy={measure.y2} r={4 / transform.k} />
-                <g transform={`translate(${measure.x2} ${measure.y2})`}>
-                  <text className="tabletop-ruler-label" x={10 / transform.k} y={-10 / transform.k} fontSize={14 / transform.k}>
-                    {measureFeet(grid, measure.x1, measure.y1, measure.x2, measure.y2)} ft
-                  </text>
+            {/* Ruler: a live line with the distance in feet, drawn over everything.
+                Both ends snap to the center of the square they're over, so it
+                measures square-to-square (matching how tokens occupy cells). */}
+            {measure && (() => {
+              const s = pxToCell(grid, measure.x1, measure.y1)
+              const e = pxToCell(grid, measure.x2, measure.y2)
+              const a = cellCenterPx(grid, s.col, s.row)
+              const b = cellCenterPx(grid, e.col, e.row)
+              return (
+                <g className="tabletop-ruler" pointerEvents="none">
+                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} vectorEffect="non-scaling-stroke" />
+                  <circle cx={a.x} cy={a.y} r={4 / transform.k} />
+                  <circle cx={b.x} cy={b.y} r={4 / transform.k} />
+                  <g transform={`translate(${b.x} ${b.y})`}>
+                    <text className="tabletop-ruler-label" x={10 / transform.k} y={-10 / transform.k} fontSize={14 / transform.k}>
+                      {measureFeet(grid, a.x, a.y, b.x, b.y)} ft
+                    </text>
+                  </g>
                 </g>
-              </g>
-            )}
+              )
+            })()}
           </g>
         </svg>
         {aligning && (
