@@ -4,16 +4,15 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { enableCampaignSharing, getCampaignMembers, type Member } from '../auth/cloud'
 import {
-  deleteLiveMap,
   deleteLiveTokens,
   stopLiveScene,
-  upsertLiveMap,
   upsertLiveScene,
   upsertLiveTokens,
   useLiveScene,
   type LiveScene,
   type LiveToken,
 } from '../auth/liveScene'
+import { deleteMapImage, mapObjectPath, uploadMapImage } from '../lib/mapStorage'
 import { makeThumbnail } from '../lib/image'
 import { useLiveSession } from '../lib/useLiveSession'
 import { tokenRevealed } from '../lib/tabletop'
@@ -93,11 +92,24 @@ async function toLiveTokens(
 async function uploadMap(campaignId: Id, imageId: Id | null) {
   if (!imageId) return
   const img = await db.images.get(imageId)
-  if (img) await upsertLiveMap(campaignId, img.id, img.dataUrl, img.width, img.height)
+  // Upload the binary to the private Storage bucket (migration 0021); players
+  // download it via the bucket's member-read RLS. No more base64 in the DB.
+  if (img) await uploadMapImage(campaignId, img.id, img.dataUrl)
 }
 
 function liveSceneOf(campaignId: Id, d: Draft): LiveScene {
-  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId, fog: d.fog, templates: d.templates }
+  return {
+    campaignId,
+    sceneId: d.sceneId,
+    name: d.name,
+    width: d.width,
+    height: d.height,
+    grid: d.grid,
+    mapImageId: d.imageId,
+    mapPath: d.imageId ? mapObjectPath(campaignId, d.imageId) : null,
+    fog: d.fog,
+    templates: d.templates,
+  }
 }
 
 /**
@@ -197,8 +209,8 @@ export function useDmLiveScene(
       pushedMapId.current = d.imageId
       try {
         await uploadMap(campaign.id, d.imageId)
-        // Don't leave replaced map images (up to a few MB each) in the cloud.
-        if (previous) await deleteLiveMap(previous)
+        // Don't leave replaced map objects (up to a few MB each) in Storage.
+        if (previous) await deleteMapImage(mapObjectPath(campaign.id, previous))
       } catch (e) {
         pushedMapId.current = previous
         throw e
