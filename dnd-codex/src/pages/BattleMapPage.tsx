@@ -642,7 +642,7 @@ export function SceneEditor({
             onClick={toggleMeasure}
             title="Ruler: drag on the map to measure distance in feet"
           >
-            <Icon name="maximize" size={14} color={measuring ? 'inherit' : undefined} /> {tight ? null : measuring ? 'Done' : 'Measure'}
+            📏 {tight ? null : measuring ? 'Done' : 'Measure'}
           </button>
           <button
             className={`btn small${templatesOpen ? ' primary' : ''}`}
@@ -713,7 +713,7 @@ export function SceneEditor({
       )}
       {measuring && (
         <div className="battlemap-fogbar">
-          <span className="battlemap-fogbar-label"><Icon name="maximize" size={14} /> Ruler</span>
+          <span className="battlemap-fogbar-label">📏 Ruler</span>
           <span className="faint">Drag across the map to measure. Distances use 5-ft squares (diagonals count as 5 ft).</span>
         </div>
       )}
