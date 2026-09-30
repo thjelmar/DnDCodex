@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
+import { downloadMapObjectUrl } from '../lib/mapStorage'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TokenCombat } from '../db/types'
 
 // Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
@@ -17,6 +18,9 @@ export interface LiveScene {
   height: number
   grid: SceneGrid
   mapImageId: string | null
+  /** Storage object path for the map (bucket `battlemaps`), or null. When set,
+   *  players load the map from Storage; `mapImageId` is the legacy base64 path. */
+  mapPath: string | null
   /** Fog of war, or null for none. Players render covered cells opaque. */
   fog: SceneFog | null
   /** Placed area templates shared with players, or null for none. */
@@ -48,6 +52,7 @@ function sceneFromRow(r: Row): LiveScene {
     height: Number(r.height),
     grid: r.grid as SceneGrid,
     mapImageId: (r.map_image_id as string) ?? null,
+    mapPath: (r.map_path as string) ?? null,
     fog: (r.fog as SceneFog) ?? null,
     templates: (r.templates as SceneTemplate[]) ?? null,
   }
@@ -146,6 +151,7 @@ export async function upsertLiveScene(s: LiveScene): Promise<void> {
       height: s.height,
       grid: s.grid,
       map_image_id: s.mapImageId,
+      map_path: s.mapPath,
       fog: s.fog,
       templates: s.templates,
       updated_at: new Date().toISOString(),
@@ -219,13 +225,36 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
   const [tokens, setTokens] = useState<LiveToken[]>([])
   const [mapUrl, setMapUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const mapIdRef = useRef<string | null>(null)
+  // Dedup key for the current map (its Storage path or legacy id), plus the
+  // object URL we made for a Storage map so we can revoke it when it changes.
+  const mapKeyRef = useRef<string | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
-  const loadMap = useRef<(id: string | null) => Promise<void>>(async () => {})
-  loadMap.current = async (id: string | null) => {
-    if (id === mapIdRef.current) return
-    mapIdRef.current = id
-    setMapUrl(id ? await getLiveMap(id) : null)
+  const revokeObjectUrl = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+  }
+
+  const loadMap = useRef<(s: LiveScene | null) => Promise<void>>(async () => {})
+  loadMap.current = async (s: LiveScene | null) => {
+    // Prefer the Storage object (migration 0021); fall back to legacy base64.
+    const key = s?.mapPath ?? s?.mapImageId ?? null
+    if (key === mapKeyRef.current) return
+    mapKeyRef.current = key
+    revokeObjectUrl()
+    if (!key) {
+      setMapUrl(null)
+      return
+    }
+    if (s?.mapPath) {
+      const url = await downloadMapObjectUrl(s.mapPath)
+      objectUrlRef.current = url
+      setMapUrl(url)
+    } else {
+      setMapUrl(await getLiveMap(s!.mapImageId!))
+    }
   }
 
   const refresh = useRef(async () => {})
@@ -234,15 +263,16 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
     const [s, t] = await Promise.all([getLiveScene(cloudCampaignId), getLiveTokens(cloudCampaignId)])
     setScene(s)
     setTokens(t)
-    await loadMap.current(s?.mapImageId ?? null)
+    await loadMap.current(s)
   }
 
   useEffect(() => {
     if (!cloudCampaignId || !supabase || !token) {
       setScene(null)
       setTokens([])
+      revokeObjectUrl()
       setMapUrl(null)
-      mapIdRef.current = null
+      mapKeyRef.current = null
       setLoading(false)
       return
     }
@@ -264,7 +294,7 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
           } else {
             const s = sceneFromRow(p.new as Row)
             setScene(s)
-            loadMap.current(s.mapImageId)
+            loadMap.current(s)
           }
         },
       )
@@ -288,6 +318,8 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
     return () => {
       cancelled = true
       supabase!.removeChannel(channel)
+      revokeObjectUrl()
+      mapKeyRef.current = null
     }
   }, [cloudCampaignId, token])
 
