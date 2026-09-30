@@ -74,8 +74,13 @@ export interface StoredImage extends BaseRecord {
   /** Original filename, used as default alt text. */
   name: string
   mime: string
-  /** base64 data URL (e.g. "data:image/webp;base64,…"). */
+  /** base64 data URL (e.g. "data:image/webp;base64,…"). Kept locally for offline
+   *  render; for map images with a `storagePath` it is NOT synced to the cloud. */
   dataUrl: string
+  /** For battle-map images: the object path in the `battlemaps` Storage bucket
+   *  (migration 0021). When set, the base64 `dataUrl` is stripped from the cloud
+   *  `records` sync and other devices re-fetch the binary from Storage. */
+  storagePath?: string
   width: number
   height: number
   /** Approximate decoded byte size, for display. */

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
-import { createImage, createScene, deleteImage, deleteScene, updateScene } from '../db/repo'
+import { createImage, createScene, deleteImage, deleteScene, updateImage, updateScene } from '../db/repo'
+import { deleteMapImage, downloadMapDataUrl, uploadMapImage } from '../lib/mapStorage'
 import { useCampaign } from './CampaignLayout'
 import { Peek, type PeekKind } from './RunPage'
 import { Tabletop } from '../components/Tabletop'
@@ -297,6 +298,25 @@ export function SceneEditor({
     [scene.campaignId],
   )
   const mapImage = useLiveQuery(() => (imageId ? db.images.get(imageId) : undefined), [imageId])
+  // Another device pulled this map's record without the base64 (it lives in
+  // Storage). Fetch the binary once and cache it back into Dexie, so the board,
+  // grid detection, and offline all read `dataUrl` uniformly from then on.
+  const hydrating = useRef<string | null>(null)
+  useEffect(() => {
+    if (!mapImage || mapImage.dataUrl || !mapImage.storagePath) return
+    if (hydrating.current === mapImage.id) return
+    hydrating.current = mapImage.id
+    downloadMapDataUrl(mapImage.storagePath)
+      .then((dataUrl) => {
+        // Local-only cache: write straight to Dexie WITHOUT enqueuing a sync and
+        // WITHOUT bumping updatedAt, so this doesn't echo back to other devices
+        // (which would ping-pong the base64 strip forever).
+        if (dataUrl) return db.images.update(mapImage.id, { dataUrl })
+      })
+      .finally(() => {
+        if (hydrating.current === mapImage.id) hydrating.current = null
+      })
+  }, [mapImage?.id, mapImage?.dataUrl, mapImage?.storagePath])
 
   const portraitIds = useMemo(
     () => [...new Set(tokens.map((t) => t.imageId).filter((x): x is string => !!x))],
@@ -395,13 +415,25 @@ export function SceneEditor({
         height: processed.height,
         bytes: processed.bytes,
       })
+      // Upload the binary to Storage and record its path, so the base64 never
+      // syncs through the records table (keeps rows small; lets maps be bigger).
+      // Best-effort: if it fails (offline / not signed in), the local map still
+      // works and the base64 falls back to the records sync, as before.
+      try {
+        const path = await uploadMapImage(scene.campaignId, img.id, img.dataUrl)
+        await updateImage(img.id, { storagePath: path })
+      } catch {
+        /* keep the local map; storagePath stays unset (legacy base64 sync) */
+      }
       const old = imageId
+      const oldImg = old ? await db.images.get(old) : undefined
       touch()
       setImageId(img.id)
       setSize({ width: processed.width, height: processed.height })
       // A new map almost always has a different grid; start from a sensible default.
       setGrid((g) => ({ ...defaultGrid(processed.width), color: g.color, show: g.show }))
       if (old) await deleteImage(old)
+      if (oldImg?.storagePath) await deleteMapImage(oldImg.storagePath)
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Could not load that image.')
     } finally {
@@ -420,10 +452,12 @@ export function SceneEditor({
     })
     if (!ok) return
     const old = imageId
+    const oldImg = await db.images.get(old)
     touch()
     setImageId(null)
     setSize({ width: grid.cellPx * 30, height: grid.cellPx * 20 })
     await deleteImage(old)
+    if (oldImg?.storagePath) await deleteMapImage(oldImg.storagePath)
   }
 
   function setGridField(patch: Partial<SceneGrid>) {

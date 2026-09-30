@@ -3,7 +3,9 @@ import type { SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 // Pure geometry for the battle-map board. Board space = map-image pixels; tokens
 // live in grid cells so re-calibrating the grid carries them along.
 
-export const MAP_MAX_DIM = 3072
+// Map images upload to a private Storage bucket (not base64 in the DB), so they
+// can be sharper than the old base64-in-records cap allowed.
+export const MAP_MAX_DIM = 6144
 export const MIN_ZOOM = 0.1
 export const MAX_ZOOM = 4
 /** Smallest on-screen square for the opening view, so tokens are clickable. */

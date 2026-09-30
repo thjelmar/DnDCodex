@@ -36,6 +36,20 @@ export async function downloadMapObjectUrl(path: string): Promise<string | null>
   return URL.createObjectURL(data)
 }
 
+/** Download a map as a base64 data URL, for caching back into local Dexie (so a
+ *  device that pulled the record without base64 has the map offline thereafter). */
+export async function downloadMapDataUrl(path: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase.storage.from(BUCKET).download(path)
+  if (error || !data) return null
+  return await new Promise<string | null>((resolve) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
+    reader.onerror = () => resolve(null)
+    reader.readAsDataURL(data)
+  })
+}
+
 /** Remove a map object (e.g. one the DM replaced). Best-effort. */
 export async function deleteMapImage(path: string): Promise<void> {
   if (!supabase) return
