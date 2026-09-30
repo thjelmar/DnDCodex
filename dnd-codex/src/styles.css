@@ -425,6 +425,41 @@ button {
 .ticket-editor-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .ticket-hint { font-size: 12px; color: var(--text-faint); }
 
+/* Ticket details editor: one row per stored line, keeping the rendered shape
+   (checkbox / bullet) while editable. */
+.ticket-editor { display: flex; flex-direction: column; }
+.ticket-rows { display: flex; flex-direction: column; gap: 1px; }
+.tk-row { display: flex; align-items: flex-start; gap: 8px; border-radius: 6px; padding: 1px 2px; }
+.tk-row:hover { background: var(--surface-2, rgba(127, 127, 127, 0.08)); }
+.tk-row.tk-bullet { position: relative; }
+.tk-row.tk-bullet::before { content: '•'; position: absolute; left: -9px; top: 3px; color: var(--text-faint); }
+.tk-box { margin-top: 5px; flex: none; accent-color: var(--accent); }
+/* The empty box beside a plain line — click to make it a checklist item. */
+.tk-box-empty {
+  width: 14px; height: 14px; margin-top: 5px; padding: 0; cursor: pointer;
+  border: 1.5px solid var(--border); border-radius: 3px; background: transparent;
+}
+.tk-box-empty:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.tk-input {
+  flex: 1 1 auto; min-width: 0; resize: none; overflow: hidden;
+  border: none; background: transparent; padding: 2px 0; margin: 0;
+  font: inherit; line-height: 1.5; color: var(--text);
+}
+.tk-input:focus { outline: none; }
+.tk-input::placeholder { color: var(--text-faint); }
+.tk-row.done .tk-input { text-decoration: line-through; color: var(--text-faint); }
+.tk-kind, .tk-del {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; margin-top: 1px; padding: 0; cursor: pointer;
+  border: none; border-radius: 5px; background: transparent; color: var(--text-faint);
+  opacity: 0; transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.tk-row:hover .tk-kind, .tk-row:hover .tk-del,
+.tk-input:focus ~ .tk-kind, .tk-input:focus ~ .tk-del { opacity: 1; }
+.tk-kind:hover { color: var(--text); background: var(--surface-2, rgba(127, 127, 127, 0.12)); }
+.tk-del:hover { color: var(--danger, #e5484d); background: color-mix(in srgb, var(--danger, #e5484d) 14%, transparent); }
+.tk-kind svg, .tk-del svg { width: 15px; height: 15px; }
+
 /* Ticket links (follow-ups). */
 .ticket-links { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin-top: 12px; font-size: 13px; }
 .ticket-links > .label { color: var(--text-dim); }
