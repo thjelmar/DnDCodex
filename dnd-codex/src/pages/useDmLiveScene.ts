@@ -19,7 +19,7 @@ import { useLiveSession } from '../lib/useLiveSession'
 import { tokenRevealed } from '../lib/tabletop'
 import { tokenCombat } from '../lib/tokenCombat'
 import { getCombat, type CombatState } from '../lib/combat'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
 // to players, every (debounced) change is mirrored to the cloud: the scene row,
@@ -36,6 +36,7 @@ interface Draft {
   imageId: Id | null
   tokens: SceneToken[]
   fog: SceneFog | null
+  templates: SceneTemplate[] | null
   combat: CombatState
 }
 
@@ -96,7 +97,7 @@ async function uploadMap(campaignId: Id, imageId: Id | null) {
 }
 
 function liveSceneOf(campaignId: Id, d: Draft): LiveScene {
-  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId, fog: d.fog }
+  return { campaignId, sceneId: d.sceneId, name: d.name, width: d.width, height: d.height, grid: d.grid, mapImageId: d.imageId, fog: d.fog, templates: d.templates }
 }
 
 /**
@@ -117,6 +118,7 @@ export async function showSceneToPlayers(campaign: Campaign, scene: Scene, userI
     imageId: scene.imageId,
     tokens: scene.tokens,
     fog: scene.fog ?? null,
+    templates: scene.templates ?? null,
     combat: getCombat(),
   }
   await uploadMap(campaign.id, draft.imageId)
@@ -242,11 +244,11 @@ export function useDmLiveScene(
 
   // Debounced mirror while this map is the one on show. A push still waiting
   // on the debounce is flushed if the editor unmounts (switching panes/maps).
-  const { sceneId, name, grid, width, height, imageId, tokens, fog, combat } = draft
+  const { sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat } = draft
   const pending = useRef<Draft | null>(null)
   useEffect(() => {
     if (!isShowing || !seeded) return
-    const d = { sceneId, name, grid, width, height, imageId, tokens, fog, combat }
+    const d = { sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat }
     pending.current = d
     const t = setTimeout(() => {
       pending.current = null
@@ -254,7 +256,7 @@ export function useDmLiveScene(
     }, PUSH_DELAY)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, combat, members])
+  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat, members])
   useEffect(
     () => () => {
       if (pending.current) enqueuePush(pending.current)

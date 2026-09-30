@@ -657,6 +657,25 @@ export interface SceneFog {
   revealed: string[]
 }
 
+/** A placed area/measurement template (spell area, breath cone, wall). Shared
+ *  with players on the live map. Sizes are in feet; the origin is in fractional
+ *  grid cells so it rides along when the grid is re-aligned (like tokens). */
+export type TemplateShape = 'circle' | 'cone' | 'line'
+export interface SceneTemplate {
+  id: Id
+  shape: TemplateShape
+  /** Origin in fractional cells: circle center, cone apex, or line start. */
+  col: number
+  row: number
+  /** Radius (circle) or length (cone/line), in feet. */
+  sizeFt: number
+  /** Aim direction in radians (cone/line); ignored for a circle. */
+  dir?: number
+  color: string
+  /** Optional caption ("Fireball", "Breath"). */
+  label?: string
+}
+
 /** A battle map (VTT scene): a map image, its grid, and the tokens on it. */
 export interface Scene extends BaseRecord {
   campaignId: Id
@@ -670,6 +689,8 @@ export interface Scene extends BaseRecord {
   tokens: SceneToken[]
   /** Fog of war state; absent/undefined = no fog (players see the whole map). */
   fog?: SceneFog
+  /** Placed area templates; absent/undefined = none. */
+  templates?: SceneTemplate[]
 }
 
 /** Discriminated union used by generic helpers and the export payload. */

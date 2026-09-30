@@ -30,8 +30,17 @@ import {
   snapCenterToCell,
   tokenRevealed,
 } from '../lib/tabletop'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 import { SessionNotesPanel } from './SessionNotesPanel'
+
+// Palette for area templates (distinct from token colors: warmer, "spell effect").
+const TEMPLATE_COLORS = ['#ef4444', '#f59e0b', '#a855f7', '#22c55e', '#3b82f6']
+// Shapes offered, each with a tiny SVG glyph for its toolbar button.
+const TEMPLATE_SHAPES: { shape: TemplateShape; label: string; glyph: JSX.Element }[] = [
+  { shape: 'circle', label: 'Circle', glyph: <circle cx={8} cy={8} r={6} /> },
+  { shape: 'cone', label: 'Cone', glyph: <polygon points="8,2 14,14 2,14" /> },
+  { shape: 'line', label: 'Line', glyph: <rect x={2} y={6} width={12} height={4} /> },
+]
 
 // Battle Map tab: the built-in VTT. A scene list on the left; the selected
 // scene's board, grid calibration, and tokens on the right. Scenes sync and back
@@ -124,20 +133,21 @@ export function SceneEditor({
   const [size, setSize] = useState({ width: scene.width, height: scene.height })
   const [imageId, setImageId] = useState<Id | null>(scene.imageId)
   const [fog, setFog] = useState<SceneFog>(scene.fog ?? { enabled: false, revealed: [] })
+  const [templates, setTemplates] = useState<SceneTemplate[]>(scene.templates ?? [])
   const dirty = useRef(false)
   // The latest unsaved draft, flushed on unmount (e.g. switching Run mode's
   // pane or map inside the 400ms debounce) so the last edit isn't lost.
   const unsaved = useRef<Partial<Scene> | null>(null)
   useEffect(() => {
     if (!dirty.current) return
-    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog }
+    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog, templates }
     unsaved.current = patch
     const t = setTimeout(() => {
       unsaved.current = null
       updateScene(scene.id, patch)
     }, 400)
     return () => clearTimeout(t)
-  }, [name, grid, tokens, imageId, size, fog, scene.id])
+  }, [name, grid, tokens, imageId, size, fog, templates, scene.id])
   useEffect(
     () => () => {
       if (unsaved.current) updateScene(scene.id, unsaved.current)
@@ -157,7 +167,7 @@ export function SceneEditor({
   const combat = useCombat()
   const live = useDmLiveScene(
     campaign,
-    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog, combat: combat.state },
+    { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog, templates, combat: combat.state },
     (moves) => {
       touch()
       setTokens((ts) => ts.map((t) => {
@@ -184,6 +194,9 @@ export function SceneEditor({
     touch()
     setAligning(false)
     setPreview(false)
+    setMeasuring(false)
+    setTemplatesOpen(false)
+    setTemplateShape(null)
     setFog((f) => ({ ...f, enabled: true }))
     setFogTool('reveal')
   }
@@ -202,6 +215,55 @@ export function SceneEditor({
   function coverAllFog() {
     touch()
     setFog((f) => ({ ...f, revealed: [] }))
+  }
+
+  // Measurement & area templates. The ruler (measuring) is an ephemeral DM tool;
+  // placed templates persist on the scene and sync to players like fog.
+  const [measuring, setMeasuring] = useState(false)
+  const [templatesOpen, setTemplatesOpen] = useState(false)
+  const [templateShape, setTemplateShape] = useState<TemplateShape | null>(null)
+  const [templateSizeFt, setTemplateSizeFt] = useState(20)
+  const [templateColor, setTemplateColor] = useState(TEMPLATE_COLORS[0])
+  const templateTool = templatesOpen && templateShape ? { shape: templateShape, sizeFt: templateSizeFt, color: templateColor } : null
+  // Only one board tool at a time.
+  function toggleMeasure() {
+    setMeasuring((m) => {
+      if (m) return false
+      setAligning(false)
+      setPreview(false)
+      setFogTool(null)
+      setTemplatesOpen(false)
+      setTemplateShape(null)
+      return true
+    })
+  }
+  function toggleTemplates() {
+    setTemplatesOpen((o) => {
+      if (o) {
+        setTemplateShape(null)
+        return false
+      }
+      setAligning(false)
+      setPreview(false)
+      setFogTool(null)
+      setMeasuring(false)
+      return true
+    })
+  }
+  function armTemplate(shape: TemplateShape) {
+    setTemplateShape((s) => (s === shape ? null : shape))
+  }
+  function placeTemplate(t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) {
+    touch()
+    setTemplates((ts) => [...ts, { ...t, id: crypto.randomUUID() }])
+  }
+  function removeTemplate(id: string) {
+    touch()
+    setTemplates((ts) => ts.filter((t) => t.id !== id))
+  }
+  function clearTemplates() {
+    touch()
+    setTemplates([])
   }
   // Align options: how many squares the box spans across, and whether to snap
   // the result to the grid lines drawn on the map image.
@@ -560,6 +622,9 @@ export function SceneEditor({
               setSelectedToken(null)
               setAligning(false)
               setFogTool(null)
+              setMeasuring(false)
+              setTemplatesOpen(false)
+              setTemplateShape(null)
             }}
             title="See the map exactly as players will: hidden tokens gone, no DM controls"
           >
@@ -571,6 +636,20 @@ export function SceneEditor({
             title="Fog of war: cover the map and reveal only where the party has been"
           >
             <Icon name="cloud" size={14} color={fogTool ? 'inherit' : undefined} /> {tight ? null : fogTool ? 'Done' : 'Fog'}
+          </button>
+          <button
+            className={`btn small${measuring ? ' primary' : ''}`}
+            onClick={toggleMeasure}
+            title="Ruler: drag on the map to measure distance in feet"
+          >
+            <Icon name="maximize" size={14} color={measuring ? 'inherit' : undefined} /> {tight ? null : measuring ? 'Done' : 'Measure'}
+          </button>
+          <button
+            className={`btn small${templatesOpen ? ' primary' : ''}`}
+            onClick={toggleTemplates}
+            title="Area templates: place a spell circle, cone, or line that players can see"
+          >
+            <Icon name="sparkles" size={14} color={templatesOpen ? 'inherit' : undefined} /> {tight ? null : templatesOpen ? 'Done' : 'Templates'}
           </button>
           {expanded && (
             <button
@@ -632,6 +711,62 @@ export function SceneEditor({
           </div>
         </div>
       )}
+      {measuring && (
+        <div className="battlemap-fogbar">
+          <span className="battlemap-fogbar-label"><Icon name="maximize" size={14} /> Ruler</span>
+          <span className="faint">Drag across the map to measure. Distances use 5-ft squares (diagonals count as 5 ft).</span>
+        </div>
+      )}
+      {templatesOpen && (
+        <div className="battlemap-fogbar battlemap-templatebar">
+          <span className="battlemap-fogbar-label"><Icon name="sparkles" size={14} /> Templates</span>
+          <div className="seg-filter" role="group" aria-label="Template shape">
+            {TEMPLATE_SHAPES.map((s) => (
+              <button key={s.shape} className={templateShape === s.shape ? 'active' : ''} onClick={() => armTemplate(s.shape)} title={s.label}>
+                <svg width={16} height={16} viewBox="0 0 16 16" style={{ fill: 'currentColor', verticalAlign: 'middle' }}>{s.glyph}</svg> {s.label}
+              </button>
+            ))}
+          </div>
+          <label className="battlemap-tpl-size" title={templateShape === 'circle' ? 'Radius in feet' : 'Length in feet'}>
+            <span className="faint">{templateShape === 'circle' ? 'Radius' : 'Length'}</span>
+            <NumberField value={templateSizeFt} min={5} max={200} step={5} onChange={(v) => v != null && setTemplateSizeFt(v)} ariaLabel="Template size in feet" />
+            <span className="faint">ft</span>
+          </label>
+          <div className="battlemap-tpl-colors" role="group" aria-label="Template color">
+            {TEMPLATE_COLORS.map((c) => (
+              <button
+                key={c}
+                className={`battlemap-tpl-swatch${templateColor === c ? ' active' : ''}`}
+                style={{ background: c }}
+                onClick={() => setTemplateColor(c)}
+                aria-label={`Color ${c}`}
+                aria-pressed={templateColor === c}
+              />
+            ))}
+          </div>
+          <span className="faint">
+            {templateShape
+              ? templateShape === 'circle'
+                ? 'Click the map to drop the circle.'
+                : `Press at the origin and drag to aim the ${templateShape}.`
+              : 'Pick a shape, then place it on the map.'}
+          </span>
+          {templates.length > 0 && (
+            <div className="battlemap-tpl-list">
+              {templates.map((t) => (
+                <span key={t.id} className="battlemap-tpl-chip" style={{ borderColor: t.color }}>
+                  <span className="battlemap-tpl-dot" style={{ background: t.color }} />
+                  {t.shape} {t.sizeFt}ft
+                  <button className="battlemap-tpl-remove" onClick={() => removeTemplate(t.id)} aria-label="Remove template" title="Remove">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="battlemap-fogbar-actions">
+            <button className="btn ghost small" onClick={clearTemplates} disabled={templates.length === 0}>Clear all</button>
+          </div>
+        </div>
+      )}
       {mapImage && (
         <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
           {mapImage.width}×{mapImage.height}px · {formatBytes(mapImage.bytes)} · {cols}×{rows} squares
@@ -665,6 +800,10 @@ export function SceneEditor({
           fogBrush={fogBrush}
           onPaintFog={paintFog}
           combat={combatByToken}
+          templates={templates}
+          templateTool={preview ? null : templateTool}
+          onPlaceTemplate={placeTemplate}
+          measureTool={!preview && measuring}
         />
 
         <aside className="battlemap-side" hidden={!panelOpen || preview}>

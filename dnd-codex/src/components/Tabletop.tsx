@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
-import type { SceneFog, SceneGrid, SceneToken, TokenCombat } from '../db/types'
+import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
   MIN_CELL_SCREEN,
@@ -9,9 +9,12 @@ import {
   clampZoom,
   gridPath,
   initials,
+  measureFeet,
   nearestFreeCell,
   pxToCell,
   snapCenterToCell,
+  templateCells,
+  templateGeom,
   tokenCenter,
 } from '../lib/tabletop'
 import { conditionMeta } from '../lib/combat'
@@ -28,6 +31,8 @@ type Drag =
   | { kind: 'align'; x1: number; y1: number }
   | { kind: 'resize'; id: string; left: number; top: number }
   | { kind: 'fog'; reveal: boolean }
+  | { kind: 'measure'; x1: number; y1: number }
+  | { kind: 'template'; col: number; row: number }
 
 interface Props {
   width: number
@@ -66,6 +71,14 @@ interface Props {
   onPaintFog?: (cellKeys: string[], reveal: boolean) => void
   /** Per-token combat overlay: HP bar / damage taken, conditions, active turn. */
   combat?: Record<string, TokenCombat>
+  /** Placed area templates to render (spell areas etc.), or none. */
+  templates?: SceneTemplate[]
+  /** When set, clicking/dragging the board places a template of this shape. */
+  templateTool?: { shape: TemplateShape; sizeFt: number; color: string } | null
+  /** Commit a placed template (origin in cells, plus aim for cone/line). */
+  onPlaceTemplate?: (t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) => void
+  /** When true, dragging the board measures a distance in feet (ephemeral). */
+  measureTool?: boolean
 }
 
 export function Tabletop({
@@ -92,6 +105,10 @@ export function Tabletop({
   fogBrush = 0,
   onPaintFog,
   combat,
+  templates,
+  templateTool,
+  onPlaceTemplate,
+  measureTool = false,
 }: Props) {
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -109,6 +126,10 @@ export function Tabletop({
   // Cell under the cursor while in fog mode (for the brush-size preview outline).
   const [fogHover, setFogHover] = useState<{ col: number; row: number } | null>(null)
   const fogLastCell = useRef<string | null>(null)
+  // Live ruler endpoints (board px) while measuring; null when idle.
+  const [measure, setMeasure] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+  // Live template being aimed (origin cell + current aim point) while placing.
+  const [templateAim, setTemplateAim] = useState<{ col: number; row: number; ax: number; ay: number } | null>(null)
 
   const toBoard = (clientX: number, clientY: number) => {
     const rect = wrapRef.current!.getBoundingClientRect()
@@ -130,6 +151,13 @@ export function Tabletop({
   useEffect(() => {
     if (!fogTool) setFogHover(null)
   }, [fogTool])
+  // Drop the in-progress ruler / template preview when leaving those modes.
+  useEffect(() => {
+    if (!measureTool) setMeasure(null)
+  }, [measureTool])
+  useEffect(() => {
+    if (!templateTool) setTemplateAim(null)
+  }, [templateTool])
 
   /** Show the whole board (the Fit button). */
   function fit() {
@@ -230,6 +258,21 @@ export function Tabletop({
     if (e.button !== 0) return
     wrapRef.current?.focus()
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
+    if (measureTool) {
+      const p = toBoard(e.clientX, e.clientY)
+      drag.current = { kind: 'measure', x1: p.x, y1: p.y }
+      setMeasure({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
+      return
+    }
+    if (templateTool) {
+      const p = toBoard(e.clientX, e.clientY)
+      // Snap the origin to the nearest grid intersection (spells emanate from a point).
+      const col = Math.round((p.x - grid.offsetX) / grid.cellPx)
+      const row = Math.round((p.y - grid.offsetY) / grid.cellPx)
+      drag.current = { kind: 'template', col, row }
+      setTemplateAim({ col, row, ax: p.x, ay: p.y })
+      return
+    }
     if (fogTool) {
       const p = toBoard(e.clientX, e.clientY)
       const c = pxToCell(grid, p.x, p.y)
@@ -248,8 +291,9 @@ export function Tabletop({
   }
 
   function onTokenPointerDown(e: React.PointerEvent, t: SceneToken) {
-    // In fog-paint mode let the press fall through to the background painter.
-    if (e.button !== 0 || aligning || fogTool) return
+    // In a board tool mode (fog paint, measure, template) let the press fall
+    // through to the background handler instead of grabbing the token.
+    if (e.button !== 0 || aligning || fogTool || measureTool || templateTool) return
     // Non-movable tokens let the press fall through to panning.
     if (!movable(t)) return
     e.stopPropagation()
@@ -304,6 +348,12 @@ export function Tabletop({
         for (const k of brushKeys(c.col, c.row)) next.add(k)
         return { ...s, cells: next }
       })
+    } else if (d.kind === 'measure') {
+      const p = toBoard(e.clientX, e.clientY)
+      setMeasure({ x1: d.x1, y1: d.y1, x2: p.x, y2: p.y })
+    } else if (d.kind === 'template') {
+      const p = toBoard(e.clientX, e.clientY)
+      setTemplateAim({ col: d.col, row: d.row, ax: p.x, ay: p.y })
     } else {
       const p = toBoard(e.clientX, e.clientY)
       setBox({ x1: d.x1, y1: d.y1, x2: p.x, y2: p.y })
@@ -333,6 +383,17 @@ export function Tabletop({
     } else if (d.kind === 'fog') {
       if (fogStroke && fogStroke.cells.size) onPaintFog?.([...fogStroke.cells], fogStroke.reveal)
       setFogStroke(null)
+    } else if (d.kind === 'measure') {
+      setMeasure(null) // ephemeral: the ruler shows while dragging, then clears
+    } else if (d.kind === 'template') {
+      if (templateTool) {
+        const ox = grid.offsetX + d.col * grid.cellPx
+        const oy = grid.offsetY + d.row * grid.cellPx
+        const p = toBoard(e.clientX, e.clientY)
+        const dir = templateTool.shape === 'circle' ? undefined : Math.atan2(p.y - oy, p.x - ox)
+        onPlaceTemplate?.({ shape: templateTool.shape, col: d.col, row: d.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color })
+      }
+      setTemplateAim(null)
     } else if (box) {
       setBox(null)
       if (Math.abs(box.x2 - box.x1) >= 8 && Math.abs(box.y2 - box.y1) >= 8) onAlign(box)
@@ -392,7 +453,7 @@ export function Tabletop({
     <div className="tabletop">
       <div
         ref={wrapRef}
-        className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}`}
+        className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}${measureTool || templateTool ? ' crosshair' : ''}`}
         tabIndex={0}
         onPointerDown={onBgPointerDown}
         onPointerMove={onPointerMove}
@@ -416,6 +477,49 @@ export function Tabletop({
                 pointerEvents="none"
               />
             )}
+
+            {/* Area templates (spell areas, cones, lines). Drawn over the grid
+                and under the tokens: the covered squares are tinted and the
+                shape outlined in the template's color. */}
+            {templates?.map((tpl) => {
+              const geom = templateGeom(grid, tpl)
+              const cells = templateCells(grid, width, height, tpl)
+              return (
+                <g key={tpl.id} className="tabletop-template" pointerEvents="none" style={{ color: tpl.color }}>
+                  {cells.map((k) => {
+                    const [c, r] = k.split(',').map(Number)
+                    const p = cellToPx(grid, c, r)
+                    return <rect key={k} x={p.x} y={p.y} width={grid.cellPx} height={grid.cellPx} className="tabletop-template-cell" />
+                  })}
+                  {geom.kind === 'circle' ? (
+                    <circle cx={geom.cx} cy={geom.cy} r={geom.r} className="tabletop-template-shape" />
+                  ) : (
+                    <polygon points={geom.points.map((pt) => pt.join(',')).join(' ')} className="tabletop-template-shape" />
+                  )}
+                  {tpl.label && (
+                    <text x={grid.offsetX + tpl.col * grid.cellPx} y={grid.offsetY + tpl.row * grid.cellPx} className="tabletop-template-label" textAnchor="middle" dominantBaseline="central">
+                      {tpl.label}
+                    </text>
+                  )}
+                </g>
+              )
+            })}
+
+            {/* Live preview of the template being placed. */}
+            {templateTool && templateAim && (() => {
+              const dir = templateTool.shape === 'circle' ? undefined : Math.atan2(templateAim.ay - (grid.offsetY + templateAim.row * grid.cellPx), templateAim.ax - (grid.offsetX + templateAim.col * grid.cellPx))
+              const ghost: SceneTemplate = { id: 'ghost', shape: templateTool.shape, col: templateAim.col, row: templateAim.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color }
+              const geom = templateGeom(grid, ghost)
+              return (
+                <g className="tabletop-template ghost" pointerEvents="none" style={{ color: templateTool.color }}>
+                  {geom.kind === 'circle' ? (
+                    <circle cx={geom.cx} cy={geom.cy} r={geom.r} className="tabletop-template-shape" />
+                  ) : (
+                    <polygon points={geom.points.map((pt) => pt.join(',')).join(' ')} className="tabletop-template-shape" />
+                  )}
+                </g>
+              )
+            })()}
 
             {/* Fog of war: a veil over every cell that isn't revealed. The mask
                 is white (veil shows) everywhere except revealed cells, which are
@@ -629,6 +733,20 @@ export function Tabletop({
                 className="tabletop-alignbox"
                 pointerEvents="none"
               />
+            )}
+
+            {/* Ruler: a live line with the distance in feet, drawn over everything. */}
+            {measure && (
+              <g className="tabletop-ruler" pointerEvents="none">
+                <line x1={measure.x1} y1={measure.y1} x2={measure.x2} y2={measure.y2} vectorEffect="non-scaling-stroke" />
+                <circle cx={measure.x1} cy={measure.y1} r={4 / transform.k} />
+                <circle cx={measure.x2} cy={measure.y2} r={4 / transform.k} />
+                <g transform={`translate(${measure.x2} ${measure.y2})`}>
+                  <text className="tabletop-ruler-label" x={10 / transform.k} y={-10 / transform.k} fontSize={14 / transform.k}>
+                    {measureFeet(grid, measure.x1, measure.y1, measure.x2, measure.y2)} ft
+                  </text>
+                </g>
+              </g>
             )}
           </g>
         </svg>

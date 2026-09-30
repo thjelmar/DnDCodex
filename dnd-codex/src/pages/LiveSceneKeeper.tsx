@@ -120,6 +120,7 @@ function KeeperFor({ campaign, scene }: { campaign: Campaign; scene: Scene }) {
       imageId: scene.imageId,
       tokens: scene.tokens,
       fog: scene.fog ?? null,
+      templates: scene.templates ?? null,
       combat,
     },
     async (moves) => {

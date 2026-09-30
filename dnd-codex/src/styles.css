@@ -2278,6 +2278,17 @@ kbd {
 .tabletop-fog-opaque { fill: #05070d; }
 .tabletop-fog-dim { fill: rgba(6, 10, 20, 0.5); }
 .tabletop-fog-brush { fill: rgba(167, 139, 250, 0.14); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tabletop-view.crosshair { cursor: crosshair; }
+/* Area templates: shape uses the template's color (via currentColor), covered
+   squares get a light tint of it. The ghost (being placed) is a touch fainter. */
+.tabletop-template-shape { fill: currentColor; fill-opacity: 0.16; stroke: currentColor; stroke-opacity: 0.9; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tabletop-template-cell { fill: currentColor; fill-opacity: 0.12; }
+.tabletop-template-label { fill: #fff; font-size: 13px; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.75); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.tabletop-template.ghost .tabletop-template-shape { stroke-dasharray: 6 4; }
+/* Ruler */
+.tabletop-ruler line { stroke: #fde047; stroke-width: 2.5; stroke-dasharray: 7 5; }
+.tabletop-ruler circle { fill: #fde047; }
+.tabletop-ruler-label { fill: #fde047; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.85); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 /* Combat overlay on tokens */
 .tabletop-combat-active { fill: none; stroke: #fbbf24; stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .tabletop-hp-bg { fill: rgba(0, 0, 0, 0.55); }
@@ -2298,6 +2309,17 @@ kbd {
 .battlemap-fogbar-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .battlemap-fogbar .faint { margin: 0; font-size: 12px; }
 .battlemap-fogbar-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+/* Templates bar */
+.battlemap-tpl-size { display: inline-flex; align-items: center; gap: 4px; }
+.battlemap-tpl-size .input { width: 64px; }
+.battlemap-tpl-colors { display: inline-flex; gap: 4px; }
+.battlemap-tpl-swatch { width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.battlemap-tpl-swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 3px var(--text); }
+.battlemap-tpl-list { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.battlemap-tpl-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; font-size: 12px; text-transform: capitalize; border: 1px solid var(--border); border-left-width: 3px; border-radius: var(--radius-sm); background: var(--bg); }
+.battlemap-tpl-dot { width: 9px; height: 9px; border-radius: 50%; }
+.battlemap-tpl-remove { border: none; background: none; color: var(--text-dim); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
+.battlemap-tpl-remove:hover { color: var(--danger); }
 .battlemap-live-pill { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--good); vertical-align: middle; }
 .battlemap-align-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
 .battlemap-align-opts > label:not(.battlemap-check) { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }

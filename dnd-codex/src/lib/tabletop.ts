@@ -1,4 +1,4 @@
-import type { SceneGrid, SceneToken } from '../db/types'
+import type { SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
 // Pure geometry for the battle-map board. Board space = map-image pixels; tokens
 // live in grid cells so re-calibrating the grid carries them along.
@@ -170,6 +170,119 @@ export function tokenRevealed(t: SceneToken, revealed: Set<string>): boolean {
   for (let dc = 0; dc < t.size; dc++)
     for (let dr = 0; dr < t.size; dr++) if (revealed.has(cellKey(t.col + dc, t.row + dr))) return true
   return false
+}
+
+// ── Measurement & area templates ───────────────────────────────────────────
+
+/** Feet represented by one grid square (D&D's standard 5-foot square). */
+export const FT_PER_CELL = 5
+
+/**
+ * Distance between two board-space points, in feet, using 5e's movement rule
+ * ("count the longer axis"): a diagonal costs the same as a straight step, so
+ * the distance is the longer of the horizontal/vertical spans. Rounded to a
+ * whole square (5 ft) so the ruler reads in game terms.
+ */
+export function measureFeet(grid: SceneGrid, x1: number, y1: number, x2: number, y2: number): number {
+  const dc = Math.abs(x2 - x1) / grid.cellPx
+  const dr = Math.abs(y2 - y1) / grid.cellPx
+  return Math.round(Math.max(dc, dr)) * FT_PER_CELL
+}
+
+/** Board-space origin (px) of a template — circle center, cone apex, line start. */
+export function templateOriginPx(grid: SceneGrid, tpl: SceneTemplate): { x: number; y: number } {
+  return { x: grid.offsetX + tpl.col * grid.cellPx, y: grid.offsetY + tpl.row * grid.cellPx }
+}
+
+/** A template's principal size (radius or length) in board px. */
+function templateSizePx(grid: SceneGrid, tpl: SceneTemplate): number {
+  return (tpl.sizeFt / FT_PER_CELL) * grid.cellPx
+}
+
+/** Line templates are one square (5 ft) wide by default, matching 5e line spells. */
+export const TEMPLATE_LINE_WIDTH_FT = 5
+
+/** Geometry a template renders as, in board px: a circle or a filled polygon. */
+export type TemplateGeom =
+  | { kind: 'circle'; cx: number; cy: number; r: number }
+  | { kind: 'poly'; points: [number, number][] }
+
+/**
+ * The shape a template covers, in board px. A cone follows 5e's "width equals
+ * distance from origin" rule (an isosceles triangle whose base equals its
+ * length); a line is a rectangle of TEMPLATE_LINE_WIDTH_FT.
+ */
+export function templateGeom(grid: SceneGrid, tpl: SceneTemplate): TemplateGeom {
+  const o = templateOriginPx(grid, tpl)
+  const len = templateSizePx(grid, tpl)
+  if (tpl.shape === 'circle') return { kind: 'circle', cx: o.x, cy: o.y, r: len }
+  const dir = tpl.dir ?? 0
+  const ax = Math.cos(dir)
+  const ay = Math.sin(dir)
+  const px = -ay // unit perpendicular
+  const py = ax
+  const ex = o.x + ax * len
+  const ey = o.y + ay * len
+  if (tpl.shape === 'cone') {
+    const half = len / 2 // base width == length
+    return { kind: 'poly', points: [[o.x, o.y], [ex + px * half, ey + py * half], [ex - px * half, ey - py * half]] }
+  }
+  // line
+  const half = ((TEMPLATE_LINE_WIDTH_FT / FT_PER_CELL) * grid.cellPx) / 2
+  return {
+    kind: 'poly',
+    points: [
+      [o.x + px * half, o.y + py * half],
+      [ex + px * half, ey + py * half],
+      [ex - px * half, ey - py * half],
+      [o.x - px * half, o.y - py * half],
+    ],
+  }
+}
+
+function pointInPoly(x: number, y: number, poly: [number, number][]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  return inside
+}
+
+/** The grid cells a template covers (center-in-shape), as "col,row" keys — the
+ *  D&D "which squares are affected" highlight. */
+export function templateCells(grid: SceneGrid, width: number, height: number, tpl: SceneTemplate): string[] {
+  const geom = templateGeom(grid, tpl)
+  // Bounding box of the shape, clamped to the board, then test each cell center.
+  let minX: number, minY: number, maxX: number, maxY: number
+  if (geom.kind === 'circle') {
+    minX = geom.cx - geom.r
+    maxX = geom.cx + geom.r
+    minY = geom.cy - geom.r
+    maxY = geom.cy + geom.r
+  } else {
+    const xs = geom.points.map((p) => p[0])
+    const ys = geom.points.map((p) => p[1])
+    minX = Math.min(...xs)
+    maxX = Math.max(...xs)
+    minY = Math.min(...ys)
+    maxY = Math.max(...ys)
+  }
+  const c0 = Math.max(0, Math.floor((minX - grid.offsetX) / grid.cellPx))
+  const c1 = Math.floor((Math.min(maxX, width) - grid.offsetX) / grid.cellPx)
+  const r0 = Math.max(0, Math.floor((minY - grid.offsetY) / grid.cellPx))
+  const r1 = Math.floor((Math.min(maxY, height) - grid.offsetY) / grid.cellPx)
+  const keys: string[] = []
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const cx = grid.offsetX + (c + 0.5) * grid.cellPx
+      const cy = grid.offsetY + (r + 0.5) * grid.cellPx
+      const hit = geom.kind === 'circle' ? Math.hypot(cx - geom.cx, cy - geom.cy) <= geom.r : pointInPoly(cx, cy, geom.points)
+      if (hit) keys.push(cellKey(c, r))
+    }
+  }
+  return keys
 }
 
 /** Short initials for a token without a portrait. */
