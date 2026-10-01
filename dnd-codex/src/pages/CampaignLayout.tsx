@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, NavLink, Outlet, useOutletContext, Link } from 'react-router-dom'
+import { useParams, NavLink, Outlet, useOutletContext, useLocation, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updateCampaign } from '../db/repo'
@@ -37,6 +37,9 @@ const TABS = [
 
 export function CampaignLayout() {
   const { campaignId } = useParams()
+  // The battle map is a spatial tool, so it drops the text-column width cap and
+  // fills the screen; the reading-width tabs keep the default .content width.
+  const wideTab = useLocation().pathname.endsWith('/battlemap')
   const campaign = useLiveQuery(
     // `?? null` so a missing campaign reads as "not found", not "still loading".
     async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
@@ -73,7 +76,7 @@ export function CampaignLayout() {
   }
 
   return (
-    <div className="content">
+    <div className={`content${wideTab ? ' content-wide' : ''}`}>
       <div className="row between" style={{ marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
         <div className="row" style={{ gap: 12, alignItems: 'center', minWidth: 0 }}>
           <span

@@ -163,6 +163,11 @@ button {
   margin: 0 auto;
   padding: 28px 32px 80px;
 }
+/* Spatial pages (the battle map) drop the reading-width cap and use the full
+   width of the screen instead of sitting in a 980px column. */
+.content-wide {
+  max-width: none;
+}
 
 .page-header {
   display: flex;
