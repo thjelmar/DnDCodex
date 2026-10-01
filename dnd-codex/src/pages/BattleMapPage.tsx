@@ -7,6 +7,7 @@ import { deleteMapImage, downloadMapDataUrl, uploadMapImage } from '../lib/mapSt
 import { useCampaign } from './CampaignLayout'
 import { Peek, type PeekKind } from './RunPage'
 import { Tabletop } from '../components/Tabletop'
+import { TokenStatusCard, hasFloatingStatus } from '../components/TokenStatusCard'
 import { SidePanel } from '../components/SidePanel'
 import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -838,6 +839,25 @@ export function SceneEditor({
           templateTool={preview ? null : templateTool}
           onPlaceTemplate={placeTemplate}
           measureTool={!preview && measuring}
+          renderTokenPanel={(t) =>
+            preview ? (
+              hasFloatingStatus(combatByToken[t.id]) ? <TokenStatusCard token={t} combat={combatByToken[t.id]} /> : null
+            ) : (
+              <div className="tabletop-quickcombat">
+                <div className="tabletop-quickcombat-name" title={t.label}>{t.label}</div>
+                <TokenCombatControl
+                  token={t}
+                  combatant={t.combatantId ? combat.state.combatants.find((c) => c.id === t.combatantId) ?? null : null}
+                  onAdd={() => addTokenToCombat(t)}
+                  onRemove={() => removeTokenFromCombat(t)}
+                  onFriendly={(v) => patchToken(t.id, { friendly: v })}
+                  onDamage={(n) => t.combatantId && combat.adjustHp(t.combatantId, -n)}
+                  onHeal={(n) => t.combatantId && combat.adjustHp(t.combatantId, n)}
+                  onConditions={(conds) => t.combatantId && combat.patch(t.combatantId, { conditions: conds })}
+                />
+              </div>
+            )
+          }
         />
 
         <aside className="battlemap-side" hidden={!panelOpen || preview}>

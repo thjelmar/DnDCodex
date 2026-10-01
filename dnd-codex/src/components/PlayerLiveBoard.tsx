@@ -5,6 +5,7 @@ import { getMyColor, setMyColor } from '../auth/cloud'
 import { useFullscreen } from '../lib/useFullscreen'
 import { TOKEN_COLORS } from '../lib/tabletop'
 import { Tabletop } from './Tabletop'
+import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
 import { Icon } from './Icon'
 
 // The player's view of the DM's live battle map, in the live-session page's
@@ -207,6 +208,10 @@ export function PlayerLiveBoardView({
           combat={board.combat}
           templates={live.scene.templates ?? undefined}
           measureTool={measuring}
+          renderTokenPanel={(t) => {
+            const cc = board.combat?.[t.id]
+            return hasFloatingStatus(cc) ? <TokenStatusCard token={t} combat={cc} /> : null
+          }}
         />
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (

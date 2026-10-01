@@ -2505,6 +2505,54 @@ kbd {
 .tabletop-resize path { stroke: #fff; fill: none; }
 .tabletop-zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; background: rgba(20, 18, 26, 0.8); border-radius: 8px; padding: 4px; }
 
+/* Floating card anchored just above (or below) the selected token — its quick
+   combat controls (DM) or a read-only status glance (players / DM preview).
+   A sibling of .tabletop-view so its own clicks never reach the board. */
+.tabletop-token-panel {
+  position: absolute;
+  z-index: 6;
+  width: max-content;
+  max-width: 280px;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+  padding: 9px 10px;
+  font-size: 13px;
+}
+.tabletop-token-panel.below { transform: translate(-50%, 12px); }
+/* A little pointer toward the token. */
+.tabletop-token-panel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  transform: translateX(-50%) rotate(45deg);
+}
+.tabletop-token-panel:not(.below)::after { bottom: -6px; border-top: none; border-left: none; }
+.tabletop-token-panel.below::after { top: -6px; border-bottom: none; border-right: none; }
+
+.tabletop-quickcombat { display: flex; flex-direction: column; gap: 6px; }
+.tabletop-quickcombat-name,
+.token-status-name { font-weight: 600; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.token-status-card { display: flex; flex-direction: column; gap: 5px; }
+.token-status-hp { display: flex; align-items: center; gap: 7px; }
+.token-status-hp-bar { flex: 1; min-width: 92px; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.token-status-hp-fill { display: block; height: 100%; border-radius: 4px; }
+.token-status-hp-fill.hp-hi { background: #22c55e; }
+.token-status-hp-fill.hp-mid { background: #eab308; }
+.token-status-hp-fill.hp-lo { background: #ef4444; }
+.token-status-hp-num { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.token-status-dmg { font-size: 12px; color: var(--danger); }
+.token-status-conds { display: flex; flex-wrap: wrap; gap: 4px; }
+.token-status-cond { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--border); }
+.token-status-cond-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+
 @media (max-width: 1100px) {
   .battlemap-body { grid-template-columns: 1fr; }
 }
