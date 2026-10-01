@@ -540,6 +540,27 @@ button {
   gap: 12px;
 }
 
+/* Settlement generator panel in the location editor — an editable, re-rollable
+   worksheet of the generated data. */
+/* The trigger sits inline at the left of the share bar; the box only appears
+   (below the bar) once it's open. */
+.share-bar .gen-trigger { margin-right: auto; }
+.loc-gen { border: 1px solid var(--accent); border-radius: 10px; padding: 10px 12px; margin: 2px 0 16px; background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.loc-gen-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.loc-gen-body { display: flex; flex-direction: column; gap: 14px; }
+.loc-gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 14px; }
+.loc-gen-field label.faint, .loc-gen-list label.faint { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 3px; }
+.loc-gen-input { display: flex; align-items: center; gap: 6px; }
+.loc-gen-input .input, .loc-gen-input .select { flex: 1; min-width: 0; }
+.loc-gen-list { display: flex; flex-direction: column; gap: 6px; }
+.loc-gen-list .btn { align-self: flex-start; }
+.loc-gen-line { display: flex; align-items: center; gap: 6px; }
+.loc-gen-line .input { flex: 1; min-width: 0; }
+.loc-gen-kind { flex: none; font-size: 12px; color: var(--text-faint); min-width: 70px; }
+.loc-gen-reroll, .loc-gen-remove { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 34px; padding: 0; border: 0.5px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-dim); cursor: pointer; }
+.loc-gen-reroll:hover { color: var(--text); border-color: var(--accent); }
+.loc-gen-remove:hover { color: var(--danger); border-color: var(--danger); }
+
 /* ---------- Modal ---------- */
 
 .modal-backdrop {
