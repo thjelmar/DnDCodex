@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
@@ -27,7 +27,9 @@ import { conditionIcon } from '../lib/conditionIcons'
 // scene and persists changes.
 
 type Drag =
-  | { kind: 'pan'; startX: number; startY: number; tx: number; ty: number }
+  // `selectId` set = the press began on a token that can't be moved; a tap
+  // (no pan) selects it (to show its card) instead of clearing the selection.
+  | { kind: 'pan'; startX: number; startY: number; tx: number; ty: number; selectId?: string }
   | { kind: 'token'; id: string; dx: number; dy: number; moved: boolean }
   | { kind: 'align'; x1: number; y1: number }
   | { kind: 'resize'; id: string; left: number; top: number }
@@ -80,6 +82,10 @@ interface Props {
   onPlaceTemplate?: (t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) => void
   /** When true, dragging the board measures a distance in feet (ephemeral). */
   measureTool?: boolean
+  /** Content for a small card floated just above the selected token (its quick
+   *  combat info / actions). Returning null shows nothing. The card is hidden
+   *  while a board tool is active or the token is being dragged or resized. */
+  renderTokenPanel?: (token: SceneToken) => ReactNode
 }
 
 export function Tabletop({
@@ -110,6 +116,7 @@ export function Tabletop({
   templateTool,
   onPlaceTemplate,
   measureTool = false,
+  renderTokenPanel,
 }: Props) {
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -295,8 +302,13 @@ export function Tabletop({
     // In a board tool mode (fog paint, measure, template) let the press fall
     // through to the background handler instead of grabbing the token.
     if (e.button !== 0 || aligning || fogTool || measureTool || templateTool) return
-    // Non-movable tokens let the press fall through to panning.
-    if (!movable(t)) return
+    // Non-movable tokens can't be dragged, but a tap still selects one (to show
+    // its status card) while a drag still pans the board.
+    if (!movable(t)) {
+      e.stopPropagation()
+      drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, tx: transform.tx, ty: transform.ty, selectId: t.id }
+      return
+    }
     e.stopPropagation()
     wrapRef.current?.focus()
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
@@ -370,8 +382,9 @@ export function Tabletop({
       if (t && resizing && resizing.size !== t.size) onResizeToken(t.id, resizing.size)
       setResizing(null)
     } else if (d.kind === 'pan') {
-      // A click (not a pan) on empty board clears the selection.
-      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) onSelect(null)
+      // A click (not a pan) selects the token it began on, or clears the
+      // selection when it began on empty board.
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) onSelect(d.selectId ?? null)
     } else if (d.kind === 'token') {
       const t = tokens.find((x) => x.id === d.id)
       if (t && d.moved && dragPos && dragPos.id === d.id) {
@@ -449,6 +462,28 @@ export function Tabletop({
   }, [fog, fogStroke])
   // DM (editable) sees a dim veil over covered cells; players see it opaque.
   const fogOpaque = !editable
+
+  // The token whose floating card is showing: the selection, unless a board tool
+  // is active or that token is mid-drag/resize (then the card would fight the
+  // interaction). Positioned in screen px below.
+  const panelToken =
+    renderTokenPanel && selectedId && !aligning && !fogTool && !templateTool && !measureTool && dragPos?.id !== selectedId && resizing?.id !== selectedId
+      ? tokens.find((t) => t.id === selectedId) ?? null
+      : null
+  const panelContent = panelToken ? renderTokenPanel!(panelToken) : null
+  let panelPos: { left: number; top: number; below: boolean } | null = null
+  if (panelToken && panelContent) {
+    const c = tokenCenter(grid, panelToken)
+    const r = (panelToken.size * grid.cellPx) / 2 - Math.max(1.5, grid.cellPx * 0.05)
+    const topY = transform.ty + (c.y - r) * transform.k
+    const bottomY = transform.ty + (c.y + r) * transform.k
+    const below = topY < 168 // too little room above the token → drop the card below it
+    const viewW = wrapRef.current?.clientWidth ?? 0
+    const rawLeft = transform.tx + c.x * transform.k
+    // Keep the (center-anchored) card from spilling past the board's edges.
+    const left = viewW > 300 ? Math.max(140, Math.min(viewW - 140, rawLeft)) : rawLeft
+    panelPos = { left, top: below ? bottomY : topY, below }
+  }
 
   return (
     <div className="tabletop">
@@ -765,6 +800,17 @@ export function Tabletop({
           <div className="tabletop-hint">Zoom in, then drag a box around one or more whole squares, edge to edge on the map's lines.</div>
         )}
       </div>
+      {panelPos && (
+        // Outside .tabletop-view (a sibling, like the zoom buttons) so the card's
+        // own clicks and wheel never reach the board's pan/zoom/deselect handlers,
+        // and it isn't clipped by the board's overflow:hidden.
+        <div
+          className={`tabletop-token-panel${panelPos.below ? ' below' : ''}`}
+          style={{ left: panelPos.left, top: panelPos.top }}
+        >
+          {panelContent}
+        </div>
+      )}
       <div className="tabletop-zoom">
         <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in">＋</button>
         <button className="btn ghost small" onClick={() => zoomBy(0.833)} title="Zoom out">－</button>
