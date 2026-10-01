@@ -12,6 +12,11 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
+import {
+  SETTLEMENT_TIERS, generateSettlement, poisToHtml, tierForType,
+  rollPopulation, rollProsperity, rollGovernment, rollReligion, rollTradeList, rollLeaderName, rollPoi, rollHook, reconcileToTier,
+  type GeneratedSettlement, type SettlementTier,
+} from '../lib/settlementGen'
 import type { Location, LocationType, Id } from '../db/types'
 
 // Types run largest → smallest; the tree nests them via parentLocationId.
@@ -203,6 +208,33 @@ function descendantIds(rootId: Id, all: Location[]): Set<Id> {
   return out
 }
 
+function RerollBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="loc-gen-reroll" onClick={onClick} title={`Re-roll ${label}`} aria-label={`Re-roll ${label}`}>
+      <Icon name="dice" size={13} />
+    </button>
+  )
+}
+function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="loc-gen-remove" onClick={onClick} title={`Remove ${label}`} aria-label={`Remove ${label}`}>
+      <Icon name="x" size={13} />
+    </button>
+  )
+}
+/** A labeled, inline-editable generated value with a per-line re-roll. */
+function GenField({ label, value, onChange, onReroll }: { label: string; value: string; onChange: (v: string) => void; onReroll: () => void }) {
+  return (
+    <div className="loc-gen-field">
+      <label className="faint">{label}</label>
+      <div className="loc-gen-input">
+        <input className="input" value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+        <RerollBtn label={label.toLowerCase()} onClick={onReroll} />
+      </div>
+    </div>
+  )
+}
+
 function LocationEditor({
   location,
   campaignId,
@@ -258,6 +290,69 @@ function LocationEditor({
   const byId = useMemo(() => new Map(allLocations.map((l) => [l.id, l])), [allLocations])
   const groups = FIELDS_BY_TYPE[type]
 
+  // One-click settlement generator (towns/villages/cities): rolls a coherent,
+  // tier-constrained set and fills only the blank fields, so a draft never
+  // clobbers anything already written.
+  const isSettlement = type === 'city' || type === 'town' || type === 'village'
+  const [genOpen, setGenOpen] = useState(false)
+  const [genTier, setGenTier] = useState<SettlementTier>(() => tierForType(type))
+  const [gen, setGen] = useState<GeneratedSettlement | null>(null)
+  const [genTag, setGenTag] = useState('generated')
+  const [genNote, setGenNote] = useState<string | null>(null)
+  function rollSettlement(tier: SettlementTier) {
+    setGenTier(tier)
+    setGen(generateSettlement(tier))
+    setGenNote(null)
+  }
+  // Changing the size only re-fits the pieces the new tier makes incorrect
+  // (population, out-of-tier leadership / points of interest) and keeps the rest.
+  function changeTier(tier: SettlementTier) {
+    setGenTier(tier)
+    setGen((g) => (g ? reconcileToTier(g, tier) : generateSettlement(tier)))
+    setGenNote(null)
+  }
+  // Edit any generated value in place before applying.
+  const patchGen = (p: Partial<GeneratedSettlement>) => setGen((g) => (g ? { ...g, ...p } : g))
+  const patchPoi = (i: number, name: string) =>
+    setGen((g) => (g ? { ...g, pois: g.pois.map((p, j) => (j === i ? { ...p, name } : p)) } : g))
+  const rerollPoi = (i: number) =>
+    setGen((g) => (g ? { ...g, pois: g.pois.map((p, j) => (j === i ? rollPoi(g.tier, g.pois.filter((_, k) => k !== i)) : p)) } : g))
+  const removePoi = (i: number) => setGen((g) => (g ? { ...g, pois: g.pois.filter((_, j) => j !== i) } : g))
+  const addPoi = () => setGen((g) => (g ? { ...g, pois: [...g.pois, rollPoi(g.tier, g.pois)] } : g))
+  const patchHook = (i: number, text: string) => setGen((g) => (g ? { ...g, hooks: g.hooks.map((h, j) => (j === i ? text : h)) } : g))
+  const rerollHook = (i: number) => setGen((g) => (g ? { ...g, hooks: g.hooks.map((h, j) => (j === i ? rollHook(g.hooks.filter((_, k) => k !== i)) : h)) } : g))
+  const removeHook = (i: number) => setGen((g) => (g ? { ...g, hooks: g.hooks.filter((_, j) => j !== i) } : g))
+  const addHook = () => setGen((g) => (g ? { ...g, hooks: [...g.hooks, rollHook(g.hooks)] } : g))
+
+  async function applyGen() {
+    if (!gen) return
+    const blank = (s: string) => !s.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim()
+    const tag = genTag.trim()
+    if (blank(population)) setPopulation(gen.population)
+    if (blank(prosperity)) setProsperity(gen.prosperity)
+    if (blank(religion)) setReligion(gen.religion)
+    if (blank(imports)) setImports(gen.imports)
+    if (blank(exports)) setExports(gen.exports)
+    if (blank(pointsOfInterest) && gen.pois.length) setPointsOfInterest(poisToHtml(gen.pois))
+    // Start the leader's character sheet as a real NPC (only if none is linked,
+    // so an existing leader is never lost), carrying the identifier tag.
+    let leaderMsg = ''
+    if (!rulerNpcId && gen.leaderName.trim()) {
+      const npc = await createNPC(campaignId, {
+        name: gen.leaderName.trim(),
+        role: gen.government,
+        locationId: location.id,
+        tags: tag ? [tag] : [],
+      })
+      setRulerNpcId(npc.id)
+      await updateLocation(location.id, { rulerNpcId: npc.id })
+      leaderMsg = ` Created leader NPC “${npc.name}” — open it from the Leader field to finish the sheet.`
+    }
+    // Identifier tag on the location, so generated places are easy to find.
+    if (tag && !tags.includes(tag)) setTags([...tags, tag])
+    setGenNote(`Filled the blank fields${tag ? ` and tagged this location “${tag}”` : ''}.${leaderMsg}`)
+  }
+
   // Breadcrumb: the chain of ancestors up to the world (the "auto-link").
   const ancestors: Location[] = []
   {
@@ -277,8 +372,106 @@ function LocationEditor({
   return (
     <div>
       <div className="share-bar">
+        {isSettlement && (
+          <button
+            className={`btn small gen-trigger${genOpen ? '' : ' primary'}`}
+            onClick={() => {
+              setGenOpen((o) => !o)
+              if (!gen) rollSettlement(genTier)
+            }}
+            aria-expanded={genOpen}
+          >
+            <Icon name="dice" size={14} color="inherit" /> {genOpen ? 'Close generator' : 'Generate this settlement'}
+          </button>
+        )}
         <ShareControl campaignId={campaignId} kind="location" entity={location} />
       </div>
+
+      {isSettlement && genOpen && (
+        <div className="loc-gen">
+          <div className="loc-gen-head">
+            <select
+              className="select"
+              style={{ width: 'auto' }}
+              value={genTier}
+              onChange={(e) => changeTier(e.target.value as SettlementTier)}
+              aria-label="Settlement size"
+            >
+              {SETTLEMENT_TIERS.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label} ({t.popMin.toLocaleString()}–{t.popMax.toLocaleString()})
+                </option>
+              ))}
+            </select>
+            <button className="btn small" onClick={() => rollSettlement(genTier)} title="Roll a new one">
+              <Icon name="dice" size={13} /> Re-roll
+            </button>
+          </div>
+          {gen && (
+            <div className="loc-gen-body">
+              <div className="loc-gen-grid">
+                <GenField label="Population" value={gen.population} onChange={(v) => patchGen({ population: v })} onReroll={() => patchGen({ population: rollPopulation(gen.tier) })} />
+                <div className="loc-gen-field">
+                  <label className="faint">Prosperity</label>
+                  <div className="loc-gen-input">
+                    <select className="select" value={gen.prosperity} onChange={(e) => patchGen({ prosperity: e.target.value })} aria-label="Prosperity">
+                      {PROSPERITY_LEVELS.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <RerollBtn label="prosperity" onClick={() => patchGen({ prosperity: rollProsperity() })} />
+                  </div>
+                </div>
+                <GenField label="Leadership" value={gen.government} onChange={(v) => patchGen({ government: v })} onReroll={() => patchGen({ government: rollGovernment(gen.tier) })} />
+                <GenField label="Religion" value={gen.religion} onChange={(v) => patchGen({ religion: v })} onReroll={() => patchGen({ religion: rollReligion() })} />
+                <GenField label="Imports" value={gen.imports} onChange={(v) => patchGen({ imports: v })} onReroll={() => patchGen({ imports: rollTradeList() })} />
+                <GenField label="Exports" value={gen.exports} onChange={(v) => patchGen({ exports: v })} onReroll={() => patchGen({ exports: rollTradeList() })} />
+                <GenField label="Leader" value={gen.leaderName} onChange={(v) => patchGen({ leaderName: v })} onReroll={() => patchGen({ leaderName: rollLeaderName() })} />
+              </div>
+
+              <div className="loc-gen-list">
+                <label className="faint">Points of interest</label>
+                {gen.pois.map((p, i) => (
+                  <div className="loc-gen-line" key={i}>
+                    <input className="input" value={p.name} onChange={(e) => patchPoi(i, e.target.value)} aria-label={`Point of interest ${i + 1}`} />
+                    <span className="loc-gen-kind">{p.kind.toLowerCase()}</span>
+                    <RerollBtn label="this place" onClick={() => rerollPoi(i)} />
+                    <RemoveBtn label="point of interest" onClick={() => removePoi(i)} />
+                  </div>
+                ))}
+                <button className="btn ghost small" onClick={addPoi}><Icon name="plus" size={13} /> Add point of interest</button>
+              </div>
+
+              <div className="loc-gen-list">
+                <label className="faint">Hooks (suggestions)</label>
+                {gen.hooks.map((h, i) => (
+                  <div className="loc-gen-line" key={i}>
+                    <input className="input" value={h} onChange={(e) => patchHook(i, e.target.value)} aria-label={`Hook ${i + 1}`} />
+                    <RerollBtn label="this hook" onClick={() => rerollHook(i)} />
+                    <RemoveBtn label="hook" onClick={() => removeHook(i)} />
+                  </div>
+                ))}
+                <button className="btn ghost small" onClick={addHook}><Icon name="plus" size={13} /> Add hook</button>
+              </div>
+
+              <div className="loc-gen-field" style={{ maxWidth: 320 }}>
+                <label className="faint">Identifier tag (added to this location + the leader)</label>
+                <input className="input" value={genTag} onChange={(e) => setGenTag(e.target.value)} placeholder="generated" aria-label="Identifier tag" />
+              </div>
+
+              <div className="row" style={{ gap: 10, alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
+                <button className="btn primary small" onClick={applyGen}>
+                  <Icon name="check" size={13} color="inherit" /> Fill empty fields
+                </button>
+                <span className="faint" style={{ fontSize: 12 }}>
+                  {genNote ?? (
+                    <>Edit anything above, re-roll a single line with <Icon name="dice" size={12} />, then fill. Only blank fields are filled — your text is safe.</>
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {ancestors.length > 0 && (
         <div className="row wrap faint" style={{ gap: 6, marginBottom: 10, fontSize: 13 }}>
           {ancestors.map((a) => (
