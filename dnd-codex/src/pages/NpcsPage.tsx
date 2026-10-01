@@ -13,6 +13,7 @@ import { StatBlockEditor } from '../components/StatBlockEditor'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
 import { Icon } from '../components/Icon'
+import { randomPersonName } from '../lib/nameGen'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -145,7 +146,18 @@ function NpcEditor({
       <div className="form-row">
         <div className="field">
           <label>Name</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="row" style={{ gap: 6 }}>
+            <input className="input" style={{ flex: 1, minWidth: 0 }} value={name} onChange={(e) => setName(e.target.value)} />
+            <button
+              type="button"
+              className="btn small"
+              onClick={() => setName(randomPersonName(race))}
+              title={race.trim() ? `Roll a random ${race.trim()} name` : 'Roll a random name'}
+              aria-label="Generate a random name"
+            >
+              <Icon name="dice" size={14} />
+            </button>
+          </div>
         </div>
         <div className="field">
           <label>Role</label>
