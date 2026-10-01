@@ -70,30 +70,43 @@ export function BattleMapPage() {
   }
 
   return (
-    <div className="battlemap-page">
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          <Icon name="plus" size={15} color="inherit" /> New Battle Map
-        </button>
-        {scenes?.length === 0 && <p className="faint">No battle maps yet.</p>}
-        {scenes?.map((s) => (
-          <div
-            key={s.id}
-            className="list-row"
-            style={{ cursor: 'pointer', borderColor: s.id === selectedId ? 'var(--accent)' : undefined }}
-            onClick={() => setSelectedId(s.id)}
-          >
-            <div className="title">{s.name}</div>
-            <span className="faint" style={{ fontSize: 12 }}>
-              {s.tokens.length} token{s.tokens.length === 1 ? '' : 's'}
-            </span>
-          </div>
-        ))}
-      </div>
+    // While a map is open the list collapses into a switcher in the editor
+    // header, so the board gets the whole width instead of a tall, mostly-empty
+    // column beside it; the list only shows when nothing is open.
+    <div className={`battlemap-page${selected ? ' editing' : ''}`}>
+      {!selected && (
+        <div className="battlemap-maps">
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
+            <Icon name="plus" size={15} color="inherit" /> New Battle Map
+          </button>
+          {scenes?.length === 0 && <p className="faint">No battle maps yet.</p>}
+          {scenes?.map((s) => (
+            <div
+              key={s.id}
+              className="list-row"
+              style={{ cursor: 'pointer', borderColor: s.id === selectedId ? 'var(--accent)' : undefined }}
+              onClick={() => setSelectedId(s.id)}
+            >
+              <div className="title">{s.name}</div>
+              <span className="faint" style={{ fontSize: 12 }}>
+                {s.tokens.length} token{s.tokens.length === 1 ? '' : 's'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ minWidth: 0 }}>
         {selected ? (
-          <SceneEditor key={selected.id} campaign={campaign} scene={selected} onDeleted={() => setSelectedId(null)} />
+          <SceneEditor
+            key={selected.id}
+            campaign={campaign}
+            scene={selected}
+            onDeleted={() => setSelectedId(null)}
+            scenes={scenes ?? []}
+            onSelectScene={setSelectedId}
+            onNewScene={add}
+          />
         ) : (
           <div className="empty">
             <div className="big">🗺️</div>
@@ -115,6 +128,9 @@ export function SceneEditor({
   onDeleted,
   notesSessionId,
   compact = false,
+  scenes,
+  onSelectScene,
+  onNewScene,
 }: {
   campaign: Campaign
   scene: Scene
@@ -123,6 +139,11 @@ export function SceneEditor({
   notesSessionId?: Id | null
   /** Embedded in a narrower pane (Run mode): start with the side panel closed. */
   compact?: boolean
+  /** All of the campaign's maps, for the header switcher (Battle Map tab only;
+   *  omitted in Run mode). When given, the header shows a map picker + New. */
+  scenes?: Scene[]
+  onSelectScene?: (id: string) => void
+  onNewScene?: () => void
 }) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -613,16 +634,36 @@ export function SceneEditor({
       />
 
       <div className="row between" style={{ gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-        <input
-          className="input"
-          style={{ flex: tight ? '1 1 100%' : '1 1 140px', minWidth: 120, maxWidth: tight ? undefined : 320, fontWeight: 600 }}
-          value={name}
-          onChange={(e) => {
-            touch()
-            setName(e.target.value)
-          }}
-          aria-label="Battle map name"
-        />
+        <div className="row" style={{ gap: 8, flex: tight ? '1 1 100%' : '1 1 260px', minWidth: 0 }}>
+          {scenes && onSelectScene && (
+            <select
+              className="select battlemap-switch"
+              value={scene.id}
+              onChange={(e) => onSelectScene(e.target.value)}
+              aria-label="Switch battle map"
+              title="Switch battle map"
+            >
+              {scenes.map((s) => (
+                <option key={s.id} value={s.id}>{s.name || 'Untitled map'}</option>
+              ))}
+            </select>
+          )}
+          <input
+            className="input"
+            style={{ flex: '1 1 140px', minWidth: 120, maxWidth: tight ? undefined : 320, fontWeight: 600 }}
+            value={name}
+            onChange={(e) => {
+              touch()
+              setName(e.target.value)
+            }}
+            aria-label="Battle map name"
+          />
+          {onNewScene && (
+            <button className="btn small" onClick={onNewScene} title="New battle map">
+              <Icon name="plus" size={14} /> {tight ? null : 'New'}
+            </button>
+          )}
+        </div>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           {live.available && (
             live.isShowing ? (

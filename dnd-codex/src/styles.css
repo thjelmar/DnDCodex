@@ -2331,6 +2331,10 @@ kbd {
    Battle Map (built-in VTT)
 --------------------------------------------------------------------------- */
 .battlemap-page { display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: start; }
+/* With a map open the list collapses into the header switcher, so the editor
+   takes the full width. */
+.battlemap-page.editing { grid-template-columns: 1fr; }
+.battlemap-switch { width: auto; max-width: 190px; flex: 0 1 auto; }
 .battlemap-body { display: grid; grid-template-columns: 1fr 250px; gap: 12px; align-items: start; }
 .battlemap-editor.panel-closed .battlemap-body { grid-template-columns: 1fr; }
 .battlemap-side[hidden] { display: none; }
