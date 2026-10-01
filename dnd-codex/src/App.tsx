@@ -117,6 +117,11 @@ function Sidebar({
 }) {
   const { user } = useAuth()
   const changelogUnseen = useChangelogUnseen()
+  // Only the maintainer sees the Tickets queue link (the queue itself is
+  // server-protected; this just hides the nav entry). Owner = the signed-in
+  // account whose email matches VITE_OWNER_EMAIL; unset hides it for everyone.
+  const ownerEmail = (import.meta.env.VITE_OWNER_EMAIL as string | undefined)?.trim().toLowerCase()
+  const isOwner = !!user?.email && !!ownerEmail && user.email.toLowerCase() === ownerEmail
   // Most-recently-updated DM campaigns for quick access under the DM section.
   const recent = useLiveQuery(
     () =>
@@ -136,41 +141,38 @@ function Sidebar({
         <span>D&amp;D Codex</span>
       </div>
 
-      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenSearch}>
+      {/* Search: a pill with a darker fill; the shortcut hint shows on hover. */}
+      <button className="sidebar-search" onClick={onOpenSearch} aria-label="Search">
         <span className="ico"><Icon name="search" /></span>
         <span>Search</span>
-        <span style={{ marginLeft: 'auto' }}>
+        <span className="sidebar-search-kbd" aria-hidden>
           <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
           <kbd>K</kbd>
         </span>
       </button>
-      <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenDice}>
-        <span className="ico"><Icon name="dice" /></span>
-        <span>Dice Roller</span>
-        <span style={{ marginLeft: 'auto' }}>
-          <kbd>{isMac ? '⌘' : 'Ctrl'}</kbd>
-          <kbd>E</kbd>
-        </span>
-      </button>
-      {/* App: settings, updates, and data */}
-      <SidebarSection label="App" sectionKey="app">
-        <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }} onClick={onOpenPrefs}>
-          <span className="ico"><Icon name="settings" /></span> Preferences
+
+      {/* App: settings, updates, roadmap, (owner-only) tickets, and report — a
+          compact icon row; each has a tooltip + label for screen readers. */}
+      <div className="sidebar-icons" role="group" aria-label="App">
+        <button className="icon-btn" onClick={onOpenPrefs} data-tip="Preferences" aria-label="Preferences">
+          <Icon name="settings" />
         </button>
-        <NavLink to="/changelog" className="nav-link">
-          <span className="ico"><Icon name="sparkles" /></span>
-          <span>What’s New</span>
+        <NavLink to="/changelog" className={({ isActive }) => `icon-btn${isActive ? ' active' : ''}`} data-tip="What’s New" aria-label="What’s New">
+          <Icon name="sparkles" />
           {changelogUnseen && <span className="nav-dot" aria-label="new updates" />}
         </NavLink>
-        <NavLink to="/roadmap" className="nav-link">
-          <span className="ico"><Icon name="map" /></span> Roadmap
+        <NavLink to="/roadmap" className={({ isActive }) => `icon-btn${isActive ? ' active' : ''}`} data-tip="Roadmap" aria-label="Roadmap">
+          <Icon name="map" />
         </NavLink>
-        {user && (
-          <NavLink to="/tickets" className="nav-link">
-            <span className="ico"><Icon name="inbox" /></span> Tickets
+        {isOwner && (
+          <NavLink to="/tickets" className={({ isActive }) => `icon-btn${isActive ? ' active' : ''}`} data-tip="Tickets" aria-label="Tickets">
+            <Icon name="inbox" />
           </NavLink>
         )}
-      </SidebarSection>
+        <button className="icon-btn" onClick={onOpenBug} data-tip="Report something" aria-label="Report something">
+          <Icon name="bug" />
+        </button>
+      </div>
 
       {/* DM: campaign creation & management */}
       <SidebarSection label="DM" sectionKey="dm">
@@ -188,7 +190,7 @@ function Sidebar({
             <span style={ellipsis}>{c.name}</span>
           </NavLink>
         ))}
-        <ToolsMenu />
+        <ToolsMenu onOpenDice={onOpenDice} />
       </SidebarSection>
 
       {/* Player: campaigns you're playing in, each a notes home */}
@@ -197,13 +199,6 @@ function Sidebar({
       </SidebarSection>
 
       <div className="sidebar-spacer" />
-      <button
-        className="nav-link"
-        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
-        onClick={onOpenBug}
-      >
-        <span className="ico"><Icon name="bug" /></span> Report something
-      </button>
       <AccountArea />
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
@@ -214,7 +209,7 @@ function Sidebar({
 
 /** Collapsible DM "Tools" sub-menu: campaign-independent utilities.
  *  Collapsed by default (remembered per browser); the chevron signals it opens. */
-function ToolsMenu() {
+function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
   const [open, toggle] = useNavCollapsed('tools', false)
   return (
     <>
@@ -230,6 +225,9 @@ function ToolsMenu() {
       </button>
       {open && (
         <>
+          <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', paddingLeft: 22, fontSize: 13.5 }} onClick={onOpenDice}>
+            <span className="ico"><Icon name="dice" size={15} /></span> Dice Roller
+          </button>
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
           </NavLink>

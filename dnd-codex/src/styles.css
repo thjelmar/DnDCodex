@@ -121,6 +121,75 @@ button {
   text-align: center;
 }
 
+/* Search: a darker pill; the keyboard hint only appears on hover/focus. */
+.sidebar-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-weight: 500;
+  cursor: pointer;
+}
+.sidebar-search:hover { color: var(--text); border-color: var(--border-strong, var(--text-faint)); }
+.sidebar-search .ico { width: 18px; text-align: center; display: inline-flex; justify-content: center; }
+.sidebar-search-kbd { margin-left: auto; opacity: 0; transition: opacity 0.12s ease; }
+.sidebar-search:hover .sidebar-search-kbd,
+.sidebar-search:focus-visible .sidebar-search-kbd { opacity: 1; }
+
+/* App: a compact icon-only row. */
+.sidebar-icons { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 2px 2px; margin: 2px 0; }
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--bg-elev-2); text-decoration: none; }
+.icon-btn.active { background: var(--bg-elev-2); box-shadow: inset 0 -2px 0 var(--accent); }
+.icon-btn .nav-dot { position: absolute; top: 6px; right: 7px; margin: 0; }
+/* Custom tooltip for the icon row — native `title` can't have its ~500ms delay
+   shortened, so this appears after 375ms (25% sooner) and hides at once. */
+.icon-btn[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 20;
+  transition: opacity 0.08s ease;
+}
+/* Keep the first/last tooltip from spilling past the sidebar's edges. */
+.sidebar-icons .icon-btn[data-tip]:first-child::after { left: 0; transform: none; }
+.sidebar-icons .icon-btn[data-tip]:last-child::after { left: auto; right: 0; transform: none; }
+.icon-btn[data-tip]:hover::after,
+.icon-btn[data-tip]:focus-visible::after {
+  opacity: 1;
+  transition: opacity 0.08s ease 0.375s;
+}
+
 .sidebar-heading {
   font-size: 11px;
   text-transform: uppercase;
