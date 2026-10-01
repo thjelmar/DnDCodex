@@ -88,6 +88,34 @@ interface Props {
   renderTokenPanel?: (token: SceneToken) => ReactNode
 }
 
+/**
+ * A subtle rounded background behind a token's name/damage text, centered on
+ * the token (x=0), so where two tokens sit side by side their labels each stay
+ * readable instead of blending together. The text is drawn on top of this.
+ * Width is estimated from the text length (no per-token DOM measuring, so it
+ * scales with the zoom-dependent font for free).
+ */
+function LabelPill({ text, y, fontSize, color }: { text: string; y: number; fontSize: number; color?: string }) {
+  const w = text.length * fontSize * 0.56 + fontSize * 0.9
+  const h = fontSize * 1.4
+  return (
+    <rect
+      className="tabletop-label-bg"
+      x={-w / 2}
+      y={y - fontSize * 0.16}
+      width={w}
+      height={h}
+      rx={h / 2}
+      // Outline the pill in the token's own color, so each label reads as part
+      // of its token. Constant on-screen width, like the rest of the board.
+      stroke={color}
+      strokeWidth={color ? 1.5 : undefined}
+      vectorEffect={color ? 'non-scaling-stroke' : undefined}
+      pointerEvents="none"
+    />
+  )
+}
+
 export function Tabletop({
   width,
   height,
@@ -687,17 +715,21 @@ export function Tabletop({
                       )
                     })()}
                     {showDmg && (
-                      <text
-                        className="tabletop-dmg"
-                        y={statTop}
-                        textAnchor="middle"
-                        dominantBaseline="hanging"
-                        fontSize={dmgFont}
-                        pointerEvents="none"
-                      >
-                        −{cc!.damageTaken}
-                      </text>
+                      <>
+                        <LabelPill text={`−${cc!.damageTaken}`} y={statTop} fontSize={dmgFont} color={t.color} />
+                        <text
+                          className="tabletop-dmg"
+                          y={statTop}
+                          textAnchor="middle"
+                          dominantBaseline="hanging"
+                          fontSize={dmgFont}
+                          pointerEvents="none"
+                        >
+                          −{cc!.damageTaken}
+                        </text>
+                      </>
                     )}
+                    {t.label.trim() && <LabelPill text={t.label} y={nameTop} fontSize={nameFont} color={t.color} />}
                     <text
                       className="tabletop-label"
                       y={nameTop}
