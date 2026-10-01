@@ -2483,6 +2483,9 @@ kbd {
   vector-effect: non-scaling-stroke;
   pointer-events: none;
 }
+/* Subtle rounded background behind a token's name/damage, so adjacent labels
+   stay readable where they sit side by side. */
+.tabletop-label-bg { fill: rgba(12, 14, 20, 0.62); }
 .tabletop-snap { fill: rgba(167, 139, 250, 0.18); stroke: var(--accent); stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .tabletop-alignbox { fill: rgba(167, 139, 250, 0.2); stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .tabletop-hint {
