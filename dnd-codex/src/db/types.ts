@@ -568,6 +568,7 @@ export type SyncTable =
   | 'links'
   | 'encounters'
   | 'scenes'
+  | 'worldMaps'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -723,6 +724,34 @@ export interface Scene extends BaseRecord {
 }
 
 /** Discriminated union used by generic helpers and the export payload. */
+/** A pin dropped on a world map, linked to a Location or NPC. */
+export interface WorldPin {
+  id: Id
+  /** Position as a fraction of the image (0–1), so it survives zoom/resize. */
+  x: number
+  y: number
+  label: string
+  /** Pin color (hex), for grouping by kind/region. */
+  color: string
+  /** The entity this pin points to (click → open its sheet). Null = label only. */
+  ref: { kind: 'location' | 'npc'; id: Id } | null
+}
+
+/** A reference/prep map of the world or a region, with pins linked to entities.
+ *  One per campaign (v1). Distinct from the live VTT Battle Map (Scene). */
+export interface WorldMap extends BaseRecord {
+  campaignId: Id
+  name: string
+  /** Map image (StoredImage id), or null until one is uploaded. */
+  imageId: Id | null
+  /** The image's pixel size (for aspect ratio); 0 until an image is set. */
+  width: number
+  height: number
+  pins: WorldPin[]
+  /** Live-shared read-only to players. */
+  sharedWithPlayers?: boolean
+}
+
 export interface DatabaseSnapshot {
   version: number
   exportedAt: ISODate
@@ -738,6 +767,7 @@ export interface DatabaseSnapshot {
   links: Link[]
   encounters?: Encounter[]
   scenes?: Scene[]
+  worldMaps?: WorldMap[]
   /** Global generator word lists (not campaign-scoped). */
   genTables?: GenTable[]
 }

@@ -34,6 +34,7 @@ import { GalleryPage } from './pages/GalleryPage'
 import { HandoutsPage } from './pages/HandoutsPage'
 import { LootPage } from './pages/LootPage'
 import { MapPage } from './pages/MapPage'
+import { WorldMapPage } from './pages/WorldMapPage'
 import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
@@ -359,6 +360,7 @@ export function App() {
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
               <Route path="map" element={<MapPage />} />
+              <Route path="worldmap" element={<WorldMapPage />} />
               <Route path="battlemap" element={<BattleMapPage />} />
               <Route path="gallery" element={<GalleryPage />} />
               <Route path="handouts" element={<HandoutsPage />} />

@@ -13,6 +13,7 @@ import type {
   Link,
   Encounter,
   Scene,
+  WorldMap,
   GenTable,
   PendingChange,
   SyncStateRow,
@@ -36,6 +37,7 @@ export class CodexDB extends Dexie {
   links!: EntityTable<Link, 'id'>
   encounters!: EntityTable<Encounter, 'id'>
   scenes!: EntityTable<Scene, 'id'>
+  worldMaps!: EntityTable<WorldMap, 'id'>
   // Global one-click-generator word lists, keyed by slot. Universal across all
   // campaigns, so NOT campaign-scoped and not mirrored through the per-campaign
   // records channel; it rides along in JSON backups instead.
@@ -233,6 +235,10 @@ export class CodexDB extends Dexie {
     // v15 adds global generator word-list tables, keyed by slot. Local-only.
     this.version(15).stores({
       genTables: 'slot',
+    })
+    // v16 adds world maps (prep/reference maps with pins). Additive; synced.
+    this.version(16).stores({
+      worldMaps: 'id, campaignId, name, updatedAt',
     })
   }
 }
