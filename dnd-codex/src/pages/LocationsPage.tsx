@@ -17,6 +17,7 @@ import {
   rollPopulation, rollProsperity, rollGovernment, rollReligion, rollTradeList, rollLeaderName, rollPoi, rollHook, reconcileToTier,
   type GeneratedSettlement, type SettlementTier,
 } from '../lib/settlementGen'
+import { useGenOverrides } from '../lib/useGenOverrides'
 import type { Location, LocationType, Id } from '../db/types'
 
 // Types run largest → smallest; the tree nests them via parentLocationId.
@@ -254,6 +255,8 @@ function LocationEditor({
     () => db.npcs.where('campaignId').equals(campaignId).sortBy('name'),
     [campaignId],
   ) ?? []
+  // Global generator overrides (Tools → Generators) win over the built-in lists.
+  const ov = useGenOverrides()
 
   const [name, setName] = useState(location.name)
   const [type, setType] = useState<LocationType>(location.type)
@@ -301,14 +304,14 @@ function LocationEditor({
   const [genNote, setGenNote] = useState<string | null>(null)
   function rollSettlement(tier: SettlementTier) {
     setGenTier(tier)
-    setGen(generateSettlement(tier))
+    setGen(generateSettlement(tier, ov))
     setGenNote(null)
   }
   // Changing the size only re-fits the pieces the new tier makes incorrect
   // (population, out-of-tier leadership / points of interest) and keeps the rest.
   function changeTier(tier: SettlementTier) {
     setGenTier(tier)
-    setGen((g) => (g ? reconcileToTier(g, tier) : generateSettlement(tier)))
+    setGen((g) => (g ? reconcileToTier(g, tier, ov) : generateSettlement(tier, ov)))
     setGenNote(null)
   }
   // Edit any generated value in place before applying.
@@ -320,9 +323,9 @@ function LocationEditor({
   const removePoi = (i: number) => setGen((g) => (g ? { ...g, pois: g.pois.filter((_, j) => j !== i) } : g))
   const addPoi = () => setGen((g) => (g ? { ...g, pois: [...g.pois, rollPoi(g.tier, g.pois)] } : g))
   const patchHook = (i: number, text: string) => setGen((g) => (g ? { ...g, hooks: g.hooks.map((h, j) => (j === i ? text : h)) } : g))
-  const rerollHook = (i: number) => setGen((g) => (g ? { ...g, hooks: g.hooks.map((h, j) => (j === i ? rollHook(g.hooks.filter((_, k) => k !== i)) : h)) } : g))
+  const rerollHook = (i: number) => setGen((g) => (g ? { ...g, hooks: g.hooks.map((h, j) => (j === i ? rollHook(g.hooks.filter((_, k) => k !== i), ov) : h)) } : g))
   const removeHook = (i: number) => setGen((g) => (g ? { ...g, hooks: g.hooks.filter((_, j) => j !== i) } : g))
-  const addHook = () => setGen((g) => (g ? { ...g, hooks: [...g.hooks, rollHook(g.hooks)] } : g))
+  const addHook = () => setGen((g) => (g ? { ...g, hooks: [...g.hooks, rollHook(g.hooks, ov)] } : g))
 
   async function applyGen() {
     if (!gen) return
@@ -417,14 +420,14 @@ function LocationEditor({
                     <select className="select" value={gen.prosperity} onChange={(e) => patchGen({ prosperity: e.target.value })} aria-label="Prosperity">
                       {PROSPERITY_LEVELS.map((p) => <option key={p} value={p}>{p}</option>)}
                     </select>
-                    <RerollBtn label="prosperity" onClick={() => patchGen({ prosperity: rollProsperity() })} />
+                    <RerollBtn label="prosperity" onClick={() => patchGen({ prosperity: rollProsperity(ov) })} />
                   </div>
                 </div>
-                <GenField label="Leadership" value={gen.government} onChange={(v) => patchGen({ government: v })} onReroll={() => patchGen({ government: rollGovernment(gen.tier) })} />
-                <GenField label="Religion" value={gen.religion} onChange={(v) => patchGen({ religion: v })} onReroll={() => patchGen({ religion: rollReligion() })} />
-                <GenField label="Imports" value={gen.imports} onChange={(v) => patchGen({ imports: v })} onReroll={() => patchGen({ imports: rollTradeList() })} />
-                <GenField label="Exports" value={gen.exports} onChange={(v) => patchGen({ exports: v })} onReroll={() => patchGen({ exports: rollTradeList() })} />
-                <GenField label="Leader" value={gen.leaderName} onChange={(v) => patchGen({ leaderName: v })} onReroll={() => patchGen({ leaderName: rollLeaderName() })} />
+                <GenField label="Leadership" value={gen.government} onChange={(v) => patchGen({ government: v })} onReroll={() => patchGen({ government: rollGovernment(gen.tier, ov) })} />
+                <GenField label="Religion" value={gen.religion} onChange={(v) => patchGen({ religion: v })} onReroll={() => patchGen({ religion: rollReligion(ov) })} />
+                <GenField label="Imports" value={gen.imports} onChange={(v) => patchGen({ imports: v })} onReroll={() => patchGen({ imports: rollTradeList(ov) })} />
+                <GenField label="Exports" value={gen.exports} onChange={(v) => patchGen({ exports: v })} onReroll={() => patchGen({ exports: rollTradeList(ov) })} />
+                <GenField label="Leader" value={gen.leaderName} onChange={(v) => patchGen({ leaderName: v })} onReroll={() => patchGen({ leaderName: rollLeaderName(ov) })} />
               </div>
 
               <div className="loc-gen-list">

@@ -13,6 +13,7 @@ import type {
   Link,
   Encounter,
   Scene,
+  GenTable,
   PendingChange,
   SyncStateRow,
   SyncOptOutRow,
@@ -35,6 +36,10 @@ export class CodexDB extends Dexie {
   links!: EntityTable<Link, 'id'>
   encounters!: EntityTable<Encounter, 'id'>
   scenes!: EntityTable<Scene, 'id'>
+  // Global one-click-generator word lists, keyed by slot. Universal across all
+  // campaigns, so NOT campaign-scoped and not mirrored through the per-campaign
+  // records channel; it rides along in JSON backups instead.
+  genTables!: EntityTable<GenTable, 'slot'>
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
@@ -224,6 +229,10 @@ export class CodexDB extends Dexie {
     // v14 adds battle maps (VTT scenes). Additive; no existing data touched.
     this.version(14).stores({
       scenes: 'id, campaignId, name, updatedAt',
+    })
+    // v15 adds global generator word-list tables, keyed by slot. Local-only.
+    this.version(15).stores({
+      genTables: 'slot',
     })
   }
 }

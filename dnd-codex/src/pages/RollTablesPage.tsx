@@ -69,7 +69,7 @@ export function RollTablesPage() {
                 onClick={() => setSelectedId(t.id)}
               >
                 <div>
-                  <div className="title">🎲 {t.name}</div>
+                  <div className="title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="dice" size={14} /> {t.name}</div>
                   <div className="sub">d{tableSize(t.entries)} · {t.entries.length} entries</div>
                 </div>
               </div>
@@ -83,7 +83,7 @@ export function RollTablesPage() {
           <RollTableEditor key={selected.id} table={selected} onDelete={() => setSelectedId(null)} />
         ) : (
           <div className="empty">
-            <div className="big">🎲</div>
+            <div className="big"><Icon name="dice" size={40} /></div>
             <p>Select a table or create one — loot, encounters, rumors, wild magic…</p>
           </div>
         )}
@@ -159,8 +159,8 @@ function RollTableEditor({ table, onDelete }: { table: RollTable; onDelete: () =
         className="card"
         style={{ cursor: 'default', display: 'flex', gap: 16, alignItems: 'center', marginBottom: 20 }}
       >
-        <button className="btn primary" style={{ fontSize: 16, padding: '12px 20px' }} onClick={doRoll} disabled={size === 0}>
-          🎲 Roll d{size || '—'}
+        <button className="btn primary" style={{ fontSize: 16, padding: '12px 20px', display: 'inline-flex', alignItems: 'center', gap: 8 }} onClick={doRoll} disabled={size === 0}>
+          <Icon name="dice" size={18} color="inherit" /> Roll d{size || '—'}
         </button>
         <div style={{ flex: 1 }}>
           {result ? (

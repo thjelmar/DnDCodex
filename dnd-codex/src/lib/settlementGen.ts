@@ -1,4 +1,5 @@
 import type { LocationType } from '../db/types'
+import { pickText, sampleText, type GenOverrides } from './genTables'
 
 // A one-click settlement generator: it fills a town/village/city's structured
 // fields with a *coherent* set, built from chained ("call and response") rolls
@@ -157,11 +158,20 @@ export function rollPopulation(tier: SettlementTier): string {
   const pop = Math.max(def.popMin, Math.round(raw / def.popStep) * def.popStep)
   return `~${pop.toLocaleString()}`
 }
-export const rollProsperity = () => weighted(PROSPERITY_WEIGHTED.map((x) => ({ v: x.v, w: x.w })))
-export const rollGovernment = (tier: SettlementTier) => pick(GOVERNMENT[tier])
-export const rollReligion = () => pick(RELIGION_SHAPES)()
-export const rollTradeList = () => sample(TRADE_GOODS, intIn(2, 3)).join(', ')
-export const rollLeaderName = () => personName()
+// Each flavor roll prefers a per-world override table (lib/genTables) when the
+// campaign has one, falling back to the built-in list otherwise.
+export const rollProsperity = (ov?: GenOverrides) =>
+  ov?.['settlement-prosperity']?.length
+    ? pickText(ov['settlement-prosperity'])
+    : weighted(PROSPERITY_WEIGHTED.map((x) => ({ v: x.v, w: x.w })))
+export const rollGovernment = (tier: SettlementTier, ov?: GenOverrides) =>
+  ov?.['settlement-government']?.length ? pickText(ov['settlement-government']) : pick(GOVERNMENT[tier])
+export const rollReligion = (ov?: GenOverrides) =>
+  ov?.['settlement-religion']?.length ? pickText(ov['settlement-religion']) : pick(RELIGION_SHAPES)()
+export const rollTradeList = (ov?: GenOverrides) =>
+  (ov?.['settlement-trade']?.length ? sampleText(ov['settlement-trade'], intIn(2, 3)) : sample(TRADE_GOODS, intIn(2, 3))).join(', ')
+export const rollLeaderName = (ov?: GenOverrides) =>
+  ov?.['npc-name']?.length ? pickText(ov['npc-name']) : personName()
 
 /** One point of interest for the tier, avoiding a unique kind already present. */
 export function rollPoi(tier: SettlementTier, existing: { kind: string }[] = []): { kind: string; name: string } {
@@ -176,13 +186,16 @@ export function rollPoi(tier: SettlementTier, existing: { kind: string }[] = [])
   return { kind: k.kind, name: k.name({ settlement: '' }) }
 }
 
-/** One hook, avoiding any already in the list. */
-export function rollHook(existing: string[] = []): string {
+/** One hook, avoiding any already in the list. A per-world `plot-hook` table
+ *  overrides the built-in list. */
+export function rollHook(existing: string[] = [], ov?: GenOverrides): string {
+  const override = ov?.['plot-hook']
+  const roll = () => (override?.length ? pickText(override) : pick(HOOKS))
   for (let i = 0; i < 24; i++) {
-    const h = pick(HOOKS)
+    const h = roll()
     if (!existing.includes(h)) return h
   }
-  return pick(HOOKS)
+  return roll()
 }
 
 const HOOKS = [
@@ -196,14 +209,12 @@ const HOOKS = [
   'The shrine’s relic was stolen during the last festival.',
 ]
 
-export function generateSettlement(tier: SettlementTier): GeneratedSettlement {
+export function generateSettlement(tier: SettlementTier, ov?: GenOverrides): GeneratedSettlement {
   const def = TIER_BY_KEY[tier]
-  // Population: inside the tier band, rounded to the tier's step.
-  const raw = intIn(def.popMin, def.popMax)
-  const pop = Math.max(def.popMin, Math.round(raw / def.popStep) * def.popStep)
 
   // Points of interest: a tier-bounded count, drawn from the kinds this size
-  // (or smaller) can have; unique kinds appear at most once.
+  // (or smaller) can have; unique kinds appear at most once. (Count and kinds
+  // are tier rules, so they stay built-in — only word lists are overridable.)
   const count = intIn(def.poiMin, def.poiMax)
   const pool = POI_KINDS.filter((k) => tierRank(k.minTier) <= tierRank(tier))
   const pois: { kind: string; name: string }[] = []
@@ -216,19 +227,26 @@ export function generateSettlement(tier: SettlementTier): GeneratedSettlement {
     pois.push({ kind: k.kind, name: k.name({ settlement: '' }) })
   }
 
-  const [imp, exp] = [sample(TRADE_GOODS, intIn(2, 3)), sample(TRADE_GOODS, intIn(2, 3))]
+  // Hooks: 1 for a hamlet, 2 otherwise — distinct.
+  const hooks: string[] = []
+  const hookCount = tier === 'hamlet' ? 1 : 2
+  while (hooks.length < hookCount) {
+    const h = rollHook(hooks, ov)
+    if (!hooks.includes(h)) hooks.push(h)
+    else if (hooks.length >= ((ov?.['plot-hook']?.length ?? HOOKS.length))) break
+  }
 
   return {
     tier,
-    population: `~${pop.toLocaleString()}`,
-    prosperity: weighted(PROSPERITY_WEIGHTED.map((x) => ({ v: x.v, w: x.w }))),
-    government: pick(GOVERNMENT[tier]),
-    religion: pick(RELIGION_SHAPES)(),
-    imports: imp.join(', '),
-    exports: exp.join(', '),
-    leaderName: personName(),
+    population: rollPopulation(tier),
+    prosperity: rollProsperity(ov),
+    government: rollGovernment(tier, ov),
+    religion: rollReligion(ov),
+    imports: rollTradeList(ov),
+    exports: rollTradeList(ov),
+    leaderName: rollLeaderName(ov),
     pois,
-    hooks: sample(HOOKS, tier === 'hamlet' ? 1 : 2),
+    hooks,
   }
 }
 
@@ -241,7 +259,7 @@ export function generateSettlement(tier: SettlementTier): GeneratedSettlement {
  *   - points of interest: any whose kind this tier can't have are re-rolled,
  *     then the count is clamped into the tier's range
  */
-export function reconcileToTier(gen: GeneratedSettlement, tier: SettlementTier): GeneratedSettlement {
+export function reconcileToTier(gen: GeneratedSettlement, tier: SettlementTier, ov?: GenOverrides): GeneratedSettlement {
   const def = TIER_BY_KEY[tier]
   const allowed = (kind: string) => {
     const k = POI_KINDS.find((x) => x.kind === kind)
@@ -251,11 +269,17 @@ export function reconcileToTier(gen: GeneratedSettlement, tier: SettlementTier):
   for (const p of gen.pois) pois.push(allowed(p.kind) ? p : rollPoi(tier, pois))
   while (pois.length > def.poiMax) pois.pop()
   while (pois.length < def.poiMin) pois.push(rollPoi(tier, pois))
+  // Government is tier-specific only when built-in; a per-world table owns its
+  // own values, so an override entry is always considered valid at any tier.
+  const govOverride = ov?.['settlement-government']
+  const govValid = govOverride?.length
+    ? govOverride.some((e) => e.text === gen.government)
+    : GOVERNMENT[tier].includes(gen.government)
   return {
     ...gen,
     tier,
     population: rollPopulation(tier),
-    government: GOVERNMENT[tier].includes(gen.government) ? gen.government : rollGovernment(tier),
+    government: govValid ? gen.government : rollGovernment(tier, ov),
     pois,
   }
 }

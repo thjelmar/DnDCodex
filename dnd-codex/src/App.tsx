@@ -4,7 +4,6 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
-import { Generators } from './components/Generators'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
@@ -28,6 +27,7 @@ import { ItemsPage } from './pages/ItemsPage'
 import { NotesPage } from './pages/NotesPage'
 import { RollTablesPage } from './pages/RollTablesPage'
 import { EncountersPage } from './pages/EncountersPage'
+import { GeneratorTablesPage } from './pages/GeneratorTablesPage'
 import { CombatTrackerPage } from './pages/CombatTrackerPage'
 import { RunPage } from './pages/RunPage'
 import { GalleryPage } from './pages/GalleryPage'
@@ -106,14 +106,12 @@ function SidebarSection({
 function Sidebar({
   onOpenSearch,
   onOpenDice,
-  onOpenGen,
   onAddPlayerCampaign,
   onOpenPrefs,
   onOpenBug,
 }: {
   onOpenSearch: () => void
   onOpenDice: () => void
-  onOpenGen: () => void
   onAddPlayerCampaign: () => void
   onOpenPrefs: () => void
   onOpenBug: () => void
@@ -180,7 +178,7 @@ function Sidebar({
       {/* DM: campaign creation & management */}
       <SidebarSection label="DM" sectionKey="dm">
         <NavLink to="/" end className="nav-link">
-          <span className="ico">📚</span> Campaigns
+          <span className="ico"><Icon name="book" /></span> Campaigns
         </NavLink>
         <Link to="/?new=1" className="nav-link">
           <span className="ico"><Icon name="plus" /></span> New Campaign
@@ -193,7 +191,7 @@ function Sidebar({
             <span style={ellipsis}>{c.name}</span>
           </NavLink>
         ))}
-        <ToolsMenu onOpenDice={onOpenDice} onOpenGen={onOpenGen} />
+        <ToolsMenu onOpenDice={onOpenDice} />
       </SidebarSection>
 
       {/* Player: campaigns you're playing in, each a notes home */}
@@ -212,7 +210,7 @@ function Sidebar({
 
 /** Collapsible DM "Tools" sub-menu: campaign-independent utilities.
  *  Collapsed by default (remembered per browser); the chevron signals it opens. */
-function ToolsMenu({ onOpenDice, onOpenGen }: { onOpenDice: () => void; onOpenGen: () => void }) {
+function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
   const [open, toggle] = useNavCollapsed('tools', false)
   return (
     <>
@@ -231,9 +229,9 @@ function ToolsMenu({ onOpenDice, onOpenGen }: { onOpenDice: () => void; onOpenGe
           <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', paddingLeft: 22, fontSize: 13.5 }} onClick={onOpenDice}>
             <span className="ico"><Icon name="dice" size={15} /></span> Dice Roller
           </button>
-          <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', paddingLeft: 22, fontSize: 13.5 }} onClick={onOpenGen}>
+          <NavLink to="/tools/generators" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="sparkles" size={15} /></span> Generators
-          </button>
+          </NavLink>
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
           </NavLink>
@@ -294,7 +292,6 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
 export function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [diceOpen, setDiceOpen] = useState(false)
-  const [genOpen, setGenOpen] = useState(false)
 
   // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller, Cmd/Ctrl+G generators.
   useEffect(() => {
@@ -307,7 +304,7 @@ export function App() {
         setDiceOpen((o) => !o)
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault()
-        setGenOpen((o) => !o)
+        window.location.hash = '#/tools/generators'
       }
     }
     window.addEventListener('keydown', onKey)
@@ -325,7 +322,6 @@ export function App() {
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
-        <Generators open={genOpen} onClose={() => setGenOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
         {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
@@ -333,7 +329,6 @@ export function App() {
           <Sidebar
             onOpenSearch={() => setSearchOpen(true)}
             onOpenDice={() => setDiceOpen(true)}
-            onOpenGen={() => setGenOpen(true)}
             onAddPlayerCampaign={() => setAddPlayerOpen(true)}
             onOpenPrefs={() => setPrefsOpen(true)}
             onOpenBug={() => setBugOpen(true)}
@@ -347,6 +342,7 @@ export function App() {
             <Route path="/bug-reports" element={<Navigate to="/tickets" replace />} />
             <Route path="/roadmap" element={<RoadmapPage onReport={() => setBugOpen(true)} />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
+            <Route path="/tools/generators" element={<GeneratorTablesPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />

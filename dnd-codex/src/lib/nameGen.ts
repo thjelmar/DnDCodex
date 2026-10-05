@@ -4,6 +4,8 @@
 // names are ancestry-aware: pass the NPC's race and it leans on a matching pool,
 // falling back to a broadly "human" set.
 
+import { pickText, type GenOverrides } from './genTables'
+
 const pick = <T>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)]
 
 interface Ancestry {
@@ -50,18 +52,28 @@ const ANCESTRIES: Ancestry[] = [
   },
 ]
 
-/** A random given + family name, biased by the NPC's race if it's a known one. */
-export function randomPersonName(race?: string): string {
+/** A random given + family name, biased by the NPC's race if it's a known one.
+ *  A per-world `npc-name` table overrides the default (human) pool; ancestry
+ *  pools (elf/dwarf/…) keep their built-in flavor. */
+export function randomPersonName(race?: string, ov?: GenOverrides): string {
   const r = (race ?? '').toLowerCase().trim()
   const a = r ? ANCESTRIES.find((x) => x.match.test(r)) : undefined
-  return `${pick(a?.first ?? HUMAN_FIRST)} ${pick(a?.surnames ?? HUMAN_SUR)}`
+  if (a) return `${pick(a.first)} ${pick(a.surnames)}`
+  const override = ov?.['npc-name']
+  if (override?.length) return pickText(override)
+  return `${pick(HUMAN_FIRST)} ${pick(HUMAN_SUR)}`
 }
 
 const TAVERN_ADJ = ['Rusty', 'Prancing', 'Gilded', 'Drowned', 'Laughing', 'Silver', 'Crooked', 'Salty', 'Weary', 'Wild', 'Sleeping', 'Broken', 'Golden', 'Hungry']
 const TAVERN_NOUN = ['Tankard', 'Pony', 'Griffon', 'Lantern', 'Anchor', 'Hart', 'Crown', 'Barrel', 'Dragon', 'Rose', 'Boar', 'Kettle', 'Mermaid', 'Whistle']
 
-/** A random tavern/inn name, e.g. "The Rusty Tankard". */
-export const randomTavernName = () => `The ${pick(TAVERN_ADJ)} ${pick(TAVERN_NOUN)}`
+/** A random tavern/inn name, e.g. "The Rusty Tankard". A per-world `tavern-name`
+ *  table overrides the built-in adjective/noun composition. */
+export function randomTavernName(ov?: GenOverrides): string {
+  const override = ov?.['tavern-name']
+  if (override?.length) return pickText(override)
+  return `The ${pick(TAVERN_ADJ)} ${pick(TAVERN_NOUN)}`
+}
 
 // Plot hooks are built call-and-response: a patron needs a task done, with a
 // twist that complicates it. Each slot is drawn independently so the pieces
@@ -109,8 +121,11 @@ const HOOK_TWIST = [
   'and the truth is worse than the rumor',
 ]
 
-/** A ready-to-use plot hook, e.g. "The mayor needs the party to … — but …". */
-export function randomPlotHook(): string {
+/** A ready-to-use plot hook, e.g. "The mayor needs the party to … — but …".
+ *  A per-world `plot-hook` table overrides the built-in patron/task/twist mix. */
+export function randomPlotHook(ov?: GenOverrides): string {
+  const override = ov?.['plot-hook']
+  if (override?.length) return pickText(override)
   return `${pick(HOOK_PATRON)} needs the party to ${pick(HOOK_TASK)}, ${pick(HOOK_TWIST)}.`
 }
 
