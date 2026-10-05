@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
+import { Generators } from './components/Generators'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
@@ -105,12 +106,14 @@ function SidebarSection({
 function Sidebar({
   onOpenSearch,
   onOpenDice,
+  onOpenGen,
   onAddPlayerCampaign,
   onOpenPrefs,
   onOpenBug,
 }: {
   onOpenSearch: () => void
   onOpenDice: () => void
+  onOpenGen: () => void
   onAddPlayerCampaign: () => void
   onOpenPrefs: () => void
   onOpenBug: () => void
@@ -190,7 +193,7 @@ function Sidebar({
             <span style={ellipsis}>{c.name}</span>
           </NavLink>
         ))}
-        <ToolsMenu onOpenDice={onOpenDice} />
+        <ToolsMenu onOpenDice={onOpenDice} onOpenGen={onOpenGen} />
       </SidebarSection>
 
       {/* Player: campaigns you're playing in, each a notes home */}
@@ -209,7 +212,7 @@ function Sidebar({
 
 /** Collapsible DM "Tools" sub-menu: campaign-independent utilities.
  *  Collapsed by default (remembered per browser); the chevron signals it opens. */
-function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
+function ToolsMenu({ onOpenDice, onOpenGen }: { onOpenDice: () => void; onOpenGen: () => void }) {
   const [open, toggle] = useNavCollapsed('tools', false)
   return (
     <>
@@ -227,6 +230,9 @@ function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
         <>
           <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', paddingLeft: 22, fontSize: 13.5 }} onClick={onOpenDice}>
             <span className="ico"><Icon name="dice" size={15} /></span> Dice Roller
+          </button>
+          <button className="nav-link" style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', paddingLeft: 22, fontSize: 13.5 }} onClick={onOpenGen}>
+            <span className="ico"><Icon name="sparkles" size={15} /></span> Generators
           </button>
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
@@ -288,8 +294,9 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
 export function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [diceOpen, setDiceOpen] = useState(false)
+  const [genOpen, setGenOpen] = useState(false)
 
-  // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller.
+  // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller, Cmd/Ctrl+G generators.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -298,6 +305,9 @@ export function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'e') {
         e.preventDefault()
         setDiceOpen((o) => !o)
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g') {
+        e.preventDefault()
+        setGenOpen((o) => !o)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -315,6 +325,7 @@ export function App() {
       <ConfirmProvider>
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
+        <Generators open={genOpen} onClose={() => setGenOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
         {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
@@ -322,6 +333,7 @@ export function App() {
           <Sidebar
             onOpenSearch={() => setSearchOpen(true)}
             onOpenDice={() => setDiceOpen(true)}
+            onOpenGen={() => setGenOpen(true)}
             onAddPlayerCampaign={() => setAddPlayerOpen(true)}
             onOpenPrefs={() => setPrefsOpen(true)}
             onOpenBug={() => setBugOpen(true)}
