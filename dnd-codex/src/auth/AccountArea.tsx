@@ -45,7 +45,7 @@ export function AccountArea() {
             {avatar ? (
               <img src={avatar} alt="" width={18} height={18} style={{ borderRadius: '50%', flexShrink: 0, objectFit: 'cover' }} />
             ) : (
-              <span aria-hidden>👤</span>
+              <span aria-hidden style={{ display: 'inline-flex' }}><Icon name="user" size={16} /></span>
             )}
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
             <span aria-hidden style={{ opacity: 0.6 }}><Icon name="pencil" size={13} /></span>
@@ -67,7 +67,7 @@ export function AccountArea() {
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
         onClick={() => setOpen(true)}
       >
-        <span className="ico">👤</span> Sign in
+        <span className="ico"><Icon name="user" /></span> Sign in
       </button>
       {open && <SignInModal onClose={() => setOpen(false)} />}
     </>
@@ -183,7 +183,7 @@ function ProfileModal({ onClose }: { onClose: () => void }) {
               flexShrink: 0,
             }}
           >
-            👤
+            <Icon name="user" size={28} />
           </span>
         )}
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>

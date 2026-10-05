@@ -1,35 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Modal } from './Modal'
 import { Icon } from './Icon'
 import { db } from '../db/db'
 import { createLocation, createNote } from '../db/repo'
 import { randomTavernName, randomPlotHook, plotHookTitle } from '../lib/nameGen'
+import { useGenOverrides } from '../lib/useGenOverrides'
 
 const MAX_LOG = 12
-
-export function Generators({ open, onClose }: { open: boolean; onClose: () => void }) {
-  if (!open) return null
-  return (
-    <Modal
-      title="✨ Generators"
-      onClose={onClose}
-      footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
-      }
-    >
-      <GeneratorsPanel onDone={onClose} />
-    </Modal>
-  )
-}
 
 /** Two at-the-table rollers for the things a DM invents on the fly: a tavern
  *  that suddenly needs a sign, and a plot hook when the party wanders off-script.
  *  Each roll can drop straight into its own sheet — a tavern as a Location, a
- *  hook as a world Note — in whichever campaign is picked. */
+ *  hook as a world Note — in whichever campaign is picked. Lives as the first
+ *  entry on the Generators page. */
 export function GeneratorsPanel({ onDone }: { onDone?: () => void }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -78,6 +62,9 @@ export function GeneratorsPanel({ onDone }: { onDone?: () => void }) {
 
   const hasCampaign = !!campaignId
 
+  // Global generator tables (Tools → Generators) override the built-in lists.
+  const ov = useGenOverrides()
+
   return (
     <div className="gen-tools">
       <div className="gen-target field" style={{ margin: 0 }}>
@@ -104,14 +91,14 @@ export function GeneratorsPanel({ onDone }: { onDone?: () => void }) {
       <RollerTool
         label="Tavern name"
         hint="An inn or tavern that needs a name right now."
-        roll={randomTavernName}
+        roll={() => randomTavernName(ov)}
         addLabel="Add as location"
         onAdd={hasCampaign ? addTavern : undefined}
       />
       <RollerTool
         label="Plot hook"
         hint="A patron, a task, and a twist to send the party somewhere."
-        roll={randomPlotHook}
+        roll={() => randomPlotHook(ov)}
         addLabel="Add as note"
         onAdd={hasCampaign ? addHook : undefined}
       />

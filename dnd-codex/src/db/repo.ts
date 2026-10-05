@@ -11,6 +11,7 @@ import type {
   Note,
   RollTable,
   RollTableEntry,
+  GenTable,
   PlayerNote,
   StoredImage,
   Link,
@@ -316,6 +317,28 @@ export async function createRollTable(
   return table
 }
 
+// --- Global generator tables (universal, local-only) -----------------------
+
+/** All global generator tables. */
+export function getGenTables(): Promise<GenTable[]> {
+  return db.genTables.toArray()
+}
+
+/** Create or update a slot's global generator table. */
+export async function saveGenTable(
+  slot: string,
+  patch: Partial<Pick<GenTable, 'entries' | 'dismissedSuggestions'>>,
+): Promise<void> {
+  const existing = await db.genTables.get(slot)
+  const row: GenTable = {
+    slot,
+    entries: patch.entries ?? existing?.entries ?? [],
+    dismissedSuggestions: patch.dismissedSuggestions ?? existing?.dismissedSuggestions,
+    updatedAt: now(),
+  }
+  await db.genTables.put(row)
+}
+
 export async function updateRollTable(id: Id, patch: Partial<RollTable>): Promise<void> {
   await db.rollTables.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('rollTables', id)
@@ -589,7 +612,7 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 export const SNAPSHOT_VERSION = 7
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, genTables] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -603,6 +626,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.links.toArray(),
       db.encounters.toArray(),
       db.scenes.toArray(),
+      db.genTables.toArray(),
     ])
   return {
     version: SNAPSHOT_VERSION,
@@ -619,6 +643,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     links,
     encounters,
     scenes,
+    genTables,
   }
 }
 
@@ -635,7 +660,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.genTables],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -651,6 +676,7 @@ export async function importSnapshot(
           db.links.clear(),
           db.encounters.clear(),
           db.scenes.clear(),
+          db.genTables.clear(),
         ])
       }
       await Promise.all([
@@ -666,6 +692,7 @@ export async function importSnapshot(
         db.links.bulkPut(snapshot.links ?? []),
         db.encounters.bulkPut(snapshot.encounters ?? []),
         db.scenes.bulkPut(snapshot.scenes ?? []),
+        db.genTables.bulkPut(snapshot.genTables ?? []),
       ])
     },
   )

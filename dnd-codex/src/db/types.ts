@@ -498,6 +498,17 @@ export interface RollTableEntry {
  * the effective die size is the sum of all weights, and each entry occupies a
  * contiguous range of that die (computed in lib/roll.ts).
  */
+/** A generator suggestion the DM declined, kept with the time it was dismissed
+ *  so it lapses (and can be re-offered) after the retention window rather than
+ *  nagging forever. Pending suggestions themselves are derived (the built-in
+ *  reservoir minus the table's own entries minus active dismissals), so only
+ *  the dismissals need to persist. */
+export interface DismissedSuggestion {
+  text: string
+  /** When it was dismissed (ISO) — drives the retention window. */
+  dismissedAt: ISODate
+}
+
 export interface RollTable extends BaseRecord {
   campaignId: Id
   name: string
@@ -507,6 +518,19 @@ export interface RollTable extends BaseRecord {
   entries: RollTableEntry[]
   /** Free-form organizational tags. */
   tags: string[]
+}
+
+/** A global one-click-generator word list, keyed by its slot (see lib/genTables
+ *  GenSlot). Universal across every campaign — edited under Tools → Generators,
+ *  stored locally (not campaign-scoped, not mirrored). A slot with no row falls
+ *  back to the built-in list. */
+export interface GenTable {
+  /** The generator slot this list drives (e.g. "tavern-name"). Primary key. */
+  slot: string
+  entries: RollTableEntry[]
+  /** Built-in suggestions the DM declined; expire after the retention window. */
+  dismissedSuggestions?: DismissedSuggestion[]
+  updatedAt: ISODate
 }
 
 /**
@@ -714,4 +738,6 @@ export interface DatabaseSnapshot {
   links: Link[]
   encounters?: Encounter[]
   scenes?: Scene[]
+  /** Global generator word lists (not campaign-scoped). */
+  genTables?: GenTable[]
 }

@@ -14,6 +14,7 @@ import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
 import { Icon } from '../components/Icon'
 import { randomPersonName } from '../lib/nameGen'
+import { useGenOverrides } from '../lib/useGenOverrides'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -116,6 +117,9 @@ function NpcEditor({
   const [statBlockData, setStatBlockData] = useState<StatBlock | null>(npc.statBlockData ?? null)
   const [statBlock, setStatBlock] = useState(npc.statBlock)
   const [tags, setTags] = useState(npc.tags)
+  // Global name tables override the built-in default pool (ancestry-specific
+  // races keep their built-in flavor).
+  const ov = useGenOverrides()
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -151,7 +155,7 @@ function NpcEditor({
             <button
               type="button"
               className="btn small"
-              onClick={() => setName(randomPersonName(race))}
+              onClick={() => setName(randomPersonName(race, ov))}
               title={race.trim() ? `Roll a random ${race.trim()} name` : 'Roll a random name'}
               aria-label="Generate a random name"
             >
