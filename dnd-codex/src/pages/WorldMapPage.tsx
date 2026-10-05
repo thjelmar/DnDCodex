@@ -8,6 +8,8 @@ import { processImageFile } from '../lib/image'
 import { WorldMapCanvas } from '../components/WorldMapCanvas'
 import { Icon } from '../components/Icon'
 import { useConfirm } from '../components/ConfirmDialog'
+import { useAuth } from '../auth/AuthProvider'
+import { shareImageToCampaign, unshareImageFromCampaign, shareWorldMap, unshareWorldMap } from '../auth/cloud'
 import type { WorldPin } from '../db/types'
 
 const PIN_COLORS = ['#e2504a', '#d4537e', '#7f77dd', '#378add', '#1d9e75', '#ba7517', '#888780']
@@ -18,7 +20,10 @@ export function WorldMapPage() {
   const campaign = useCampaign()
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const { user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [sharing, setSharing] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
 
   const map = useLiveQuery(() => db.worldMaps.where('campaignId').equals(campaign.id).first(), [campaign.id])
   useEffect(() => { getOrCreateWorldMap(campaign.id) }, [campaign.id])
@@ -86,6 +91,37 @@ export function WorldMapPage() {
     await deleteImage(oldId)
   }
 
+  // Read-only player sharing: the image rides shared_images (kind 'worldmap'),
+  // the pins + meta ride shared_world_maps. "Update" re-pushes the current state.
+  async function pushShare() {
+    if (!map || !map.imageId || !image) return
+    setSharing(true)
+    setShareError(null)
+    try {
+      await shareImageToCampaign(campaign.id, { id: map.imageId, dataUrl: image.dataUrl, caption: map.name, width: map.width, height: map.height }, 'worldmap')
+      await shareWorldMap(campaign.id, { name: map.name, imageId: map.imageId, width: map.width, height: map.height, pins })
+      await updateWorldMap(map.id, { sharedWithPlayers: true })
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'Could not share. Are you signed in?')
+    } finally {
+      setSharing(false)
+    }
+  }
+  async function stopShare() {
+    if (!map) return
+    setSharing(true)
+    setShareError(null)
+    try {
+      if (map.imageId) await unshareImageFromCampaign(map.imageId)
+      await unshareWorldMap(campaign.id)
+      await updateWorldMap(map.id, { sharedWithPlayers: false })
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'Could not stop sharing.')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   const openRef = (ref: WorldPin['ref']) => {
     if (!ref) return
     navigate(`/campaign/${campaign.id}/${ref.kind === 'location' ? 'locations' : 'npcs'}?sel=${ref.id}`)
@@ -106,7 +142,20 @@ export function WorldMapPage() {
             A prep/reference map. Click the map to drop a pin, then link it to a location or NPC.
           </p>
         </div>
-        <div className="row" style={{ gap: 8 }}>
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          {user && map.imageId && (
+            map.sharedWithPlayers ? (
+              <>
+                <span className="tag" style={{ color: 'var(--good)' }}><Icon name="eye" size={13} color="inherit" /> Shared</span>
+                <button className="btn small" onClick={pushShare} disabled={sharing}>{sharing ? '…' : 'Update'}</button>
+                <button className="btn ghost small" onClick={stopShare} disabled={sharing}>Stop sharing</button>
+              </>
+            ) : (
+              <button className="btn primary small" onClick={pushShare} disabled={sharing}>
+                <Icon name="eye" size={14} color="inherit" /> {sharing ? 'Sharing…' : 'Share with players'}
+              </button>
+            )
+          )}
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
           <button className="btn" onClick={() => fileRef.current?.click()}>
             <Icon name="upload" size={14} /> {map.imageId ? 'Replace image' : 'Upload map image'}
@@ -116,6 +165,7 @@ export function WorldMapPage() {
           )}
         </div>
       </div>
+      {shareError && <p className="muted" style={{ color: 'var(--bad)', marginTop: 0 }}>{shareError}</p>}
 
       <div className="worldmap-layout">
         <WorldMapCanvas
