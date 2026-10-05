@@ -44,7 +44,7 @@ export function SharedGallery({
     const refresh = async () => {
       const imgs = await getSharedImages(linkedCampaignId)
       // Handouts have their own surface (SharedHandouts) — keep them out of the album.
-      if (!cancelled) setImages(imgs.filter((i) => i.kind !== 'handout'))
+      if (!cancelled) setImages(imgs.filter((i) => i.kind === 'gallery'))
     }
     refresh()
     if (!supabase || !token) return

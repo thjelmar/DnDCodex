@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import type { RevealedEntity } from '../lib/reveal'
+import type { WorldPin } from '../db/types'
 
 // Cloud-side helpers for Phase 2: registering a DM's campaign for sharing,
 // generating/reading its join code, and letting a player join by code. These
@@ -131,8 +132,9 @@ export async function setMyColor(campaignId: string, color: string | null): Prom
 // restricts it to campaign members).
 
 /** How a shared image is surfaced to players: the passive gallery album (also
- *  covers entity portraits) vs. a deliberate handout the DM hands over. */
-export type SharedImageKind = 'gallery' | 'handout'
+ *  covers entity portraits), a deliberate handout the DM hands over, or the
+ *  backdrop of a shared world map (kept out of the gallery/handout surfaces). */
+export type SharedImageKind = 'gallery' | 'handout' | 'worldmap'
 
 export interface SharedImage {
   id: string
@@ -199,12 +201,71 @@ export async function getSharedImages(cloudCampaignId: string): Promise<SharedIm
     caption: (r.caption as string) ?? null,
     width: (r.width as number) ?? null,
     height: (r.height as number) ?? null,
-    kind: ((r.kind as string) === 'handout' ? 'handout' : 'gallery') as SharedImageKind,
+    kind: (((r.kind as string) === 'handout' || (r.kind as string) === 'worldmap') ? (r.kind as string) : 'gallery') as SharedImageKind,
     sessionId: (r.session_id as string) ?? null,
     sessionTitle: (r.session_title as string) ?? null,
     sessionDate: (r.session_date as string) ?? null,
     createdAt: r.created_at as string,
   }))
+}
+
+// --- Shared world map (T-6) ------------------------------------------------
+// One read-only world map per campaign. Pins + meta live in `shared_world_maps`;
+// the map picture rides `shared_images` with kind 'worldmap'. Un-sharing deletes
+// both so it vanishes from every player instantly.
+
+export interface SharedWorldMap {
+  name: string | null
+  imageId: string | null
+  width: number | null
+  height: number | null
+  pins: WorldPin[]
+}
+
+/** Share (or re-push) the campaign's world map so members read it live. */
+export async function shareWorldMap(
+  campaignId: string,
+  map: { name: string; imageId: string | null; width: number; height: number; pins: WorldPin[] },
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('shared_world_maps').upsert(
+    {
+      campaign_id: campaignId,
+      name: map.name,
+      image_id: map.imageId,
+      width: map.width,
+      height: map.height,
+      pins: map.pins,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'campaign_id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Stop sharing the world map — removes it from every player's view at once. */
+export async function unshareWorldMap(campaignId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('shared_world_maps').delete().eq('campaign_id', campaignId)
+  if (error) throw new Error(error.message)
+}
+
+/** The shared world map for a campaign the current user belongs to, or null. */
+export async function getSharedWorldMap(cloudCampaignId: string): Promise<SharedWorldMap | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('shared_world_maps')
+    .select('name, image_id, width, height, pins')
+    .eq('campaign_id', cloudCampaignId)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    name: (data.name as string) ?? null,
+    imageId: (data.image_id as string) ?? null,
+    width: (data.width as number) ?? null,
+    height: (data.height as number) ?? null,
+    pins: (Array.isArray(data.pins) ? data.pins : []) as WorldPin[],
+  }
 }
 
 // --- Live session ----------------------------------------------------------

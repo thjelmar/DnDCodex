@@ -39,6 +39,7 @@ import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
+import { PlayerWorldMapPage } from './pages/PlayerWorldMapPage'
 import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
 import { PlayerSessionPage } from './pages/PlayerSessionPage'
 import { TicketsPage } from './pages/TicketsPage'
@@ -350,6 +351,7 @@ export function App() {
             <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
             <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
+            <Route path="/player/:campaignId/worldmap" element={<PlayerWorldMapPage />} />
             {/* Battle maps are part of the live session now; old links land there. */}
             <Route path="/player/:campaignId/battlemap" element={<PlayerBattlemapRedirect />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>

@@ -18,6 +18,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { SharedGallery } from '../components/SharedGallery'
 import { SharedHandouts } from '../components/SharedHandouts'
+import { SharedWorldMapLink } from '../components/SharedWorldMapLink'
 import { CollapsibleSection } from '../components/CollapsibleSection'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
@@ -326,6 +327,9 @@ export function PlayerNotesPage() {
             )}
             {campaign.linkedCampaignId && (
               <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} linkOnly />
+            )}
+            {campaign.linkedCampaignId && (
+              <SharedWorldMapLink campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
             )}
             {showStory && <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />}
           </aside>
