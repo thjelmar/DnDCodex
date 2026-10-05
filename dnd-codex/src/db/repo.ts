@@ -17,6 +17,7 @@ import type {
   Link,
   Encounter,
   Scene,
+  WorldMap,
   EntityKind,
   Id,
   DatabaseSnapshot,
@@ -463,6 +464,42 @@ export async function deleteScene(id: Id): Promise<void> {
   if (existing.imageId) await deleteImage(existing.imageId)
 }
 
+// --- World maps (prep/reference maps with pins; one per campaign) -----------
+
+/** The campaign's world map, creating an empty one on first access. */
+export async function getOrCreateWorldMap(campaignId: Id): Promise<WorldMap> {
+  const existing = await db.worldMaps.where('campaignId').equals(campaignId).first()
+  if (existing) return existing
+  const ts = now()
+  const map: WorldMap = {
+    id: newId(),
+    campaignId,
+    name: 'World Map',
+    imageId: null,
+    width: 0,
+    height: 0,
+    pins: [],
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.worldMaps.add(map)
+  await enqueuePut('worldMaps', map.id, campaignId)
+  return map
+}
+
+export async function updateWorldMap(id: Id, patch: Partial<WorldMap>): Promise<void> {
+  await db.worldMaps.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('worldMaps', id)
+}
+
+export async function deleteWorldMap(id: Id): Promise<void> {
+  const existing = await db.worldMaps.get(id)
+  await db.worldMaps.delete(id)
+  if (!existing) return
+  await enqueueDel('worldMaps', id, existing.campaignId)
+  if (existing.imageId) await deleteImage(existing.imageId)
+}
+
 // ---------------------------------------------------------------------------
 // Images
 // ---------------------------------------------------------------------------
@@ -612,7 +649,7 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 export const SNAPSHOT_VERSION = 7
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, genTables] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, genTables] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -626,6 +663,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.links.toArray(),
       db.encounters.toArray(),
       db.scenes.toArray(),
+      db.worldMaps.toArray(),
       db.genTables.toArray(),
     ])
   return {
@@ -643,6 +681,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     links,
     encounters,
     scenes,
+    worldMaps,
     genTables,
   }
 }
@@ -660,7 +699,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.genTables],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.genTables],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -676,6 +715,7 @@ export async function importSnapshot(
           db.links.clear(),
           db.encounters.clear(),
           db.scenes.clear(),
+          db.worldMaps.clear(),
           db.genTables.clear(),
         ])
       }
@@ -692,6 +732,7 @@ export async function importSnapshot(
         db.links.bulkPut(snapshot.links ?? []),
         db.encounters.bulkPut(snapshot.encounters ?? []),
         db.scenes.bulkPut(snapshot.scenes ?? []),
+        db.worldMaps.bulkPut(snapshot.worldMaps ?? []),
         db.genTables.bulkPut(snapshot.genTables ?? []),
       ])
     },

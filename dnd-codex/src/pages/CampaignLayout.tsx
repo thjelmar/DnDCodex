@@ -28,6 +28,7 @@ const TABS = [
   { to: 'items', label: 'Items' },
   { to: 'tables', label: 'Tables' },
   { to: 'map', label: 'Map' },
+  { to: 'worldmap', label: 'World Map' },
   { to: 'battlemap', label: 'Battle Map' },
   { to: 'gallery', label: 'Gallery' },
   { to: 'handouts', label: 'Handouts' },
@@ -39,7 +40,8 @@ export function CampaignLayout() {
   const { campaignId } = useParams()
   // The battle map is a spatial tool, so it drops the text-column width cap and
   // fills the screen; the reading-width tabs keep the default .content width.
-  const wideTab = useLocation().pathname.endsWith('/battlemap')
+  const path = useLocation().pathname
+  const wideTab = path.endsWith('/battlemap') || path.endsWith('/worldmap')
   const campaign = useLiveQuery(
     // `?? null` so a missing campaign reads as "not found", not "still loading".
     async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),

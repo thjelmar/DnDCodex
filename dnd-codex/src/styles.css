@@ -2241,6 +2241,51 @@ kbd {
 .gen-suggest-row { border-radius: var(--radius-sm); }
 .gen-suggest-row:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
 
+/* World map (prep/reference map with pins) */
+.worldmap-layout { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+.worldmap-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 230px);
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background:
+    repeating-linear-gradient(45deg, var(--panel) 0 10px, transparent 10px 20px),
+    var(--bg);
+  touch-action: none;
+}
+.worldmap-empty-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 14px;
+}
+.worldmap-pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: inline-flex; align-items: center; gap: 5px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px 2px 4px;
+  font: inherit; color: var(--text); white-space: nowrap;
+}
+.worldmap-pin.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+.worldmap-pin-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(0,0,0,0.35); }
+.worldmap-pin-label { font-size: 12.5px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.worldmap-inspector { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); }
+.worldmap-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.worldmap-swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.worldmap-swatch.on { border-color: var(--text); }
+.worldmap-pinlist { display: flex; flex-direction: column; gap: 2px; }
+.worldmap-pinrow {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: none; color: var(--text); cursor: pointer;
+  padding: 6px 6px; border-radius: 8px; font-size: 13.5px;
+}
+.worldmap-pinrow:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+@media (max-width: 900px) { .worldmap-layout { grid-template-columns: 1fr; } }
+
 /* Peek drawer */
 .run-peek { display: flex; flex-direction: column; gap: 14px; }
 .run-peek-facts { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
