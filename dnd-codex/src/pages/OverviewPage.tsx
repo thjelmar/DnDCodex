@@ -10,6 +10,8 @@ import { AddLinkButton } from '../components/AddLinkButton'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
+import { useConfirm } from '../components/ConfirmDialog'
+import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
 import { processImageFile } from '../lib/image'
 import type { Campaign } from '../db/types'
@@ -18,8 +20,37 @@ export function OverviewPage() {
   const campaign = useCampaign()
   const navigate = useNavigate()
 
+  const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Archiving ends the campaign: it also clears the next-session schedule so the
+  // shared calendar feed empties and players stop seeing sessions on their
+  // calendars. Unarchiving just flips the flag back.
+  async function toggleArchive() {
+    if (campaign.archived) {
+      await updateCampaign(campaign.id, { archived: false })
+      return
+    }
+    const ok = await confirm({
+      title: 'Archive this campaign?',
+      message:
+        "Archiving ends the campaign. Its shared session calendar clears, so players stop seeing upcoming sessions on their calendars. You can unarchive and reschedule anytime.",
+      confirmLabel: 'Archive',
+    })
+    if (!ok) return
+    await updateCampaign(campaign.id, {
+      archived: true,
+      nextSessionDate: null,
+      nextSessionTime: null,
+      rescheduledFrom: null,
+    })
+    try {
+      await clearSessionSchedule(campaign.id)
+    } catch {
+      // Cloud clear is best-effort; the local schedule is already cleared.
+    }
+  }
 
   // Counts and recent sessions for the dashboard.
   const stats = useLiveQuery(async () => {
@@ -150,12 +181,7 @@ export function OverviewPage() {
       <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '32px 0' }} />
 
       <div className="row wrap" style={{ gap: 10 }}>
-        <button
-          className="btn"
-          onClick={() =>
-            updateCampaign(campaign.id, { archived: !campaign.archived })
-          }
-        >
+        <button className="btn" onClick={toggleArchive}>
           {campaign.archived ? 'Unarchive' : 'Archive'} campaign
         </button>
         <button className="btn danger" onClick={() => setConfirmDelete(true)}>
