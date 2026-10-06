@@ -14,6 +14,8 @@ import type {
   Encounter,
   Scene,
   WorldMap,
+  PlotThread,
+  TimelineEvent,
   GenTable,
   PendingChange,
   SyncStateRow,
@@ -38,6 +40,8 @@ export class CodexDB extends Dexie {
   encounters!: EntityTable<Encounter, 'id'>
   scenes!: EntityTable<Scene, 'id'>
   worldMaps!: EntityTable<WorldMap, 'id'>
+  plotThreads!: EntityTable<PlotThread, 'id'>
+  timelineEvents!: EntityTable<TimelineEvent, 'id'>
   // Global one-click-generator word lists, keyed by slot. Universal across all
   // campaigns, so NOT campaign-scoped and not mirrored through the per-campaign
   // records channel; it rides along in JSON backups instead.
@@ -239,6 +243,11 @@ export class CodexDB extends Dexie {
     // v16 adds world maps (prep/reference maps with pins). Additive; synced.
     this.version(16).stores({
       worldMaps: 'id, campaignId, name, updatedAt',
+    })
+    // v17 adds the campaign timeline: plot threads + dated events. Additive; synced.
+    this.version(17).stores({
+      plotThreads: 'id, campaignId, updatedAt',
+      timelineEvents: 'id, campaignId, sortKey, updatedAt',
     })
   }
 }

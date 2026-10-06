@@ -18,6 +18,8 @@ import type {
   Encounter,
   Scene,
   WorldMap,
+  PlotThread,
+  TimelineEvent,
   EntityKind,
   Id,
   DatabaseSnapshot,
@@ -76,7 +78,7 @@ export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<
 export async function deleteCampaign(id: Id): Promise<void> {
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents],
     async () => {
       await Promise.all([
         db.sessions.where('campaignId').equals(id).delete(),
@@ -90,6 +92,9 @@ export async function deleteCampaign(id: Id): Promise<void> {
         db.links.where('campaignId').equals(id).delete(),
         db.encounters.where('campaignId').equals(id).delete(),
         db.scenes.where('campaignId').equals(id).delete(),
+        db.worldMaps.where('campaignId').equals(id).delete(),
+        db.plotThreads.where('campaignId').equals(id).delete(),
+        db.timelineEvents.where('campaignId').equals(id).delete(),
       ])
       await db.campaigns.delete(id)
     },
@@ -500,6 +505,77 @@ export async function deleteWorldMap(id: Id): Promise<void> {
   if (existing.imageId) await deleteImage(existing.imageId)
 }
 
+// --- Campaign timeline: plot threads + dated events ------------------------
+
+const THREAD_COLORS = ['#7f77dd', '#1d9e75', '#d4537e', '#378add', '#ba7517', '#e2504a', '#888780']
+
+export async function createPlotThread(campaignId: Id, input: Partial<Pick<PlotThread, 'name' | 'status' | 'color' | 'description'>> = {}): Promise<PlotThread> {
+  const ts = now()
+  const count = await db.plotThreads.where('campaignId').equals(campaignId).count()
+  const thread: PlotThread = {
+    id: newId(),
+    campaignId,
+    name: input.name?.trim() || 'New thread',
+    status: input.status ?? 'open',
+    color: input.color ?? THREAD_COLORS[count % THREAD_COLORS.length],
+    description: input.description ?? '',
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.plotThreads.add(thread)
+  await enqueuePut('plotThreads', thread.id, campaignId)
+  return thread
+}
+export async function updatePlotThread(id: Id, patch: Partial<PlotThread>): Promise<void> {
+  await db.plotThreads.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('plotThreads', id)
+}
+export async function deletePlotThread(id: Id): Promise<void> {
+  const existing = await db.plotThreads.get(id)
+  await db.plotThreads.delete(id)
+  if (!existing) return
+  await enqueueDel('plotThreads', id, existing.campaignId)
+  // Unlink events that pointed at this thread (don't orphan their threadId).
+  const events = await db.timelineEvents.where('campaignId').equals(existing.campaignId).filter((e) => e.threadId === id).toArray()
+  for (const e of events) await updateTimelineEvent(e.id, { threadId: null })
+}
+
+export async function createTimelineEvent(campaignId: Id, input: Partial<Pick<TimelineEvent, 'title' | 'dateLabel' | 'sortKey' | 'body' | 'threadId' | 'refs' | 'year'>> = {}): Promise<TimelineEvent> {
+  const ts = now()
+  // Default sortKey to just after the current max, so a new event lands at the end.
+  let sortKey = input.sortKey
+  if (sortKey == null) {
+    const all = await db.timelineEvents.where('campaignId').equals(campaignId).toArray()
+    sortKey = all.reduce((m, e) => Math.max(m, e.sortKey), 0) + 10
+  }
+  const event: TimelineEvent = {
+    id: newId(),
+    campaignId,
+    title: input.title?.trim() || 'New event',
+    dateLabel: input.dateLabel ?? '',
+    sortKey,
+    body: input.body ?? '',
+    threadId: input.threadId ?? null,
+    refs: input.refs ?? [],
+    year: input.year ?? null,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.timelineEvents.add(event)
+  await enqueuePut('timelineEvents', event.id, campaignId)
+  return event
+}
+export async function updateTimelineEvent(id: Id, patch: Partial<TimelineEvent>): Promise<void> {
+  await db.timelineEvents.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('timelineEvents', id)
+}
+export async function deleteTimelineEvent(id: Id): Promise<void> {
+  const existing = await db.timelineEvents.get(id)
+  await db.timelineEvents.delete(id)
+  if (!existing) return
+  await enqueueDel('timelineEvents', id, existing.campaignId)
+}
+
 // ---------------------------------------------------------------------------
 // Images
 // ---------------------------------------------------------------------------
@@ -649,7 +725,7 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 export const SNAPSHOT_VERSION = 7
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, genTables] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, plotThreads, timelineEvents, genTables] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -664,6 +740,8 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.encounters.toArray(),
       db.scenes.toArray(),
       db.worldMaps.toArray(),
+      db.plotThreads.toArray(),
+      db.timelineEvents.toArray(),
       db.genTables.toArray(),
     ])
   return {
@@ -682,6 +760,8 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     encounters,
     scenes,
     worldMaps,
+    plotThreads,
+    timelineEvents,
     genTables,
   }
 }
@@ -699,7 +779,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.genTables],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.genTables],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -716,6 +796,8 @@ export async function importSnapshot(
           db.encounters.clear(),
           db.scenes.clear(),
           db.worldMaps.clear(),
+          db.plotThreads.clear(),
+          db.timelineEvents.clear(),
           db.genTables.clear(),
         ])
       }
@@ -733,6 +815,8 @@ export async function importSnapshot(
         db.encounters.bulkPut(snapshot.encounters ?? []),
         db.scenes.bulkPut(snapshot.scenes ?? []),
         db.worldMaps.bulkPut(snapshot.worldMaps ?? []),
+        db.plotThreads.bulkPut(snapshot.plotThreads ?? []),
+        db.timelineEvents.bulkPut(snapshot.timelineEvents ?? []),
         db.genTables.bulkPut(snapshot.genTables ?? []),
       ])
     },

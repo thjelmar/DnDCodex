@@ -21,6 +21,7 @@ import { useChangelogUnseen } from './lib/useChangelog'
 import { CampaignLayout } from './pages/CampaignLayout'
 import { OverviewPage } from './pages/OverviewPage'
 import { SessionsPage } from './pages/SessionsPage'
+import { TimelinePage } from './pages/TimelinePage'
 import { NpcsPage } from './pages/NpcsPage'
 import { LocationsPage } from './pages/LocationsPage'
 import { ItemsPage } from './pages/ItemsPage'
@@ -357,6 +358,7 @@ export function App() {
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>
               <Route index element={<OverviewPage />} />
               <Route path="sessions" element={<SessionsPage />} />
+              <Route path="timeline" element={<TimelinePage />} />
               <Route path="npcs" element={<NpcsPage />} />
               <Route path="locations" element={<LocationsPage />} />
               <Route path="items" element={<ItemsPage />} />
