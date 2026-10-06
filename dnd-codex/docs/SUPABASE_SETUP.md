@@ -94,3 +94,9 @@ account across devices. Nothing else to configure — sign in and it just works.
 delete on one device may be undone by another re-uploading it). This is deliberate — silently deleting
 across devices on a stale/empty cloud read is too risky. Records (sessions, NPCs, notes, links) *do*
 delete everywhere. Full campaign-delete propagation is a later refinement.
+
+`0024_security_lints.sql` — revokes `anon` EXECUTE on the SECURITY DEFINER functions and pins
+`touch_records_updated_at`'s search_path (clears the Supabase security-advisor warnings). Run it like the others.
+
+**Dashboard-only setting:** Authentication → Sign In / Providers → Email → enable *Leaked password
+protection*. (Needs Supabase Pro; the app only uses OAuth sign-in, so it has no practical effect here.)
