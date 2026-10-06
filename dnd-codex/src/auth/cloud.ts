@@ -325,6 +325,60 @@ export async function getLiveSession(cloudCampaignId: string): Promise<LiveSessi
   }
 }
 
+// --- Session schedule (next-session indicator) -----------------------------
+// The DM publishes when the next session is; players read it live. Mirrors the
+// live_sessions pattern: one row per campaign, owner-write / member-read.
+
+export interface CloudSessionSchedule {
+  nextSessionDate: string | null
+  nextSessionTime: string | null
+  rescheduledFrom: string | null
+}
+
+/** Publish (or update) the campaign's next-session schedule — DM only. */
+export async function setSessionSchedule(
+  campaignId: string,
+  s: CloudSessionSchedule,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('session_schedule').upsert(
+    {
+      campaign_id: campaignId,
+      next_date: s.nextSessionDate || null,
+      next_time: s.nextSessionTime || null,
+      rescheduled_from: s.rescheduledFrom || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'campaign_id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Clear the schedule — removes the row so players see nothing scheduled. */
+export async function clearSessionSchedule(campaignId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('session_schedule').delete().eq('campaign_id', campaignId)
+  if (error) throw new Error(error.message)
+}
+
+/** The schedule for a campaign the user belongs to, or null when none is set. */
+export async function getSessionSchedule(
+  cloudCampaignId: string,
+): Promise<CloudSessionSchedule | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('session_schedule')
+    .select('next_date, next_time, rescheduled_from')
+    .eq('campaign_id', cloudCampaignId)
+    .maybeSingle()
+  if (error || !data) return null
+  return {
+    nextSessionDate: (data.next_date as string) ?? null,
+    nextSessionTime: (data.next_time as string) ?? null,
+    rescheduledFrom: (data.rescheduled_from as string) ?? null,
+  }
+}
+
 // --- Shared entities (Phase 3c) --------------------------------------------
 // Live published entity copies. `pushEntity` uploads the reveal-safe, spoiler-
 // redacted snapshot (see lib/reveal.ts); it is the DM's explicit "publish" step,

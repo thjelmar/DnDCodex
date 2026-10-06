@@ -62,6 +62,20 @@ export interface Campaign extends BaseRecord {
    * DM campaigns and manually-added player campaigns.
    */
   linkedCampaignId: Id | null
+  /**
+   * When the next session is planned (ISO `yyyy-mm-dd`), set by the DM. Drives
+   * the player header's session-status indicator. A lightweight stand-in until
+   * the calendar add-on; null when nothing is scheduled.
+   */
+  nextSessionDate?: string | null
+  /** Optional start time for the next session (`HH:mm`, 24h), shown with the date. */
+  nextSessionTime?: string | null
+  /**
+   * If the DM moves the session off a day it was planned for, the date it was
+   * moved *from* (ISO `yyyy-mm-dd`). Lets the indicator show "Rescheduled to …"
+   * on the original day. Cleared once that day has passed.
+   */
+  rescheduledFrom?: string | null
 }
 
 /**

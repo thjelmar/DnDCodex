@@ -39,6 +39,8 @@ import { WorldMapPage } from './pages/WorldMapPage'
 import { BattleMapPage } from './pages/BattleMapPage'
 import { TagsPage } from './pages/TagsPage'
 import { PlayerNotesPage } from './pages/PlayerNotesPage'
+import { PlayerStoryPage } from './pages/PlayerStoryPage'
+import { PlayerLootPage } from './pages/PlayerLootPage'
 import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
 import { PlayerWorldMapPage } from './pages/PlayerWorldMapPage'
 import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
@@ -349,10 +351,12 @@ export function App() {
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
+            <Route path="/player/:campaignId/story" element={<PlayerStoryPage />} />
             <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
             <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/player/:campaignId/worldmap" element={<PlayerWorldMapPage />} />
+            <Route path="/player/:campaignId/loot" element={<PlayerLootPage />} />
             {/* Battle maps are part of the live session now; old links land there. */}
             <Route path="/player/:campaignId/battlemap" element={<PlayerBattlemapRedirect />} />
             <Route path="/campaign/:campaignId" element={<CampaignLayout />}>

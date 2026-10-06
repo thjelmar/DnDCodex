@@ -9,6 +9,7 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { Modal } from '../components/Modal'
+import { NextSessionCard } from '../components/NextSessionCard'
 import { formatDate } from '../lib/format'
 import { processImageFile } from '../lib/image'
 import type { Campaign } from '../db/types'
@@ -66,6 +67,10 @@ export function OverviewPage() {
   return (
     <div>
       <CampaignCover campaign={campaign} />
+
+      <div style={{ marginBottom: 20 }}>
+        <NextSessionCard campaign={campaign} />
+      </div>
 
       <div style={{ marginBottom: 20 }}>
         <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>

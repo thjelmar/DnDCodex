@@ -38,6 +38,10 @@ export type IconName =
   | 'chevron-right'
   | 'chevron-left'
   | 'chevron-down'
+  | 'calendar'
+  | 'calendar-x'
+  | 'clock'
+  | 'moon'
   | 'inbox'
   | 'play'
   | 'pin'
@@ -252,6 +256,26 @@ const PATHS: Record<IconName, ReactNode> = {
   'chevron-right': <path d="m9 6 6 6-6 6" />,
   'chevron-left': <path d="m15 6-6 6 6 6" />,
   'chevron-down': <path d="m6 9 6 6 6-6" />,
+  calendar: (
+    <>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M8 2v4M16 2v4M3 10h18" />
+    </>
+  ),
+  'calendar-x': (
+    <>
+      <path d="M8 2v4M16 2v4M3 10h18" />
+      <path d="M21 14V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6" />
+      <path d="m17 16 4 4M21 16l-4 4" />
+    </>
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />,
   inbox: (
     <>
       <path d="M22 12h-6l-2 3h-4l-2-3H2" />

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { SharedGallery } from '../components/SharedGallery'
+import { PlayerNav } from '../components/PlayerNav'
 
 /** The full shared gallery for a player campaign — every image the DM shared. */
 export function PlayerGalleryPage() {
@@ -32,14 +33,12 @@ export function PlayerGalleryPage() {
 
   return (
     <div className="content">
+      <PlayerNav campaignId={campaign.id} />
       <div className="row between" style={{ marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <h1 className="mb-0">
           <span aria-hidden style={{ marginRight: 8, display: 'inline-flex' }}><Icon name="image" size={20} /></span>
           {campaign.name} — Shared gallery
         </h1>
-        <Link to={`/player/${campaign.id}`} className="btn ghost small">
-          ← Back to campaign
-        </Link>
       </div>
       <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} showHeading={false} />
     </div>
