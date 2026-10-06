@@ -247,12 +247,15 @@ export function PlayerNotesPage() {
         </div>
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>
           <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
-          {schedule?.nextSessionDate &&
+          {campaign.linkedCampaignId &&
+            schedule?.nextSessionDate &&
             (sessState.kind === 'upcoming' ||
               sessState.kind === 'thisweek' ||
               sessState.kind === 'gameday' ||
               sessState.kind === 'rescheduled') && (
-              <CalendarSubscribe campaignId={campaign.id} manage={false} />
+              // The token + feed live under the DM's cloud campaign, not the
+              // player's local copy — so subscribe against linkedCampaignId.
+              <CalendarSubscribe campaignId={campaign.linkedCampaignId} manage={false} />
             )}
         </div>
       </div>
