@@ -22,6 +22,7 @@ export function useCampaign(): Campaign {
 const TABS = [
   { to: '', label: 'Overview', end: true },
   { to: 'sessions', label: 'Sessions' },
+  { to: 'timeline', label: 'Timeline' },
   { to: 'notes', label: 'World' },
   { to: 'npcs', label: 'NPCs' },
   { to: 'locations', label: 'Locations' },

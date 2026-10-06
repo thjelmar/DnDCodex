@@ -569,6 +569,8 @@ export type SyncTable =
   | 'encounters'
   | 'scenes'
   | 'worldMaps'
+  | 'plotThreads'
+  | 'timelineEvents'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -752,6 +754,46 @@ export interface WorldMap extends BaseRecord {
   sharedWithPlayers?: boolean
 }
 
+// --- Campaign timeline (T-5) -----------------------------------------------
+
+export type ThreadStatus = 'open' | 'foreshadowed' | 'resolved'
+
+/** A narrative arc (quest line, mystery, war) with a running status. Timeline
+ *  events can belong to one, and it colors/filters them. */
+export interface PlotThread extends BaseRecord {
+  campaignId: Id
+  name: string
+  status: ThreadStatus
+  color: string
+  description: string
+}
+
+/** An entity a timeline event points at (click → open its sheet). */
+export interface EventRef {
+  kind: 'npc' | 'location' | 'session'
+  id: Id
+}
+
+/** A dated in-world event on the campaign timeline. The date is free text (any
+ *  homebrew calendar); `sortKey` is the number the DM sets to order the line. */
+export interface TimelineEvent extends BaseRecord {
+  campaignId: Id
+  title: string
+  /** Free-text in-world date, e.g. "15 Flamerule, 1492 DR". */
+  dateLabel: string
+  /** Chronological sort value the DM sets (ascending). */
+  sortKey: number
+  /** Optional in-world YEAR as a plain number (larger = later), used by the
+   *  consistency check to catch events whose order disagrees with their dates. */
+  year?: number | null
+  /** Rich-text details (HTML). */
+  body: string
+  /** The plot thread this belongs to, or null. */
+  threadId: Id | null
+  /** Linked NPCs / locations / sessions. */
+  refs: EventRef[]
+}
+
 export interface DatabaseSnapshot {
   version: number
   exportedAt: ISODate
@@ -768,6 +810,8 @@ export interface DatabaseSnapshot {
   encounters?: Encounter[]
   scenes?: Scene[]
   worldMaps?: WorldMap[]
+  plotThreads?: PlotThread[]
+  timelineEvents?: TimelineEvent[]
   /** Global generator word lists (not campaign-scoped). */
   genTables?: GenTable[]
 }
