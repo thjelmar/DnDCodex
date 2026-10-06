@@ -402,6 +402,77 @@ export async function getSessionSchedule(
   }
 }
 
+// --- Session RSVPs (T-9) ----------------------------------------------------
+// Each player records whether they're coming to the DM's scheduled session.
+// Members read the whole list (DM tally + party view); a player writes only
+// their own row. Each row is stamped with the session date it answers, so a
+// reschedule (new date) leaves old answers behind and asks for fresh ones.
+
+export type RsvpStatus = 'yes' | 'no' | 'maybe'
+
+export interface SessionRsvp {
+  userId: string
+  status: RsvpStatus
+  /** The session date this answer is for (ISO yyyy-mm-dd), or null. */
+  sessionDate: string | null
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** Record (or change) the current user's RSVP for a dated session. */
+export async function setMyRsvp(
+  campaignId: string,
+  userId: string,
+  status: RsvpStatus,
+  sessionDate: string | null,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('session_rsvps').upsert(
+    {
+      campaign_id: campaignId,
+      user_id: userId,
+      status,
+      session_date: sessionDate || null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'campaign_id,user_id' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Clear the current user's RSVP (back to "no reply"). */
+export async function clearMyRsvp(campaignId: string, userId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('session_rsvps')
+    .delete()
+    .eq('campaign_id', campaignId)
+    .eq('user_id', userId)
+  if (error) throw new Error(error.message)
+}
+
+/** Every member's RSVP for a campaign the current user belongs to. */
+export async function getSessionRsvps(cloudCampaignId: string): Promise<SessionRsvp[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('session_rsvps')
+    .select('user_id, status, session_date, profiles ( display_name, avatar_url )')
+    .eq('campaign_id', cloudCampaignId)
+  if (error || !data) return []
+  return (data as unknown as Record<string, unknown>[]).map((r) => {
+    const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
+      | { display_name: string | null; avatar_url: string | null }
+      | undefined
+    return {
+      userId: r.user_id as string,
+      status: r.status as RsvpStatus,
+      sessionDate: (r.session_date as string) ?? null,
+      displayName: p?.display_name || 'Player',
+      avatarUrl: p?.avatar_url ?? null,
+    }
+  })
+}
+
 // --- Shared entities (Phase 3c) --------------------------------------------
 // Live published entity copies. `pushEntity` uploads the reveal-safe, spoiler-
 // redacted snapshot (see lib/reveal.ts); it is the DM's explicit "publish" step,
