@@ -37,6 +37,7 @@ export type IconName =
   | 'skull'
   | 'chevron-right'
   | 'chevron-left'
+  | 'chevron-down'
   | 'inbox'
   | 'play'
   | 'pin'
@@ -250,6 +251,7 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   'chevron-right': <path d="m9 6 6 6-6 6" />,
   'chevron-left': <path d="m15 6-6 6 6 6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
   inbox: (
     <>
       <path d="M22 12h-6l-2 3h-4l-2-3H2" />

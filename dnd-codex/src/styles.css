@@ -846,6 +846,82 @@ button {
   border-bottom-color: var(--accent);
 }
 
+/* Dropdown groups in the campaign tab bar. */
+.navgroup {
+  position: relative;
+  display: inline-flex;
+}
+.navgroup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  font-weight: 500;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.navgroup-btn:hover,
+.navgroup-btn.open {
+  color: var(--text);
+}
+.navgroup-btn.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.navgroup-btn svg {
+  opacity: 0.7;
+  transition: transform 0.12s ease;
+}
+.navgroup-btn.open svg {
+  transform: rotate(180deg);
+}
+.navmenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  min-width: 164px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+/* Transparent bridge over the 4px gap so moving from the label to the menu
+   never leaves the group and closes it. */
+.navmenu::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+}
+.navmenu a {
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.navmenu a:hover {
+  background: var(--bg-elev);
+  color: var(--text);
+  text-decoration: none;
+}
+.navmenu a.active {
+  background: var(--accent-strong);
+  color: #fff;
+}
+
 /* Rendered markdown */
 .md {
   line-height: 1.6;
