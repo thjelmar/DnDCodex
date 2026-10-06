@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Icon } from './Icon'
 import { SessionStatusBadge } from './SessionStatusBadge'
+import { CalendarSubscribe } from './CalendarSubscribe'
 import { updateCampaign } from '../db/repo'
 import { useAuth } from '../auth/AuthProvider'
-import { setSessionSchedule, clearSessionSchedule } from '../auth/cloud'
+import { setSessionSchedule, clearSessionSchedule, ensureCalendarToken } from '../auth/cloud'
 import { sessionStatus } from '../lib/sessionStatus'
 import type { Campaign } from '../db/types'
 
@@ -51,8 +52,13 @@ export function NextSessionCard({ campaign }: { campaign: Campaign }) {
       })
       // Mirror to players when signed in; local-first still works if this fails.
       if (user) {
-        if (next) await setSessionSchedule(campaign.id, { nextSessionDate: next, nextSessionTime: nextTime, rescheduledFrom })
-        else await clearSessionSchedule(campaign.id)
+        if (next) {
+          await setSessionSchedule(campaign.id, { nextSessionDate: next, nextSessionTime: nextTime, rescheduledFrom })
+          // Mint the subscribe token now so players get their calendar link automatically.
+          await ensureCalendarToken(campaign.id)
+        } else {
+          await clearSessionSchedule(campaign.id)
+        }
       }
       setEditing(false)
     } catch (e) {
@@ -84,10 +90,13 @@ export function NextSessionCard({ campaign }: { campaign: Campaign }) {
           <SessionStatusBadge status={status} />
         </div>
         {!editing && (
-          <button className="btn ghost small" onClick={open}>
-            <Icon name={campaign.nextSessionDate ? 'pencil' : 'plus'} size={13} />
-            {campaign.nextSessionDate ? 'Change' : 'Set date'}
-          </button>
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            {campaign.nextSessionDate && user && <CalendarSubscribe campaignId={campaign.id} manage />}
+            <button className="btn ghost small" onClick={open}>
+              <Icon name={campaign.nextSessionDate ? 'pencil' : 'plus'} size={13} />
+              {campaign.nextSessionDate ? 'Change' : 'Set date'}
+            </button>
+          </div>
         )}
       </div>
 

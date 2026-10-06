@@ -18,6 +18,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { PlayerNav } from '../components/PlayerNav'
 import { SessionStatusBadge } from '../components/SessionStatusBadge'
+import { CalendarSubscribe } from '../components/CalendarSubscribe'
 import { sessionStatus } from '../lib/sessionStatus'
 import { useSessionSchedule } from '../lib/useSessionSchedule'
 import { CollapsibleSection } from '../components/CollapsibleSection'
@@ -244,7 +245,16 @@ export function PlayerNotesPage() {
             </>
           )}
         </div>
-        <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
+          {schedule?.nextSessionDate &&
+            (sessState.kind === 'upcoming' ||
+              sessState.kind === 'thisweek' ||
+              sessState.kind === 'gameday' ||
+              sessState.kind === 'rescheduled') && (
+              <CalendarSubscribe campaignId={campaign.id} manage={false} />
+            )}
+        </div>
       </div>
       <div className="subtitle" style={{ marginBottom: 16 }}>
         A campaign you're playing in — your journal, character, and notes.

@@ -361,6 +361,29 @@ export async function clearSessionSchedule(campaignId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/** The campaign's calendar-subscription token (members read it to build their
+ *  subscribe link), or null when the DM hasn't created one yet. */
+export async function getCalendarToken(campaignId: string): Promise<string | null> {
+  if (!supabase) return null
+  const { data } = await supabase
+    .from('campaign_calendar_tokens')
+    .select('token')
+    .eq('campaign_id', campaignId)
+    .maybeSingle()
+  return (data?.token as string) ?? null
+}
+
+/** Ensure the campaign has a calendar token (DM only) and return it. */
+export async function ensureCalendarToken(campaignId: string): Promise<string | null> {
+  if (!supabase) return null
+  // Insert if missing; the token defaults server-side. Ignore the conflict when
+  // it already exists, then read it back.
+  await supabase
+    .from('campaign_calendar_tokens')
+    .upsert({ campaign_id: campaignId }, { onConflict: 'campaign_id', ignoreDuplicates: true })
+  return getCalendarToken(campaignId)
+}
+
 /** The schedule for a campaign the user belongs to, or null when none is set. */
 export async function getSessionSchedule(
   cloudCampaignId: string,
