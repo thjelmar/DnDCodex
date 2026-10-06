@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { getSharedWorldMap, getSharedImages, type SharedWorldMap } from '../auth/cloud'
 import { WorldMapCanvas } from '../components/WorldMapCanvas'
 import { Icon } from '../components/Icon'
+import { PlayerNav } from '../components/PlayerNav'
 
 /** The player's read-only view of the world map their DM shared. Reads
  *  `shared_world_maps` (pins) + `shared_images` (the picture) live via RLS, and
@@ -64,12 +65,12 @@ export function PlayerWorldMapPage() {
 
   return (
     <div className="content content-wide">
+      <PlayerNav campaignId={campaign.id} />
       <div className="row between" style={{ marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <h1 className="mb-0">
           <span aria-hidden style={{ marginRight: 8, display: 'inline-flex' }}><Icon name="map" size={20} /></span>
           {map?.name?.trim() || campaign.name} — World Map
         </h1>
-        <Link to={`/player/${campaign.id}`} className="btn ghost small">← Back to campaign</Link>
       </div>
 
       {loaded && !map ? (

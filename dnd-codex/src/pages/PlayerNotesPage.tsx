@@ -16,14 +16,14 @@ import { CharacterSheetEditor, CharacterSheetView, DdbImport, emptyCharacterShee
 import { TagInput, TagChips } from '../components/TagInput'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
-import { SharedGallery } from '../components/SharedGallery'
-import { SharedHandouts } from '../components/SharedHandouts'
-import { SharedWorldMapLink } from '../components/SharedWorldMapLink'
+import { PlayerNav } from '../components/PlayerNav'
+import { SessionStatusBadge } from '../components/SessionStatusBadge'
+import { sessionStatus } from '../lib/sessionStatus'
+import { useSessionSchedule } from '../lib/useSessionSchedule'
 import { CollapsibleSection } from '../components/CollapsibleSection'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
 import { RecapTimeline, hasRecap } from '../components/RecapTimeline'
-import { PartyLoot } from '../components/PartyLoot'
 import type { SharedEntityRow } from '../auth/cloud'
 import { SidePanel } from '../components/SidePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -94,6 +94,9 @@ export function PlayerNotesPage() {
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
   const liveSession = useLiveSession(campaign?.linkedCampaignId)
+  const schedule = useSessionSchedule(campaign?.linkedCampaignId)
+  // The one session indicator: live wins, otherwise the DM's schedule decides.
+  const sessState = sessionStatus(schedule ?? {}, !!liveSession)
   // Resolve the open panel's row from the LIVE list (not a snapshot), so a
   // realtime re-push updates the open card and an un-share closes it.
   const viewShared = viewSharedId ? sharedRows.find((r) => r.id === viewSharedId) ?? null : null
@@ -117,6 +120,7 @@ export function PlayerNotesPage() {
   const editing = notes?.find((n) => n.id === editingId) ?? null
 
   // Local name state for inline rename (debounced autosave).
+  const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState('')
   useEffect(() => {
     if (campaign) setName(campaign.name)
@@ -203,52 +207,90 @@ export function PlayerNotesPage() {
 
   const journalNotes = bySection.get('journal') ?? []
   const showStory = hasRecap(sharedRows, journalNotes)
+  const character = (bySection.get('character') ?? [])[0]
 
   return (
     <div className="content player-page">
-      <div className="row" style={{ gap: 12, marginBottom: 4 }}>
-        <span
-          aria-hidden
-          style={{ width: 14, height: 14, borderRadius: '50%', background: campaign.color, display: 'inline-block', flexShrink: 0 }}
-        />
-        <input
-          className="input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-label="Campaign name"
-          style={{
-            border: 'none',
-            background: 'transparent',
-            fontFamily: 'var(--serif)',
-            fontSize: 30,
-            fontWeight: 600,
-            padding: 0,
-            color: 'var(--text)',
-          }}
-        />
+      <PlayerNav campaignId={campaign.id} />
+
+      <div className="player-hero">
+        <div className="player-hero-title">
+          <span aria-hidden className="player-hero-dot" style={{ background: campaign.color }} />
+          {renaming ? (
+            <input
+              className="input"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => setRenaming(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === 'Escape') setRenaming(false)
+              }}
+              aria-label="Campaign name"
+              style={{ fontFamily: 'var(--serif)', fontSize: 28, fontWeight: 600, padding: '2px 8px', maxWidth: 420 }}
+            />
+          ) : (
+            <>
+              <h1 className="mb-0">{campaign.name}</h1>
+              <button
+                className="btn ghost small"
+                title="Rename campaign"
+                aria-label="Rename campaign"
+                onClick={() => setRenaming(true)}
+                style={{ flexShrink: 0 }}
+              >
+                <Icon name="pencil" size={14} />
+              </button>
+            </>
+          )}
+        </div>
+        <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
       </div>
-      <div className="subtitle" style={{ marginBottom: 14 }}>
+      <div className="subtitle" style={{ marginBottom: 16 }}>
         A campaign you're playing in — your journal, character, and notes.
       </div>
 
-      <div className="row wrap between" style={{ gap: 10, marginBottom: 24, alignItems: 'center' }}>
+      <div className="row wrap between" style={{ gap: 10, marginBottom: 20, alignItems: 'center' }}>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
       </div>
 
-      {liveSession && (
-        <Link to={`/player/${campaign.id}/session`} className="join-session">
-          <span className="join-session-dot" />
-          <span className="join-session-text">
-            <strong>Your DM started a session</strong>
-            <span className="faint">{liveSession.title || 'Session'} — join to see handouts and take notes</span>
-          </span>
-          <span className="btn small primary join-session-btn"><Icon name="play" size={13} color="inherit" /> Join session</span>
-        </Link>
+      {(character || showStory) && (
+        <div className="player-spotlight">
+          {character && (
+            <button className="player-character-card" onClick={() => setEditingId(character.id)}>
+              <span className="player-character-avatar">
+                <Icon name="user" size={18} color="inherit" />
+              </span>
+              <span className="player-character-meta">
+                <span className="player-character-name">{character.title || 'Your character'}</span>
+                {character.characterData && (
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    {character.characterData.species}{' '}
+                    {character.characterData.classes.map((c) => `${c.name} ${c.level}`).join(' / ')} · L
+                    {totalLevel(character.characterData)}
+                  </span>
+                )}
+              </span>
+              <span className="player-character-open">Open sheet →</span>
+            </button>
+          )}
+          {showStory && (
+            <section className="player-story">
+              <div className="row between" style={{ alignItems: 'baseline' }}>
+                <h2 className="mb-0">Story so far</h2>
+                <Link to={`/player/${campaign.id}/story`} className="btn ghost small">
+                  View all →
+                </Link>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />
+              </div>
+            </section>
+          )}
+        </div>
       )}
 
-
-      <div className="player-layout">
-        <div className="player-main">
+      <div className="player-sections">
       {SECTIONS.map((section) => {
         const mine = bySection.get(section.key) ?? []
         const shared = sharedBySection.get(section.key) ?? []
@@ -301,12 +343,6 @@ export function PlayerNotesPage() {
         )
       })}
 
-      {campaign.linkedCampaignId && (
-        <CollapsibleSection storageKey={`player.${campaign.id}.loot`} icon="💰" label="Party Loot">
-          <PartyLoot cloudCampaignId={campaign.linkedCampaignId} />
-        </CollapsibleSection>
-      )}
-
       <CollapsibleSection storageKey={`player.${campaign.id}.map`} defaultOpen={false} icon="🕸️" label="Map">
         <p className="faint" style={{ margin: '2px 0 10px' }}>
           Your People &amp; Places and Quests as a web — drag a bubble onto another to connect them, and spot who
@@ -319,21 +355,6 @@ export function PlayerNotesPage() {
       <button className="btn danger small" onClick={removeCampaign}>
         Remove this campaign
       </button>
-        </div>
-        {(campaign.linkedCampaignId || showStory) && (
-          <aside className="player-aside">
-            {campaign.linkedCampaignId && (
-              <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} compact campaignId={campaign.id} />
-            )}
-            {campaign.linkedCampaignId && (
-              <SharedGallery campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} linkOnly />
-            )}
-            {campaign.linkedCampaignId && (
-              <SharedWorldMapLink campaignId={campaign.id} linkedCampaignId={campaign.linkedCampaignId} />
-            )}
-            {showStory && <RecapTimeline sharedRows={sharedRows} journal={journalNotes} />}
-          </aside>
-        )}
       </div>
 
       {editing && (

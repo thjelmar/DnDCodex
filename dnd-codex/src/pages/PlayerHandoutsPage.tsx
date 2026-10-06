@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import { getSharedImages, type SharedImage } from '../auth/cloud'
 import { Modal } from '../components/Modal'
+import { PlayerNav } from '../components/PlayerNav'
 import { formatDate } from '../lib/format'
 
 /** The player's full handouts view — every handout the DM is currently showing,
@@ -30,12 +31,12 @@ export function PlayerHandoutsPage() {
 
   return (
     <div className="content">
+      <PlayerNav campaignId={campaign.id} />
       <div className="row between" style={{ marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
         <h1 className="mb-0">
           <span aria-hidden style={{ marginRight: 8, display: 'inline-flex' }}><Icon name="image" size={20} /></span>
           {campaign.name} — Handouts
         </h1>
-        <Link to={`/player/${campaign.id}`} className="btn ghost small">← Back to campaign</Link>
       </div>
       <HandoutsBySession linkedCampaignId={campaign.linkedCampaignId} />
     </div>

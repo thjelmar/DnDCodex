@@ -922,6 +922,164 @@ button {
   color: #fff;
 }
 
+/* Session-status indicator (shared: DM scheduler + player header). */
+.sess-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.sess-badge.none {
+  color: var(--text-faint);
+  background: transparent;
+}
+.sess-badge.thisweek,
+.sess-badge.upcoming {
+  border-color: #3a3360;
+  color: #c4b5fd;
+}
+.sess-badge.gameday {
+  border-color: #1f5c43;
+  background: #10281f;
+  color: #8fe7c4;
+}
+.sess-badge.rescheduled {
+  border-color: #6b4f1d;
+  background: #2a2113;
+  color: #f0c674;
+}
+.sess-badge.live {
+  border: none;
+  cursor: pointer;
+  background: var(--good);
+  color: #06281c;
+  font-family: inherit;
+}
+.sess-badge.live:hover {
+  filter: brightness(1.06);
+}
+.sess-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #06281c;
+}
+
+/* DM "Next session" scheduler card on the campaign overview. */
+.next-session {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--bg-elev);
+}
+.next-session-label {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.next-session-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  margin-top: 12px;
+}
+.next-session-edit .field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.next-session-edit .field label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.next-session-edit input[type='date'],
+.next-session-edit input[type='time'] {
+  max-width: 170px;
+}
+
+/* Player landing (story-first) ------------------------------------------- */
+.player-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 4px 0 6px;
+}
+.player-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.player-hero-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.player-spotlight {
+  margin-bottom: 20px;
+}
+.player-character-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  color: var(--text);
+  font: inherit;
+}
+.player-character-card:hover {
+  border-color: var(--accent);
+}
+.player-character-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #2a2140;
+  color: #c4b5fd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.player-character-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.player-character-name {
+  font-size: 14px;
+  font-weight: 500;
+}
+.player-character-open {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 12.5px;
+  flex-shrink: 0;
+}
+.player-story {
+  margin-bottom: 8px;
+}
+
 /* Rendered markdown */
 .md {
   line-height: 1.6;
