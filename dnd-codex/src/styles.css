@@ -1006,6 +1006,136 @@ button {
   max-width: 170px;
 }
 
+/* Session RSVP — player control + DM tally (T-9). */
+.rsvp-control {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.rsvp-prompt {
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.rsvp-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rsvp-opt {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 5px 13px;
+  cursor: pointer;
+  border-left: 1px solid var(--border);
+}
+.rsvp-opt:first-child {
+  border-left: none;
+}
+.rsvp-opt:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--bg-elev);
+}
+.rsvp-opt:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.rsvp-opt.rsvp-yes.active {
+  background: var(--good);
+  color: #06281c;
+}
+.rsvp-opt.rsvp-maybe.active {
+  background: #f0c674;
+  color: #2a2113;
+}
+.rsvp-opt.rsvp-no.active {
+  background: var(--danger);
+  color: #2a1013;
+}
+.rsvp-mini {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.rsvp-err {
+  font-size: 12px;
+  color: var(--danger);
+  flex-basis: 100%;
+}
+
+.rsvp-tally {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.rsvp-tally-empty {
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+.rsvp-tally-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+.rsvp-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rsvp-tally-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.rsvp-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rsvp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+  background: var(--text-faint);
+}
+.rsvp-yes .rsvp-dot {
+  background: var(--good);
+}
+.rsvp-maybe .rsvp-dot {
+  background: #f0c674;
+}
+.rsvp-no .rsvp-dot {
+  background: var(--danger);
+}
+
+/* Player hero: stack the status badge + RSVP on the right of the title. */
+.player-hero-session {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .player-hero-session {
+    align-items: flex-start;
+    width: 100%;
+  }
+}
+
 /* Player landing (story-first) ------------------------------------------- */
 .player-hero {
   display: flex;

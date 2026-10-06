@@ -19,8 +19,10 @@ import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { PlayerNav } from '../components/PlayerNav'
 import { SessionStatusBadge } from '../components/SessionStatusBadge'
 import { CalendarSubscribe } from '../components/CalendarSubscribe'
+import { RsvpControl } from '../components/SessionRsvp'
 import { sessionStatus } from '../lib/sessionStatus'
 import { useSessionSchedule } from '../lib/useSessionSchedule'
+import { useAuth } from '../auth/AuthProvider'
 import { CollapsibleSection } from '../components/CollapsibleSection'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useSharedEntities, SharedCard } from '../components/SharedEntities'
@@ -73,6 +75,7 @@ export function PlayerNotesPage() {
   const { campaignId } = useParams()
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const { user } = useAuth()
 
   const campaign = useLiveQuery(
     // `?? null` so a missing campaign reads as "not found", not "still loading".
@@ -98,6 +101,14 @@ export function PlayerNotesPage() {
   const schedule = useSessionSchedule(campaign?.linkedCampaignId)
   // The one session indicator: live wins, otherwise the DM's schedule decides.
   const sessState = sessionStatus(schedule ?? {}, !!liveSession)
+  // A session is scheduled and still ahead of us (not live, not unscheduled) —
+  // the window for subscribing to the calendar and for RSVPing.
+  const preSession =
+    !!schedule?.nextSessionDate &&
+    (sessState.kind === 'upcoming' ||
+      sessState.kind === 'thisweek' ||
+      sessState.kind === 'gameday' ||
+      sessState.kind === 'rescheduled')
   // Resolve the open panel's row from the LIVE list (not a snapshot), so a
   // realtime re-push updates the open card and an un-share closes it.
   const viewShared = viewSharedId ? sharedRows.find((r) => r.id === viewSharedId) ?? null : null
@@ -245,18 +256,22 @@ export function PlayerNotesPage() {
             </>
           )}
         </div>
-        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-          <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
-          {campaign.linkedCampaignId &&
-            schedule?.nextSessionDate &&
-            (sessState.kind === 'upcoming' ||
-              sessState.kind === 'thisweek' ||
-              sessState.kind === 'gameday' ||
-              sessState.kind === 'rescheduled') && (
+        <div className="player-hero-session">
+          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+            <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
+            {campaign.linkedCampaignId && preSession && (
               // The token + feed live under the DM's cloud campaign, not the
               // player's local copy — so subscribe against linkedCampaignId.
               <CalendarSubscribe campaignId={campaign.linkedCampaignId} manage={false} />
             )}
+          </div>
+          {campaign.linkedCampaignId && user && preSession && (
+            <RsvpControl
+              cloudCampaignId={campaign.linkedCampaignId}
+              userId={user.id}
+              sessionDate={schedule?.nextSessionDate ?? null}
+            />
+          )}
         </div>
       </div>
       <div className="subtitle" style={{ marginBottom: 16 }}>

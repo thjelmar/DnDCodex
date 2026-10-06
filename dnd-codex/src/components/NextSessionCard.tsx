@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from './Icon'
 import { SessionStatusBadge } from './SessionStatusBadge'
 import { CalendarSubscribe } from './CalendarSubscribe'
+import { RsvpTally } from './SessionRsvp'
 import { updateCampaign } from '../db/repo'
 import { useAuth } from '../auth/AuthProvider'
 import { setSessionSchedule, clearSessionSchedule, ensureCalendarToken } from '../auth/cloud'
@@ -120,6 +121,9 @@ export function NextSessionCard({ campaign }: { campaign: Campaign }) {
             <button className="btn ghost small" onClick={() => setEditing(false)} disabled={busy}>Cancel</button>
           </div>
         </div>
+      )}
+      {!editing && campaign.nextSessionDate && user && (
+        <RsvpTally cloudCampaignId={campaign.id} sessionDate={campaign.nextSessionDate} />
       )}
       {err && <p className="muted" style={{ color: 'var(--bad)', margin: '8px 0 0' }}>{err}</p>}
     </div>
