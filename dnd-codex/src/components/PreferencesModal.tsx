@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
+import { CalendarSubscriptionsPref } from './CalendarSubscriptionsPref'
 import {
   REVEAL_CONFIRM_KEY,
   SHAREABLE_KINDS,
@@ -79,6 +80,8 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
           is stored in this browser.
         </div>
       </div>
+
+      <CalendarSubscriptionsPref />
 
       <div className="prefs-section">
         <div className="prefs-section-title">Confirmation prompts</div>
