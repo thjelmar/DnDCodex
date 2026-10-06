@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { useParams, NavLink, Outlet, useOutletContext, useLocation, Link } from 'react-router-dom'
+import { useParams, Outlet, useOutletContext, useLocation, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updateCampaign } from '../db/repo'
 import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
 import { PushChangesPanel } from '../components/PushChangesPanel'
+import { CampaignNav } from '../components/CampaignNav'
 import { Icon } from '../components/Icon'
 import { LiveSceneKeeper } from './LiveSceneKeeper'
 import type { Campaign } from '../db/types'
@@ -18,24 +19,6 @@ interface CampaignContext {
 export function useCampaign(): Campaign {
   return useOutletContext<CampaignContext>().campaign
 }
-
-const TABS = [
-  { to: '', label: 'Overview', end: true },
-  { to: 'sessions', label: 'Sessions' },
-  { to: 'timeline', label: 'Timeline' },
-  { to: 'notes', label: 'World' },
-  { to: 'npcs', label: 'NPCs' },
-  { to: 'locations', label: 'Locations' },
-  { to: 'items', label: 'Items' },
-  { to: 'tables', label: 'Tables' },
-  { to: 'map', label: 'Map' },
-  { to: 'worldmap', label: 'World Map' },
-  { to: 'battlemap', label: 'Battle Map' },
-  { to: 'gallery', label: 'Gallery' },
-  { to: 'handouts', label: 'Handouts' },
-  { to: 'loot', label: 'Loot' },
-  { to: 'tags', label: 'Tags' },
-]
 
 export function CampaignLayout() {
   const { campaignId } = useParams()
@@ -145,18 +128,7 @@ export function CampaignLayout() {
         </div>
       )}
 
-      <div className="subnav">
-        {TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            className={({ isActive }) => (isActive ? 'active' : '')}
-          >
-            {t.label}
-          </NavLink>
-        ))}
-      </div>
+      <CampaignNav />
 
       <Outlet context={{ campaign } satisfies CampaignContext} />
       {/* Keeps a live battle map in sync when its editor isn't open. */}
