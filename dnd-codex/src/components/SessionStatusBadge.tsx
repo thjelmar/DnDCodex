@@ -17,15 +17,27 @@ const ICON: Record<SessionStatus['kind'], IconName> = {
 export function SessionStatusBadge({
   status,
   onJoin,
+  onClick,
 }: {
   status: SessionStatus
   /** Called when the player clicks "Join session" (live state only). */
   onJoin?: () => void
+  /** When set (non-live states), the whole badge becomes a button — e.g. the
+   *  player's session box that opens the planner. */
+  onClick?: () => void
 }) {
   if (status.kind === 'live') {
     return (
       <button type="button" className="sess-badge live" onClick={onJoin}>
         <span className="sess-live-dot" />
+        {status.label}
+      </button>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" className={`sess-badge ${status.kind} sess-badge-btn`} onClick={onClick}>
+        <Icon name={ICON[status.kind]} size={14} color="inherit" />
         {status.label}
       </button>
     )
