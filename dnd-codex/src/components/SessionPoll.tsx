@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Icon } from './Icon'
+import { MonthCalendar } from './MonthCalendar'
 import {
   approveCandidateDay,
   removeCandidateDay,
@@ -13,7 +14,7 @@ import {
   type RsvpStatus,
 } from '../auth/cloud'
 import { formatDate } from '../lib/format'
-import { localIso } from '../lib/calendar'
+import { localIso, monthOf } from '../lib/calendar'
 
 // Session date poll (T-19 Phase 1). The DM floats backup days and players mark
 // which they can make; players can also suggest a day for the DM to approve.
@@ -154,6 +155,7 @@ export function PlayerBackups({
   availability: SessionAvailability[]
 }) {
   const [suggestDate, setSuggestDate] = useState('')
+  const [suggestMonth, setSuggestMonth] = useState(() => monthOf(null))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const today = localIso(new Date())
@@ -161,6 +163,8 @@ export function PlayerBackups({
   const approved = candidates.filter((c) => c.status === 'approved')
   const mySuggestions = candidates.filter((c) => c.status === 'proposed' && c.suggestedBy === userId)
   const mineByDate = new Map(availability.filter((a) => a.userId === userId).map((a) => [a.date, a.status]))
+  const approvedSet = new Set(approved.map((c) => c.date))
+  const myProposedSet = new Set(mySuggestions.map((c) => c.date))
 
   async function run(fn: () => Promise<void>) {
     setErr(null)
@@ -221,18 +225,27 @@ export function PlayerBackups({
 
       <div className="poll-block">
         <div className="poll-section-label">Suggest a day you can make</div>
-        <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            type="date"
-            className="input"
-            style={{ maxWidth: 170 }}
-            min={today}
-            value={suggestDate}
-            onChange={(e) => setSuggestDate(e.target.value)}
-          />
+        <MonthCalendar
+          month={suggestMonth}
+          onMonthChange={setSuggestMonth}
+          selected={suggestDate || null}
+          today={today}
+          onPick={(iso) => {
+            if (iso < today) return // can't suggest a past day
+            setSuggestDate(iso === suggestDate ? '' : iso)
+          }}
+          backups={approvedSet}
+          proposed={myProposedSet}
+        />
+        <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 10 }}>
           <button className="btn small" disabled={busy || !suggestDate} onClick={submitSuggestion}>
-            Suggest
+            {suggestDate ? `Suggest ${formatDate(suggestDate)}` : 'Pick a day above'}
           </button>
+          {suggestDate && (
+            <button className="btn ghost small" disabled={busy} onClick={() => setSuggestDate('')}>
+              Clear
+            </button>
+          )}
         </div>
         {mySuggestions.length > 0 && (
           <div style={{ marginTop: 8 }}>
