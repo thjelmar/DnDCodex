@@ -11,6 +11,8 @@ export function MonthCalendar({
   selected,
   today,
   onPick,
+  backups,
+  proposed,
 }: {
   /** The month to display (any day in it; day-1 is conventional). */
   month: Date
@@ -21,6 +23,10 @@ export function MonthCalendar({
   today: string
   /** When given, days become buttons that call this with the ISO clicked. */
   onPick?: (iso: string) => void
+  /** Candidate "backup" days to mark (outlined), ISO strings. */
+  backups?: Set<string>
+  /** Player-suggested days awaiting the DM (dashed), ISO strings. */
+  proposed?: Set<string>
 }) {
   const days = monthGrid(month)
   return (
@@ -53,7 +59,11 @@ export function MonthCalendar({
         {days.map((d) => {
           const isSel = d.iso === selected
           const isToday = d.iso === today
-          const cls = `monthcal-day${d.inMonth ? '' : ' out'}${isSel ? ' sel' : ''}${isToday ? ' today' : ''}`
+          const isBackup = !isSel && !!backups?.has(d.iso)
+          const isProposed = !isSel && !isBackup && !!proposed?.has(d.iso)
+          const cls =
+            `monthcal-day${d.inMonth ? '' : ' out'}${isSel ? ' sel' : ''}` +
+            `${isBackup ? ' backup' : ''}${isProposed ? ' proposed' : ''}${isToday ? ' today' : ''}`
           return onPick ? (
             <button
               key={d.iso}

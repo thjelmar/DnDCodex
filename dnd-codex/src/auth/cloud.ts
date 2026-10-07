@@ -473,6 +473,170 @@ export async function getSessionRsvps(cloudCampaignId: string): Promise<SessionR
   })
 }
 
+// --- Session date poll / backup days (T-19 Phase 1) ------------------------
+// When the primary date doesn't work for everyone, the DM floats candidate
+// "backup" days, every member marks yes/maybe/no per day, and players can
+// suggest a day for the DM to approve. Candidate days live in
+// session_candidates ('approved' = DM backup, 'proposed' = player suggestion);
+// per-day answers live in session_availability.
+
+export interface SessionCandidate {
+  /** ISO yyyy-mm-dd. */
+  date: string
+  status: 'approved' | 'proposed'
+  /** The suggesting member's id (null for DM-added backups). */
+  suggestedBy: string | null
+  /** The suggesting member's display name (for the DM's pending-suggestions list). */
+  suggesterName: string | null
+}
+
+export interface SessionAvailability {
+  userId: string
+  date: string
+  status: RsvpStatus
+  displayName: string
+  avatarUrl: string | null
+}
+
+/** Every candidate day for a campaign the user belongs to (backups + suggestions). */
+export async function getSessionCandidates(cloudCampaignId: string): Promise<SessionCandidate[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('session_candidates')
+    .select('date, status, suggested_by, profiles ( display_name )')
+    .eq('campaign_id', cloudCampaignId)
+    .order('date', { ascending: true })
+  if (error || !data) return []
+  return (data as unknown as Record<string, unknown>[]).map((r) => {
+    const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
+      | { display_name: string | null }
+      | undefined
+    return {
+      date: r.date as string,
+      status: ((r.status as string) === 'proposed' ? 'proposed' : 'approved') as SessionCandidate['status'],
+      suggestedBy: (r.suggested_by as string) ?? null,
+      suggesterName: p?.display_name ?? null,
+    }
+  })
+}
+
+/** DM: add (or approve an existing suggestion into) a backup day. */
+export async function addCandidateDay(campaignId: string, date: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase
+    .from('session_candidates')
+    .upsert({ campaign_id: campaignId, date, status: 'approved' }, { onConflict: 'campaign_id,date' })
+  if (error) throw new Error(error.message)
+}
+
+/** DM: approve a player-suggested day in place (keeps who suggested it). */
+export async function approveCandidateDay(campaignId: string, date: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase
+    .from('session_candidates')
+    .update({ status: 'approved' })
+    .eq('campaign_id', campaignId)
+    .eq('date', date)
+  if (error) throw new Error(error.message)
+}
+
+/** DM: remove a candidate day (backup or suggestion). */
+export async function removeCandidateDay(campaignId: string, date: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('session_candidates')
+    .delete()
+    .eq('campaign_id', campaignId)
+    .eq('date', date)
+  if (error) throw new Error(error.message)
+}
+
+/** DM: remove every candidate day (used when locking a date in / closing the poll). */
+export async function clearCandidateDays(campaignId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('session_candidates').delete().eq('campaign_id', campaignId)
+  if (error) throw new Error(error.message)
+}
+
+/** Player: suggest a day for the DM to consider (no-op if it's already a candidate). */
+export async function suggestCandidateDay(campaignId: string, userId: string, date: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('session_candidates').upsert(
+    { campaign_id: campaignId, date, status: 'proposed', suggested_by: userId },
+    { onConflict: 'campaign_id,date', ignoreDuplicates: true },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Player: withdraw their own still-pending suggestion. */
+export async function withdrawSuggestedDay(campaignId: string, userId: string, date: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('session_candidates')
+    .delete()
+    .eq('campaign_id', campaignId)
+    .eq('date', date)
+    .eq('suggested_by', userId)
+    .eq('status', 'proposed')
+  if (error) throw new Error(error.message)
+}
+
+/** Every member's per-day availability for a campaign the user belongs to. */
+export async function getSessionAvailability(cloudCampaignId: string): Promise<SessionAvailability[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('session_availability')
+    .select('user_id, date, status, profiles ( display_name, avatar_url )')
+    .eq('campaign_id', cloudCampaignId)
+  if (error || !data) return []
+  return (data as unknown as Record<string, unknown>[]).map((r) => {
+    const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
+      | { display_name: string | null; avatar_url: string | null }
+      | undefined
+    return {
+      userId: r.user_id as string,
+      date: r.date as string,
+      status: r.status as RsvpStatus,
+      displayName: p?.display_name || 'Player',
+      avatarUrl: p?.avatar_url ?? null,
+    }
+  })
+}
+
+/** Player: set their availability for a candidate day. */
+export async function setMyAvailability(
+  campaignId: string,
+  userId: string,
+  date: string,
+  status: RsvpStatus,
+): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.from('session_availability').upsert(
+    { campaign_id: campaignId, user_id: userId, date, status, updated_at: new Date().toISOString() },
+    { onConflict: 'campaign_id,user_id,date' },
+  )
+  if (error) throw new Error(error.message)
+}
+
+/** Player: clear their availability for a day (back to no answer). */
+export async function clearMyAvailability(campaignId: string, userId: string, date: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase
+    .from('session_availability')
+    .delete()
+    .eq('campaign_id', campaignId)
+    .eq('user_id', userId)
+    .eq('date', date)
+  if (error) throw new Error(error.message)
+}
+
+/** DM: clear all availability for a campaign (used when locking a date in). */
+export async function clearAllAvailability(campaignId: string): Promise<void> {
+  if (!supabase) return
+  const { error } = await supabase.from('session_availability').delete().eq('campaign_id', campaignId)
+  if (error) throw new Error(error.message)
+}
+
 // --- Shared entities (Phase 3c) --------------------------------------------
 // Live published entity copies. `pushEntity` uploads the reveal-safe, spoiler-
 // redacted snapshot (see lib/reveal.ts); it is the DM's explicit "publish" step,
