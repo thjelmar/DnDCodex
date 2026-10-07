@@ -260,13 +260,10 @@ export function PlayerNotesPage() {
           {sessState.kind === 'live' ? (
             <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
           ) : campaign.linkedCampaignId && preSession ? (
-            // The session box is a button that opens the planner (calendar +
-            // add-to-calendar + RSVP). Everything hangs off the DM's cloud
-            // campaign (linkedCampaignId), not the player's local copy.
-            <button className="session-box-trigger" onClick={() => setPlannerOpen(true)}>
-              <SessionStatusBadge status={sessState} />
-              <Icon name="chevron-down" size={14} />
-            </button>
+            // The status pill itself is the button that opens the planner
+            // (calendar + add-to-calendar + RSVP). Everything hangs off the DM's
+            // cloud campaign (linkedCampaignId), not the player's local copy.
+            <SessionStatusBadge status={sessState} onClick={() => setPlannerOpen(true)} />
           ) : (
             <SessionStatusBadge status={sessState} />
           )}
