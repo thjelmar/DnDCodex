@@ -1281,29 +1281,6 @@ button.monthcal-day:hover:not(.sel) {
   color: #f0c674;
 }
 
-/* Compact variant for the secondary "suggest a day" picker. */
-.monthcal-compact {
-  max-width: 280px;
-}
-.monthcal-compact .monthcal-head {
-  margin-bottom: 4px;
-}
-.monthcal-compact .monthcal-title {
-  font-size: 12.5px;
-}
-.monthcal-compact .monthcal-grid {
-  gap: 2px;
-}
-.monthcal-compact .monthcal-dow {
-  font-size: 10px;
-  padding: 1px 0 2px;
-}
-.monthcal-compact .monthcal-day {
-  min-height: 26px;
-  font-size: 12px;
-  border-radius: 6px;
-}
-
 /* Session date poll (backup days + availability). */
 .poll {
   display: flex;

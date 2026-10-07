@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Icon } from './Icon'
-import { MonthCalendar } from './MonthCalendar'
 import {
   approveCandidateDay,
   removeCandidateDay,
@@ -14,7 +13,6 @@ import {
   type RsvpStatus,
 } from '../auth/cloud'
 import { formatDate } from '../lib/format'
-import { localIso, monthOf } from '../lib/calendar'
 
 // Session date poll (T-19 Phase 1). The DM floats backup days and players mark
 // which they can make; players can also suggest a day for the DM to approve.
@@ -140,31 +138,32 @@ export function DmBackups({
 
 /**
  * Player-facing poll: a yes/maybe/no toggle for each backup day the DM floated,
- * plus a "suggest a day" field. Shown only once the player has said Maybe/Can't
- * to the primary date (the parent gates on that).
+ * plus a "suggest a day" action driven by the main calendar (the parent lifts
+ * the pending pick). Shown only once the player has said Maybe/Can't to the
+ * primary date (the parent gates on that).
  */
 export function PlayerBackups({
   cloudCampaignId,
   userId,
   candidates,
   availability,
+  suggestPick,
+  onClearPick,
 }: {
   cloudCampaignId: string
   userId: string
   candidates: SessionCandidate[]
   availability: SessionAvailability[]
+  /** The day the player tapped on the main calendar to suggest, or null. */
+  suggestPick: string | null
+  onClearPick: () => void
 }) {
-  const [suggestDate, setSuggestDate] = useState('')
-  const [suggestMonth, setSuggestMonth] = useState(() => monthOf(null))
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const today = localIso(new Date())
 
   const approved = candidates.filter((c) => c.status === 'approved')
   const mySuggestions = candidates.filter((c) => c.status === 'proposed' && c.suggestedBy === userId)
   const mineByDate = new Map(availability.filter((a) => a.userId === userId).map((a) => [a.date, a.status]))
-  const approvedSet = new Set(approved.map((c) => c.date))
-  const myProposedSet = new Set(mySuggestions.map((c) => c.date))
 
   async function run(fn: () => Promise<void>) {
     setErr(null)
@@ -188,10 +187,9 @@ export function PlayerBackups({
   }
 
   async function submitSuggestion() {
-    if (!suggestDate) return
-    const d = suggestDate
-    setSuggestDate('')
-    await run(() => suggestCandidateDay(cloudCampaignId, userId, d))
+    if (!suggestPick) return
+    await run(() => suggestCandidateDay(cloudCampaignId, userId, suggestPick))
+    onClearPick()
   }
 
   return (
@@ -225,27 +223,20 @@ export function PlayerBackups({
 
       <div className="poll-block">
         <div className="poll-section-label">Suggest a day you can make</div>
-        <MonthCalendar
-          month={suggestMonth}
-          onMonthChange={setSuggestMonth}
-          selected={suggestDate || null}
-          today={today}
-          onPick={(iso) => {
-            if (iso < today) return // can't suggest a past day
-            setSuggestDate(iso === suggestDate ? '' : iso)
-          }}
-          backups={approvedSet}
-          proposed={myProposedSet}
-          compact
-        />
-        <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 10 }}>
-          <button className="btn small" disabled={busy || !suggestDate} onClick={submitSuggestion}>
-            {suggestDate ? `Suggest ${formatDate(suggestDate)}` : 'Pick a day above'}
-          </button>
-          {suggestDate && (
-            <button className="btn ghost small" disabled={busy} onClick={() => setSuggestDate('')}>
-              Clear
-            </button>
+        <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {suggestPick ? (
+            <>
+              <button className="btn small" disabled={busy} onClick={submitSuggestion}>
+                Suggest {formatDate(suggestPick)}
+              </button>
+              <button className="btn ghost small" disabled={busy} onClick={onClearPick}>
+                Clear
+              </button>
+            </>
+          ) : (
+            <span className="faint" style={{ fontSize: 12 }}>
+              Tap a day on the calendar above to suggest it.
+            </span>
           )}
         </div>
         {mySuggestions.length > 0 && (
