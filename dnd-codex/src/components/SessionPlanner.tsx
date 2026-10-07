@@ -59,6 +59,7 @@ export function SessionPlanner({
   const [time, setTime] = useState(schedule.nextSessionTime ?? '')
   const [month, setMonth] = useState(() => monthOf(schedule.nextSessionDate))
   const [calMode, setCalMode] = useState<'primary' | 'backups'>('primary')
+  const [suggestPick, setSuggestPick] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -79,6 +80,17 @@ export function SessionPlanner({
       ? rsvps.find((r) => r.userId === userId && (r.sessionDate ?? null) === scheduledDate)?.status ?? null
       : null
   const showPlayerBackups = !dm && !!scheduledDate && (myPrimary === 'maybe' || myPrimary === 'no')
+
+  // Player suggesting: pick happens on the main calendar; the pending pick plus
+  // the player's own still-pending suggestions show dashed there.
+  const playerProposedSet = new Set([
+    ...candidates.filter((c) => c.status === 'proposed' && c.suggestedBy === userId).map((c) => c.date),
+    ...(suggestPick ? [suggestPick] : []),
+  ])
+  function pickSuggestion(iso: string) {
+    if (iso < today || iso === scheduledDate || approvedSet.has(iso)) return
+    setSuggestPick((prev) => (prev === iso ? null : iso))
+  }
 
   async function save() {
     const next = date || null
@@ -162,7 +174,9 @@ export function SessionPlanner({
         if (calMode === 'primary') setDate(iso)
         else toggleBackup(iso)
       }
-    : undefined
+    : showPlayerBackups
+      ? pickSuggestion
+      : undefined
 
   // Backups become available to manage once a primary date exists.
   const showDmPoll = dm && !!scheduledDate && signedIn
@@ -218,7 +232,7 @@ export function SessionPlanner({
           today={today}
           onPick={onPick}
           backups={approvedSet}
-          proposed={dm ? proposedSet : undefined}
+          proposed={dm ? proposedSet : showPlayerBackups ? playerProposedSet : undefined}
         />
 
         {dm && calMode === 'primary' && (
@@ -263,6 +277,8 @@ export function SessionPlanner({
             userId={userId}
             candidates={candidates}
             availability={availability}
+            suggestPick={suggestPick}
+            onClearPick={() => setSuggestPick(null)}
           />
         )}
 

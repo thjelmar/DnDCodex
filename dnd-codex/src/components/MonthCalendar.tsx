@@ -13,7 +13,6 @@ export function MonthCalendar({
   onPick,
   backups,
   proposed,
-  compact,
 }: {
   /** The month to display (any day in it; day-1 is conventional). */
   month: Date
@@ -28,12 +27,10 @@ export function MonthCalendar({
   backups?: Set<string>
   /** Player-suggested days awaiting the DM (dashed), ISO strings. */
   proposed?: Set<string>
-  /** A tighter, smaller variant (e.g. the secondary "suggest a day" picker). */
-  compact?: boolean
 }) {
   const days = monthGrid(month)
   return (
-    <div className={`monthcal${compact ? ' monthcal-compact' : ''}`}>
+    <div className="monthcal">
       <div className="monthcal-head">
         <button
           type="button"
