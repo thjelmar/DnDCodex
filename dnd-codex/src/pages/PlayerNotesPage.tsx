@@ -18,8 +18,7 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { ThoughtMap, type MapConfig } from '../components/ThoughtMap'
 import { PlayerNav } from '../components/PlayerNav'
 import { SessionStatusBadge } from '../components/SessionStatusBadge'
-import { CalendarSubscribe } from '../components/CalendarSubscribe'
-import { RsvpControl } from '../components/SessionRsvp'
+import { SessionPlanner } from '../components/SessionPlanner'
 import { sessionStatus } from '../lib/sessionStatus'
 import { useSessionSchedule } from '../lib/useSessionSchedule'
 import { useAuth } from '../auth/AuthProvider'
@@ -94,6 +93,7 @@ export function PlayerNotesPage() {
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
   const [viewSharedId, setViewSharedId] = useState<string | null>(null)
+  const [plannerOpen, setPlannerOpen] = useState(false)
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
@@ -257,20 +257,18 @@ export function PlayerNotesPage() {
           )}
         </div>
         <div className="player-hero-session">
-          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+          {sessState.kind === 'live' ? (
             <SessionStatusBadge status={sessState} onJoin={() => navigate(`/player/${campaign.id}/session`)} />
-            {campaign.linkedCampaignId && preSession && (
-              // The token + feed live under the DM's cloud campaign, not the
-              // player's local copy — so subscribe against linkedCampaignId.
-              <CalendarSubscribe campaignId={campaign.linkedCampaignId} manage={false} />
-            )}
-          </div>
-          {campaign.linkedCampaignId && user && preSession && (
-            <RsvpControl
-              cloudCampaignId={campaign.linkedCampaignId}
-              userId={user.id}
-              sessionDate={schedule?.nextSessionDate ?? null}
-            />
+          ) : campaign.linkedCampaignId && preSession ? (
+            // The session box is a button that opens the planner (calendar +
+            // add-to-calendar + RSVP). Everything hangs off the DM's cloud
+            // campaign (linkedCampaignId), not the player's local copy.
+            <button className="session-box-trigger" onClick={() => setPlannerOpen(true)}>
+              <SessionStatusBadge status={sessState} />
+              <Icon name="chevron-down" size={14} />
+            </button>
+          ) : (
+            <SessionStatusBadge status={sessState} />
           )}
         </div>
       </div>
@@ -392,6 +390,18 @@ export function PlayerNotesPage() {
         <SidePanel title="Shared with you" onClose={() => setViewSharedId(null)}>
           <SharedCard row={viewShared} />
         </SidePanel>
+      )}
+      {plannerOpen && campaign.linkedCampaignId && (
+        <SessionPlanner
+          mode="player"
+          campaign={campaign}
+          cloudCampaignId={campaign.linkedCampaignId}
+          userId={user?.id}
+          schedule={schedule ?? {}}
+          isLive={!!liveSession}
+          signedIn={!!user}
+          onClose={() => setPlannerOpen(false)}
+        />
       )}
     </div>
   )

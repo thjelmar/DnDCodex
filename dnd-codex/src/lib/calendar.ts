@@ -56,3 +56,68 @@ export function sessionsToICS(
   // iCalendar requires CRLF line endings.
   return lines.join('\r\n')
 }
+
+// ── Month-grid helpers for the from-scratch calendar (no date lib) ──────────
+// Dates are handled as LOCAL `yyyy-mm-dd` strings to match the rest of the
+// scheduler (see lib/sessionStatus.ts) and avoid UTC off-by-one bugs. Weeks
+// start Sunday, the same week convention sessionStatus uses.
+
+const MONTHS_LONG = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/** Minimal weekday headers, Sunday first. */
+export const WEEKDAY_MIN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+
+/** Local `yyyy-mm-dd` for a Date (not UTC). */
+export function localIso(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** "October 2026" for the calendar header. */
+export function monthLabel(d: Date): string {
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`
+}
+
+/** The first of a month `n` months away from `d` (keeps day-1 to avoid overflow). */
+export function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1)
+}
+
+/** The month (day-1) that should be shown first: the one holding `iso`, else now. */
+export function monthOf(iso: string | null | undefined): Date {
+  if (iso) {
+    const [y, m] = iso.split('-').map(Number)
+    return new Date(y, (m ?? 1) - 1, 1)
+  }
+  const n = new Date()
+  return new Date(n.getFullYear(), n.getMonth(), 1)
+}
+
+export interface GridDay {
+  /** Local `yyyy-mm-dd`. */
+  iso: string
+  /** Day-of-month number to show. */
+  day: number
+  /** False for the leading/trailing days that belong to the adjacent month. */
+  inMonth: boolean
+}
+
+/**
+ * The 6×7 = 42 cell grid for the month containing `d`, starting on the Sunday on
+ * or before the 1st and running six full weeks so the grid height never jumps.
+ */
+export function monthGrid(d: Date): GridDay[] {
+  const year = d.getFullYear()
+  const month = d.getMonth()
+  const first = new Date(year, month, 1)
+  // Back up to the Sunday that starts the first visible week.
+  const start = new Date(year, month, 1 - first.getDay())
+  const days: GridDay[] = []
+  for (let i = 0; i < 42; i++) {
+    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+    days.push({ iso: localIso(cur), day: cur.getDate(), inMonth: cur.getMonth() === month })
+  }
+  return days
+}

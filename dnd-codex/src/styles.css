@@ -1136,6 +1136,144 @@ button {
   }
 }
 
+/* Session box as a button (DM card + player hero) that opens the planner. */
+.next-session-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.next-session:hover {
+  border-color: var(--accent);
+}
+.next-session-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.next-session-trigger:hover .next-session-cta {
+  color: var(--accent);
+}
+.session-box-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.session-box-trigger:hover {
+  color: var(--text);
+}
+
+/* The planner modal: status + add-to-calendar + month calendar + RSVP. */
+.planner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 300px;
+}
+.planner-time {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.planner-time label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.planner-time input[type='time'] {
+  max-width: 170px;
+}
+.planner-rsvp {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.planner-section-label {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+.planner-err {
+  color: var(--danger);
+  font-size: 12px;
+  margin: 0;
+}
+
+/* Month calendar (from scratch, no date lib). */
+.monthcal {
+  user-select: none;
+}
+.monthcal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.monthcal-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.monthcal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+.monthcal-dow {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-faint);
+  padding: 2px 0 4px;
+}
+.monthcal-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: 1px solid transparent;
+  font-family: inherit;
+}
+.monthcal-day.out {
+  color: var(--text-faint);
+  opacity: 0.55;
+}
+.monthcal-day.today {
+  border-color: var(--accent);
+}
+.monthcal-day.sel {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+button.monthcal-day {
+  cursor: pointer;
+}
+button.monthcal-day:hover:not(.sel) {
+  background: var(--bg-elev);
+}
+
 /* Player landing (story-first) ------------------------------------------- */
 .player-hero {
   display: flex;
