@@ -236,6 +236,7 @@ export function PlayerBackups({
           }}
           backups={approvedSet}
           proposed={myProposedSet}
+          compact
         />
         <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 10 }}>
           <button className="btn small" disabled={busy || !suggestDate} onClick={submitSuggestion}>
