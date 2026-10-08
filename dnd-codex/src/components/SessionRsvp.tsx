@@ -48,33 +48,43 @@ export function RsvpControl({
   campaignName: string
 }) {
   const rsvps = useSessionRsvps(cloudCampaignId)
-  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  // Optimistic override: reflect the tap instantly, before the cloud write and
+  // the 300ms-debounced realtime refetch land. `undefined` = no override.
+  const [optimistic, setOptimistic] = useState<RsvpStatus | null | undefined>(undefined)
 
   const mine = rsvps.find(
     (r) => r.userId === userId && (r.sessionDate ?? null) === (sessionDate ?? null),
   )
-  const current = mine?.status ?? null
+  const serverCurrent = mine?.status ?? null
+  const current = optimistic !== undefined ? optimistic : serverCurrent
   const counts = forDate(rsvps, sessionDate)
   const total = counts.yes.length + counts.maybe.length + counts.no.length
 
+  // Drop the override once the live list catches up to it.
+  useEffect(() => {
+    if (optimistic !== undefined && serverCurrent === optimistic) setOptimistic(undefined)
+  }, [serverCurrent, optimistic])
+
   async function choose(status: RsvpStatus) {
+    const next = current === status ? null : status
+    setOptimistic(next) // instant visual confirm
     setErr(null)
-    setBusy(true)
     try {
-      if (current === status) await clearMyRsvp(cloudCampaignId, userId)
-      else {
+      if (next === null) {
+        await clearMyRsvp(cloudCampaignId, userId)
+      } else {
         await setMyRsvp(cloudCampaignId, userId, status, sessionDate)
-        // A "can't"/"maybe" is the actionable signal for the DM (time to float
-        // backups); a plain "going" isn't worth a ping.
+        // A "can't"/"maybe" pings the DM (time to float backups); a plain "going"
+        // isn't worth a ping. Fire-and-forget so the button doesn't wait on the
+        // member lookup + insert.
         if (status === 'no' || status === 'maybe') {
-          await notifyRsvp(cloudCampaignId, userId, campaignName, sessionDate, status)
+          void notifyRsvp(cloudCampaignId, userId, campaignName, sessionDate, status)
         }
       }
     } catch (e) {
+      setOptimistic(undefined) // revert the optimistic flip on failure
       setErr(e instanceof Error ? e.message : 'Could not save your RSVP.')
-    } finally {
-      setBusy(false)
     }
   }
 
@@ -87,7 +97,6 @@ export function RsvpControl({
             key={o.value}
             className={`rsvp-opt rsvp-${o.value}${current === o.value ? ' active' : ''}`}
             onClick={() => choose(o.value)}
-            disabled={busy}
             aria-pressed={current === o.value}
           >
             {o.label}
