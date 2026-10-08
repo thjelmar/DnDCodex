@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import {
   approveCandidateDay,
@@ -195,6 +195,28 @@ export function PlayerBackups({
   const mySuggestions = candidates.filter((c) => c.status === 'proposed' && c.suggestedBy === userId)
   const mineByDate = new Map(availability.filter((a) => a.userId === userId).map((a) => [a.date, a.status]))
 
+  // Optimistic per-day override so the Yes/Maybe/No buttons confirm instantly,
+  // ahead of the cloud write + realtime refetch. A date maps to its pending
+  // value (a status, or null for cleared); an absent key means no override.
+  const [optimistic, setOptimistic] = useState<Record<string, RsvpStatus | null>>({})
+  const availFor = (date: string): RsvpStatus | null =>
+    date in optimistic ? optimistic[date] : mineByDate.get(date) ?? null
+
+  // Drop each override once the live list matches it.
+  useEffect(() => {
+    setOptimistic((prev) => {
+      const next: Record<string, RsvpStatus | null> = {}
+      let changed = false
+      for (const [d, v] of Object.entries(prev)) {
+        if ((mineByDate.get(d) ?? null) === v) changed = true
+        else next[d] = v
+      }
+      return changed ? next : prev
+    })
+    // mineByDate is derived from `availability`; reconcile whenever it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availability])
+
   async function run(fn: () => Promise<void>) {
     setErr(null)
     setBusy(true)
@@ -208,12 +230,20 @@ export function PlayerBackups({
   }
 
   async function choose(date: string, status: RsvpStatus) {
-    const current = mineByDate.get(date)
-    await run(() =>
-      current === status
-        ? clearMyAvailability(cloudCampaignId, userId, date)
-        : setMyAvailability(cloudCampaignId, userId, date, status),
-    )
+    const next = availFor(date) === status ? null : status
+    setOptimistic((p) => ({ ...p, [date]: next })) // instant visual confirm
+    setErr(null)
+    try {
+      if (next === null) await clearMyAvailability(cloudCampaignId, userId, date)
+      else await setMyAvailability(cloudCampaignId, userId, date, status)
+    } catch (e) {
+      setOptimistic((p) => {
+        const n = { ...p }
+        delete n[date] // revert the optimistic flip on failure
+        return n
+      })
+      setErr(e instanceof Error ? e.message : 'Something went wrong.')
+    }
   }
 
   async function submitSuggestion() {
@@ -232,7 +262,7 @@ export function PlayerBackups({
         <div className="poll-block">
           <div className="poll-section-label">Other days that might work</div>
           {approved.map((c) => {
-            const mine = mineByDate.get(c.date) ?? null
+            const mine = availFor(c.date)
             return (
               <div key={c.date} className="poll-row">
                 <span className="poll-date">{formatDate(c.date)}</span>
@@ -241,7 +271,6 @@ export function PlayerBackups({
                     <button
                       key={o.value}
                       className={`rsvp-opt rsvp-${o.value}${mine === o.value ? ' active' : ''}`}
-                      disabled={busy}
                       aria-pressed={mine === o.value}
                       onClick={() => choose(c.date, o.value)}
                     >
