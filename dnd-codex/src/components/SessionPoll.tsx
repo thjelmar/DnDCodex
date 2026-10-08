@@ -8,6 +8,8 @@ import {
   withdrawSuggestedDay,
   setMyAvailability,
   clearMyAvailability,
+  notifyDaySuggested,
+  notifySuggestionDecision,
   type SessionCandidate,
   type SessionAvailability,
   type RsvpStatus,
@@ -53,12 +55,17 @@ function AvailCounts({ availability, date }: { availability: SessionAvailability
  */
 export function DmBackups({
   campaignId,
+  campaignName,
+  actorId,
   candidates,
   availability,
   onLockIn,
   busy,
 }: {
   campaignId: string
+  campaignName: string
+  /** The DM's user id (= auth.uid()), for notifying the suggesting player. */
+  actorId: string | null
   candidates: SessionCandidate[]
   availability: SessionAvailability[]
   onLockIn: (date: string) => void
@@ -89,10 +96,31 @@ export function DmBackups({
                 {c.suggesterName && <span className="faint"> · {c.suggesterName}</span>}
               </span>
               <span className="poll-row-actions">
-                <button className="btn small" disabled={busy} onClick={() => run(() => approveCandidateDay(campaignId, c.date))}>
+                <button
+                  className="btn small"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await approveCandidateDay(campaignId, c.date)
+                      if (actorId && c.suggestedBy)
+                        await notifySuggestionDecision(campaignId, actorId, campaignName, c.suggestedBy, c.date, true)
+                    })
+                  }
+                >
                   Add as backup
                 </button>
-                <button className="icon-btn" title="Dismiss" disabled={busy} onClick={() => run(() => removeCandidateDay(campaignId, c.date))}>
+                <button
+                  className="icon-btn"
+                  title="Dismiss"
+                  disabled={busy}
+                  onClick={() =>
+                    run(async () => {
+                      await removeCandidateDay(campaignId, c.date)
+                      if (actorId && c.suggestedBy)
+                        await notifySuggestionDecision(campaignId, actorId, campaignName, c.suggestedBy, c.date, false)
+                    })
+                  }
+                >
                   <Icon name="trash" size={13} />
                 </button>
               </span>
@@ -145,6 +173,7 @@ export function DmBackups({
 export function PlayerBackups({
   cloudCampaignId,
   userId,
+  campaignName,
   candidates,
   availability,
   suggestPick,
@@ -152,6 +181,7 @@ export function PlayerBackups({
 }: {
   cloudCampaignId: string
   userId: string
+  campaignName: string
   candidates: SessionCandidate[]
   availability: SessionAvailability[]
   /** The day the player tapped on the main calendar to suggest, or null. */
@@ -188,7 +218,11 @@ export function PlayerBackups({
 
   async function submitSuggestion() {
     if (!suggestPick) return
-    await run(() => suggestCandidateDay(cloudCampaignId, userId, suggestPick))
+    const day = suggestPick
+    await run(async () => {
+      await suggestCandidateDay(cloudCampaignId, userId, day)
+      await notifyDaySuggested(cloudCampaignId, userId, campaignName, day)
+    })
     onClearPick()
   }
 

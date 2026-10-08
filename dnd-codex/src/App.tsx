@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
 import { AccountArea } from './auth/AccountArea'
 import { Icon } from './components/Icon'
+import { NotificationBell } from './components/NotificationBell'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
@@ -160,6 +161,7 @@ function Sidebar({
       {/* App: settings, updates, roadmap, (owner-only) tickets, and report — a
           compact icon row; each has a tooltip + label for screen readers. */}
       <div className="sidebar-icons" role="group" aria-label="App">
+        <NotificationBell />
         <button className="icon-btn" onClick={onOpenPrefs} data-tip="Preferences" aria-label="Preferences">
           <Icon name="settings" />
         </button>

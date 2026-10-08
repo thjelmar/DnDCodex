@@ -689,6 +689,199 @@ export async function getSharedEntities(cloudCampaignId: string): Promise<Shared
   }))
 }
 
+// --- Notifications (T-19 Phase 2) ------------------------------------------
+// App-wide, per-recipient in-app notifications (see migration 0029). A campaign
+// member addresses a row to another member of the same campaign, stamped as
+// themselves; the recipient reads / marks read / dismisses only their own. The
+// notify* helpers are BEST-EFFORT: a notification never blocks or breaks the
+// action that produced it, so they resolve recipients, insert, and swallow any
+// error. Scheduling is the first producer; `type` + `payload` keep it reusable.
+
+export type NotificationType =
+  | 'session_suggested'
+  | 'session_approved'
+  | 'session_declined'
+  | 'session_scheduled'
+  | 'session_rescheduled'
+  | 'session_rsvp'
+
+export interface AppNotification {
+  id: string
+  campaignId: string
+  actorId: string | null
+  type: NotificationType
+  /** Render context, e.g. { date, time, status, actorName, campaignName }. */
+  payload: Record<string, unknown>
+  readAt: string | null
+  createdAt: string
+}
+
+/** The signed-in user's recent notifications (newest first), across campaigns. */
+export async function getNotifications(userId: string, limit = 30): Promise<AppNotification[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, campaign_id, actor_id, type, payload, read_at, created_at')
+    .eq('recipient_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error || !data) return []
+  return data.map((r) => ({
+    id: r.id as string,
+    campaignId: r.campaign_id as string,
+    actorId: (r.actor_id as string) ?? null,
+    type: r.type as NotificationType,
+    payload: (r.payload as Record<string, unknown>) ?? {},
+    readAt: (r.read_at as string) ?? null,
+    createdAt: r.created_at as string,
+  }))
+}
+
+/** Mark one notification read (no-op if already read). */
+export async function markNotificationRead(id: string): Promise<void> {
+  if (!supabase) return
+  await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', id)
+    .is('read_at', null)
+}
+
+/** Mark all of the user's unread notifications read. */
+export async function markAllNotificationsRead(userId: string): Promise<void> {
+  if (!supabase) return
+  await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('recipient_id', userId)
+    .is('read_at', null)
+}
+
+/** Dismiss (delete) one notification. */
+export async function deleteNotification(id: string): Promise<void> {
+  if (!supabase) return
+  await supabase.from('notifications').delete().eq('id', id)
+}
+
+interface NewNotification {
+  campaignId: string
+  recipientId: string
+  actorId: string
+  type: NotificationType
+  payload: Record<string, unknown>
+}
+
+async function insertNotifications(rows: NewNotification[]): Promise<void> {
+  if (!supabase || rows.length === 0) return
+  const { error } = await supabase.from('notifications').insert(
+    rows.map((r) => ({
+      campaign_id: r.campaignId,
+      recipient_id: r.recipientId,
+      actor_id: r.actorId,
+      type: r.type,
+      payload: r.payload,
+    })),
+  )
+  if (error) console.warn('[notify] insert failed:', error.message)
+}
+
+/** Resolve the campaign's members, its DM, and the actor's own display name. */
+async function resolveNotifyContext(campaignId: string, actorId: string) {
+  const members = await getCampaignMembers(campaignId)
+  const dm = members.find((m) => m.role === 'dm') ?? null
+  const actorName = members.find((m) => m.userId === actorId)?.displayName ?? 'Someone'
+  return { members, dm, actorName }
+}
+
+/** Player suggested a day → tell the DM. */
+export async function notifyDaySuggested(
+  campaignId: string,
+  actorId: string,
+  campaignName: string,
+  date: string,
+): Promise<void> {
+  try {
+    const { dm, actorName } = await resolveNotifyContext(campaignId, actorId)
+    if (!dm || dm.userId === actorId) return
+    await insertNotifications([
+      { campaignId, recipientId: dm.userId, actorId, type: 'session_suggested', payload: { date, actorName, campaignName } },
+    ])
+  } catch (e) {
+    console.warn('[notify] day suggested:', e)
+  }
+}
+
+/** DM approved or declined a player's suggested day → tell that player. */
+export async function notifySuggestionDecision(
+  campaignId: string,
+  actorId: string,
+  campaignName: string,
+  recipientId: string,
+  date: string,
+  approved: boolean,
+): Promise<void> {
+  try {
+    if (!recipientId || recipientId === actorId) return
+    const { actorName } = await resolveNotifyContext(campaignId, actorId)
+    await insertNotifications([
+      {
+        campaignId,
+        recipientId,
+        actorId,
+        type: approved ? 'session_approved' : 'session_declined',
+        payload: { date, actorName, campaignName },
+      },
+    ])
+  } catch (e) {
+    console.warn('[notify] suggestion decision:', e)
+  }
+}
+
+/** DM set / locked in / moved the session date → tell every other member. */
+export async function notifyScheduleSet(
+  campaignId: string,
+  actorId: string,
+  campaignName: string,
+  date: string,
+  time: string | null,
+  rescheduled: boolean,
+): Promise<void> {
+  try {
+    const { members, actorName } = await resolveNotifyContext(campaignId, actorId)
+    const rows = members
+      .filter((m) => m.userId !== actorId)
+      .map((m) => ({
+        campaignId,
+        recipientId: m.userId,
+        actorId,
+        type: (rescheduled ? 'session_rescheduled' : 'session_scheduled') as NotificationType,
+        payload: { date, time, actorName, campaignName },
+      }))
+    await insertNotifications(rows)
+  } catch (e) {
+    console.warn('[notify] schedule set:', e)
+  }
+}
+
+/** Player RSVP'd no/maybe to the primary date → tell the DM. */
+export async function notifyRsvp(
+  campaignId: string,
+  actorId: string,
+  campaignName: string,
+  date: string | null,
+  status: RsvpStatus,
+): Promise<void> {
+  try {
+    const { dm, actorName } = await resolveNotifyContext(campaignId, actorId)
+    if (!dm || dm.userId === actorId) return
+    await insertNotifications([
+      { campaignId, recipientId: dm.userId, actorId, type: 'session_rsvp', payload: { date, status, actorName, campaignName } },
+    ])
+  } catch (e) {
+    console.warn('[notify] rsvp:', e)
+  }
+}
+
 // ── Party loot & gold tracker (shared, member-writable, live) ──────────────
 // Both the DM and players read + write these. See migration 0011.
 

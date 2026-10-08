@@ -4,6 +4,7 @@ import {
   setMyRsvp,
   clearMyRsvp,
   getCampaignMembers,
+  notifyRsvp,
   type RsvpStatus,
   type SessionRsvp,
   type Member,
@@ -39,10 +40,12 @@ export function RsvpControl({
   cloudCampaignId,
   userId,
   sessionDate,
+  campaignName,
 }: {
   cloudCampaignId: string
   userId: string
   sessionDate: string | null
+  campaignName: string
 }) {
   const rsvps = useSessionRsvps(cloudCampaignId)
   const [busy, setBusy] = useState(false)
@@ -60,7 +63,14 @@ export function RsvpControl({
     setBusy(true)
     try {
       if (current === status) await clearMyRsvp(cloudCampaignId, userId)
-      else await setMyRsvp(cloudCampaignId, userId, status, sessionDate)
+      else {
+        await setMyRsvp(cloudCampaignId, userId, status, sessionDate)
+        // A "can't"/"maybe" is the actionable signal for the DM (time to float
+        // backups); a plain "going" isn't worth a ping.
+        if (status === 'no' || status === 'maybe') {
+          await notifyRsvp(cloudCampaignId, userId, campaignName, sessionDate, status)
+        }
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not save your RSVP.')
     } finally {
