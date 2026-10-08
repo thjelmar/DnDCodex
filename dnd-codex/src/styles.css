@@ -190,6 +190,105 @@ button {
   transition: opacity 0.08s ease 0.375s;
 }
 
+/* Notification bell + dropdown (T-19 Phase 2). The bell is an .icon-btn in the
+   sidebar's App row; its panel drops just below it. */
+.notif-wrap { position: relative; display: inline-flex; }
+/* The bell is the first child of .sidebar-icons (wrapped), so anchor its tooltip
+   to the left edge like the real first icon-btn. */
+.sidebar-icons .notif-wrap:first-child .icon-btn[data-tip]::after { left: 0; transform: none; }
+.notif-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  z-index: 60;
+  padding: 6px;
+}
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 6px;
+}
+.notif-title { font-weight: 600; font-size: 13px; }
+.notif-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 10px 8px 14px;
+  margin: 0;
+  text-align: center;
+}
+.notif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 8px 8px 22px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+}
+.notif-item:hover { background: var(--bg-elev-2); }
+.notif-item.unread { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.notif-item.unread:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.notif-dot {
+  position: absolute;
+  left: 9px;
+  top: 12px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.notif-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.notif-item-title { font-size: 13px; line-height: 1.35; }
+.notif-item-sub { display: flex; gap: 6px; align-items: center; font-size: 11px; color: var(--text-dim); min-width: 0; }
+.notif-item-campaign { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-item-time { flex: none; }
+.notif-dismiss {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  color: var(--text-dim);
+  opacity: 0;
+}
+.notif-item:hover .notif-dismiss, .notif-dismiss:focus-visible { opacity: 1; }
+.notif-dismiss:hover { background: var(--bg-elev); color: var(--text); }
+
 .sidebar-heading {
   font-size: 11px;
   text-transform: uppercase;

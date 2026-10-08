@@ -15,10 +15,13 @@ import {
   removeCandidateDay,
   clearCandidateDays,
   clearAllAvailability,
+  notifyScheduleSet,
+  notifySuggestionDecision,
 } from '../auth/cloud'
 import { sessionStatus, type SessionSchedule } from '../lib/sessionStatus'
 import { useSessionCandidates, useSessionAvailability } from '../lib/useSessionPoll'
 import { useSessionRsvps } from '../lib/useSessionRsvps'
+import { useAuth } from '../auth/AuthProvider'
 import { localIso, monthOf } from '../lib/calendar'
 import type { Campaign } from '../db/types'
 
@@ -53,6 +56,9 @@ export function SessionPlanner({
   const dm = mode === 'dm'
   const status = sessionStatus(schedule, !!isLive)
   const today = localIso(new Date())
+  // The acting user id for notifications (= auth.uid(), what RLS stamps rows with).
+  const { user } = useAuth()
+  const actorId = user?.id ?? null
 
   // DM-only edit state: the pending pick, committed on Save.
   const [date, setDate] = useState<string | null>(schedule.nextSessionDate ?? null)
@@ -105,6 +111,10 @@ export function SessionPlanner({
       if (signedIn) {
         await setSessionSchedule(campaign.id, { nextSessionDate: next, nextSessionTime: nextTime, rescheduledFrom })
         await ensureCalendarToken(campaign.id)
+        // Tell the party, but only when the date itself changed (not a time-only edit).
+        if (actorId && next !== prev) {
+          await notifyScheduleSet(campaign.id, actorId, campaign.name, next, nextTime, !!prev)
+        }
       }
       onClose()
     } catch (e) {
@@ -146,6 +156,7 @@ export function SessionPlanner({
         await ensureCalendarToken(campaign.id)
         await clearCandidateDays(campaign.id)
         await clearAllAvailability(campaign.id)
+        if (actorId) await notifyScheduleSet(campaign.id, actorId, campaign.name, chosen, keepTime, !!prev)
       }
       onClose()
     } catch (e) {
@@ -162,8 +173,13 @@ export function SessionPlanner({
     try {
       const existing = candidates.find((c) => c.date === iso)
       if (!existing) await addCandidateDay(campaign.id, iso)
-      else if (existing.status === 'proposed') await approveCandidateDay(campaign.id, iso)
-      else await removeCandidateDay(campaign.id, iso)
+      else if (existing.status === 'proposed') {
+        // Approving a player's suggestion in place — let them know.
+        await approveCandidateDay(campaign.id, iso)
+        if (actorId && existing.suggestedBy) {
+          await notifySuggestionDecision(campaign.id, actorId, campaign.name, existing.suggestedBy, iso, true)
+        }
+      } else await removeCandidateDay(campaign.id, iso)
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Could not update backups.')
     }
@@ -257,13 +273,15 @@ export function SessionPlanner({
             )
           : scheduledDate && cloudCampaignId && userId && (
               <div className="planner-rsvp">
-                <RsvpControl cloudCampaignId={cloudCampaignId} userId={userId} sessionDate={scheduledDate} />
+                <RsvpControl cloudCampaignId={cloudCampaignId} userId={userId} sessionDate={scheduledDate} campaignName={campaign.name} />
               </div>
             )}
 
         {showDmPoll && (
           <DmBackups
             campaignId={campaign.id}
+            campaignName={campaign.name}
+            actorId={actorId}
             candidates={candidates}
             availability={availability}
             onLockIn={lockIn}
@@ -275,6 +293,7 @@ export function SessionPlanner({
           <PlayerBackups
             cloudCampaignId={cloudCampaignId}
             userId={userId}
+            campaignName={campaign.name}
             candidates={candidates}
             availability={availability}
             suggestPick={suggestPick}
