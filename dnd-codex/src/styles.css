@@ -646,6 +646,38 @@ button {
 .ticket-link.released { color: var(--text-dim); }
 .ticket-link-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
 .ticket-link-input { width: 90px; font-size: 12.5px; padding: 3px 8px; }
+
+/* Ticket commits (T-22): a collapsible list; each SHA links to the GitHub commit. */
+.ticket-commits, .ticket-comments-field { margin-top: 14px; }
+.ticket-commit-link {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px; color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-radius: 5px; padding: 1px 6px; text-decoration: none; white-space: nowrap;
+}
+.ticket-commit-link:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); text-decoration: underline; }
+.commit-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.commit-row { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.commit-subject { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.commit-add { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.commit-add .commit-sha { width: 150px; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; padding: 4px 8px; }
+.commit-add .input:not(.commit-sha) { flex: 1; min-width: 140px; font-size: 13px; padding: 4px 8px; }
+
+/* Ticket comment thread (T-22). */
+.comment-list { list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.comment-row {
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  background: color-mix(in srgb, var(--bg-elev-2) 50%, transparent);
+}
+.comment-meta { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 3px; }
+.comment-author { font-weight: 600; color: var(--text); }
+.comment-body { font-size: 13px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.comment-more {
+  display: inline; margin-left: 6px; padding: 0; border: none; background: none;
+  color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline;
+}
+.comment-row .tk-del { opacity: 0.55; }
+.comment-row:hover .tk-del { opacity: 1; }
 .ticket-sub-link { background: none; border: none; padding: 0; font: inherit; color: var(--text-dim); cursor: pointer; text-decoration: underline dotted; }
 .ticket-sub-link:hover { color: var(--accent); }
 .ticket-parent-chip { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }

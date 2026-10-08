@@ -3,6 +3,8 @@
 // The server functions keep their own copies of the allowed values — keep them in
 // step with these (functions/api/bug-report.ts, bug-reports.ts).
 
+import { type ReactNode } from 'react'
+
 export type TicketCategory = 'issue' | 'enhancement' | 'feature'
 export type TicketPriority = 'urgent' | 'high' | 'medium' | 'low'
 export type TicketStatus = 'reported' | 'planned' | 'in_progress' | 'testing' | 'released'
@@ -54,6 +56,51 @@ export function stageLabel(s: string | null | undefined): string {
 
 export function ticketId(n: number | null | undefined): string {
   return n == null ? 'T-?' : `T-${n}`
+}
+
+// ---------------------------------------------------------------- commits
+// A ticket can carry recorded commits (ticket_commits); SHAs mentioned in a
+// comment link to the GitHub commit page — the full message + diff.
+
+export const GITHUB_REPO = 'thjelmar/DnDCodex'
+
+export function commitUrl(sha: string): string {
+  return `https://github.com/${GITHUB_REPO}/commit/${sha}`
+}
+
+export function shortSha(sha: string): string {
+  return sha.slice(0, 7)
+}
+
+// A commit-SHA token: 7–40 hex that contains at least one letter, so plain
+// numbers (years, counts) aren't mistaken for commits.
+const SHA_TOKEN = /\b(?=[0-9a-f]{7,40}\b)[0-9a-f]*[a-f][0-9a-f]*\b/gi
+
+/** Render text with commit-SHA tokens turned into links to the GitHub commit. */
+export function Linkified({ text }: { text: string }): ReactNode {
+  const out: ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  SHA_TOKEN.lastIndex = 0
+  while ((m = SHA_TOKEN.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    const sha = m[0]
+    out.push(
+      <a
+        key={`${m.index}-${sha}`}
+        href={commitUrl(sha)}
+        target="_blank"
+        rel="noreferrer"
+        className="ticket-commit-link"
+        title={`Commit ${sha} on GitHub`}
+      >
+        {shortSha(sha)}
+      </a>,
+    )
+    last = m.index + sha.length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return <>{out}</>
 }
 
 /**

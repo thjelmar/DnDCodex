@@ -155,7 +155,15 @@ export const onRequestGet: Handler = async ({ request, env }) => {
   if (!gate.ok) return json(gate.status, { error: gate.error })
 
   try {
-    const res = await rest(env, 'bug_reports?select=*&order=created_at.desc')
+    // Embed the comment thread + commit list (0030_ticket_threads.sql). Fall
+    // back to the plain select if that migration hasn't run yet, so the page
+    // keeps working either way.
+    const embed =
+      'bug_reports?select=*,ticket_comments(id,ticket_number,author,body,created_at),' +
+      'ticket_commits(id,ticket_number,sha,subject,created_at)' +
+      '&order=created_at.desc&ticket_comments.order=created_at.asc&ticket_commits.order=created_at.asc'
+    let res = await rest(env, embed)
+    if (!res.ok) res = await rest(env, 'bug_reports?select=*&order=created_at.desc')
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
       return json(502, { error: 'Could not load tickets.', detail: detail.slice(0, 300) })
@@ -167,12 +175,68 @@ export const onRequestGet: Handler = async ({ request, env }) => {
   }
 }
 
+// ── Comment thread + commit refs (0030) ────────────────────────────────────
+// Sub-resources of a ticket, addressed by the ticket's human number. A request
+// opts in with { resource: 'comment' | 'commit' }; without it the handlers act
+// on the ticket itself (unchanged).
+
+const SHA_RE = /^[0-9a-f]{7,40}$/i
+
+/** Validate a sub-resource create body; returns the row to insert, or an error. */
+function pickThread(resource: string, body: Fields): { table: string; row: Fields } | { error: string } {
+  const num = body.ticket_number
+  if (typeof num !== 'number' || !Number.isInteger(num) || num <= 0) {
+    return { error: 'A ticket number is required.' }
+  }
+  if (resource === 'comment') {
+    const text = typeof body.body === 'string' ? body.body.trim() : ''
+    if (!text) return { error: 'Write something first.' }
+    if (text.length > MAX_TEXT) return { error: 'That comment is too long.' }
+    // The in-app author is always the owner; the CLI stamps its own via the
+    // service key, so we don't trust a client-supplied author here.
+    return { table: 'ticket_comments', row: { ticket_number: num, author: 'you', body: text } }
+  }
+  if (resource === 'commit') {
+    const sha = typeof body.sha === 'string' ? body.sha.trim() : ''
+    if (!SHA_RE.test(sha)) return { error: 'Enter a commit SHA (7–40 hex characters).' }
+    const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim().slice(0, 300) : null
+    return { table: 'ticket_commits', row: { ticket_number: num, sha, subject } }
+  }
+  return { error: 'Unknown resource.' }
+}
+
 export const onRequestPost: Handler = async ({ request, env }) => {
   const gate = await requireAdmin(request, env)
   if (!gate.ok) return json(gate.status, { error: gate.error })
 
   const body = await readBody(request)
   if (!body) return json(400, { error: 'Invalid JSON body.' })
+
+  // A comment or commit on a ticket, rather than the ticket itself.
+  if (typeof body.resource === 'string') {
+    const picked = pickThread(body.resource, body)
+    if ('error' in picked) return json(400, { error: picked.error })
+    try {
+      const res = await rest(env, `${picked.table}?select=*`, {
+        method: 'POST',
+        headers: { prefer: 'return=representation,resolution=merge-duplicates' },
+        body: JSON.stringify(picked.row),
+      })
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '')
+        if (detail.includes('23503')) return json(400, { error: 'There’s no ticket with that number.' })
+        if (detail.includes('ticket_comments') || detail.includes('ticket_commits')) {
+          return json(400, { error: 'Comments/commits need the 0030_ticket_threads.sql migration.' })
+        }
+        return json(502, { error: 'Could not save that.', detail: detail.slice(0, 300) })
+      }
+      const rows = (await res.json()) as unknown[]
+      return json(200, { ok: true, row: rows[0] ?? null })
+    } catch {
+      return json(502, { error: 'Could not reach the database.' })
+    }
+  }
+
   const picked = pickFields(body)
   if ('error' in picked) return json(400, { error: picked.error })
   const fields = picked.fields
@@ -233,16 +297,20 @@ export const onRequestDelete: Handler = async ({ request, env }) => {
   if (!gate.ok) return json(gate.status, { error: gate.error })
 
   const body = await readBody(request)
-  if (!body || typeof body.id !== 'string' || !body.id) return json(400, { error: 'A ticket id is required.' })
+  if (!body || typeof body.id !== 'string' || !body.id) return json(400, { error: 'An id is required.' })
+
+  // Deleting a comment or commit rather than a whole ticket.
+  const table =
+    body.resource === 'comment' ? 'ticket_comments' : body.resource === 'commit' ? 'ticket_commits' : 'bug_reports'
 
   try {
-    const res = await rest(env, `bug_reports?id=eq.${encodeURIComponent(body.id)}`, {
+    const res = await rest(env, `${table}?id=eq.${encodeURIComponent(body.id)}`, {
       method: 'DELETE',
       headers: { prefer: 'return=minimal' },
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
-      return json(502, { error: 'Could not delete the ticket.', detail: detail.slice(0, 300) })
+      return json(502, { error: 'Could not delete that.', detail: detail.slice(0, 300) })
     }
     return json(200, { ok: true })
   } catch {
