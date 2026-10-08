@@ -759,6 +759,8 @@ function TicketCard({
 
       {open && (
         <div className="ticket-body">
+          <div className="ticket-body-grid">
+          <div className="ticket-main">
           <div className="field">
             <label htmlFor={`tt-${t.id}`}>Public title</label>
             <input
@@ -828,13 +830,122 @@ function TicketCard({
             />
           )}
 
-          {t.source === 'site' && (
-            <div className="bug-report-meta">
-              {t.reporter_email && <span><b>From:</b> {t.reporter_email}</span>}
-              {t.route && <span><b>Route:</b> {t.route}</span>}
-              {t.app_version && <span><b>Version:</b> {t.app_version}</span>}
-            </div>
-          )}
+          {/* Comment thread — the title toggles it; collapsed shows the latest. */}
+          <div className="field ticket-section" style={{ marginTop: 12 }}>
+            <button type="button" className="ticket-section-head" onClick={() => setCommentsOpen((o) => !o)} aria-expanded={commentsOpen}>
+              <Icon name="chevron-right" size={14} className={`ticket-section-chevron${commentsOpen ? ' open' : ''}`} />
+              <span className="ticket-section-title">Comments</span>
+              {comments.length > 0 && <span className="faint">· {comments.length}</span>}
+            </button>
+            {comments.length > 0 && (
+              <ul className="comment-list">
+                {(commentsOpen ? comments : comments.slice(-1)).map((c) => (
+                  <li key={c.id} className="comment-row">
+                    <div className="comment-meta">
+                      <span className="comment-author">{c.author}</span>
+                      <span className="faint">{fmtDate(c.created_at)}</span>
+                      <span style={{ flex: 1 }} />
+                      {commentsOpen && (
+                        <button className="tk-del" title="Delete comment" aria-label="Delete comment" onClick={() => onDelThread('comment', c.id)}>
+                          <Icon name="x" />
+                        </button>
+                      )}
+                    </div>
+                    <ClampText text={c.body} />
+                  </li>
+                ))}
+                {!commentsOpen && comments.length > 1 && (
+                  <li className="ticket-section-more" onClick={() => setCommentsOpen(true)}>+ {comments.length - 1} more</li>
+                )}
+              </ul>
+            )}
+            {commentsOpen && (
+              <>
+                <textarea
+                  className="textarea"
+                  rows={2}
+                  placeholder="Add a comment — a thought, or a correction to bring up next session."
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                />
+                <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
+                  <button className="btn ghost small" onClick={addComment} disabled={commentBusy || !commentText.trim()}>
+                    {commentBusy ? 'Adding…' : 'Add comment'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          </div>
+          <aside className="ticket-side">
+          <div className="field" style={{ marginTop: 0 }}>
+            <label htmlFor={`tn-${t.id}`}>Summary <span className="faint">· one line</span></label>
+            <textarea
+              id={`tn-${t.id}`}
+              className="textarea"
+              rows={2}
+              placeholder="What was done, and where (commit or PR)."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onBlur={() => note.trim() !== (t.resolution_note ?? '') && onUpdate(t.id, { resolution_note: note.trim() || null })}
+            />
+          </div>
+
+          {/* Recorded commits — the title toggles it; collapsed shows the latest. */}
+          <div className="field ticket-section">
+            <button type="button" className="ticket-section-head" onClick={() => setCommitsOpen((o) => !o)} aria-expanded={commitsOpen}>
+              <Icon name="chevron-right" size={14} className={`ticket-section-chevron${commitsOpen ? ' open' : ''}`} />
+              <span className="ticket-section-title">Commits</span>
+              {commits.length > 0 && <span className="faint">· {commits.length}</span>}
+            </button>
+            {commits.length > 0 && (
+              <ul className="commit-list">
+                {(commitsOpen ? commits : commits.slice(-1)).map((c) => (
+                  <li key={c.id} className="commit-row">
+                    <a href={commitUrl(c.sha)} target="_blank" rel="noreferrer" className="ticket-commit-link" title={`Commit ${c.sha} on GitHub`}>
+                      {shortSha(c.sha)}
+                    </a>
+                    <span className="commit-subject">{c.subject || <span className="faint">(no subject)</span>}</span>
+                    {commitsOpen && (
+                      <button className="tk-del" title="Remove commit" aria-label="Remove commit" onClick={() => onDelThread('commit', c.id)}>
+                        <Icon name="x" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+                {!commitsOpen && commits.length > 1 && (
+                  <li className="ticket-section-more" onClick={() => setCommitsOpen(true)}>+ {commits.length - 1} more</li>
+                )}
+              </ul>
+            )}
+            {commitsOpen && (
+              <div className="commit-add">
+                <input
+                  className="input commit-sha"
+                  placeholder="commit SHA"
+                  aria-label="Commit SHA"
+                  value={commitSha}
+                  onChange={(e) => setCommitSha(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addCommit()}
+                />
+                <input
+                  className="input"
+                  placeholder="subject (optional)"
+                  aria-label="Commit subject"
+                  value={commitSubject}
+                  onChange={(e) => setCommitSubject(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addCommit()}
+                />
+                <button className="btn ghost small" onClick={addCommit} disabled={commitBusy || !commitSha.trim()}>
+                  Add
+                </button>
+              </div>
+            )}
+            {commits.length === 0 && commitsOpen && (
+              <p className="faint" style={{ margin: '2px 0 0', fontSize: 12 }}>No commits recorded.</p>
+            )}
+          </div>
 
           <div className="ticket-links">
             <span className="label">Follow-up of</span>
@@ -883,119 +994,13 @@ function TicketCard({
             )}
           </div>
 
-          {/* Comment thread — collapsible, most recent shown collapsed. */}
-          <div className="field ticket-comments-field" style={{ marginTop: 12 }}>
-            <div className="ticket-field-head">
-              <label>Comments {comments.length > 0 && <span className="faint">· {comments.length}</span>}</label>
-              {comments.length > 1 && (
-                <button className="btn ghost small" onClick={() => setCommentsOpen((o) => !o)}>
-                  {commentsOpen ? 'Collapse' : `Show all ${comments.length}`}
-                </button>
-              )}
+          {t.source === 'site' && (
+            <div className="bug-report-meta">
+              {t.reporter_email && <span><b>From:</b> {t.reporter_email}</span>}
+              {t.route && <span><b>Route:</b> {t.route}</span>}
+              {t.app_version && <span><b>Version:</b> {t.app_version}</span>}
             </div>
-            {comments.length > 0 && (
-              <ul className="comment-list">
-                {(commentsOpen ? comments : comments.slice(-1)).map((c) => (
-                  <li key={c.id} className="comment-row">
-                    <div className="comment-meta">
-                      <span className="comment-author">{c.author}</span>
-                      <span className="faint">{fmtDate(c.created_at)}</span>
-                      <span style={{ flex: 1 }} />
-                      <button className="tk-del" title="Delete comment" aria-label="Delete comment" onClick={() => onDelThread('comment', c.id)}>
-                        <Icon name="x" />
-                      </button>
-                    </div>
-                    <ClampText text={c.body} />
-                  </li>
-                ))}
-                {!commentsOpen && comments.length > 1 && (
-                  <li className="faint" style={{ fontSize: 12, paddingLeft: 2 }}>
-                    + {comments.length - 1} earlier — “Show all”.
-                  </li>
-                )}
-              </ul>
-            )}
-            <textarea
-              className="textarea"
-              rows={2}
-              placeholder="Add a comment — a thought, or a correction to bring up next session."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-            />
-            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
-              <button className="btn ghost small" onClick={addComment} disabled={commentBusy || !commentText.trim()}>
-                {commentBusy ? 'Adding…' : 'Add comment'}
-              </button>
-            </div>
-          </div>
-
-          <div className="field" style={{ marginTop: 12 }}>
-            <label htmlFor={`tn-${t.id}`}>Resolution note <span className="faint">· one-line summary</span></label>
-            <textarea
-              id={`tn-${t.id}`}
-              className="textarea"
-              rows={2}
-              placeholder="What was done, and where (commit or PR)."
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              onBlur={() => note.trim() !== (t.resolution_note ?? '') && onUpdate(t.id, { resolution_note: note.trim() || null })}
-            />
-          </div>
-
-          {/* Recorded commits — a collapsible list, most recent shown collapsed. */}
-          <div className="field ticket-commits">
-            <div className="ticket-field-head">
-              <label>Commits {commits.length > 0 && <span className="faint">· {commits.length}</span>}</label>
-              {commits.length > 1 && (
-                <button className="btn ghost small" onClick={() => setCommitsOpen((o) => !o)}>
-                  {commitsOpen ? 'Collapse' : `Show all ${commits.length}`}
-                </button>
-              )}
-            </div>
-            {commits.length === 0 ? (
-              <p className="faint" style={{ margin: '2px 0 0', fontSize: 12 }}>No commits recorded.</p>
-            ) : (
-              <ul className="commit-list">
-                {(commitsOpen ? commits : commits.slice(-1)).map((c) => (
-                  <li key={c.id} className="commit-row">
-                    <a href={commitUrl(c.sha)} target="_blank" rel="noreferrer" className="ticket-commit-link" title={`Commit ${c.sha} on GitHub`}>
-                      {shortSha(c.sha)}
-                    </a>
-                    <span className="commit-subject">{c.subject || <span className="faint">(no subject)</span>}</span>
-                    <button className="tk-del" title="Remove commit" aria-label="Remove commit" onClick={() => onDelThread('commit', c.id)}>
-                      <Icon name="x" />
-                    </button>
-                  </li>
-                ))}
-                {!commitsOpen && commits.length > 1 && (
-                  <li className="faint" style={{ fontSize: 12, paddingLeft: 2 }}>
-                    + {commits.length - 1} earlier — “Show all”.
-                  </li>
-                )}
-              </ul>
-            )}
-            <div className="commit-add">
-              <input
-                className="input commit-sha"
-                placeholder="commit SHA"
-                aria-label="Commit SHA"
-                value={commitSha}
-                onChange={(e) => setCommitSha(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addCommit()}
-              />
-              <input
-                className="input"
-                placeholder="subject (optional)"
-                aria-label="Commit subject"
-                value={commitSubject}
-                onChange={(e) => setCommitSubject(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addCommit()}
-              />
-              <button className="btn ghost small" onClick={addCommit} disabled={commitBusy || !commitSha.trim()}>
-                Add
-              </button>
-            </div>
-          </div>
+          )}
 
           <div className="row between" style={{ marginTop: 8 }}>
             {t.source === 'site' ? (
@@ -1020,6 +1025,8 @@ function TicketCard({
               )}
             </div>
           )}
+            </aside>
+          </div>
         </div>
       )}
     </div>
