@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Icon } from './Icon'
@@ -17,7 +18,10 @@ import { formatDate, relativeTime } from '../lib/format'
 // The global notification bell (T-19 Phase 2). Lives in the sidebar's App icon
 // row, so it's present in both the DM and player experiences. Shows an unread
 // count and a dropdown of recent notifications; clicking one marks it read and
-// jumps to that campaign's session view.
+// jumps to that campaign's session view, opening the planner (every notification
+// here is session-related, so landing on the RSVP/planner pop-up is the point).
+// The panel is portaled to <body> with fixed positioning so the sidebar's scroll
+// overflow can't clip it.
 
 interface Described {
   title: string
@@ -54,13 +58,14 @@ function describe(n: AppNotification): Described {
   }
 }
 
-/** Resolve the in-app route for a notification's campaign, or null if the local
- *  campaign isn't present (DM owns it by id; a player mirrors it via link). */
+/** The in-app route for a notification's campaign, with the planner auto-opened
+ *  (every notification here is session-related). Null if the local campaign
+ *  isn't present — a DM owns it by id; a player mirrors it via linkedCampaignId. */
 function routeFor(campaigns: Campaign[], n: AppNotification): string | null {
   const dmLocal = campaigns.find((c) => c.id === n.campaignId && c.role !== 'player')
-  if (dmLocal) return `/campaign/${dmLocal.id}`
+  if (dmLocal) return `/campaign/${dmLocal.id}?planner=1`
   const playerLocal = campaigns.find((c) => c.linkedCampaignId === n.campaignId && c.role === 'player')
-  if (playerLocal) return `/player/${playerLocal.id}/session`
+  if (playerLocal) return `/player/${playerLocal.id}?planner=1`
   return null
 }
 
@@ -71,15 +76,31 @@ export function NotificationBell() {
   const campaigns = useLiveQuery(() => db.campaigns.toArray(), []) ?? []
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   const unread = items.filter((n) => !n.readAt).length
 
-  // Close on outside click or Escape.
+  // Anchor the fixed panel just under the bell, re-measuring on open / resize.
+  useEffect(() => {
+    if (!open) return
+    const place = () => {
+      const r = btnRef.current?.getBoundingClientRect()
+      if (r) setPos({ top: r.bottom + 6, left: r.left })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open])
+
+  // Close on outside click (bell + portaled panel both count as inside) or Escape.
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (btnRef.current?.contains(t) || panelRef.current?.contains(t)) return
+      setOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false)
@@ -107,9 +128,62 @@ export function NotificationBell() {
     await deleteNotification(n.id)
   }
 
+  const panel = (
+    <div
+      className="notif-panel"
+      role="dialog"
+      aria-label="Notifications"
+      ref={panelRef}
+      style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+    >
+      <div className="notif-head">
+        <span className="notif-title">Notifications</span>
+        {unread > 0 && (
+          <button className="btn ghost small" onClick={() => userId && markAllNotificationsRead(userId)}>
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <p className="notif-empty">You’re all caught up.</p>
+      ) : (
+        <ul className="notif-list">
+          {items.map((n) => {
+            const d = describe(n)
+            return (
+              <li key={n.id}>
+                <button className={`notif-item${n.readAt ? '' : ' unread'}`} onClick={() => openNotif(n)}>
+                  {!n.readAt && <span className="notif-dot" aria-hidden />}
+                  <span className="notif-body">
+                    <span className="notif-item-title">{d.title}</span>
+                    <span className="notif-item-sub">
+                      {d.sub && <span className="notif-item-campaign">{d.sub}</span>}
+                      <span className="notif-item-time">{relativeTime(n.createdAt)}</span>
+                    </span>
+                  </span>
+                  <span
+                    className="notif-dismiss"
+                    role="button"
+                    aria-label="Dismiss"
+                    title="Dismiss"
+                    onClick={(e) => dismiss(e, n)}
+                  >
+                    <Icon name="x" size={13} />
+                  </span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+
   return (
-    <div className="notif-wrap" ref={wrapRef}>
+    <div className="notif-wrap">
       <button
+        ref={btnRef}
         className={`icon-btn${open ? ' active' : ''}`}
         onClick={() => setOpen((o) => !o)}
         data-tip="Notifications"
@@ -124,51 +198,7 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div className="notif-panel" role="dialog" aria-label="Notifications">
-          <div className="notif-head">
-            <span className="notif-title">Notifications</span>
-            {unread > 0 && (
-              <button className="btn ghost small" onClick={() => userId && markAllNotificationsRead(userId)}>
-                Mark all read
-              </button>
-            )}
-          </div>
-
-          {items.length === 0 ? (
-            <p className="notif-empty">You’re all caught up.</p>
-          ) : (
-            <ul className="notif-list">
-              {items.map((n) => {
-                const d = describe(n)
-                return (
-                  <li key={n.id}>
-                    <button className={`notif-item${n.readAt ? '' : ' unread'}`} onClick={() => openNotif(n)}>
-                      {!n.readAt && <span className="notif-dot" aria-hidden />}
-                      <span className="notif-body">
-                        <span className="notif-item-title">{d.title}</span>
-                        <span className="notif-item-sub">
-                          {d.sub && <span className="notif-item-campaign">{d.sub}</span>}
-                          <span className="notif-item-time">{relativeTime(n.createdAt)}</span>
-                        </span>
-                      </span>
-                      <span
-                        className="notif-dismiss"
-                        role="button"
-                        aria-label="Dismiss"
-                        title="Dismiss"
-                        onClick={(e) => dismiss(e, n)}
-                      >
-                        <Icon name="x" size={13} />
-                      </span>
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      )}
+      {open && createPortal(panel, document.body)}
     </div>
   )
 }

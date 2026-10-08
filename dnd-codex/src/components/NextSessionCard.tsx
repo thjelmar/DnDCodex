@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Icon } from './Icon'
 import { SessionStatusBadge } from './SessionStatusBadge'
 import { SessionPlanner } from './SessionPlanner'
@@ -15,6 +16,17 @@ export function NextSessionCard({ campaign }: { campaign: Campaign }) {
   const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const status = sessionStatus(campaign, false)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // A notification (player suggestion / RSVP) links here with ?planner=1 to open
+  // the planner straight away; strip the param so closing it doesn't reopen it.
+  useEffect(() => {
+    if (searchParams.get('planner') !== '1') return
+    setOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('planner')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   return (
     <div className="next-session">

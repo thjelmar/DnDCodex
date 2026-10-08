@@ -89,11 +89,21 @@ export function PlayerNotesPage() {
     [campaignId],
   )
 
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const sel = searchParams.get('sel')
   const [editingId, setEditingId] = useState<string | null>(() => sel)
   const [viewSharedId, setViewSharedId] = useState<string | null>(null)
   const [plannerOpen, setPlannerOpen] = useState(false)
+
+  // A session notification links here with ?planner=1 to pop the RSVP/planner
+  // straight away; strip the param so closing it doesn't reopen on re-render.
+  useEffect(() => {
+    if (searchParams.get('planner') !== '1') return
+    setPlannerOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('planner')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
   const [filters, setFilters] = useState<Record<string, SectionFilter>>({})
 
   const sharedRows = useSharedEntities(campaign?.linkedCampaignId)
