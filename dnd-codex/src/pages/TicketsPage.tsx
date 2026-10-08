@@ -553,6 +553,7 @@ function TicketCard({
   const [hint, setHint] = useState<string | null>(null)
   const [commentText, setCommentText] = useState('')
   const [commentBusy, setCommentBusy] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
   const [commitsOpen, setCommitsOpen] = useState(false)
   const [commitSha, setCommitSha] = useState('')
   const [commitSubject, setCommitSubject] = useState('')
@@ -882,6 +883,52 @@ function TicketCard({
             )}
           </div>
 
+          {/* Comment thread — collapsible, most recent shown collapsed. */}
+          <div className="field ticket-comments-field" style={{ marginTop: 12 }}>
+            <div className="ticket-field-head">
+              <label>Comments {comments.length > 0 && <span className="faint">· {comments.length}</span>}</label>
+              {comments.length > 1 && (
+                <button className="btn ghost small" onClick={() => setCommentsOpen((o) => !o)}>
+                  {commentsOpen ? 'Collapse' : `Show all ${comments.length}`}
+                </button>
+              )}
+            </div>
+            {comments.length > 0 && (
+              <ul className="comment-list">
+                {(commentsOpen ? comments : comments.slice(-1)).map((c) => (
+                  <li key={c.id} className="comment-row">
+                    <div className="comment-meta">
+                      <span className="comment-author">{c.author}</span>
+                      <span className="faint">{fmtDate(c.created_at)}</span>
+                      <span style={{ flex: 1 }} />
+                      <button className="tk-del" title="Delete comment" aria-label="Delete comment" onClick={() => onDelThread('comment', c.id)}>
+                        <Icon name="x" />
+                      </button>
+                    </div>
+                    <ClampText text={c.body} />
+                  </li>
+                ))}
+                {!commentsOpen && comments.length > 1 && (
+                  <li className="faint" style={{ fontSize: 12, paddingLeft: 2 }}>
+                    + {comments.length - 1} earlier — “Show all”.
+                  </li>
+                )}
+              </ul>
+            )}
+            <textarea
+              className="textarea"
+              rows={2}
+              placeholder="Add a comment — a thought, or a correction to bring up next session."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
+              <button className="btn ghost small" onClick={addComment} disabled={commentBusy || !commentText.trim()}>
+                {commentBusy ? 'Adding…' : 'Add comment'}
+              </button>
+            </div>
+          </div>
+
           <div className="field" style={{ marginTop: 12 }}>
             <label htmlFor={`tn-${t.id}`}>Resolution note <span className="faint">· one-line summary</span></label>
             <textarea
@@ -946,40 +993,6 @@ function TicketCard({
               />
               <button className="btn ghost small" onClick={addCommit} disabled={commitBusy || !commitSha.trim()}>
                 Add
-              </button>
-            </div>
-          </div>
-
-          {/* Comment thread — Claude's extra notes and your own observations. */}
-          <div className="field ticket-comments-field">
-            <label>Comments {comments.length > 0 && <span className="faint">· {comments.length}</span>}</label>
-            {comments.length > 0 && (
-              <ul className="comment-list">
-                {comments.map((c) => (
-                  <li key={c.id} className="comment-row">
-                    <div className="comment-meta">
-                      <span className="comment-author">{c.author}</span>
-                      <span className="faint">{fmtDate(c.created_at)}</span>
-                      <span style={{ flex: 1 }} />
-                      <button className="tk-del" title="Delete comment" aria-label="Delete comment" onClick={() => onDelThread('comment', c.id)}>
-                        <Icon name="x" />
-                      </button>
-                    </div>
-                    <ClampText text={c.body} />
-                  </li>
-                ))}
-              </ul>
-            )}
-            <textarea
-              className="textarea"
-              rows={2}
-              placeholder="Add a comment — a thought, or a correction to bring up next session."
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-            />
-            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
-              <button className="btn ghost small" onClick={addComment} disabled={commentBusy || !commentText.trim()}>
-                {commentBusy ? 'Adding…' : 'Add comment'}
               </button>
             </div>
           </div>
