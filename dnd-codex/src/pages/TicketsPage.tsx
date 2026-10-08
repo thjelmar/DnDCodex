@@ -6,13 +6,16 @@ import {
   CATEGORIES,
   DetailsView,
   type EditLine,
+  Linkified,
   PRIORITIES,
   StageBar,
   appendCheck,
   categoryLabel,
   checklistProgress,
+  commitUrl,
   priorityRank,
   serializeLines,
+  shortSha,
   stageLabel,
   stagesFor,
   ticketId,
@@ -27,6 +30,20 @@ import {
 // `npm run tickets`; ticking "Public" puts a ticket on the /roadmap page.
 // A ticket can be a follow-up of another (follow_up_of holds the parent's
 // T-number), and its details can hold "- [ ]" checklists you tick off in place.
+
+interface TicketComment {
+  id: string
+  author: string
+  body: string
+  created_at: string
+}
+
+interface TicketCommit {
+  id: string
+  sha: string
+  subject: string | null
+  created_at: string
+}
 
 interface Ticket {
   id: string
@@ -51,6 +68,8 @@ interface Ticket {
   app_version: string | null
   screenshot?: string | null
   context?: Record<string, unknown> | null
+  ticket_comments?: TicketComment[] | null
+  ticket_commits?: TicketCommit[] | null
 }
 
 type Fields = Partial<
@@ -183,6 +202,44 @@ export function TicketsPage() {
   function added(t: Ticket) {
     setTickets((ts) => [t, ...ts])
     setAdding(null)
+  }
+
+  // Add/remove a comment or commit on a ticket, then reload so the embedded
+  // lists refresh. Cards keep their open/expanded state (keyed by ticket id).
+  async function addThread(resource: 'comment' | 'commit', payload: Record<string, unknown>): Promise<boolean> {
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/bug-reports', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ resource, ...payload }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        setSaveError(body.error || 'Could not save that.')
+        return false
+      }
+      await load()
+      return true
+    } catch {
+      setSaveError('Could not reach the server.')
+      return false
+    }
+  }
+
+  async function delThread(resource: 'comment' | 'commit', id: string): Promise<void> {
+    setSaveError(null)
+    try {
+      const res = await fetch('/api/bug-reports', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ resource, id }),
+      })
+      if (!res.ok) setSaveError('Could not delete that.')
+      else await load()
+    } catch {
+      setSaveError('Could not reach the server.')
+    }
   }
 
   function newFollowUp(parent: Ticket) {
@@ -321,6 +378,8 @@ export function TicketsPage() {
                 onZoom={setLightbox}
                 onGoTo={focusTicket}
                 onFollowUp={newFollowUp}
+                onAddThread={addThread}
+                onDelThread={delThread}
               />
             ))}
           </div>
@@ -463,6 +522,8 @@ function TicketCard({
   onZoom,
   onGoTo,
   onFollowUp,
+  onAddThread,
+  onDelThread,
 }: {
   ticket: Ticket
   parent: Ticket | undefined
@@ -474,6 +535,8 @@ function TicketCard({
   onZoom: (dataUrl: string) => void
   onGoTo: (n: number) => void
   onFollowUp: (t: Ticket) => void
+  onAddThread: (resource: 'comment' | 'commit', payload: Record<string, unknown>) => Promise<boolean>
+  onDelThread: (resource: 'comment' | 'commit', id: string) => void
 }) {
   const t = ticket
   const cardRef = useRef<HTMLDivElement>(null)
@@ -488,8 +551,43 @@ function TicketCard({
   const [linkInput, setLinkInput] = useState('')
   const [linkError, setLinkError] = useState<string | null>(null)
   const [hint, setHint] = useState<string | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [commentBusy, setCommentBusy] = useState(false)
+  const [commitsOpen, setCommitsOpen] = useState(false)
+  const [commitSha, setCommitSha] = useState('')
+  const [commitSubject, setCommitSubject] = useState('')
+  const [commitBusy, setCommitBusy] = useState(false)
   useEffect(() => setTitle(t.title ?? ''), [t.title])
   useEffect(() => setNote(t.resolution_note ?? ''), [t.resolution_note])
+
+  const comments = t.ticket_comments ?? []
+  const commits = t.ticket_commits ?? []
+
+  async function addComment() {
+    const body = commentText.trim()
+    if (!body || t.number == null) return
+    setCommentBusy(true)
+    const ok = await onAddThread('comment', { ticket_number: t.number, body })
+    setCommentBusy(false)
+    if (ok) setCommentText('')
+  }
+
+  async function addCommit() {
+    const sha = commitSha.trim()
+    if (!sha || t.number == null) return
+    setCommitBusy(true)
+    const ok = await onAddThread('commit', {
+      ticket_number: t.number,
+      sha,
+      ...(commitSubject.trim() ? { subject: commitSubject.trim() } : {}),
+    })
+    setCommitBusy(false)
+    if (ok) {
+      setCommitSha('')
+      setCommitSubject('')
+      setCommitsOpen(true)
+    }
+  }
 
   // Clicked through from another ticket's link: open, scroll to, and flash.
   useEffect(() => {
@@ -785,7 +883,7 @@ function TicketCard({
           </div>
 
           <div className="field" style={{ marginTop: 12 }}>
-            <label htmlFor={`tn-${t.id}`}>Resolution note</label>
+            <label htmlFor={`tn-${t.id}`}>Resolution note <span className="faint">· one-line summary</span></label>
             <textarea
               id={`tn-${t.id}`}
               className="textarea"
@@ -795,6 +893,95 @@ function TicketCard({
               onChange={(e) => setNote(e.target.value)}
               onBlur={() => note.trim() !== (t.resolution_note ?? '') && onUpdate(t.id, { resolution_note: note.trim() || null })}
             />
+          </div>
+
+          {/* Recorded commits — a collapsible list, most recent shown collapsed. */}
+          <div className="field ticket-commits">
+            <div className="ticket-field-head">
+              <label>Commits {commits.length > 0 && <span className="faint">· {commits.length}</span>}</label>
+              {commits.length > 1 && (
+                <button className="btn ghost small" onClick={() => setCommitsOpen((o) => !o)}>
+                  {commitsOpen ? 'Collapse' : `Show all ${commits.length}`}
+                </button>
+              )}
+            </div>
+            {commits.length === 0 ? (
+              <p className="faint" style={{ margin: '2px 0 0', fontSize: 12 }}>No commits recorded.</p>
+            ) : (
+              <ul className="commit-list">
+                {(commitsOpen ? commits : commits.slice(-1)).map((c) => (
+                  <li key={c.id} className="commit-row">
+                    <a href={commitUrl(c.sha)} target="_blank" rel="noreferrer" className="ticket-commit-link" title={`Commit ${c.sha} on GitHub`}>
+                      {shortSha(c.sha)}
+                    </a>
+                    <span className="commit-subject">{c.subject || <span className="faint">(no subject)</span>}</span>
+                    <button className="tk-del" title="Remove commit" aria-label="Remove commit" onClick={() => onDelThread('commit', c.id)}>
+                      <Icon name="x" />
+                    </button>
+                  </li>
+                ))}
+                {!commitsOpen && commits.length > 1 && (
+                  <li className="faint" style={{ fontSize: 12, paddingLeft: 2 }}>
+                    + {commits.length - 1} earlier — “Show all”.
+                  </li>
+                )}
+              </ul>
+            )}
+            <div className="commit-add">
+              <input
+                className="input commit-sha"
+                placeholder="commit SHA"
+                aria-label="Commit SHA"
+                value={commitSha}
+                onChange={(e) => setCommitSha(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addCommit()}
+              />
+              <input
+                className="input"
+                placeholder="subject (optional)"
+                aria-label="Commit subject"
+                value={commitSubject}
+                onChange={(e) => setCommitSubject(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addCommit()}
+              />
+              <button className="btn ghost small" onClick={addCommit} disabled={commitBusy || !commitSha.trim()}>
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Comment thread — Claude's extra notes and your own observations. */}
+          <div className="field ticket-comments-field">
+            <label>Comments {comments.length > 0 && <span className="faint">· {comments.length}</span>}</label>
+            {comments.length > 0 && (
+              <ul className="comment-list">
+                {comments.map((c) => (
+                  <li key={c.id} className="comment-row">
+                    <div className="comment-meta">
+                      <span className="comment-author">{c.author}</span>
+                      <span className="faint">{fmtDate(c.created_at)}</span>
+                      <span style={{ flex: 1 }} />
+                      <button className="tk-del" title="Delete comment" aria-label="Delete comment" onClick={() => onDelThread('comment', c.id)}>
+                        <Icon name="x" />
+                      </button>
+                    </div>
+                    <ClampText text={c.body} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <textarea
+              className="textarea"
+              rows={2}
+              placeholder="Add a comment — a thought, or a correction to bring up next session."
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+            />
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 6 }}>
+              <button className="btn ghost small" onClick={addComment} disabled={commentBusy || !commentText.trim()}>
+                {commentBusy ? 'Adding…' : 'Add comment'}
+              </button>
+            </div>
           </div>
 
           <div className="row between" style={{ marginTop: 8 }}>
@@ -821,6 +1008,24 @@ function TicketCard({
             </div>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/** A comment body: long text clamps with a "Show more" toggle; commit SHAs in it
+ *  link to the GitHub commit page. */
+function ClampText({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  const long = text.length > 320
+  const shown = open || !long ? text : `${text.slice(0, 320).replace(/\s+\S*$/, '')}…`
+  return (
+    <div className="comment-body">
+      <Linkified text={shown} />
+      {long && (
+        <button className="comment-more" onClick={() => setOpen((o) => !o)}>
+          {open ? 'Show less' : 'Show more'}
+        </button>
       )}
     </div>
   )

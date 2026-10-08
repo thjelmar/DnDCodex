@@ -11,7 +11,9 @@
 //   npm run tickets -- release T-18 ["note"]                → Released
 //   npm run tickets -- stage T-18 planned|in_progress|testing|released|reported
 //   npm run tickets -- set T-18 [--priority p] [--category c] [--title "…"] [--details "…"] [--public | --private]
-//   npm run tickets -- note T-18 "Resolution note"
+//   npm run tickets -- note T-18 "Resolution note"     the one-line summary
+//   npm run tickets -- comment T-18 "A thought" [--as "Claude (main)"]   thread entry
+//   npm run tickets -- commit T-18 <sha> ["subject"]   record a commit (subject auto-filled from git)
 //   npm run tickets -- link T-20 T-5          T-20 is a follow-up of T-5
 //   npm run tickets -- unlink T-20
 //   npm run tickets -- check T-18 2 [3 …]     tick checklist items (numbers from `show`)
@@ -224,6 +226,34 @@ async function show(ref) {
     if (item) console.log(`(${item} checklist item${item === 1 ? '' : 's'}; tick with: npm run tickets -- check ${tid(t)} <n>)`)
   }
   if (t.resolution_note) console.log(`\nResolution note: ${t.resolution_note}`)
+
+  // Commit refs + comment thread (0030_ticket_threads.sql); soft so a pre-
+  // migration DB just skips them.
+  const commits = await rest(
+    `ticket_commits?ticket_number=eq.${t.number}&order=created_at&select=sha,subject`,
+    {},
+    { soft: true },
+  )
+  if (Array.isArray(commits) && commits.length) {
+    console.log(`\nCommits (${commits.length}):`)
+    for (const c of commits) {
+      console.log(`  ${c.sha.slice(0, 12)}${c.subject ? `  ${c.subject}` : ''}`)
+      console.log(`    https://github.com/${GITHUB_REPO}/commit/${c.sha}`)
+    }
+  }
+  const comments = await rest(
+    `ticket_comments?ticket_number=eq.${t.number}&order=created_at&select=author,body,created_at`,
+    {},
+    { soft: true },
+  )
+  if (Array.isArray(comments) && comments.length) {
+    console.log(`\nComments (${comments.length}):`)
+    for (const c of comments) {
+      console.log(`  [${c.author} · ${new Date(c.created_at).toLocaleString()}]`)
+      for (const line of String(c.body).split('\n')) console.log(`    ${line}`)
+    }
+  }
+
   if (t.source === 'site') {
     console.log('\nReport context:')
     console.log(`  route: ${t.route ?? '-'}   version: ${t.app_version ?? '-'}`)
@@ -313,6 +343,46 @@ async function check(ref, items, done) {
   console.log(`✓ ${tid(t)}: ${done ? 'ticked' : 'unticked'} ${items.join(', ')} (${ticked}/${at.length} done)`)
 }
 
+const GITHUB_REPO = 'thjelmar/DnDCodex'
+
+/** Add a comment to a ticket's thread. */
+async function comment(ref, text, flags) {
+  if (!text) die('comment needs text: npm run tickets -- comment T-18 "A thought"')
+  const t = await getTicket(ref)
+  const author = typeof flags.as === 'string' ? flags.as : t.claimed_by || 'Claude (main)'
+  await rest('ticket_comments', {
+    method: 'POST',
+    body: JSON.stringify({ ticket_number: t.number, author, body: text }),
+  })
+  console.log(`✓ ${tid(t)} comment added (as ${author})`)
+}
+
+/** Record a commit on a ticket. Subject auto-fills from `git log` when omitted. */
+async function commitCmd(ref, sha, subjectArg) {
+  if (!sha) die('commit needs a SHA: npm run tickets -- commit T-18 <sha> ["subject"]')
+  if (!/^[0-9a-f]{7,40}$/i.test(sha)) die(`"${sha}" doesn't look like a commit SHA (7–40 hex)`)
+  const t = await getTicket(ref)
+  let subject = subjectArg ?? null
+  if (!subject) {
+    try {
+      subject = execFileSync('git', ['log', '-1', '--format=%s', sha], {
+        cwd: APP_DIR,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() || null
+    } catch {
+      // Unknown commit locally — store the SHA alone.
+    }
+  }
+  // merge-duplicates so re-recording the same commit is a no-op, not an error.
+  await rest('ticket_commits', {
+    method: 'POST',
+    headers: { prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ ticket_number: t.number, sha, subject }),
+  })
+  console.log(`✓ ${tid(t)} commit ${sha.slice(0, 12)} recorded${subject ? `: ${subject}` : ''}`)
+}
+
 // ---------------------------------------------------------------- main
 
 const [command, ...rest_] = process.argv.slice(2)
@@ -354,6 +424,12 @@ switch (command) {
     console.log(`✓ ${tid(t)} note saved`)
     break
   }
+  case 'comment':
+    await comment(positional[0], positional[1], flags)
+    break
+  case 'commit':
+    await commitCmd(positional[0], positional[1], positional[2])
+    break
   case 'link':
     if (!positional[1]) die('link needs two tickets: npm run tickets -- link T-20 T-5  (T-20 follows up T-5)')
     await link(positional[0], positional[1])
@@ -369,5 +445,5 @@ switch (command) {
     await check(positional[0], positional.slice(1), command === 'check')
     break
   default:
-    die(`unknown command "${command}". Try: list, show, add, start, done, release, stage, set, note, link, unlink, check, uncheck`)
+    die(`unknown command "${command}". Try: list, show, add, start, done, release, stage, set, note, comment, commit, link, unlink, check, uncheck`)
 }
