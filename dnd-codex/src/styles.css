@@ -214,10 +214,10 @@ button {
   font-weight: 700;
   line-height: 1;
 }
+/* Portaled to <body> and fixed-positioned (top/left set inline) so the sidebar's
+   scroll overflow can't clip it; z-index clears the app chrome. */
 .notif-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;
   width: 300px;
   max-width: calc(100vw - 32px);
   max-height: 70vh;
@@ -226,7 +226,7 @@ button {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  z-index: 60;
+  z-index: 500;
   padding: 6px;
 }
 .notif-head {
