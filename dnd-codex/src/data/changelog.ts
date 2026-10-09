@@ -16,6 +16,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-09',
+    title: 'Make it yours — and never miss a session',
+    changes: [
+      { kind: 'new', text: 'Themes: pick a Light or Dark look and an accent color under Preferences → Appearance. Your choice follows you across devices.' },
+      { kind: 'new', text: 'Session reminders: get a nudge before a game — in the app and by email — a day before, an hour before, or right at start time. Choose which ones (and how) in Preferences.' },
+    ],
+  },
+  {
+    date: '2026-10-08',
+    title: 'Scheduling, RSVPs & reminders',
+    changes: [
+      { kind: 'new', text: 'Session scheduling — DMs set the next session date and time; everyone sees a live “next session” indicator and can RSVP Going, Maybe, or Can’t.' },
+      { kind: 'new', text: 'Add the campaign’s sessions to your own calendar (Google / Apple / Outlook) with a subscribe link that auto-updates when the date changes.' },
+      { kind: 'new', text: 'Can’t make the date? Suggest another day right on the calendar, and the DM can float backup days for the group to weigh in on.' },
+      { kind: 'new', text: 'A notification bell in the sidebar keeps you posted on session plans and RSVPs.' },
+    ],
+  },
+  {
     date: '2026-09-30',
     title: 'See what’s on the way',
     changes: [
