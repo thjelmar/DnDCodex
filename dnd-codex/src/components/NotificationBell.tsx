@@ -28,6 +28,29 @@ interface Described {
   sub: string
 }
 
+/** A friendly "time until" for a reminder, recomputed each render so it reflects
+ *  when the bell is actually opened — the fixed 1-day / 1-hour mark that fired the
+ *  reminder can be up to ~90 min early. Interprets the session's wall-clock time
+ *  in the viewer's local zone, consistent with the rest of the app's scheduling. */
+function sessionUntil(date?: string, time?: string): string {
+  if (!date) return 'soon'
+  const target = new Date(`${date}T${time || '18:00'}:00`)
+  if (isNaN(target.getTime())) return 'soon'
+  const ms = target.getTime() - Date.now()
+  if (!time) {
+    // All-day session: day granularity only.
+    const days = Math.round(ms / 86400000)
+    return days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`
+  }
+  const min = Math.round(ms / 60000)
+  if (min <= 0) return 'now'
+  if (min < 60) return `in ${min} min`
+  const hrs = Math.round(min / 60)
+  if (hrs < 24) return `in about ${hrs} hour${hrs === 1 ? '' : 's'}`
+  const days = Math.round(hrs / 24)
+  return days === 1 ? 'tomorrow' : `in ${days} days`
+}
+
 function describe(n: AppNotification): Described {
   const p = n.payload as {
     date?: string
@@ -54,16 +77,10 @@ function describe(n: AppNotification): Described {
       return { title: `Session moved to ${when}${at}`, sub }
     case 'session_rsvp':
       return { title: `${who} ${p.status === 'no' ? "can't make" : 'might make'} ${when}`, sub }
-    case 'session_reminder':
-      return {
-        title:
-          p.offset === 'start'
-            ? `Session starting now${at}`
-            : p.offset === 'hour'
-              ? `Session in 1 hour${at}`
-              : `Session tomorrow${at}`,
-        sub,
-      }
+    case 'session_reminder': {
+      const until = sessionUntil(p.date, p.time)
+      return { title: until === 'now' ? 'Session starting now' : `Session ${until}`, sub }
+    }
     default:
       return { title: 'Update', sub }
   }
