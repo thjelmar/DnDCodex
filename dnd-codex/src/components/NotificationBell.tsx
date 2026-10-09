@@ -35,6 +35,7 @@ function describe(n: AppNotification): Described {
     status?: string
     actorName?: string
     campaignName?: string
+    offset?: string
   }
   const who = p.actorName || 'Someone'
   const when = p.date ? formatDate(p.date) : 'a day'
@@ -53,6 +54,16 @@ function describe(n: AppNotification): Described {
       return { title: `Session moved to ${when}${at}`, sub }
     case 'session_rsvp':
       return { title: `${who} ${p.status === 'no' ? "can't make" : 'might make'} ${when}`, sub }
+    case 'session_reminder':
+      return {
+        title:
+          p.offset === 'start'
+            ? `Session starting now${at}`
+            : p.offset === 'hour'
+              ? `Session in 1 hour${at}`
+              : `Session tomorrow${at}`,
+        sub,
+      }
     default:
       return { title: 'Update', sub }
   }

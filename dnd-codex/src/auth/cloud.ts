@@ -347,6 +347,9 @@ export async function setSessionSchedule(
       next_date: s.nextSessionDate || null,
       next_time: s.nextSessionTime || null,
       rescheduled_from: s.rescheduledFrom || null,
+      // The saver's timezone, so the reminders tick can turn the naive wall-clock
+      // next_time into an absolute instant (migration 0032). Best-effort.
+      timezone: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || null } catch { return null } })(),
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'campaign_id' },
@@ -704,6 +707,7 @@ export type NotificationType =
   | 'session_scheduled'
   | 'session_rescheduled'
   | 'session_rsvp'
+  | 'session_reminder'
 
 export interface AppNotification {
   id: string
