@@ -21,6 +21,57 @@
   --lock-mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%23000'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Crect%20x='4'%20y='11'%20width='16'%20height='10'%20rx='2'/%3E%3Cpath%20d='M8%2011V7a4%204%200%200%201%208%200v4'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
+/* ---------------------------------------------------------------------------
+   Per-user appearance (lib/theme.ts + migration 0031). The dark palette above
+   is the default; these override the same tokens by [data-theme] / [data-accent]
+   on <html>, so no component markup changes. Links use --link (the plain
+   --accent is too light on a white surface, so light mode points it at the
+   stronger shade).
+   --------------------------------------------------------------------------- */
+:root { color-scheme: dark; --link: var(--accent); }
+
+:root[data-theme="dark"] { color-scheme: dark; --link: var(--accent); }
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f4fb;
+  --bg-elev: #ffffff;
+  --bg-elev-2: #ecebf4;
+  --border: #dbd6e8;
+  --text: #1d1a27;
+  --text-dim: #585270;
+  --text-faint: #8b86a0;
+  --danger: #dc2626;
+  --danger-strong: #b91c1c;
+  --good: #16a34a;
+  --shadow: 0 6px 20px rgba(60, 50, 90, 0.14);
+  --link: var(--accent-strong);
+}
+
+/* Accent swatches — apply in both themes. Violet is the :root default. */
+:root[data-accent="violet"]  { --accent: #a78bfa; --accent-strong: #7c3aed; }
+:root[data-accent="emerald"] { --accent: #34d399; --accent-strong: #059669; }
+:root[data-accent="sky"]     { --accent: #38bdf8; --accent-strong: #0284c7; }
+:root[data-accent="amber"]   { --accent: #fbbf24; --accent-strong: #b45309; }
+:root[data-accent="rose"]    { --accent: #fb7185; --accent-strong: #e11d48; }
+
+/* In light mode the bright accents are glary / low-contrast on white, so darken
+   --accent (the on-surface uses: icons, active nav, highlights) for those.
+   Two attributes outrank the single-attribute base rule above. Buttons/links use
+   --accent-strong, which already reads on white, so they're left alone. */
+:root[data-theme="light"][data-accent="emerald"] { --accent: #059669; }
+:root[data-theme="light"][data-accent="sky"]     { --accent: #0284c7; }
+:root[data-theme="light"][data-accent="amber"]   { --accent: #b45309; }
+
+/* Appearance picker controls (PreferencesModal). */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.seg-btn { background: var(--bg-elev); color: var(--text-dim); border: none; padding: 5px 16px; font: inherit; cursor: pointer; }
+.seg-btn + .seg-btn { border-left: 1px solid var(--border); }
+.seg-btn.active { background: var(--accent-strong); color: #fff; }
+.swatch-row { display: flex; gap: 9px; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); border: 2px solid var(--border); cursor: pointer; padding: 0; }
+.swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--sw); }
+
 * {
   box-sizing: border-box;
 }
@@ -42,7 +93,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: none;
 }
 a:hover {
