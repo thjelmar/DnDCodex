@@ -140,6 +140,8 @@ export function WorldMapPage() {
           </h2>
           <p className="muted" style={{ margin: '2px 0 0' }}>
             A prep/reference map. Click the map to drop a pin, then link it to a location or NPC.
+            For the best fit, use a landscape image around 16:10 (for example 2400×1500 px); other shapes
+            leave margins in the default view.
           </p>
         </div>
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>

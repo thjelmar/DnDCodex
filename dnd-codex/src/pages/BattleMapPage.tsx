@@ -758,6 +758,13 @@ export function SceneEditor({
         </div>
       </div>
       {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
+      {!mapImage && (
+        <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
+          Tip: a landscape image around 16:10 (for example 2400×1500 px) fills the default view with no
+          empty bands or cut-off edges. Other shapes still work — they just leave margins until you zoom.
+          Images over {MAP_MAX_DIM}px on a side are shrunk to fit.
+        </p>
+      )}
       {live.error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{live.error}</p>}
       {preview && (
         <div className="battlemap-preview-banner">
