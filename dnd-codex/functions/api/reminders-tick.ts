@@ -255,7 +255,7 @@ export const onRequest: (ctx: { request: Request; env: Env }) => Promise<Respons
       }
     }
 
-    return new Response(JSON.stringify({ ok: true, schedules: schedules.length, considered, sentInapp, sentEmail, emailOn, hasKey: !!emailKey, hasFrom: !!emailFrom }), {
+    return new Response(JSON.stringify({ ok: true, schedules: schedules.length, considered, sentInapp, sentEmail, emailOn }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     })
