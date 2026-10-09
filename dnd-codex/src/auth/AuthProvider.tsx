@@ -5,6 +5,13 @@ import { setTheme, normalizeTheme, normalizeAccent } from '../lib/theme'
 
 export type OAuthProvider = 'discord' | 'google'
 
+/** Per-user session-reminder prefs (migration 0032). A missing object / key
+ *  means "on" — the reminders tick treats only an explicit `false` as opt-out. */
+export interface ReminderPrefs {
+  offsets?: { day?: boolean; hour?: boolean; start?: boolean }
+  channels?: { inapp?: boolean; email?: boolean; push?: boolean }
+}
+
 export interface Profile {
   id: string
   username: string | null
@@ -13,6 +20,8 @@ export interface Profile {
   /** Per-user appearance (migration 0031); null = app default. */
   theme: string | null
   accent: string | null
+  /** Per-user reminder prefs (migration 0032); null = all defaults on. */
+  reminder_prefs: ReminderPrefs | null
 }
 
 interface AuthState {
@@ -32,6 +41,7 @@ interface AuthState {
     avatar_url?: string | null
     theme?: string
     accent?: string
+    reminder_prefs?: ReminderPrefs
   }) => Promise<void>
 }
 
@@ -67,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false
     const user = session.user
-    const cols = 'id, username, display_name, avatar_url, theme, accent'
+    const cols = 'id, username, display_name, avatar_url, theme, accent, reminder_prefs'
     const baseCols = 'id, username, display_name, avatar_url'
     ;(async () => {
       // Prefer the appearance columns; fall back if migration 0031 hasn't run.
@@ -88,8 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await supabase!.from('profiles').select(baseCols).eq('id', user.id).maybeSingle()
         row = res.data
       }
-      // The fallback select omits theme/accent; default them so Profile is whole.
-      if (!cancelled) setProfile(row ? ({ theme: null, accent: null, ...row } as unknown as Profile) : null)
+      // The fallback select omits the newer columns; default them so Profile is whole.
+      if (!cancelled) setProfile(row ? ({ theme: null, accent: null, reminder_prefs: null, ...row } as unknown as Profile) : null)
     })().catch(() => {
       // Table may not exist yet (migration not run) — fail soft, keep app usable.
       if (!cancelled) setProfile(null)
