@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
 import { CalendarSubscriptionsPref } from './CalendarSubscriptionsPref'
-import { useAuth } from '../auth/AuthProvider'
+import { useAuth, type ReminderPrefs } from '../auth/AuthProvider'
 import {
   THEMES,
   ACCENTS,
@@ -59,6 +59,30 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
     setAccentChoice(nextAccent)
     setTheme(nextTheme, nextAccent) // instant apply + local cache
     if (profile) updateProfile({ theme: nextTheme, accent: nextAccent }).catch(() => {})
+  }
+
+  // Session reminders: which offsets + channels this user wants. A missing key
+  // means "on", so the toggles reflect `!== false` and we write explicit booleans.
+  const [remOffsets, setRemOffsets] = useState({ day: true, hour: true, start: true })
+  const [remChannels, setRemChannels] = useState({ inapp: true, email: true })
+  useEffect(() => {
+    const rp = profile?.reminder_prefs
+    setRemOffsets({
+      day: rp?.offsets?.day !== false,
+      hour: rp?.offsets?.hour !== false,
+      start: rp?.offsets?.start !== false,
+    })
+    setRemChannels({
+      inapp: rp?.channels?.inapp !== false,
+      email: rp?.channels?.email !== false,
+    })
+  }, [profile?.reminder_prefs])
+
+  function saveReminderPrefs(offsets: typeof remOffsets, channels: typeof remChannels) {
+    setRemOffsets(offsets)
+    setRemChannels(channels)
+    const next: ReminderPrefs = { offsets: { ...offsets }, channels: { ...channels } }
+    if (profile) updateProfile({ reminder_prefs: next }).catch(() => {})
   }
 
   const [askReveal, setAskReveal] = useState(() => !isConfirmSkipped(REVEAL_CONFIRM_KEY))
@@ -138,6 +162,50 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
           </div>
         )}
       </div>
+
+      {profile && (
+        <div className="prefs-section">
+          <div className="prefs-section-title">Session reminders</div>
+          <div className="faint" style={{ fontSize: 12, margin: '0 0 10px' }}>
+            Get a heads-up before a scheduled session, across every campaign you're in.
+          </div>
+          <div className="prefs-row">
+            <div className="prefs-row-label">When</div>
+            <div className="prefs-row-value" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={remOffsets.day}
+                  onChange={(e) => saveReminderPrefs({ ...remOffsets, day: e.target.checked }, remChannels)} />
+                1 day before
+              </label>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={remOffsets.hour}
+                  onChange={(e) => saveReminderPrefs({ ...remOffsets, hour: e.target.checked }, remChannels)} />
+                1 hour before
+              </label>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={remOffsets.start}
+                  onChange={(e) => saveReminderPrefs({ ...remOffsets, start: e.target.checked }, remChannels)} />
+                When it starts
+              </label>
+            </div>
+          </div>
+          <div className="prefs-row">
+            <div className="prefs-row-label">How</div>
+            <div className="prefs-row-value" style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={remChannels.inapp}
+                  onChange={(e) => saveReminderPrefs(remOffsets, { ...remChannels, inapp: e.target.checked })} />
+                In-app
+              </label>
+              <label className="row" style={{ gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={remChannels.email}
+                  onChange={(e) => saveReminderPrefs(remOffsets, { ...remChannels, email: e.target.checked })} />
+                Email
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="prefs-section">
         <div className="row between" style={{ alignItems: 'center' }}>
