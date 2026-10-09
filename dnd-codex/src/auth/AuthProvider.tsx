@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { setTheme, normalizeTheme, normalizeAccent } from '../lib/theme'
 
 export type OAuthProvider = 'discord' | 'google'
 
@@ -9,6 +10,9 @@ export interface Profile {
   username: string | null
   display_name: string | null
   avatar_url: string | null
+  /** Per-user appearance (migration 0031); null = app default. */
+  theme: string | null
+  accent: string | null
 }
 
 interface AuthState {
@@ -22,8 +26,13 @@ interface AuthState {
   profile: Profile | null
   signIn: (provider: OAuthProvider) => Promise<void>
   signOut: () => Promise<void>
-  /** Update the signed-in user's own profile (display name / avatar). */
-  updateProfile: (patch: { display_name?: string; avatar_url?: string | null }) => Promise<void>
+  /** Update the signed-in user's own profile (display name / avatar / appearance). */
+  updateProfile: (patch: {
+    display_name?: string
+    avatar_url?: string | null
+    theme?: string
+    accent?: string
+  }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -58,10 +67,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false
     const user = session.user
-    const cols = 'id, username, display_name, avatar_url'
+    const cols = 'id, username, display_name, avatar_url, theme, accent'
+    const baseCols = 'id, username, display_name, avatar_url'
     ;(async () => {
-      let { data } = await supabase!.from('profiles').select(cols).eq('id', user.id).maybeSingle()
-      if (!data) {
+      // Prefer the appearance columns; fall back if migration 0031 hasn't run.
+      const first = await supabase!.from('profiles').select(cols).eq('id', user.id).maybeSingle()
+      let row: Record<string, unknown> | null = first.data
+      if (first.error) {
+        const fb = await supabase!.from('profiles').select(baseCols).eq('id', user.id).maybeSingle()
+        row = fb.data
+      }
+      if (!row) {
         // Safety net if the DB trigger didn't create one (e.g. user predates it).
         const meta = user.user_metadata ?? {}
         await supabase!.from('profiles').upsert({
@@ -69,10 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           display_name: meta.full_name || meta.name || meta.user_name || user.email,
           avatar_url: meta.avatar_url ?? null,
         })
-        const res = await supabase!.from('profiles').select(cols).eq('id', user.id).maybeSingle()
-        data = res.data
+        const res = await supabase!.from('profiles').select(baseCols).eq('id', user.id).maybeSingle()
+        row = res.data
       }
-      if (!cancelled) setProfile((data as Profile) ?? null)
+      // The fallback select omits theme/accent; default them so Profile is whole.
+      if (!cancelled) setProfile(row ? ({ theme: null, accent: null, ...row } as unknown as Profile) : null)
     })().catch(() => {
       // Table may not exist yet (migration not run) — fail soft, keep app usable.
       if (!cancelled) setProfile(null)
@@ -81,6 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true
     }
   }, [userId])
+
+  // The account is the source of truth for appearance: once the profile loads
+  // (or changes), apply + re-cache it so it matches across devices. Signed out,
+  // we leave the last cached choice in place (the boot script already applied it).
+  useEffect(() => {
+    if (!profile) return
+    setTheme(normalizeTheme(profile.theme), normalizeAccent(profile.accent))
+  }, [profile?.theme, profile?.accent])
 
   async function signIn(provider: OAuthProvider) {
     if (!supabase) return

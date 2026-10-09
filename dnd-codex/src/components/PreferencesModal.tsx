@@ -1,8 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
 import { CalendarSubscriptionsPref } from './CalendarSubscriptionsPref'
+import { useAuth } from '../auth/AuthProvider'
+import {
+  THEMES,
+  ACCENTS,
+  ACCENT_LABEL,
+  ACCENT_SWATCH,
+  setTheme,
+  readCachedTheme,
+  normalizeTheme,
+  normalizeAccent,
+  type Theme,
+  type Accent,
+} from '../lib/theme'
 import {
   REVEAL_CONFIRM_KEY,
   SHAREABLE_KINDS,
@@ -29,6 +42,25 @@ const KIND_LABEL: Record<ShareableKind, string> = {
  */
 export function PreferencesModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
+  const { profile, updateProfile } = useAuth()
+
+  // Appearance: reflect the current choice (profile when signed in, else the
+  // local cache), apply instantly on change, and sync to the account if signed in.
+  const [theme, setThemeChoice] = useState<Theme>(() => readCachedTheme().theme)
+  const [accent, setAccentChoice] = useState<Accent>(() => readCachedTheme().accent)
+  useEffect(() => {
+    if (!profile) return
+    setThemeChoice(normalizeTheme(profile.theme))
+    setAccentChoice(normalizeAccent(profile.accent))
+  }, [profile?.theme, profile?.accent])
+
+  function chooseAppearance(nextTheme: Theme, nextAccent: Accent) {
+    setThemeChoice(nextTheme)
+    setAccentChoice(nextAccent)
+    setTheme(nextTheme, nextAccent) // instant apply + local cache
+    if (profile) updateProfile({ theme: nextTheme, accent: nextAccent }).catch(() => {})
+  }
+
   const [askReveal, setAskReveal] = useState(() => !isConfirmSkipped(REVEAL_CONFIRM_KEY))
   const [defaults, setDefaults] = useState<Record<ShareableKind, string[] | null>>(() => {
     const d = {} as Record<ShareableKind, string[] | null>
@@ -65,6 +97,48 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
+      <div className="prefs-section">
+        <div className="prefs-section-title">Appearance</div>
+        <div className="prefs-row">
+          <div className="prefs-row-label">Theme</div>
+          <div className="prefs-row-value">
+            <div className="seg">
+              {THEMES.map((t) => (
+                <button
+                  key={t}
+                  className={`seg-btn${theme === t ? ' active' : ''}`}
+                  onClick={() => chooseAppearance(t, accent)}
+                >
+                  {t === 'dark' ? 'Dark' : 'Light'}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="prefs-row">
+          <div className="prefs-row-label">Accent</div>
+          <div className="prefs-row-value">
+            <div className="swatch-row">
+              {ACCENTS.map((a) => (
+                <button
+                  key={a}
+                  className={`swatch${accent === a ? ' active' : ''}`}
+                  style={{ ['--sw' as string]: ACCENT_SWATCH[a] }}
+                  title={ACCENT_LABEL[a]}
+                  aria-label={ACCENT_LABEL[a]}
+                  onClick={() => chooseAppearance(theme, a)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        {!profile && (
+          <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+            Saved on this device. Sign in to sync your theme across devices.
+          </div>
+        )}
+      </div>
+
       <div className="prefs-section">
         <div className="row between" style={{ alignItems: 'center' }}>
           <div className="prefs-section-title" style={{ margin: 0 }}>Backup &amp; Data</div>
