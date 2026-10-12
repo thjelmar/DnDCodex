@@ -307,9 +307,11 @@ export function Tabletop({
     }
     if (templateTool) {
       const p = toBoard(e.clientX, e.clientY)
-      // Snap the origin to the nearest grid intersection (spells emanate from a point).
-      const col = Math.round((p.x - grid.offsetX) / grid.cellPx)
-      const row = Math.round((p.y - grid.offsetY) / grid.cellPx)
+      // Snap the origin to the CENTER of the cell under the cursor (+0.5), not the
+      // grid intersection — a spell area reads more accurately when it emanates
+      // from a square rather than a corner.
+      const col = Math.floor((p.x - grid.offsetX) / grid.cellPx) + 0.5
+      const row = Math.floor((p.y - grid.offsetY) / grid.cellPx) + 0.5
       drag.current = { kind: 'template', col, row }
       setTemplateAim({ col, row, ax: p.x, ay: p.y })
       return
