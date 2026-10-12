@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
-import { liveTokensForBoard, moveMyToken, useLiveScene } from '../auth/liveScene'
+import { liveTokensForBoard, moveMyToken, placeMyTemplate, removeMyTemplate, usePlayerTemplates, useLiveScene } from '../auth/liveScene'
 import { getMyColor, setMyColor } from '../auth/cloud'
 import { useFullscreen } from '../lib/useFullscreen'
 import { TOKEN_COLORS } from '../lib/tabletop'
 import { Tabletop } from './Tabletop'
 import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
 import { Icon } from './Icon'
+import type { SceneTemplate, TemplateShape } from '../db/types'
+
+/** Spell-area presets a player can drop on the live map (shape defaults to the
+ *  effect type: a burst is a circle, a breath/cone is a cone, a bolt is a line). */
+const SPELL_PRESETS: { label: string; shape: TemplateShape; sizeFt: number }[] = [
+  { label: 'Burst 10 ft', shape: 'circle', sizeFt: 10 },
+  { label: 'Burst 20 ft', shape: 'circle', sizeFt: 20 },
+  { label: 'Cone 15 ft', shape: 'cone', sizeFt: 15 },
+  { label: 'Cone 30 ft', shape: 'cone', sizeFt: 30 },
+  { label: 'Cone 60 ft', shape: 'cone', sizeFt: 60 },
+  { label: 'Line 30 ft', shape: 'line', sizeFt: 30 },
+]
 
 // The player's view of the DM's live battle map, in the live-session page's
 // Tabletop (players only see maps during a session). Players pan and
@@ -56,6 +68,10 @@ export function PlayerLiveBoardView({
   // Ruler: drag the board to measure distance in feet (ephemeral, local — the
   // player's own tool; nothing is shared or persisted).
   const [measuring, setMeasuring] = useState(false)
+  // Spell areas the player drops on the shared map (persisted via the RPCs).
+  const [spellOpen, setSpellOpen] = useState(false)
+  const [spellTool, setSpellTool] = useState<{ shape: TemplateShape; sizeFt: number; color: string } | null>(null)
+  const pt = usePlayerTemplates(linkedCampaignId)
 
   // My color (per campaign). Applied to my tokens right away so picking feels
   // instant; the DM's screen re-pushes it to everyone else a moment later.
@@ -92,6 +108,17 @@ export function PlayerLiveBoardView({
     return { ...b, tokens: b.tokens.map((t) => (ownIds.has(t.id) ? { ...t, color: myColor } : t)) }
   }, [live.tokens, myColor, ownIds])
 
+  // Every area on the board: the DM's templates plus the ones players dropped.
+  const allTemplates = useMemo(
+    () => [...(live.scene?.templates ?? []), ...pt.templates],
+    [live.scene, pt.templates],
+  )
+  const myTemplateIds = useMemo(
+    () => pt.templates.filter((t) => t.createdBy === user?.id).map((t) => t.id),
+    [pt.templates, user],
+  )
+  const spellColor = myColor ?? '#a78bfa'
+
   async function move(id: string, col: number, row: number) {
     const prev = live.tokens
     setError(null)
@@ -102,6 +129,37 @@ export function PlayerLiveBoardView({
     } catch (e) {
       live.setTokens(prev)
       setError(e instanceof Error ? e.message : 'Could not move that token.')
+    }
+  }
+
+  function armSpell(preset: (typeof SPELL_PRESETS)[number]) {
+    setMeasuring(false)
+    setSpellTool({ shape: preset.shape, sizeFt: preset.sizeFt, color: spellColor })
+    setSpellOpen(false)
+  }
+
+  async function placeTemplate(t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) {
+    if (!user) return
+    const tpl: SceneTemplate = { id: crypto.randomUUID(), shape: t.shape, col: t.col, row: t.row, sizeFt: t.sizeFt, dir: t.dir, color: t.color }
+    pt.setTemplates((ts) => [...ts, { ...tpl, createdBy: user.id }]) // optimistic
+    setError(null)
+    try {
+      await placeMyTemplate(linkedCampaignId, tpl)
+    } catch (e) {
+      pt.setTemplates((ts) => ts.filter((x) => x.id !== tpl.id))
+      setError(e instanceof Error ? e.message : 'Could not place that spell area.')
+    }
+  }
+
+  async function clearMyTemplates() {
+    const ids = myTemplateIds
+    pt.setTemplates((ts) => ts.filter((t) => t.createdBy !== user?.id)) // optimistic
+    for (const id of ids) {
+      try {
+        await removeMyTemplate(id)
+      } catch {
+        /* best-effort; a failed delete reappears on the next refresh */
+      }
     }
   }
 
@@ -156,11 +214,35 @@ export function PlayerLiveBoardView({
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
           <button
             className={`btn small${measuring ? ' primary' : ''}`}
-            onClick={() => setMeasuring((m) => !m)}
+            onClick={() => { setSpellTool(null); setSpellOpen(false); setMeasuring((m) => !m) }}
             title="Ruler: drag on the map to measure distance in feet"
           >
             📏 {measuring ? 'Done' : 'Measure'}
           </button>
+          <div className="player-spell-wrap">
+            <button
+              className={`btn small${spellTool ? ' primary' : ''}`}
+              onClick={() => { if (spellTool) { setSpellTool(null); setSpellOpen(false) } else setSpellOpen((o) => !o) }}
+              aria-expanded={spellOpen}
+              title="Drop a spell area (burst, cone or line) on the map"
+            >
+              ✨ {spellTool ? 'Stop' : 'Spell area'}
+            </button>
+            {spellOpen && !spellTool && (
+              <div className="player-spell-menu" role="menu">
+                {SPELL_PRESETS.map((p) => (
+                  <button key={p.label} className="player-spell-opt" role="menuitem" onClick={() => armSpell(p)}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {myTemplateIds.length > 0 && (
+            <button className="btn ghost small" onClick={clearMyTemplates} title="Remove the spell areas you placed">
+              Clear mine
+            </button>
+          )}
           {fs.expanded && notes && (
             <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)}>
               📝 {notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}
@@ -175,11 +257,13 @@ export function PlayerLiveBoardView({
 
       {!fs.expanded && !compact && (
         <p className="faint" style={{ fontSize: 13, margin: '0 0 8px' }}>
-          {measuring
-            ? 'Drag across the map to measure distance in feet. Tap Done to move tokens again.'
-            : ownIds.size > 0
-              ? 'Drag your token (green ring) to move it. Scroll to zoom, drag the map to pan.'
-              : 'Scroll to zoom, drag to pan. Your DM moves the tokens.'}
+          {spellTool
+            ? 'Tap the map to drop your spell area (drag to aim a cone or line). Tap Stop when you’re done.'
+            : measuring
+              ? 'Drag across the map to measure distance in feet. Tap Done to move tokens again.'
+              : ownIds.size > 0
+                ? 'Drag your token (green ring) to move it. Scroll to zoom, drag the map to pan.'
+                : 'Scroll to zoom, drag to pan. Your DM moves the tokens.'}
         </p>
       )}
       {error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
@@ -206,7 +290,9 @@ export function PlayerLiveBoardView({
           ownIds={ownIds}
           fog={live.scene.fog ?? null}
           combat={board.combat}
-          templates={live.scene.templates ?? undefined}
+          templates={allTemplates}
+          templateTool={spellTool}
+          onPlaceTemplate={placeTemplate}
           measureTool={measuring}
           renderTokenPanel={(t) => {
             const cc = board.combat?.[t.id]

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
 import { downloadMapObjectUrl } from '../lib/mapStorage'
-import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TokenCombat } from '../db/types'
+import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 
 // Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
 // players; the scene row, its visible tokens, and its map image are mirrored to
@@ -207,6 +207,8 @@ export async function stopLiveScene(campaignId: string): Promise<void> {
   check(tokens.error)
   const maps = await supabase.from('shared_scene_maps').delete().eq('campaign_id', campaignId)
   check(maps.error)
+  const templates = await supabase.from('shared_scene_templates').delete().eq('campaign_id', campaignId)
+  check(templates.error)
   const scene = await supabase.from('shared_scenes').delete().eq('campaign_id', campaignId)
   check(scene.error)
 }
@@ -217,6 +219,60 @@ export async function stopLiveScene(campaignId: string): Promise<void> {
 export async function moveMyToken(id: string, col: number, row: number): Promise<void> {
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('move_scene_token', { tid: id, new_col: col, new_row: row })
+  check(error)
+}
+
+// ── Player spell-area templates (migration 0035) ─────────────────────────────
+
+/** A player-placed spell area, with the member who dropped it (so they — and
+ *  the DM — can remove it). */
+export interface LivePlayerTemplate extends SceneTemplate {
+  createdBy: string | null
+}
+
+function playerTemplateFromRow(r: Row): LivePlayerTemplate {
+  return {
+    id: r.id as string,
+    shape: (r.shape as TemplateShape) ?? 'circle',
+    col: Number(r.cell_col),
+    row: Number(r.cell_row),
+    sizeFt: Number(r.size_ft),
+    dir: r.dir == null ? undefined : Number(r.dir),
+    color: (r.color as string) ?? '#a78bfa',
+    label: (r.label as string) ?? undefined,
+    createdBy: (r.created_by as string) ?? null,
+  }
+}
+
+export async function getPlayerTemplates(campaignId: string): Promise<LivePlayerTemplate[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase.from('shared_scene_templates').select('*').eq('campaign_id', campaignId)
+  if (error || !data) return []
+  return (data as Row[]).map(playerTemplateFromRow)
+}
+
+/** Place (or re-position) the caller's own spell area; the server stamps them as
+ *  the owner and refuses a campaign they're not in. */
+export async function placeMyTemplate(campaignId: string, t: SceneTemplate): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.rpc('place_scene_template', {
+    cid: campaignId,
+    tid: t.id,
+    tshape: t.shape,
+    col: t.col,
+    trow: t.row,
+    tsize_ft: t.sizeFt,
+    tdir: t.dir ?? null,
+    tcolor: t.color,
+    tlabel: t.label ?? null,
+  })
+  check(error)
+}
+
+/** Remove a spell area the caller placed (the DM can remove any). */
+export async function removeMyTemplate(id: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.rpc('remove_scene_template', { tid: id })
   check(error)
 }
 
@@ -334,4 +390,52 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
   }, [cloudCampaignId, token])
 
   return { scene, tokens, setTokens, mapUrl, loading, refresh: () => refresh.current() }
+}
+
+/**
+ * Player-placed spell-area templates for a campaign, live. Reused on the player
+ * board (which also lets them place/clear their own) and the DM board (read-only
+ * overlay, so the DM sees what players conjured). Separate from the DM's own
+ * templates, which ride shared_scenes.templates.
+ */
+export function usePlayerTemplates(cloudCampaignId: string | null | undefined) {
+  const { session } = useAuth()
+  const token = session?.access_token ?? null
+  const [templates, setTemplates] = useState<LivePlayerTemplate[]>([])
+
+  const refresh = useRef(async () => {})
+  refresh.current = async () => {
+    setTemplates(cloudCampaignId ? await getPlayerTemplates(cloudCampaignId) : [])
+  }
+
+  useEffect(() => {
+    if (!cloudCampaignId || !supabase || !token) {
+      setTemplates([])
+      return
+    }
+    refresh.current()
+    const channel = supabase
+      .channel(`live-templates-${cloudCampaignId}-${crypto.randomUUID().slice(0, 8)}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shared_scene_templates', filter: `campaign_id=eq.${cloudCampaignId}` },
+        (p) => {
+          if (p.eventType === 'DELETE') {
+            const id = (p.old as Row).id as string
+            setTemplates((ts) => ts.filter((t) => t.id !== id))
+          } else {
+            const t = playerTemplateFromRow(p.new as Row)
+            setTemplates((ts) => (ts.some((x) => x.id === t.id) ? ts.map((x) => (x.id === t.id ? t : x)) : [...ts, t]))
+          }
+        },
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') refresh.current()
+      })
+    return () => {
+      supabase!.removeChannel(channel)
+    }
+  }, [cloudCampaignId, token])
+
+  return { templates, setTemplates, refresh: () => refresh.current() }
 }
