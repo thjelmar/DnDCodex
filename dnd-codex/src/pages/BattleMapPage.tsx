@@ -9,6 +9,7 @@ import { Peek, type PeekKind } from './RunPage'
 import { Tabletop } from '../components/Tabletop'
 import { TokenStatusCard, hasFloatingStatus } from '../components/TokenStatusCard'
 import { SidePanel } from '../components/SidePanel'
+import { EntityImage } from '../components/EntityImage'
 import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
@@ -32,7 +33,24 @@ import {
   snapCenterToCell,
   tokenRevealed,
 } from '../lib/tabletop'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenShape } from '../db/types'
+
+/** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
+ *  emoji-faced token; squares read better for built things (boats, doors). */
+const TOKEN_PRESETS: { label: string; icon: string; shape: TokenShape }[] = [
+  { label: 'Horse', icon: '🐴', shape: 'circle' },
+  { label: 'Boat', icon: '⛵', shape: 'square' },
+  { label: 'Wagon', icon: '🛒', shape: 'square' },
+  { label: 'Crate', icon: '📦', shape: 'square' },
+  { label: 'Chest', icon: '🧰', shape: 'square' },
+  { label: 'Door', icon: '🚪', shape: 'square' },
+  { label: 'Campfire', icon: '🔥', shape: 'circle' },
+  { label: 'Rock', icon: '🪨', shape: 'circle' },
+  { label: 'Tree', icon: '🌲', shape: 'circle' },
+  { label: 'Trap', icon: '⚠️', shape: 'square' },
+  { label: 'Flag', icon: '🚩', shape: 'square' },
+  { label: 'Remains', icon: '💀', shape: 'circle' },
+]
 import { SessionNotesPanel } from './SessionNotesPanel'
 
 // Palette for area templates (distinct from token colors: warmer, "spell effect").
@@ -185,6 +203,7 @@ export function SceneEditor({
   }
 
   const [selectedToken, setSelectedToken] = useState<string | null>(null)
+  const [addTokenOpen, setAddTokenOpen] = useState(false)
   const [preview, setPreview] = useState(false)
   // Shared combat store (tracker/Run panel/board all stay in sync).
   const combat = useCombat()
@@ -996,9 +1015,45 @@ export function SceneEditor({
                 <option key={n.id} value={n.id}>{n.name}</option>
               ))}
             </select>
-            <button className="btn small" style={{ width: '100%', marginTop: 6 }} onClick={() => addToken({ label: `Token ${tokens.length + 1}` })}>
-              <Icon name="plus" size={14} /> Add custom token
+            <button
+              className="btn small"
+              style={{ width: '100%', marginTop: 6 }}
+              onClick={() => setAddTokenOpen((o) => !o)}
+              aria-expanded={addTokenOpen}
+            >
+              <Icon name="plus" size={14} /> Add object token
             </button>
+            {addTokenOpen && (
+              <div className="battlemap-token-palette">
+                {TOKEN_PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className="battlemap-token-preset"
+                    title={p.label}
+                    onClick={() => {
+                      addToken({ label: p.label, icon: p.icon, shape: p.shape })
+                      setAddTokenOpen(false)
+                    }}
+                  >
+                    <span className="battlemap-token-preset-emoji" aria-hidden>{p.icon}</span>
+                    <span className="battlemap-token-preset-label">{p.label}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="battlemap-token-preset battlemap-token-preset-custom"
+                  title="A blank token you can rename, recolor, shape and give an image or emoji"
+                  onClick={() => {
+                    addToken({ label: `Token ${tokens.length + 1}` })
+                    setAddTokenOpen(false)
+                  }}
+                >
+                  <span className="battlemap-token-preset-emoji" aria-hidden>＋</span>
+                  <span className="battlemap-token-preset-label">Custom</span>
+                </button>
+              </div>
+            )}
 
             {current ? (
               <div className="battlemap-token-edit">
@@ -1014,6 +1069,42 @@ export function SceneEditor({
                     ))}
                   </select>
                 </label>
+                <label>
+                  Shape
+                  <div className="seg" role="radiogroup" aria-label="Token shape">
+                    {(['circle', 'square'] as TokenShape[]).map((sh) => (
+                      <button
+                        key={sh}
+                        type="button"
+                        className={`seg-btn${(current.shape ?? 'circle') === sh ? ' on' : ''}`}
+                        role="radio"
+                        aria-checked={(current.shape ?? 'circle') === sh}
+                        onClick={() => patchToken(current.id, { shape: sh })}
+                      >
+                        {sh === 'circle' ? 'Circle' : 'Square'}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <label>
+                  Emoji
+                  <input
+                    className="input"
+                    value={current.icon ?? ''}
+                    maxLength={4}
+                    placeholder="🐴 (optional)"
+                    onChange={(e) => patchToken(current.id, { icon: e.target.value || null })}
+                  />
+                </label>
+                <div className="field">
+                  <span className="faint" style={{ fontSize: 11 }}>Token image (optional — overrides the emoji)</span>
+                  <EntityImage
+                    campaignId={scene.campaignId}
+                    imageId={current.imageId ?? null}
+                    onChange={(id) => patchToken(current.id, { imageId: id })}
+                    label="token image"
+                  />
+                </div>
                 {live.colorFor(current) !== current.color && (
                   <span className="faint" style={{ fontSize: 11 }}>
                     Shown in {live.members.find((m) => m.userId === current.controlledBy)?.displayName ?? 'the player'}’s color while they control it.

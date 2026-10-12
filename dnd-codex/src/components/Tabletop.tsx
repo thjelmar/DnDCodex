@@ -716,26 +716,48 @@ export function Tabletop({
                     }}
                   >
                     <title>{t.label}{t.hidden ? ' (hidden from players)' : ''}</title>
-                    <clipPath id={`tt-clip-${t.id}`}>
-                      <circle r={r} />
-                    </clipPath>
-                    <circle r={r} fill={t.color} />
-                    {portrait ? (
-                      <image
-                        href={portrait}
-                        x={-r}
-                        y={-r}
-                        width={r * 2}
-                        height={r * 2}
-                        clipPath={`url(#tt-clip-${t.id})`}
-                        preserveAspectRatio="xMidYMid slice"
-                      />
-                    ) : (
-                      <text className="tabletop-initials" textAnchor="middle" dominantBaseline="central" fontSize={r * 0.8}>
-                        {initials(t.label)}
-                      </text>
-                    )}
-                    <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
+                    {/* Object tokens (crates, boats, doors) can be squares; NPCs
+                        and creatures stay circles. The footprint is the same box
+                        either way, so size/snap/overlays are unaffected. */}
+                    {(() => {
+                      const square = t.shape === 'square'
+                      const rx = Math.max(1.5, r * 0.14)
+                      const clip = square
+                        ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} />
+                        : <circle r={r} />
+                      const fill = square
+                        ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} fill={t.color} />
+                        : <circle r={r} fill={t.color} />
+                      const outline = square
+                        ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
+                        : <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
+                      return (
+                        <>
+                          <clipPath id={`tt-clip-${t.id}`}>{clip}</clipPath>
+                          {fill}
+                          {portrait ? (
+                            <image
+                              href={portrait}
+                              x={-r}
+                              y={-r}
+                              width={r * 2}
+                              height={r * 2}
+                              clipPath={`url(#tt-clip-${t.id})`}
+                              preserveAspectRatio="xMidYMid slice"
+                            />
+                          ) : t.icon ? (
+                            <text className="tabletop-emoji" textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} pointerEvents="none">
+                              {t.icon}
+                            </text>
+                          ) : (
+                            <text className="tabletop-initials" textAnchor="middle" dominantBaseline="central" fontSize={r * 0.8}>
+                              {initials(t.label)}
+                            </text>
+                          )}
+                          {outline}
+                        </>
+                      )
+                    })()}
 
                     {/* Active-turn ring, then the HP bar / damage number, then the
                         name below it — the stat never overlaps the name. */}

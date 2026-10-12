@@ -673,6 +673,11 @@ export interface SceneToken {
   npcId?: Id | null
   /** Portrait image (StoredImage id), usually the NPC's. */
   imageId?: Id | null
+  /** An emoji shown inside the token (custom object tokens — 🐴 ⛵ 📦). Takes
+   *  precedence over initials; an uploaded image still wins over the emoji. */
+  icon?: string | null
+  /** Outline shape; defaults to a circle when unset. */
+  shape?: TokenShape | null
   /** Never sent to players (not even as a placeholder). */
   hidden?: boolean
   /** The player (account id) allowed to move this token on the live map. */
@@ -702,6 +707,10 @@ export interface SceneFog {
   /** Revealed cells as "col,row" keys; every other cell is covered. */
   revealed: string[]
 }
+
+/** Token outline: NPCs and creatures read as circles; objects (crates, boats,
+ *  doors) can be squares. */
+export type TokenShape = 'circle' | 'square'
 
 /** A placed area/measurement template (spell area, breath cone, wall). Shared
  *  with players on the live map. Sizes are in feet; the origin is in fractional

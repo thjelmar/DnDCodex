@@ -3544,6 +3544,17 @@ kbd {
 .battlemap-align-note { font-size: 12px; margin: 8px 0 0; color: var(--good); }
 .battlemap-align-note.warn { color: var(--text-dim); }
 .battlemap-token-edit { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+/* Quick-add palette of object tokens (horses, boats, crates…). */
+.battlemap-token-palette { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+.battlemap-token-preset {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-elev); color: var(--text-dim); cursor: pointer;
+}
+.battlemap-token-preset:hover { border-color: var(--accent); color: var(--text); background: var(--bg-elev-2); }
+.battlemap-token-preset-emoji { font-size: 20px; line-height: 1; }
+.battlemap-token-preset-label { font-size: 10.5px; }
+.battlemap-token-preset-custom .battlemap-token-preset-emoji { color: var(--text-faint); font-weight: 700; }
 .battlemap-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
 .battlemap-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
 .battlemap-swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
@@ -3575,6 +3586,7 @@ kbd {
 .tabletop-token.hidden-token { opacity: 0.45; }
 .tabletop-token.selected { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.75)); }
 .tabletop-initials { fill: #fff; font-weight: 700; pointer-events: none; }
+.tabletop-emoji { pointer-events: none; user-select: none; }
 .tabletop-label {
   fill: #fff;
   font-weight: 600;

@@ -36,6 +36,10 @@ export interface LiveToken {
   row: number
   size: number
   portrait: string | null
+  /** Emoji icon for custom object tokens (null = none). */
+  icon: string | null
+  /** Outline shape ('circle' default, 'square' for objects). */
+  shape: string | null
   controlledBy: string | null
   /** Privacy-filtered combat overlay, or null when not in combat. */
   combat: TokenCombat | null
@@ -67,6 +71,8 @@ function tokenFromRow(r: Row): LiveToken {
     row: Number(r.cell_row),
     size: Number(r.size) || 1,
     portrait: (r.portrait as string) ?? null,
+    icon: (r.icon as string) ?? null,
+    shape: (r.shape as string) ?? null,
     controlledBy: (r.controlled_by as string) ?? null,
     combat: (r.combat as TokenCombat) ?? null,
   }
@@ -82,6 +88,8 @@ export function tokenToRow(campaignId: string, t: LiveToken): Row {
     cell_row: t.row,
     size: t.size,
     portrait: t.portrait,
+    icon: t.icon,
+    shape: t.shape,
     controlled_by: t.controlledBy,
     combat: t.combat,
     updated_at: new Date().toISOString(),
@@ -105,6 +113,8 @@ export function liveTokensForBoard(
       row: t.row,
       size: t.size,
       imageId: t.portrait ? t.id : null,
+      icon: t.icon,
+      shape: (t.shape as SceneToken['shape']) ?? null,
       controlledBy: t.controlledBy,
     }
   })
