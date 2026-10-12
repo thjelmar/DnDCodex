@@ -16,6 +16,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-12',
+    title: 'A proper home page',
+    changes: [
+      { kind: 'new', text: 'A new home page greets you when you open D&D Codex — your campaigns at a glance (with their next session and a few quick stats), your soonest game with its date, and quick links to your tools. New here? You get a friendly welcome that shows off everything the app can do.' },
+      { kind: 'improved', text: 'The sidebar is tidier: your campaigns now tuck into collapsible lists, with a Home button up top to get back to the overview anytime.' },
+    ],
+  },
+  {
     date: '2026-10-09',
     title: 'Make it yours — and never miss a session',
     changes: [
