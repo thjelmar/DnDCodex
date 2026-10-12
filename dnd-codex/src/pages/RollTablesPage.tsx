@@ -12,6 +12,7 @@ import {
 import { useCampaign } from './CampaignLayout'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
+import { MasterDetail } from '../components/MasterDetail'
 import {
   computeRanges,
   formatRange,
@@ -50,45 +51,49 @@ export function RollTablesPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          <Icon name="plus" size={15} color="inherit" /> New Table
-        </button>
-        {tables?.length === 0 && <p className="faint">No roll tables yet.</p>}
-        {[...grouped.entries()].map(([category, group]) => (
-          <div key={category} style={{ marginBottom: 12 }}>
-            <div className="sidebar-heading" style={{ margin: '4px 4px' }}>
-              {category}
-            </div>
-            {group.map((t) => (
-              <div
-                key={t.id}
-                className="list-row"
-                style={{ cursor: 'pointer', borderColor: t.id === selectedId ? 'var(--accent)' : undefined }}
-                onClick={() => setSelectedId(t.id)}
-              >
-                <div>
-                  <div className="title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="dice" size={14} /> {t.name}</div>
-                  <div className="sub">d{tableSize(t.entries)} · {t.entries.length} entries</div>
-                </div>
+    <MasterDetail
+      selected={!!selected}
+      onBack={() => setSelectedId(null)}
+      backLabel="All tables"
+      list={
+        <>
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
+            <Icon name="plus" size={15} color="inherit" /> New Table
+          </button>
+          {tables?.length === 0 && <p className="faint">No roll tables yet.</p>}
+          {[...grouped.entries()].map(([category, group]) => (
+            <div key={category} style={{ marginBottom: 12 }}>
+              <div className="sidebar-heading" style={{ margin: '4px 4px' }}>
+                {category}
               </div>
-            ))}
-          </div>
-        ))}
-      </div>
-
-      <div>
-        {selected ? (
+              {group.map((t) => (
+                <div
+                  key={t.id}
+                  className="list-row"
+                  style={{ cursor: 'pointer', borderColor: t.id === selectedId ? 'var(--accent)' : undefined }}
+                  onClick={() => setSelectedId(t.id)}
+                >
+                  <div>
+                    <div className="title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="dice" size={14} /> {t.name}</div>
+                    <div className="sub">d{tableSize(t.entries)} · {t.entries.length} entries</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      }
+      detail={
+        selected ? (
           <RollTableEditor key={selected.id} table={selected} onDelete={() => setSelectedId(null)} />
         ) : (
           <div className="empty">
             <div className="big"><Icon name="dice" size={40} /></div>
             <p>Select a table or create one — loot, encounters, rumors, wild magic…</p>
           </div>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }
 

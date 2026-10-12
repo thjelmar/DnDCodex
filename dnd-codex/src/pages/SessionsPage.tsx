@@ -9,6 +9,7 @@ import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate, todayISODate } from '../lib/format'
 import { ShareControl } from '../components/ShareControl'
+import { MasterDetail } from '../components/MasterDetail'
 import { Icon } from '../components/Icon'
 import type { Session } from '../db/types'
 
@@ -54,42 +55,46 @@ export function SessionsPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={addSession}>
-          <Icon name="plus" size={15} color="inherit" /> New Session
-        </button>
-        {sessions?.length === 0 && <p className="faint">No sessions yet.</p>}
-        {sessions?.map((s) => (
-          <div
-            key={s.id}
-            className="list-row"
-            style={{
-              cursor: 'pointer',
-              borderColor: s.id === selectedId ? 'var(--accent)' : undefined,
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 2,
-            }}
-            onClick={() => setSelectedId(s.id)}
-          >
-            <div className="title">{s.title}</div>
-            <div className="sub">{formatDate(s.date)}</div>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        {selected ? (
+    <MasterDetail
+      selected={!!selected}
+      onBack={() => setSelectedId(null)}
+      backLabel="All sessions"
+      list={
+        <>
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={addSession}>
+            <Icon name="plus" size={15} color="inherit" /> New Session
+          </button>
+          {sessions?.length === 0 && <p className="faint">No sessions yet.</p>}
+          {sessions?.map((s) => (
+            <div
+              key={s.id}
+              className="list-row"
+              style={{
+                cursor: 'pointer',
+                borderColor: s.id === selectedId ? 'var(--accent)' : undefined,
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 2,
+              }}
+              onClick={() => setSelectedId(s.id)}
+            >
+              <div className="title">{s.title}</div>
+              <div className="sub">{formatDate(s.date)}</div>
+            </div>
+          ))}
+        </>
+      }
+      detail={
+        selected ? (
           <SessionEditor key={selected.id} session={selected} onDelete={() => setSelectedId(null)} />
         ) : (
           <div className="empty">
             <div className="big">📝</div>
             <p>Select a session, or create one to start taking notes.</p>
           </div>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }
 

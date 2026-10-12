@@ -23,8 +23,10 @@ export function useWikiResolver(campaignId: Id) {
       db.rollTables.where('campaignId').equals(campaignId).toArray(),
     ])
     const map = new Map<string, string>()
-    const put = (name: string, to: string) => {
-      const key = name.trim().toLowerCase()
+    const put = (name: string | undefined | null, to: string) => {
+      // A partial/legacy record can be missing its name or title; skip it
+      // rather than letting one bad row crash the whole editor.
+      const key = (name ?? '').trim().toLowerCase()
       if (key && !map.has(key)) map.set(key, to)
     }
     npcs.forEach((n) => put(n.name, `/campaign/${campaignId}/npcs?sel=${n.id}`))

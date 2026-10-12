@@ -12,6 +12,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
+import { MasterDetail } from '../components/MasterDetail'
 import {
   SETTLEMENT_TIERS, generateSettlement, poisToHtml, tierForType,
   rollPopulation, rollProsperity, rollGovernment, rollReligion, rollTradeList, rollLeaderName, rollPoi, rollHook, reconcileToTier,
@@ -92,26 +93,31 @@ export function LocationsPage() {
   const roots = childrenByParent.get('__root__') ?? []
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20, alignItems: 'start' }}>
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          <Icon name="plus" size={15} color="inherit" /> New {selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}
-        </button>
-        {locations?.length === 0 && <p className="faint">No locations yet. Start with a World or Region.</p>}
-        {roots.map((l) => (
-          <TreeNode
-            key={l.id}
-            location={l}
-            depth={0}
-            childrenByParent={childrenByParent}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
-        ))}
-      </div>
-
-      <div>
-        {selected ? (
+    <MasterDetail
+      listWidth={280}
+      selected={!!selected}
+      onBack={() => setSelectedId(null)}
+      backLabel="All locations"
+      list={
+        <>
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
+            <Icon name="plus" size={15} color="inherit" /> New {selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}
+          </button>
+          {locations?.length === 0 && <p className="faint">No locations yet. Start with a World or Region.</p>}
+          {roots.map((l) => (
+            <TreeNode
+              key={l.id}
+              location={l}
+              depth={0}
+              childrenByParent={childrenByParent}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          ))}
+        </>
+      }
+      detail={
+        selected ? (
           <LocationEditor
             key={selected.id}
             location={selected}
@@ -125,9 +131,9 @@ export function LocationsPage() {
             <div className="big">🗺️</div>
             <p>Select a location, or create one to start mapping your world.</p>
           </div>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }
 

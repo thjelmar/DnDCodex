@@ -1131,6 +1131,18 @@ button {
   font-size: 12px;
 }
 
+/* Campaign list + editor pages. The column template is set inline (per-page
+   list width); on a phone the component swaps to a single-column view instead,
+   so this grid only ever applies on wider screens. */
+.master-detail {
+  display: grid;
+  gap: 20px;
+  align-items: start;
+}
+.md-back {
+  margin-bottom: 16px;
+}
+
 .subnav {
   display: flex;
   gap: 4px;
