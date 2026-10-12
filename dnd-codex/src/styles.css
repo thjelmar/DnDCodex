@@ -3450,6 +3450,18 @@ kbd {
 }
 .player-battlemap.expanded { max-width: none; }
 .player-live-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+/* Player spell-area preset popover. */
+.player-spell-wrap { position: relative; }
+.player-spell-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; min-width: 150px;
+  display: flex; flex-direction: column; gap: 1px; padding: 6px;
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+}
+.player-spell-opt {
+  text-align: left; padding: 7px 9px; border: none; border-radius: 7px;
+  background: none; color: var(--text); font: inherit; font-size: 13px; cursor: pointer;
+}
+.player-spell-opt:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .player-live-name { font-size: 16px; display: inline-flex; align-items: center; }
 .player-live-board.compact:not(.expanded) .tabletop-view { height: 300px; min-height: 0; }
 .player-live-board.compact:not(.expanded) .battlemap-mycolor { flex-wrap: wrap; }

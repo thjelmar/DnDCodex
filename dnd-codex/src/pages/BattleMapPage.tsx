@@ -16,6 +16,7 @@ import { Icon } from '../components/Icon'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
+import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
@@ -208,6 +209,9 @@ export function SceneEditor({
   const [preview, setPreview] = useState(false)
   // Shared combat store (tracker/Run panel/board all stay in sync).
   const combat = useCombat()
+  // Spell areas players dropped — shown read-only on the DM board so the DM sees
+  // what they conjured (the DM's own templates live in `templates`).
+  const playerTemplates = usePlayerTemplates(scene.campaignId)
   const live = useDmLiveScene(
     campaign,
     { sceneId: scene.id, name, grid, width: size.width, height: size.height, imageId, tokens, fog, templates, combat: combat.state },
@@ -927,7 +931,7 @@ export function SceneEditor({
           fogBrush={fogBrush}
           onPaintFog={paintFog}
           combat={combatByToken}
-          templates={templates}
+          templates={[...templates, ...playerTemplates.templates]}
           templateTool={preview ? null : templateTool}
           onPlaceTemplate={placeTemplate}
           measureTool={!preview && measuring}
