@@ -15,7 +15,9 @@ import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog } from './lib/errorLog'
+import { HomePage } from './pages/HomePage'
 import { CampaignsPage } from './pages/CampaignsPage'
+import type { Campaign } from './db/types'
 import { BackupPage } from './pages/BackupPage'
 import { ChangelogPage } from './pages/ChangelogPage'
 import { useChangelogUnseen } from './lib/useChangelog'
@@ -182,22 +184,13 @@ function Sidebar({
         </button>
       </div>
 
+      <NavLink to="/" end className="nav-link" style={{ marginBottom: 2 }}>
+        <span className="ico"><Icon name="home" /></span> Home
+      </NavLink>
+
       {/* DM: campaign creation & management */}
       <SidebarSection label="DM" sectionKey="dm">
-        <NavLink to="/" end className="nav-link">
-          <span className="ico"><Icon name="book" /></span> Campaigns
-        </NavLink>
-        <Link to="/?new=1" className="nav-link">
-          <span className="ico"><Icon name="plus" /></span> New Campaign
-        </Link>
-        {recent?.map((c) => (
-          <NavLink key={c.id} to={`/campaign/${c.id}`} className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
-            <span className="ico" style={{ color: c.color }} aria-hidden>
-              ●
-            </span>
-            <span style={ellipsis}>{c.name}</span>
-          </NavLink>
-        ))}
+        <CampaignsMenu recent={recent} />
         <ToolsMenu onOpenDice={onOpenDice} />
       </SidebarSection>
 
@@ -212,6 +205,43 @@ function Sidebar({
         Stored locally in your browser.
       </div>
     </nav>
+  )
+}
+
+/** Collapsible DM "Campaigns" sub-menu: the all-campaigns page, new-campaign,
+ *  and quick links to recent campaigns — tucked away so the nav stays tidy now
+ *  that the Home page is the main launch point. Collapsed + remembered. */
+function CampaignsMenu({ recent }: { recent: Campaign[] | undefined }) {
+  const [open, toggle] = useNavCollapsed('campaigns', false)
+  return (
+    <>
+      <button
+        className="nav-link"
+        onClick={toggle}
+        aria-expanded={open}
+        style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span className="ico"><Icon name="book" /></span>
+        <span>Campaigns</span>
+        <Icon name="chevron-right" size={13} color="currentColor" className={`sidebar-caret${open ? ' open' : ''}`} />
+      </button>
+      {open && (
+        <>
+          <NavLink to="/campaigns" end className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico"><Icon name="book" size={15} /></span> All campaigns
+          </NavLink>
+          <Link to="/campaigns?new=1" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico"><Icon name="plus" size={15} /></span> New campaign
+          </Link>
+          {recent?.map((c) => (
+            <NavLink key={c.id} to={`/campaign/${c.id}`} className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+              <span className="ico" style={{ color: c.color }} aria-hidden>●</span>
+              <span style={ellipsis}>{c.name}</span>
+            </NavLink>
+          ))}
+        </>
+      )}
+    </>
   )
 }
 
@@ -255,26 +285,42 @@ function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
 function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => void }) {
   const { user } = useAuth()
   const [joinOpen, setJoinOpen] = useState(false)
+  const [open, toggle] = useNavCollapsed('playerCampaigns', false)
   const campaigns = useLiveQuery(
     () => db.campaigns.orderBy('name').filter((c) => !c.archived && c.role === 'player').toArray(),
     [],
   )
+  const hasCampaigns = !!campaigns && campaigns.length > 0
 
   return (
     <>
-      {campaigns?.map((c) => (
-        <NavLink
-          key={c.id}
-          to={`/player/${c.id}`}
-          className="nav-link"
-          style={{ paddingLeft: 22, fontSize: 13.5 }}
-        >
-          <span className="ico" style={{ color: c.color }} aria-hidden>
-            ●
-          </span>
-          <span style={ellipsis}>{c.name}</span>
-        </NavLink>
-      ))}
+      {hasCampaigns && (
+        <>
+          <button
+            className="nav-link"
+            onClick={toggle}
+            aria-expanded={open}
+            style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left' }}
+          >
+            <span className="ico"><Icon name="book" /></span>
+            <span>Campaigns</span>
+            <Icon name="chevron-right" size={13} color="currentColor" className={`sidebar-caret${open ? ' open' : ''}`} />
+          </button>
+          {open && campaigns!.map((c) => (
+            <NavLink
+              key={c.id}
+              to={`/player/${c.id}`}
+              className="nav-link"
+              style={{ paddingLeft: 22, fontSize: 13.5 }}
+            >
+              <span className="ico" style={{ color: c.color }} aria-hidden>
+                ●
+              </span>
+              <span style={ellipsis}>{c.name}</span>
+            </NavLink>
+          ))}
+        </>
+      )}
       <button
         className="nav-link"
         style={{ background: 'none', border: 'none', width: '100%', cursor: 'pointer', textAlign: 'left', color: 'var(--text-dim)' }}
@@ -342,7 +388,8 @@ export function App() {
           />
         <main className="main">
           <Routes>
-            <Route path="/" element={<CampaignsPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/changelog" element={<ChangelogPage />} />
             <Route path="/tickets" element={<TicketsPage />} />
