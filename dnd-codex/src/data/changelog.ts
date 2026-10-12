@@ -17,6 +17,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-12',
+    title: 'Codex on your phone',
+    changes: [
+      { kind: 'improved', text: 'D&D Codex now works on phones and tablets. The sidebar tucks away behind a menu button in the top bar, and pages reflow to fit a small screen — campaign lists, notes and editors show one at a time with a “back” button instead of being squeezed side by side.' },
+      { kind: 'new', text: 'Maps are touch-friendly: pinch to zoom on the world map and battle map, drag to pan, and move pins and tokens with a finger. There are also +/- and “Fit” buttons if you’d rather tap.' },
+    ],
+  },
+  {
+    date: '2026-10-12',
     title: 'A proper home page',
     changes: [
       { kind: 'new', text: 'A new home page greets you when you open D&D Codex — your campaigns at a glance (with their next session and a few quick stats), your soonest game with its date, and quick links to your tools. New here? You get a friendly welcome that shows off everything the app can do.' },
