@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 import type { WorldPin } from '../db/types'
 
 interface Transform {
@@ -43,6 +44,10 @@ export function WorldMapCanvas({
     | { kind: 'pin'; id: string; moved: boolean }
     | null
   >(null)
+  // Active background pointers (for two-finger pinch zoom). Pins stop propagation,
+  // so only board pointers land here.
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinch = useRef<PinchState | null>(null)
 
   const imgW = width || 1000
   const imgH = height || 700
@@ -108,8 +113,17 @@ export function WorldMapCanvas({
 
   function onBackgroundDown(e: ReactPointerEvent) {
     if (e.button !== 0) return
+    const el = e.currentTarget as HTMLElement
+    el.setPointerCapture(e.pointerId)
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size === 2) {
+      // Second finger down: start a pinch and cancel any in-progress pan.
+      const [p1, p2] = [...pointers.current.values()]
+      pinch.current = pinchStart(p1, p2, el.getBoundingClientRect(), t)
+      drag.current = null
+      return
+    }
     drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, t0: t, moved: false }
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   function onPinDown(e: ReactPointerEvent, id: string) {
@@ -121,6 +135,14 @@ export function WorldMapCanvas({
   }
 
   function onMove(e: ReactPointerEvent) {
+    if (pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+    if (pinch.current && pointers.current.size >= 2) {
+      const [p1, p2] = [...pointers.current.values()]
+      setT(pinchMove(pinch.current, p1, p2, ref.current!.getBoundingClientRect(), clampK))
+      return
+    }
     const d = drag.current
     if (!d) return
     if (d.kind === 'pan') {
@@ -135,7 +157,22 @@ export function WorldMapCanvas({
     }
   }
 
+  function onCancel(e: ReactPointerEvent) {
+    pointers.current.delete(e.pointerId)
+    pinch.current = null
+    drag.current = null
+  }
+
   function onUp(e: ReactPointerEvent) {
+    pointers.current.delete(e.pointerId)
+    if (pinch.current) {
+      // Gesture ends when a finger lifts; don't let the lift be read as a click.
+      if (pointers.current.size < 2) {
+        pinch.current = null
+        drag.current = null
+      }
+      return
+    }
     const d = drag.current
     drag.current = null
     if (!d) return
@@ -157,6 +194,7 @@ export function WorldMapCanvas({
       onPointerDown={onBackgroundDown}
       onPointerMove={onMove}
       onPointerUp={onUp}
+      onPointerCancel={onCancel}
       style={{ cursor: editable ? 'crosshair' : 'grab' }}
     >
       {imageUrl ? (
