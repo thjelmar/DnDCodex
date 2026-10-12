@@ -204,6 +204,7 @@ export function SceneEditor({
 
   const [selectedToken, setSelectedToken] = useState<string | null>(null)
   const [addTokenOpen, setAddTokenOpen] = useState(false)
+  const tokenImageRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(false)
   // Shared combat store (tracker/Run panel/board all stay in sync).
   const combat = useCombat()
@@ -440,6 +441,30 @@ export function SceneEditor({
       imageId: npc.imageId ?? null,
       size: sizeFromStatBlock(npc.statBlockData?.size),
     })
+  }
+
+  // Create a token straight from an uploaded image (one step, vs. add-then-edit).
+  async function addTokenFromImage(files: FileList | null) {
+    const file = files?.[0]
+    if (!file) return
+    try {
+      const processed = await processImageFile(file)
+      const img = await createImage(scene.campaignId, {
+        name: file.name,
+        mime: processed.mime,
+        dataUrl: processed.dataUrl,
+        width: processed.width,
+        height: processed.height,
+        bytes: processed.bytes,
+      })
+      const label = file.name.replace(/\.[^.]+$/, '').slice(0, 24) || `Token ${tokens.length + 1}`
+      addToken({ label, imageId: img.id })
+    } catch {
+      /* not an image / decode failure — ignore */
+    } finally {
+      setAddTokenOpen(false)
+      if (tokenImageRef.current) tokenImageRef.current.value = ''
+    }
   }
 
   async function uploadMap(file: File | undefined) {
@@ -1043,6 +1068,15 @@ export function SceneEditor({
                 <button
                   type="button"
                   className="battlemap-token-preset battlemap-token-preset-custom"
+                  title="Drop a token from your own image (a photo or token art)"
+                  onClick={() => tokenImageRef.current?.click()}
+                >
+                  <span className="battlemap-token-preset-emoji" aria-hidden><Icon name="upload" size={18} /></span>
+                  <span className="battlemap-token-preset-label">Upload</span>
+                </button>
+                <button
+                  type="button"
+                  className="battlemap-token-preset battlemap-token-preset-custom"
                   title="A blank token you can rename, recolor, shape and give an image or emoji"
                   onClick={() => {
                     addToken({ label: `Token ${tokens.length + 1}` })
@@ -1052,6 +1086,13 @@ export function SceneEditor({
                   <span className="battlemap-token-preset-emoji" aria-hidden>＋</span>
                   <span className="battlemap-token-preset-label">Custom</span>
                 </button>
+                <input
+                  ref={tokenImageRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => addTokenFromImage(e.target.files)}
+                />
               </div>
             )}
 
