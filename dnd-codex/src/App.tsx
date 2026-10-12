@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
@@ -342,11 +342,27 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
   )
 }
 
+/** Closes the mobile nav drawer whenever the route changes (e.g. a nav link is
+ *  tapped), so the drawer never lingers over the page you just navigated to. */
+function NavAutoClose({ onClose }: { onClose: () => void }) {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    onClose()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
+  return null
+}
+
 export function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [diceOpen, setDiceOpen] = useState(false)
+  // On narrow screens the sidebar becomes an off-canvas drawer; this tracks
+  // whether it's slid in. It has no effect on desktop (the hamburger that sets
+  // it is hidden there, and the sidebar stays docked).
+  const [navOpen, setNavOpen] = useState(false)
 
-  // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller, Cmd/Ctrl+G generators.
+  // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller, Cmd/Ctrl+G
+  // generators, and Escape to close the mobile nav drawer.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -358,34 +374,70 @@ export function App() {
       } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'g') {
         e.preventDefault()
         window.location.hash = '#/tools/generators'
+      } else if (e.key === 'Escape') {
+        setNavOpen(false)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Lock background scroll while the mobile drawer is open.
+  useEffect(() => {
+    document.body.classList.toggle('nav-open', navOpen)
+    return () => document.body.classList.remove('nav-open')
+  }, [navOpen])
+
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [bugOpen, setBugOpen] = useState(false)
+  // Opening a modal/panel from the sidebar should also dismiss the drawer so the
+  // modal isn't hidden behind it on mobile.
+  const closeNav = () => setNavOpen(false)
+  const withClose = (fn: () => void) => () => {
+    fn()
+    closeNav()
+  }
 
   return (
     <AuthProvider>
     <SyncProvider>
     <HashRouter>
       <ConfirmProvider>
+        <NavAutoClose onClose={closeNav} />
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
         {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
-        <div className="app">
+        <div className="app" data-nav-open={navOpen ? 'true' : undefined}>
+          {/* Mobile-only top bar: a hamburger to reveal the nav drawer, the
+              brand (tap to go home), and a quick search. Hidden on desktop. */}
+          <header className="topbar">
+            <button
+              className="topbar-burger"
+              onClick={() => setNavOpen((o) => !o)}
+              aria-label={navOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={navOpen}
+            >
+              <Icon name={navOpen ? 'x' : 'menu'} color="currentColor" />
+            </button>
+            <Link to="/" className="topbar-brand" onClick={closeNav}>
+              <span className="glyph" aria-hidden>⚔️</span>
+              <span>D&amp;D Codex</span>
+            </Link>
+            <button className="topbar-icon" onClick={withClose(() => setSearchOpen(true))} aria-label="Search">
+              <Icon name="search" color="currentColor" />
+            </button>
+          </header>
           <Sidebar
-            onOpenSearch={() => setSearchOpen(true)}
-            onOpenDice={() => setDiceOpen(true)}
-            onAddPlayerCampaign={() => setAddPlayerOpen(true)}
-            onOpenPrefs={() => setPrefsOpen(true)}
-            onOpenBug={() => setBugOpen(true)}
+            onOpenSearch={withClose(() => setSearchOpen(true))}
+            onOpenDice={withClose(() => setDiceOpen(true))}
+            onAddPlayerCampaign={withClose(() => setAddPlayerOpen(true))}
+            onOpenPrefs={withClose(() => setPrefsOpen(true))}
+            onOpenBug={withClose(() => setBugOpen(true))}
           />
+          <div className="nav-scrim" onClick={closeNav} aria-hidden />
         <main className="main">
           <Routes>
             <Route path="/" element={<HomePage />} />
