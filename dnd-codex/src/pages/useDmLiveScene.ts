@@ -82,6 +82,8 @@ async function toLiveTokens(
           row: t.row,
           size: t.size,
           portrait: await portraitFor(t.imageId, cache),
+          icon: t.icon ?? null,
+          shape: t.shape ?? null,
           controlledBy: t.controlledBy ?? null,
           combat: linked ? tokenCombat(t, linked, activeId, true) : null,
         }
@@ -197,6 +199,7 @@ export function useDmLiveScene(
   const same = (a: LiveToken, b: LiveToken) =>
     a.label === b.label && a.color === b.color && a.col === b.col && a.row === b.row &&
     a.size === b.size && a.portrait === b.portrait && a.controlledBy === b.controlledBy &&
+    a.icon === b.icon && a.shape === b.shape &&
     JSON.stringify(a.combat) === JSON.stringify(b.combat)
 
   /**
