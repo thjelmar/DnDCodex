@@ -133,8 +133,8 @@ export function WorldMapPage() {
 
   return (
     <div className="worldmap-page">
-      <div className="row between" style={{ alignItems: 'center', marginBottom: 10 }}>
-        <div>
+      <div className="row between" style={{ alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
           <h2 className="mb-0" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="map" size={18} /> World Map
           </h2>

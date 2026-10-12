@@ -47,14 +47,36 @@ export function WorldMapCanvas({
   const imgW = width || 1000
   const imgH = height || 700
 
-  // Fit the image to the container whenever the image (or its size) changes.
-  useEffect(() => {
+  // Fit the image to the container, centered. Shared by the auto-fit effect and
+  // the "Fit" button.
+  function fitView() {
     const el = ref.current
     if (!el || !imageUrl) return
     const r = el.getBoundingClientRect()
     const pad = 24
     const k = clampK(Math.min((r.width - pad) / imgW, (r.height - pad) / imgH))
     setT({ k, tx: (r.width - imgW * k) / 2, ty: (r.height - imgH * k) / 2 })
+  }
+
+  // Zoom by a factor around the container's center — the touch/mouse-agnostic
+  // equivalent of the wheel zoom, driven by the on-screen +/- buttons.
+  function zoomBy(f: number) {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const cx = r.width / 2
+    const cy = r.height / 2
+    setT((prev) => {
+      const k = clampK(prev.k * f)
+      const ratio = k / prev.k
+      return { k, tx: cx - (cx - prev.tx) * ratio, ty: cy - (cy - prev.ty) * ratio }
+    })
+  }
+
+  // Fit the image to the container whenever the image (or its size) changes.
+  useEffect(() => {
+    fitView()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageUrl, imgW, imgH])
 
   // Wheel zoom around the cursor (non-passive so we can preventDefault).
@@ -175,6 +197,19 @@ export function WorldMapCanvas({
         </>
       ) : (
         <div className="worldmap-empty-hint">No map image yet.</div>
+      )}
+      {imageUrl && (
+        // stopPropagation so the buttons never reach the board's pan / drop-pin
+        // pointer handlers (mirrors the battle map's zoom cluster).
+        <div
+          className="worldmap-zoom"
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+        >
+          <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in">＋</button>
+          <button className="btn ghost small" onClick={() => zoomBy(0.833)} title="Zoom out">－</button>
+          <button className="btn ghost small" onClick={fitView} title="Fit the whole map">Fit</button>
+        </div>
       )}
     </div>
   )
