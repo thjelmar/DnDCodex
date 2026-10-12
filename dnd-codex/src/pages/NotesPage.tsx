@@ -8,6 +8,7 @@ import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput, TagChips } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { ShareControl } from '../components/ShareControl'
+import { MasterDetail } from '../components/MasterDetail'
 import { Icon } from '../components/Icon'
 import type { Note } from '../db/types'
 
@@ -32,42 +33,46 @@ export function NotesPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          <Icon name="plus" size={15} color="inherit" /> New Note
-        </button>
-        {notes?.length === 0 && <p className="faint">No world notes yet.</p>}
-        {notes?.map((n) => (
-          <div
-            key={n.id}
-            className="list-row"
-            style={{
-              cursor: 'pointer',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 6,
-              borderColor: n.id === selectedId ? 'var(--accent)' : undefined,
-            }}
-            onClick={() => setSelectedId(n.id)}
-          >
-            <div className="title">{n.title}</div>
-            <TagChips campaignId={campaign.id} tags={n.tags} size="small" />
-          </div>
-        ))}
-      </div>
-
-      <div>
-        {selected ? (
+    <MasterDetail
+      selected={!!selected}
+      onBack={() => setSelectedId(null)}
+      backLabel="All notes"
+      list={
+        <>
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
+            <Icon name="plus" size={15} color="inherit" /> New Note
+          </button>
+          {notes?.length === 0 && <p className="faint">No world notes yet.</p>}
+          {notes?.map((n) => (
+            <div
+              key={n.id}
+              className="list-row"
+              style={{
+                cursor: 'pointer',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 6,
+                borderColor: n.id === selectedId ? 'var(--accent)' : undefined,
+              }}
+              onClick={() => setSelectedId(n.id)}
+            >
+              <div className="title">{n.title}</div>
+              <TagChips campaignId={campaign.id} tags={n.tags} size="small" />
+            </div>
+          ))}
+        </>
+      }
+      detail={
+        selected ? (
           <NoteEditor key={selected.id} note={selected} onDelete={() => setSelectedId(null)} />
         ) : (
           <div className="empty">
             <div className="big">📖</div>
             <p>Select a note or create one to start building your world.</p>
           </div>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }
 

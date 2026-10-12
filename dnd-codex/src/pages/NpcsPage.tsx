@@ -12,6 +12,7 @@ import { AddLinkButton } from '../components/AddLinkButton'
 import { StatBlockEditor } from '../components/StatBlockEditor'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
+import { MasterDetail } from '../components/MasterDetail'
 import { Icon } from '../components/Icon'
 import { randomPersonName } from '../lib/nameGen'
 import { useGenOverrides } from '../lib/useGenOverrides'
@@ -50,32 +51,36 @@ export function NpcsPage() {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20, alignItems: 'start' }}>
-      <div>
-        <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-          <Icon name="plus" size={15} color="inherit" /> New NPC
-        </button>
-        {npcs?.length === 0 && <p className="faint">No NPCs yet.</p>}
-        {npcs?.map((n) => (
-          <div
-            key={n.id}
-            className="list-row"
-            style={{ cursor: 'pointer', borderColor: n.id === selectedId ? 'var(--accent)' : undefined }}
-            onClick={() => setSelectedId(n.id)}
-          >
-            <div>
-              <div className="title">{n.name}</div>
-              <div className="sub">{n.role || '—'}</div>
+    <MasterDetail
+      selected={!!selected}
+      onBack={() => setSelectedId(null)}
+      backLabel="All NPCs"
+      list={
+        <>
+          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
+            <Icon name="plus" size={15} color="inherit" /> New NPC
+          </button>
+          {npcs?.length === 0 && <p className="faint">No NPCs yet.</p>}
+          {npcs?.map((n) => (
+            <div
+              key={n.id}
+              className="list-row"
+              style={{ cursor: 'pointer', borderColor: n.id === selectedId ? 'var(--accent)' : undefined }}
+              onClick={() => setSelectedId(n.id)}
+            >
+              <div>
+                <div className="title">{n.name}</div>
+                <div className="sub">{n.role || '—'}</div>
+              </div>
+              <span style={{ color: DISPOSITION_COLOR[n.disposition] }} title={n.disposition}>
+                ●
+              </span>
             </div>
-            <span style={{ color: DISPOSITION_COLOR[n.disposition] }} title={n.disposition}>
-              ●
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div>
-        {selected ? (
+          ))}
+        </>
+      }
+      detail={
+        selected ? (
           <NpcEditor
             key={selected.id}
             npc={selected}
@@ -88,9 +93,9 @@ export function NpcsPage() {
             <div className="big">🧑</div>
             <p>Select an NPC or create one.</p>
           </div>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   )
 }
 
