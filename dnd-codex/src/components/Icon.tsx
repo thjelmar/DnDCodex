@@ -51,6 +51,7 @@ export type IconName =
   | 'text'
   | 'user'
   | 'home'
+  | 'menu'
   | 'book'
   | 'beer'
   | 'scroll'
@@ -309,6 +310,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <path d="M9 22V12h6v10" />
+    </>
+  ),
+  menu: (
+    <>
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
     </>
   ),
   book: (
