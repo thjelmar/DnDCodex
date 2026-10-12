@@ -20,6 +20,7 @@ import {
 } from '../lib/tabletop'
 import { conditionMeta } from '../lib/combat'
 import { conditionIcon } from '../lib/conditionIcons'
+import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 
 // The battle-map board: an SVG viewport with pan (drag the background), zoom
 // (wheel, around the cursor), a map image, a calibratable square grid, and
@@ -151,6 +152,10 @@ export function Tabletop({
   const maskId = useId()
   const [transform, setTransform] = useState({ k: 1, tx: 0, ty: 0 })
   const drag = useRef<Drag | null>(null)
+  // Active board pointers + the in-progress two-finger pinch (pan mode only;
+  // tokens and the drawing tools stop propagation or return before this).
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinch = useRef<PinchState | null>(null)
   // Live position of a token being dragged (board px, center) and the align box.
   const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null)
   const [box, setBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
@@ -323,6 +328,14 @@ export function Tabletop({
       setBox({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
       return
     }
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size === 2) {
+      // Second finger on the board: start a pinch zoom, cancel the pan.
+      const [p1, p2] = [...pointers.current.values()]
+      pinch.current = pinchStart(p1, p2, (e.currentTarget as Element).getBoundingClientRect(), transform)
+      drag.current = null
+      return
+    }
     drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, tx: transform.tx, ty: transform.ty }
   }
 
@@ -356,6 +369,14 @@ export function Tabletop({
   }
 
   function onPointerMove(e: React.PointerEvent) {
+    if (pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+    if (pinch.current && pointers.current.size >= 2) {
+      const [p1, p2] = [...pointers.current.values()]
+      setTransform(pinchMove(pinch.current, p1, p2, (e.currentTarget as Element).getBoundingClientRect(), clampZoom))
+      return
+    }
     const d = drag.current
     if (!d) {
       // Not dragging: while in fog mode, track the hovered cell for the brush preview.
@@ -401,7 +422,22 @@ export function Tabletop({
     }
   }
 
+  function onPointerCancel(e: React.PointerEvent) {
+    pointers.current.delete(e.pointerId)
+    pinch.current = null
+    drag.current = null
+  }
+
   function onPointerUp(e: React.PointerEvent) {
+    pointers.current.delete(e.pointerId)
+    if (pinch.current) {
+      // A finger lifted: end the pinch (don't let it read as a tap/select).
+      if (pointers.current.size < 2) {
+        pinch.current = null
+        drag.current = null
+      }
+      return
+    }
     const d = drag.current
     drag.current = null
     if (!d) return
@@ -522,6 +558,7 @@ export function Tabletop({
         onPointerDown={onBgPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         onPointerLeave={() => setFogHover(null)}
         onKeyDown={onKeyDown}
         aria-label="Battle map board"
