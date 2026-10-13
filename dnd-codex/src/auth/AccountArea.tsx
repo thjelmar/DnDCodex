@@ -4,6 +4,7 @@ import { Modal } from '../components/Modal'
 import { useAuth } from './AuthProvider'
 import { useSync } from './SyncProvider'
 import { AvatarCropper } from './AvatarCropper'
+import { enterDemo, isDemo } from '../lib/demo'
 
 /**
  * Sidebar account control. Hidden entirely until a Supabase backend is
@@ -15,6 +16,8 @@ export function AccountArea() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
 
+  // In the demo there's no real account in play — the demo banner owns the exit.
+  if (isDemo()) return null
   if (!configured || loading) return null
 
   if (user) {
@@ -295,6 +298,10 @@ function SignInModal({ onClose }: { onClose: () => void }) {
           Continue with Google
         </button>
       </div>
+      <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
+        Just looking?{' '}
+        <button className="linklike" onClick={() => enterDemo()}>Explore the live demo</button> — no account needed.
+      </p>
     </Modal>
   )
 }

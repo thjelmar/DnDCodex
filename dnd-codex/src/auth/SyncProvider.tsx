@@ -14,6 +14,7 @@ import {
   type SyncStatus,
 } from '../lib/sync'
 import { bootstrapGlobal, teardownGlobal, syncGlobal, repairGlobalSync } from '../lib/globalSync'
+import { isDemo } from '../lib/demo'
 import { loadSyncedCampaigns } from '../lib/syncQueue'
 import {
   clearAllLocalData,
@@ -63,7 +64,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // local DB is a cache of the signed-in account, so a DIFFERENT account signing
   // in wipes it (bootstrap re-pulls fresh), and a real sign-out drops the
   // cloud-backed cache while keeping any un-synced local work.
-  const userId = user?.id ?? null
+  // In the demo, the Supabase session may still be present in shared localStorage,
+  // but the demo must NEVER touch the real account — treat it as signed-out so no
+  // sync ever bootstraps or pushes the throwaway demo data to the cloud.
+  const userId = isDemo() ? null : (user?.id ?? null)
   const prevUserId = useRef<string | null>(null)
   useEffect(() => {
     const prev = prevUserId.current

@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { JoinCampaignModal } from '../auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from '../components/AddPlayerCampaignModal'
 import { todayISODate } from '../lib/format'
+import { enterDemo, isDemo, demoGuard } from '../lib/demo'
 import type { Campaign } from '../db/types'
 
 const COLORS = ['#7c3aed', '#db2777', '#0891b2', '#ca8a04', '#16a34a', '#dc2626', '#2563eb']
@@ -162,6 +163,10 @@ export function HomePage() {
             <button className="btn primary" onClick={() => signIn('discord')}>Continue with Discord</button>
             <button className="btn" onClick={() => signIn('google')}>Continue with Google</button>
           </div>
+          <p className="faint" style={{ fontSize: 13, marginBottom: 0 }}>
+            Not ready?{' '}
+            <button className="linklike" onClick={() => enterDemo()}>Explore the live demo</button> instead — no account needed.
+          </p>
         </Modal>
       )}
     </>
@@ -186,6 +191,9 @@ export function HomePage() {
           <div className="home-cta">
             <button className="btn primary lg" onClick={() => setCreating(true)}><Icon name="plus" size={16} color="inherit" /> Start a campaign</button>
             <button className="btn lg" onClick={openJoin}><Icon name="key" size={16} color="inherit" /> Join with a code</button>
+            {!isDemo() && (
+              <button className="btn lg" onClick={() => enterDemo()}><Icon name="play" size={16} color="inherit" /> Try the live demo</button>
+            )}
           </div>
         </div>
         <div className="home-features">
@@ -208,8 +216,8 @@ export function HomePage() {
       <div className="page-header">
         <h1 className="mb-0 home-greet">{firstName ? `Welcome back, ${firstName}` : 'Welcome back'}</h1>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn ghost" onClick={openJoin}><Icon name="key" size={15} color="inherit" /> Join</button>
-          <button className="btn primary" onClick={() => setCreating(true)}><Icon name="plus" size={15} color="inherit" /> New campaign</button>
+          <button className="btn ghost" onClick={demoGuard(openJoin)}><Icon name="key" size={15} color="inherit" /> Join</button>
+          <button className="btn primary" onClick={demoGuard(() => setCreating(true))}><Icon name="plus" size={15} color="inherit" /> New campaign</button>
         </div>
       </div>
 
@@ -245,7 +253,7 @@ export function HomePage() {
             )}
           </button>
         ))}
-        <button className="home-ccard add" onClick={() => setCreating(true)}>
+        <button className="home-ccard add" onClick={demoGuard(() => setCreating(true))}>
           <Icon name="plus" size={24} color="inherit" />
           <span>New or join a campaign</span>
         </button>
