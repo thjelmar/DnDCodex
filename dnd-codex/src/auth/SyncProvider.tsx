@@ -13,6 +13,7 @@ import {
   onSyncStatus,
   type SyncStatus,
 } from '../lib/sync'
+import { bootstrapGlobal, teardownGlobal, syncGlobal, repairGlobalSync } from '../lib/globalSync'
 import { loadSyncedCampaigns } from '../lib/syncQueue'
 import {
   clearAllLocalData,
@@ -72,6 +73,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       bootstrapped.current = false
       setActiveUser(null)
       teardown()
+      teardownGlobal()
       // Only on an actual sign-out (was signed in), never on the initial
       // pre-auth mount where userId starts null.
       if (prev) clearSyncedCache().catch(() => {})
@@ -89,6 +91,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setLastUserId(userId)
       setActiveUser(userId)
       await bootstrap(userId)
+      await bootstrapGlobal(userId).catch(() => {})
       if (!cancelled) bootstrapped.current = true
     })()
     return () => {
@@ -128,7 +131,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // Flush when the tab regains focus / comes back online, plus a gentle poll.
   useEffect(() => {
     if (!userId) return
-    const flush = () => syncAll(userId).catch(() => {})
+    const flush = () => {
+      syncAll(userId).catch(() => {})
+      syncGlobal(userId).catch(() => {})
+    }
     const onVisible = () => {
       if (document.visibilityState === 'visible') flush()
     }
@@ -144,6 +150,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const repair = useCallback(async () => {
     if (!userId) return 0
+    await repairGlobalSync(userId).catch(() => {})
     return repairSyncedCampaigns(userId)
   }, [userId])
 
