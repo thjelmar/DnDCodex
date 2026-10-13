@@ -17,9 +17,12 @@ import type {
   PlotThread,
   TimelineEvent,
   GenTable,
+  Template,
   PendingChange,
   SyncStateRow,
   SyncOptOutRow,
+  PendingGlobalChange,
+  GlobalSyncStateRow,
 } from './types'
 
 // The Dexie instance. Each table is keyed by `id`; the strings after `id`
@@ -46,10 +49,16 @@ export class CodexDB extends Dexie {
   // campaigns, so NOT campaign-scoped and not mirrored through the per-campaign
   // records channel; it rides along in JSON backups instead.
   genTables!: EntityTable<GenTable, 'slot'>
+  // Reusable, cross-campaign entity templates (T-8). GLOBAL (not campaign-scoped);
+  // synced per-user through the user_records channel (see globalSync).
+  templates!: EntityTable<Template, 'id'>
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
   syncOptOut!: EntityTable<SyncOptOutRow, 'campaignId'>
+  // Local-only GLOBAL sync bookkeeping (the user_records outbox + cursor).
+  pendingGlobal!: EntityTable<PendingGlobalChange, 'id'>
+  globalSyncState!: EntityTable<GlobalSyncStateRow, 'ownerId'>
 
   constructor() {
     super('dnd-codex')
@@ -248,6 +257,13 @@ export class CodexDB extends Dexie {
     this.version(17).stores({
       plotThreads: 'id, campaignId, updatedAt',
       timelineEvents: 'id, campaignId, sortKey, updatedAt',
+    })
+    // v18 adds reusable entity templates (T-8) and the GLOBAL sync bookkeeping
+    // (per-user outbox + cursor for the user_records channel). Additive.
+    this.version(18).stores({
+      templates: 'id, kind, updatedAt',
+      pendingGlobal: '++id, [table+recordId]',
+      globalSyncState: 'ownerId',
     })
   }
 }

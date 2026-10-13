@@ -19,6 +19,7 @@ import { HomePage } from './pages/HomePage'
 import { CampaignsPage } from './pages/CampaignsPage'
 import type { Campaign } from './db/types'
 import { BackupPage } from './pages/BackupPage'
+import { TemplatesPage } from './pages/TemplatesPage'
 import { ChangelogPage } from './pages/ChangelogPage'
 import { useChangelogUnseen } from './lib/useChangelog'
 import { CampaignLayout } from './pages/CampaignLayout'
@@ -269,6 +270,9 @@ function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
           <NavLink to="/tools/generators" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="sparkles" size={15} /></span> Generators
           </NavLink>
+          <NavLink to="/tools/templates" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+            <span className="ico"><Icon name="copy" size={15} /></span> Templates
+          </NavLink>
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
           </NavLink>
@@ -449,6 +453,7 @@ export function App() {
             <Route path="/roadmap" element={<RoadmapPage onReport={() => setBugOpen(true)} />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/generators" element={<GeneratorTablesPage />} />
+            <Route path="/tools/templates" element={<TemplatesPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />

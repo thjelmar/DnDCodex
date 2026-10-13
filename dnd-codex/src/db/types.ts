@@ -547,6 +547,30 @@ export interface GenTable {
   updatedAt: ISODate
 }
 
+// ---------------------------------------------------------------------------
+// Templates (T-8). A reusable starting point for a new entity. GLOBAL (not tied
+// to a campaign) so it's reusable everywhere, and synced through the per-user
+// `user_records` channel (see globalSync). Built-in templates ship in code and
+// are NOT stored here; only the user's own saved templates live in this table.
+// ---------------------------------------------------------------------------
+
+/** Which entity type a template seeds. Only sessions for now; extensible. */
+export type TemplateKind = 'session'
+
+export interface Template {
+  id: Id
+  kind: TemplateKind
+  /** The name shown in the "New from template" menu and the manager. */
+  label: string
+  /**
+   * The fields pre-filled into the new entity. Shape depends on `kind`; for a
+   * session it's a Partial of the session's own fields (title/notes/dmNotes/tags).
+   */
+  data: Record<string, unknown>
+  createdAt: ISODate
+  updatedAt: ISODate
+}
+
 /**
  * A typed link between two entities, e.g. an NPC "resides in" a Location, or a
  * Location "allied with" another Location. Links are undirected in meaning but
@@ -606,6 +630,33 @@ export interface PendingChange {
  */
 export interface SyncOptOutRow {
   campaignId: Id
+}
+
+// ---------------------------------------------------------------------------
+// Global (account-level) sync bookkeeping. The mirror of the campaign outbox +
+// cursor above, but for data that belongs to the USER and is reusable across
+// campaigns (templates today). Also LOCAL-ONLY; backed by `user_records`.
+// ---------------------------------------------------------------------------
+
+/** Dexie tables synced through the per-user `user_records` channel. */
+export type GlobalSyncTable = 'templates'
+
+/** One queued local mutation of global data waiting to be pushed. */
+export interface PendingGlobalChange {
+  id?: number
+  table: GlobalSyncTable
+  recordId: Id
+  op: 'put' | 'del'
+  at: ISODate
+}
+
+/** The signed-in user's global pull cursor + status. One row, keyed by ownerId. */
+export interface GlobalSyncStateRow {
+  ownerId: Id
+  /** Server `updated_at` high-water mark; the next pull fetches rows after it. */
+  pullCursor: string
+  lastSyncedAt: ISODate | null
+  lastError?: string | null
 }
 
 /** Per-campaign sync progress. Presence of a row = this campaign is synced. */
@@ -837,4 +888,6 @@ export interface DatabaseSnapshot {
   timelineEvents?: TimelineEvent[]
   /** Global generator word lists (not campaign-scoped). */
   genTables?: GenTable[]
+  /** Global reusable entity templates (not campaign-scoped). */
+  templates?: Template[]
 }

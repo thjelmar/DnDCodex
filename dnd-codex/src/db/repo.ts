@@ -1,5 +1,6 @@
 import { db, newId, now } from './db'
 import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
+import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
 import { tableForKind } from '../lib/syncKinds'
 import type { ShareableKind } from '../lib/reveal'
 import type {
@@ -12,6 +13,8 @@ import type {
   RollTable,
   RollTableEntry,
   GenTable,
+  Template,
+  TemplateKind,
   PlayerNote,
   StoredImage,
   Link,
@@ -343,6 +346,61 @@ export async function saveGenTable(
     updatedAt: now(),
   }
   await db.genTables.put(row)
+}
+
+// --- Entity templates (T-8; global, synced via user_records) ---------------
+
+/** Save a reusable template from a set of pre-fill fields. */
+export async function createTemplate(
+  kind: TemplateKind,
+  label: string,
+  data: Record<string, unknown>,
+): Promise<Template> {
+  const ts = now()
+  const template: Template = {
+    id: newId(),
+    kind,
+    label: label.trim() || 'Untitled template',
+    data,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.templates.add(template)
+  await enqueueGlobalPut('templates', template.id)
+  return template
+}
+
+/** Snapshot an existing session into a reusable template (option B). */
+export async function saveSessionAsTemplate(session: Session, label: string): Promise<Template> {
+  return createTemplate('session', label, {
+    title: session.title,
+    notes: session.notes,
+    dmNotes: session.dmNotes,
+    tags: session.tags,
+  })
+}
+
+export async function renameTemplate(id: Id, label: string): Promise<void> {
+  await db.templates.update(id, { label: label.trim() || 'Untitled template', updatedAt: now() })
+  await enqueueGlobalPut('templates', id)
+}
+
+export async function deleteTemplate(id: Id): Promise<void> {
+  await db.templates.delete(id)
+  await enqueueGlobalDel('templates', id)
+}
+
+/** Create a new session pre-filled from a template's data. */
+export async function createSessionFromTemplate(
+  campaignId: Id,
+  data: Record<string, unknown>,
+): Promise<Session> {
+  return createSession(campaignId, {
+    title: typeof data.title === 'string' ? data.title : undefined,
+    notes: typeof data.notes === 'string' ? data.notes : undefined,
+    dmNotes: typeof data.dmNotes === 'string' ? data.dmNotes : undefined,
+    tags: Array.isArray(data.tags) ? (data.tags as string[]) : undefined,
+  })
 }
 
 export async function updateRollTable(id: Id, patch: Partial<RollTable>): Promise<void> {
@@ -722,10 +780,10 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 // Export / import (JSON backup)
 // ---------------------------------------------------------------------------
 
-export const SNAPSHOT_VERSION = 7
+export const SNAPSHOT_VERSION = 8
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, plotThreads, timelineEvents, genTables] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, plotThreads, timelineEvents, genTables, templates] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -743,6 +801,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.plotThreads.toArray(),
       db.timelineEvents.toArray(),
       db.genTables.toArray(),
+      db.templates.toArray(),
     ])
   return {
     version: SNAPSHOT_VERSION,
@@ -763,6 +822,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     plotThreads,
     timelineEvents,
     genTables,
+    templates,
   }
 }
 
@@ -779,7 +839,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.genTables],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.genTables, db.templates],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -799,6 +859,7 @@ export async function importSnapshot(
           db.plotThreads.clear(),
           db.timelineEvents.clear(),
           db.genTables.clear(),
+          db.templates.clear(),
         ])
       }
       await Promise.all([
@@ -818,15 +879,22 @@ export async function importSnapshot(
         db.plotThreads.bulkPut(snapshot.plotThreads ?? []),
         db.timelineEvents.bulkPut(snapshot.timelineEvents ?? []),
         db.genTables.bulkPut(snapshot.genTables ?? []),
+        db.templates.bulkPut(snapshot.templates ?? []),
       ])
     },
   )
-  // A bulk restore bypasses the per-record outbox; if any campaign is synced,
-  // re-queue everything so the restored state pushes to the cloud.
+  // A bulk restore bypasses the per-record outboxes; if sync is active, re-queue
+  // everything (campaign + global) so the restored state pushes to the cloud.
   try {
     const { resyncSyncedCampaigns } = await import('../lib/sync')
     await resyncSyncedCampaigns()
   } catch {
     // Sync not active / not configured — local-only import, nothing to push.
+  }
+  try {
+    const { resyncGlobal } = await import('../lib/globalSync')
+    await resyncGlobal()
+  } catch {
+    // Global sync not active — nothing to push.
   }
 }
