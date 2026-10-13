@@ -16,6 +16,8 @@ import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog } from './lib/errorLog'
 import { HomePage } from './pages/HomePage'
+import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
+import { isDemo } from './lib/demo'
 import { CampaignsPage } from './pages/CampaignsPage'
 import type { Campaign } from './db/types'
 import { BackupPage } from './pages/BackupPage'
@@ -358,6 +360,7 @@ function NavAutoClose({ onClose }: { onClose: () => void }) {
 }
 
 export function App() {
+  const demo = isDemo()
   const [searchOpen, setSearchOpen] = useState(false)
   const [diceOpen, setDiceOpen] = useState(false)
   // On narrow screens the sidebar becomes an off-canvas drawer; this tracks
@@ -414,7 +417,9 @@ export function App() {
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
         {prefsOpen && <PreferencesModal onClose={() => setPrefsOpen(false)} />}
         {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
-        <div className="app" data-nav-open={navOpen ? 'true' : undefined}>
+        {demo && <DemoBanner />}
+        {demo && <DemoBlockedToast />}
+        <div className="app" data-nav-open={navOpen ? 'true' : undefined} data-demo={demo ? 'true' : undefined}>
           {/* Mobile-only top bar: a hamburger to reveal the nav drawer, the
               brand (tap to go home), and a quick search. Hidden on desktop. */}
           <header className="topbar">

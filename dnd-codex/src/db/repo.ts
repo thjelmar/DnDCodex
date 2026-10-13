@@ -1,6 +1,7 @@
 import { db, newId, now } from './db'
 import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
 import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
+import { isDemo, notifyDemoBlocked, DemoBlockedError } from '../lib/demo'
 import { tableForKind } from '../lib/syncKinds'
 import type { ShareableKind } from '../lib/reveal'
 import type {
@@ -29,6 +30,27 @@ import type {
 } from './types'
 
 // ---------------------------------------------------------------------------
+// Demo-mode write guards (T-32). The demo runs on a throwaway database, but all
+// persistent changes are disabled so visitors see "try it on the real site".
+//   - blockDemoWrite(): explicit actions (create / delete / upload). Raises the
+//     "non-functional in demo" prompt and aborts. The primary UX is a proactive
+//     guard on the buttons; this is the backstop so nothing slips through.
+//   - skipDemoWrite(): passive autosave (updateX). Silently no-ops — editors
+//     stay interactive but nothing persists, with no prompt spam on every key.
+// ---------------------------------------------------------------------------
+
+function blockDemoWrite(): void {
+  if (isDemo()) {
+    notifyDemoBlocked()
+    throw new DemoBlockedError()
+  }
+}
+
+function skipDemoWrite(): boolean {
+  return isDemo()
+}
+
+// ---------------------------------------------------------------------------
 // Campaigns
 // ---------------------------------------------------------------------------
 
@@ -39,6 +61,7 @@ const DEFAULT_COLORS = [
 export async function createCampaign(
   input: Partial<Pick<Campaign, 'name' | 'summary' | 'description' | 'color' | 'role' | 'linkedCampaignId'>> = {},
 ): Promise<Campaign> {
+  blockDemoWrite()
   const ts = now()
   const count = await db.campaigns.count()
   const campaign: Campaign = {
@@ -73,12 +96,14 @@ export async function findOrCreateLinkedPlayerCampaign(cloudId: Id, name: string
 }
 
 export async function updateCampaign(id: Id, patch: Partial<Campaign>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.campaigns.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('campaigns', id)
 }
 
 /** Deletes a campaign and every record that belongs to it. */
 export async function deleteCampaign(id: Id): Promise<void> {
+  blockDemoWrite()
   await db.transaction(
     'rw',
     [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents],
@@ -114,6 +139,7 @@ export async function createSession(
   campaignId: Id,
   input: Partial<Pick<Session, 'title' | 'date' | 'notes' | 'dmNotes' | 'tags'>> = {},
 ): Promise<Session> {
+  blockDemoWrite()
   const ts = now()
   const session: Session = {
     id: newId(),
@@ -132,6 +158,7 @@ export async function createSession(
 }
 
 export async function updateSession(id: Id, patch: Partial<Session>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.sessions.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('sessions', id)
 }
@@ -148,6 +175,7 @@ export async function createLocation(
   campaignId: Id,
   input: Partial<Pick<Location, 'name' | 'type' | 'description' | 'parentLocationId' | 'tags'>> = {},
 ): Promise<Location> {
+  blockDemoWrite()
   const ts = now()
   const location: Location = {
     id: newId(),
@@ -179,6 +207,7 @@ export async function createLocation(
 }
 
 export async function updateLocation(id: Id, patch: Partial<Location>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.locations.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('locations', id)
 }
@@ -195,6 +224,7 @@ export async function createNPC(
   campaignId: Id,
   input: Partial<Pick<NPC, 'name' | 'role' | 'description' | 'locationId' | 'disposition' | 'tags'>> = {},
 ): Promise<NPC> {
+  blockDemoWrite()
   const ts = now()
   const npc: NPC = {
     id: newId(),
@@ -218,6 +248,7 @@ export async function createNPC(
 }
 
 export async function updateNPC(id: Id, patch: Partial<NPC>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.npcs.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('npcs', id)
 }
@@ -234,6 +265,7 @@ export async function createItem(
   campaignId: Id,
   input: Partial<Pick<Item, 'name' | 'rarity' | 'category' | 'description' | 'attunement' | 'value' | 'tags'>> = {},
 ): Promise<Item> {
+  blockDemoWrite()
   const ts = now()
   const item: Item = {
     id: newId(),
@@ -255,6 +287,7 @@ export async function createItem(
 }
 
 export async function updateItem(id: Id, patch: Partial<Item>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.items.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('items', id)
 }
@@ -271,6 +304,7 @@ export async function createNote(
   campaignId: Id,
   input: Partial<Pick<Note, 'title' | 'body' | 'tags'>> = {},
 ): Promise<Note> {
+  blockDemoWrite()
   const ts = now()
   const note: Note = {
     id: newId(),
@@ -287,6 +321,7 @@ export async function createNote(
 }
 
 export async function updateNote(id: Id, patch: Partial<Note>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.notes.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('notes', id)
 }
@@ -308,6 +343,7 @@ export async function createRollTable(
   campaignId: Id,
   input: Partial<Pick<RollTable, 'name' | 'category' | 'description' | 'entries' | 'tags'>> = {},
 ): Promise<RollTable> {
+  blockDemoWrite()
   const ts = now()
   const table: RollTable = {
     id: newId(),
@@ -338,6 +374,7 @@ export async function saveGenTable(
   slot: string,
   patch: Partial<Pick<GenTable, 'entries' | 'dismissedSuggestions'>>,
 ): Promise<void> {
+  if (skipDemoWrite()) return
   const existing = await db.genTables.get(slot)
   const row: GenTable = {
     slot,
@@ -356,6 +393,7 @@ export async function createTemplate(
   label: string,
   data: Record<string, unknown>,
 ): Promise<Template> {
+  blockDemoWrite()
   const ts = now()
   const template: Template = {
     id: newId(),
@@ -381,11 +419,13 @@ export async function saveSessionAsTemplate(session: Session, label: string): Pr
 }
 
 export async function renameTemplate(id: Id, label: string): Promise<void> {
+  if (skipDemoWrite()) return
   await db.templates.update(id, { label: label.trim() || 'Untitled template', updatedAt: now() })
   await enqueueGlobalPut('templates', id)
 }
 
 export async function deleteTemplate(id: Id): Promise<void> {
+  blockDemoWrite()
   await db.templates.delete(id)
   await enqueueGlobalDel('templates', id)
 }
@@ -404,6 +444,7 @@ export async function createSessionFromTemplate(
 }
 
 export async function updateRollTable(id: Id, patch: Partial<RollTable>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.rollTables.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('rollTables', id)
 }
@@ -422,6 +463,7 @@ export async function createPlayerNote(
   campaignId: Id,
   input: Partial<Pick<PlayerNote, 'section' | 'title' | 'body' | 'tags' | 'date' | 'status'>> = {},
 ): Promise<PlayerNote> {
+  blockDemoWrite()
   const ts = now()
   const section = input.section ?? 'notes'
   const note: PlayerNote = {
@@ -442,6 +484,7 @@ export async function createPlayerNote(
 }
 
 export async function updatePlayerNote(id: Id, patch: Partial<PlayerNote>): Promise<void> {
+  if (skipDemoWrite()) return
   await db.playerNotes.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('playerNotes', id)
 }
@@ -642,6 +685,7 @@ export async function createImage(
   campaignId: Id,
   input: Pick<StoredImage, 'name' | 'mime' | 'dataUrl' | 'width' | 'height' | 'bytes'>,
 ): Promise<StoredImage> {
+  blockDemoWrite()
   const ts = now()
   const image: StoredImage = {
     id: newId(),
@@ -757,6 +801,7 @@ const TABLE_BY_KIND = {
 } as const
 
 async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<void> {
+  blockDemoWrite()
   let campaignId: Id | undefined
   let touching: Link[] = []
   await db.transaction('rw', [db.links, db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes], async () => {

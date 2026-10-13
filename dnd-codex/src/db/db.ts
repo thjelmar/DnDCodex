@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie'
 import { markdownToHtml } from '../lib/mdToHtml'
+import { isDemo, DEMO_DB_NAME, REAL_DB_NAME } from '../lib/demo'
 import type {
   Campaign,
   Session,
@@ -61,7 +62,9 @@ export class CodexDB extends Dexie {
   globalSyncState!: EntityTable<GlobalSyncStateRow, 'ownerId'>
 
   constructor() {
-    super('dnd-codex')
+    // In demo mode the whole app runs on a separate, throwaway database so real
+    // data is never touched (and it resets on exit). Chosen once at startup.
+    super(isDemo() ? DEMO_DB_NAME : REAL_DB_NAME)
     this.version(1).stores({
       campaigns: 'id, name, updatedAt, archived',
       sessions: 'id, campaignId, date, updatedAt',
