@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { useAuth } from './AuthProvider'
@@ -8,6 +8,7 @@ import {
   teardown,
   setActiveUser,
   syncAll,
+  repairSyncedCampaigns,
   getSyncStatus,
   onSyncStatus,
   type SyncStatus,
@@ -22,9 +23,15 @@ import {
 
 interface SyncContextValue {
   status: SyncStatus
+  /**
+   * Force a full re-pull of every synced campaign from the cloud (self-heal for
+   * records the forward-only cursor can't recover). Resolves to the number of
+   * campaigns re-synced; 0 when signed out or nothing is synced.
+   */
+  repair: () => Promise<number>
 }
 
-const SyncContext = createContext<SyncContextValue>({ status: getSyncStatus() })
+const SyncContext = createContext<SyncContextValue>({ status: getSyncStatus(), repair: async () => 0 })
 
 export function useSync(): SyncContextValue {
   return useContext(SyncContext)
@@ -135,5 +142,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [userId])
 
-  return <SyncContext.Provider value={{ status }}>{children}</SyncContext.Provider>
+  const repair = useCallback(async () => {
+    if (!userId) return 0
+    return repairSyncedCampaigns(userId)
+  }, [userId])
+
+  return <SyncContext.Provider value={{ status, repair }}>{children}</SyncContext.Provider>
 }

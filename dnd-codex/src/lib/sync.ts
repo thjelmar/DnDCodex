@@ -328,6 +328,84 @@ async function applyRows(rows: CloudRow[]): Promise<void> {
   }
 }
 
+// ---- reconcile / self-heal ------------------------------------------------
+
+/** Kinds this client understands — lets reconcile ignore future/unknown kinds. */
+const KNOWN_KINDS = SYNC_TABLES.map(kindForTable)
+
+/** Counts local records of a campaign across every synced table. */
+async function countLocalRecords(campaignId: string): Promise<number> {
+  let n = 0
+  for (const table of SYNC_TABLES) {
+    if (table === 'campaigns') {
+      if (await db.campaigns.get(campaignId)) n++
+      continue
+    }
+    n += await db.table(table).where('campaignId').equals(campaignId).count()
+  }
+  return n
+}
+
+/**
+ * Self-heal for records the forward-only pull cursor can't recover. The cursor
+ * only re-applies cloud rows with updated_at > cursor, so if a device's LOCAL
+ * copy of a still-live record is dropped AFTER the cursor advanced past it (a
+ * pre-tombstone delete, a partial local clear, an applyRows edge), that record
+ * is never re-pulled and the device diverges permanently.
+ *
+ * Detection is a cheap count compare: the cloud's live record count (known kinds
+ * only, so a newer device's future kinds don't trip it) vs. what Dexie holds. If
+ * the cloud has MORE, we're missing something the cursor can't re-fetch, so
+ * rewind the cursor to zero and re-pull. applyRows is idempotent — it never
+ * clobbers newer local data or resurrects a pending delete — so the re-pull only
+ * restores what's genuinely gone. Meant to run AFTER a normal sync (so pending
+ * local creates/deletes are already pushed) to avoid false repairs. Returns true
+ * if a repair was triggered.
+ */
+async function reconcileCampaign(campaignId: string, ownerId: string): Promise<boolean> {
+  if (!supabase) return false
+  const { count, error } = await supabase
+    .from('records')
+    .select('id', { count: 'exact', head: true })
+    .eq('campaign_id', campaignId)
+    .eq('deleted', false)
+    .in('kind', KNOWN_KINDS)
+  if (error || count == null) return false
+  const localCount = await countLocalRecords(campaignId)
+  if (count <= localCount) return false
+  // Cloud holds live records we don't — rewind + full re-pull to restore them.
+  await db.syncState.update(campaignId, { pullCursor: CURSOR_ZERO })
+  await syncCampaign(campaignId, ownerId)
+  return true
+}
+
+/**
+ * Manual repair (user-triggered): rewind every synced campaign's pull cursor to
+ * zero and re-pull from the cloud. Forces the full idempotent re-pull that
+ * restores records the forward-only cursor can't re-fetch, without clobbering
+ * newer local edits. Returns the number of campaigns re-synced.
+ */
+export async function repairSyncedCampaigns(ownerId: string): Promise<number> {
+  const ids = syncedCampaignIds()
+  if (ids.length === 0) return 0
+  setStatus({ syncing: true, error: null })
+  let n = 0
+  try {
+    for (const id of ids) {
+      try {
+        await db.syncState.update(id, { pullCursor: CURSOR_ZERO })
+        await syncCampaign(id, ownerId)
+        n++
+      } catch {
+        // error recorded on the row; keep going with the rest
+      }
+    }
+  } finally {
+    setStatus({ syncing: false })
+  }
+  return n
+}
+
 // ---- orchestration --------------------------------------------------------
 
 /** One full sync of a campaign: pull remote changes, then push local ones. */
@@ -431,6 +509,14 @@ export async function bootstrap(ownerId: string): Promise<void> {
     // otherwise the badge sticks at the count taken before they existed.
     await refreshCampaignCount()
     for (const id of syncedCampaignIds()) subscribeCampaign(id, ownerId)
+
+    // 6. Self-heal any campaign whose local copy has silently diverged from the
+    //    cloud (reconcileCampaign). Cheap when nothing's wrong — a single count
+    //    query per campaign — and a no-op unless the cloud genuinely holds live
+    //    records we're missing. Best-effort: never blocks sign-in.
+    for (const id of syncedCampaignIds()) {
+      await reconcileCampaign(id, ownerId).catch(() => {})
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     setStatus({ error: msg })

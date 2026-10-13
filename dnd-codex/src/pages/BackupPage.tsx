@@ -6,11 +6,14 @@ import { downloadText, readFileAsText } from '../lib/download'
 import { sessionsToICS } from '../lib/calendar'
 import { todayISODate } from '../lib/format'
 import { useConfirm } from '../components/ConfirmDialog'
+import { useSync } from '../auth/SyncProvider'
 
 export function BackupPage() {
   const confirm = useConfirm()
+  const { status, repair } = useSync()
   const [toast, setToast] = useState<string | null>(null)
   const [importMode, setImportMode] = useState<'replace' | 'merge'>('merge')
+  const [repairing, setRepairing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const counts = useLiveQuery(async () => {
@@ -60,6 +63,18 @@ export function BackupPage() {
       flash(err instanceof Error ? err.message : 'Import failed.')
     } finally {
       if (fileRef.current) fileRef.current.value = ''
+    }
+  }
+
+  async function handleRepair() {
+    setRepairing(true)
+    try {
+      const n = await repair()
+      flash(n > 0 ? `Re-synced ${n} campaign${n === 1 ? '' : 's'} from the cloud.` : 'Nothing to re-sync.')
+    } catch {
+      flash('Repair failed — check your connection and try again.')
+    } finally {
+      setRepairing(false)
     }
   }
 
@@ -150,11 +165,22 @@ export function BackupPage() {
 
       <div className="card" style={{ cursor: 'default' }}>
         <h3>☁️ Cloud sync</h3>
-        <p className="muted mb-0">
+        <p className="muted">
           Sign in (bottom-left) and your campaigns sync automatically to your account, so your notes
           follow you across devices. Signed out, everything stays private in this browser — this JSON
           export is still your portable, offline backup.
         </p>
+        {status.campaigns > 0 && (
+          <>
+            <p className="muted" style={{ marginBottom: 8 }}>
+              Missing something that's on another device? Repair re-pulls every synced campaign from
+              the cloud. It only adds back what's missing and never overwrites newer local edits.
+            </p>
+            <button className="btn" onClick={handleRepair} disabled={repairing || status.syncing}>
+              {repairing ? 'Repairing…' : '🔧 Repair sync (re-pull from cloud)'}
+            </button>
+          </>
+        )}
       </div>
 
       {toast && <div className="toast">{toast}</div>}
