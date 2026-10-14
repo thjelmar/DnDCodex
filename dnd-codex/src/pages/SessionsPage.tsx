@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -13,12 +13,13 @@ import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
-import { Modal } from '../components/Modal'
 import { formatDate, todayISODate } from '../lib/format'
 import { ShareControl } from '../components/ShareControl'
 import { MasterDetail } from '../components/MasterDetail'
 import { Icon } from '../components/Icon'
-import { BUILTIN_SESSION_TEMPLATES } from '../data/sessionTemplates'
+import { NewFromTemplateControl } from '../components/NewFromTemplateControl'
+import { SaveAsTemplateModal } from '../components/SaveAsTemplateModal'
+import { BUILTIN_SESSION_TEMPLATES } from '../data/builtinTemplates'
 import type { Session } from '../db/types'
 
 export function SessionsPage() {
@@ -62,6 +63,11 @@ export function SessionsPage() {
     setSelectedId(s.id)
   }
 
+  async function fromTemplate(data: Record<string, unknown>) {
+    const s = await createSessionFromTemplate(campaign.id, data)
+    setSelectedId(s.id)
+  }
+
   return (
     <MasterDetail
       selected={!!selected}
@@ -69,7 +75,14 @@ export function SessionsPage() {
       backLabel="All sessions"
       list={
         <>
-          <NewSessionControl campaignId={campaign.id} onCreated={setSelectedId} onBlank={addSession} />
+          <NewFromTemplateControl
+            kind="session"
+            builtins={BUILTIN_SESSION_TEMPLATES}
+            blankLabel="New Session"
+            onBlank={addSession}
+            onFromTemplate={fromTemplate}
+            emptyHint="None yet — open a session and “Save as template”."
+          />
           {sessions?.length === 0 && <p className="faint">No sessions yet.</p>}
           {sessions?.map((s) => (
             <div
@@ -137,7 +150,15 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
         </button>
         <ShareControl campaignId={session.campaignId} kind="session" entity={session} />
       </div>
-      {savingTemplate && <SaveTemplateModal session={session} onClose={() => setSavingTemplate(false)} />}
+      {savingTemplate && (
+        <SaveAsTemplateModal
+          defaultLabel={session.title}
+          placeholder="e.g. Downtime week"
+          description="Saves this session's notes, DM notes, and tags (not its title or date) as a reusable starting point. It syncs to your account and shows up under “New Session → template”."
+          onSave={(label) => saveSessionAsTemplate(session, label).then(() => {})}
+          onClose={() => setSavingTemplate(false)}
+        />
+      )}
       <div className="form-row" style={{ gridTemplateColumns: '1fr 160px' }}>
         <div className="field">
           <label>Title</label>
@@ -218,134 +239,3 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
   )
 }
 
-/**
- * The "New Session" control: a primary button to create a blank session, plus a
- * caret that opens a menu of built-in and saved templates (T-8). Picking a
- * template pre-fills the new session's notes/tags.
- */
-function NewSessionControl({
-  campaignId,
-  onCreated,
-  onBlank,
-}: {
-  campaignId: string
-  onCreated: (id: string) => void
-  onBlank: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const userTemplates = useLiveQuery(
-    () => db.templates.where('kind').equals('session').sortBy('label'),
-    [],
-  )
-
-  // Close the menu on an outside click or Escape.
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('pointerdown', onDown)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('pointerdown', onDown)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  async function fromTemplate(data: Record<string, unknown>) {
-    setOpen(false)
-    const s = await createSessionFromTemplate(campaignId, data)
-    onCreated(s.id)
-  }
-
-  return (
-    <div ref={ref} className="new-template-wrap" style={{ marginBottom: 12 }}>
-      <div className="row" style={{ gap: 0 }}>
-        <button
-          className="btn primary"
-          style={{ flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-          onClick={onBlank}
-        >
-          <Icon name="plus" size={15} color="inherit" /> New Session
-        </button>
-        <button
-          className="btn primary"
-          aria-label="New session from template"
-          title="New from template"
-          style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: '1px solid rgba(0,0,0,0.2)', padding: '0 10px' }}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <Icon name="chevron-right" size={13} color="inherit" className={`sidebar-caret${open ? ' open' : ''}`} />
-        </button>
-      </div>
-      {open && (
-        <div className="new-template-menu">
-          <div className="new-template-group">Built-in</div>
-          {BUILTIN_SESSION_TEMPLATES.map((t) => (
-            <button key={t.id} className="new-template-opt" onClick={() => fromTemplate(t.data)}>
-              <span className="new-template-label">{t.label}</span>
-              <span className="new-template-desc">{t.description}</span>
-            </button>
-          ))}
-          <div className="new-template-group">Your templates</div>
-          {userTemplates?.length === 0 && (
-            <div className="new-template-empty">None yet — open a session and “Save as template”.</div>
-          )}
-          {userTemplates?.map((t) => (
-            <button key={t.id} className="new-template-opt" onClick={() => fromTemplate(t.data)}>
-              <span className="new-template-label">{t.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Small modal to name and save the current session as a reusable template. */
-function SaveTemplateModal({ session, onClose }: { session: Session; onClose: () => void }) {
-  const [label, setLabel] = useState(session.title)
-  const [busy, setBusy] = useState(false)
-
-  async function save() {
-    setBusy(true)
-    await saveSessionAsTemplate(session, label)
-    onClose()
-  }
-
-  return (
-    <Modal
-      title="Save as template"
-      onClose={onClose}
-      footer={
-        <>
-          <button className="btn ghost" onClick={onClose} disabled={busy}>
-            Cancel
-          </button>
-          <button className="btn primary" onClick={save} disabled={busy || !label.trim()}>
-            {busy ? 'Saving…' : 'Save template'}
-          </button>
-        </>
-      }
-    >
-      <p className="faint" style={{ marginTop: 0 }}>
-        Saves this session's notes, DM notes, and tags (not its title or date) as a reusable starting
-        point. It syncs to your account and shows up under “New Session → template”.
-      </p>
-      <div className="field">
-        <label>Template name</label>
-        <input
-          className="input"
-          value={label}
-          maxLength={60}
-          autoFocus
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && label.trim() && save()}
-          placeholder="e.g. Downtime week"
-        />
-      </div>
-    </Modal>
-  )
-}

@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { renameTemplate, deleteTemplate } from '../db/repo'
 import { useConfirm } from '../components/ConfirmDialog'
-import { BUILTIN_SESSION_TEMPLATES } from '../data/sessionTemplates'
+import { ALL_BUILTIN_TEMPLATES } from '../data/builtinTemplates'
 import type { Template } from '../db/types'
 
 /**
@@ -23,8 +23,8 @@ export function TemplatesPage() {
         <div>
           <h1 className="mb-0">Templates</h1>
           <div className="subtitle">
-            Reusable starting points for new entities. Create one from any session with “Save as
-            template”; they sync across your devices.
+            Reusable starting points for new sessions, NPCs, and locations. Create one from any entity
+            with “Save as template”; they sync across your devices.
           </div>
         </div>
       </div>
@@ -33,8 +33,8 @@ export function TemplatesPage() {
         <h3>Your templates</h3>
         {userTemplates && userTemplates.length === 0 && (
           <p className="muted mb-0">
-            You haven't saved any yet. Open a session, then use <strong>Save as template</strong> to
-            make one.
+            You haven't saved any yet. Open a session, NPC, or location, then use{' '}
+            <strong>Save as template</strong> to make one.
           </p>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -46,12 +46,14 @@ export function TemplatesPage() {
 
       <div className="card" style={{ cursor: 'default' }}>
         <h3>Built-in</h3>
-        <p className="muted">These ship with the app and can't be edited. Pick them from “New Session”.</p>
+        <p className="muted">
+          These ship with the app and can't be edited. Pick them from the “New …” menu on each page.
+        </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {BUILTIN_SESSION_TEMPLATES.map((t) => (
+          {ALL_BUILTIN_TEMPLATES.map((t) => (
             <div key={t.id} className="list-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
               <div className="title">
-                {t.label} <span className="tag" style={{ marginLeft: 6 }}>session</span>
+                {t.label} <span className="tag" style={{ marginLeft: 6 }}>{t.kind}</span>
               </div>
               <div className="sub">{t.description}</div>
             </div>

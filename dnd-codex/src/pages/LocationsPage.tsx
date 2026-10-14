@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createLocation, updateLocation, deleteLocation, createNPC } from '../db/repo'
+import { createLocation, updateLocation, deleteLocation, createNPC, createLocationFromTemplate, saveLocationAsTemplate } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
@@ -13,6 +13,9 @@ import { AddLinkButton } from '../components/AddLinkButton'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
 import { MasterDetail } from '../components/MasterDetail'
+import { NewFromTemplateControl } from '../components/NewFromTemplateControl'
+import { SaveAsTemplateModal } from '../components/SaveAsTemplateModal'
+import { BUILTIN_LOCATION_TEMPLATES } from '../data/builtinTemplates'
 import {
   SETTLEMENT_TIERS, generateSettlement, poisToHtml, tierForType,
   rollPopulation, rollProsperity, rollGovernment, rollReligion, rollTradeList, rollLeaderName, rollPoi, rollHook, reconcileToTier,
@@ -73,6 +76,13 @@ export function LocationsPage() {
     setSelectedId(l.id)
   }
 
+  // New-from-template nests under the selected location (the "child of" case),
+  // same as a blank create.
+  async function fromTemplate(data: Record<string, unknown>) {
+    const l = await createLocationFromTemplate(campaign.id, data, selected ? selected.id : null)
+    setSelectedId(l.id)
+  }
+
   // Group children by parent for the tree (orphans whose parent is missing
   // render at the root).
   const childrenByParent = useMemo(() => {
@@ -100,9 +110,14 @@ export function LocationsPage() {
       backLabel="All locations"
       list={
         <>
-          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-            <Icon name="plus" size={15} color="inherit" /> New {selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}
-          </button>
+          <NewFromTemplateControl
+            kind="location"
+            builtins={BUILTIN_LOCATION_TEMPLATES}
+            blankLabel={`New ${selected ? `child of ${TYPE_ICON[selected.type]}` : 'Location'}`}
+            onBlank={add}
+            onFromTemplate={fromTemplate}
+            emptyHint="None yet — open a location and “Save as template”."
+          />
           {locations?.length === 0 && <p className="faint">No locations yet. Start with a World or Region.</p>}
           {roots.map((l) => (
             <TreeNode
@@ -257,6 +272,7 @@ function LocationEditor({
 }) {
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const npcs = useLiveQuery(
     () => db.npcs.where('campaignId').equals(campaignId).sortBy('name'),
     [campaignId],
@@ -393,8 +409,24 @@ function LocationEditor({
             <Icon name="dice" size={14} color="inherit" /> {genOpen ? 'Close generator' : 'Generate this settlement'}
           </button>
         )}
+        <button
+          className="btn ghost small"
+          onClick={() => setSavingTemplate(true)}
+          title="Save this location's fields as a reusable template"
+        >
+          <Icon name="plus" size={12} /> Save as template
+        </button>
         <ShareControl campaignId={campaignId} kind="location" entity={location} />
       </div>
+      {savingTemplate && (
+        <SaveAsTemplateModal
+          defaultLabel={location.name}
+          placeholder="e.g. Roadside inn"
+          description="Saves this location's type, description, tags, and world-building fields (not its name, image, parent, ruler, or ally/enemy links) as a reusable starting point. It syncs to your account and shows up under “New Location → template”."
+          onSave={(label) => saveLocationAsTemplate(location, label).then(() => {})}
+          onClose={() => setSavingTemplate(false)}
+        />
+      )}
 
       {isSettlement && genOpen && (
         <div className="loc-gen">
