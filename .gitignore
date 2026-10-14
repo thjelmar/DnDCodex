@@ -24,3 +24,7 @@ dist-ssr
 
 # TS build info
 node_modules/.tmp
+
+# Raw source art drop for battle-map condition overlays — the app ships the
+# optimized copies in src/assets/conditions/. Originals kept locally only.
+dnd-codex/Conditions/
