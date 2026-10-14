@@ -147,6 +147,10 @@ button {
 }
 .demo-toast u { color: var(--accent); text-decoration: none; font-weight: 600; }
 .demo-toast:hover u { text-decoration: underline; }
+/* Read-only editor wrapper in the demo: a disabled <fieldset> turns off the
+   editing controls inside, but the element must stay layout-neutral (fieldset
+   defaults add a border/padding and a min-width that would break grid/flex). */
+.demo-ro { border: 0; margin: 0; padding: 0; min-width: 0; }
 
 .sidebar {
   background: var(--bg-elev);

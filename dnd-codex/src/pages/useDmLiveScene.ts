@@ -18,6 +18,7 @@ import { useLiveSession } from '../lib/useLiveSession'
 import { tokenRevealed } from '../lib/tabletop'
 import { tokenCombat } from '../lib/tokenCombat'
 import { getCombat, type CombatState } from '../lib/combat'
+import { isDemo, notifyDemoBlocked } from '../lib/demo'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
@@ -92,6 +93,7 @@ async function toLiveTokens(
 }
 
 async function uploadMap(campaignId: Id, imageId: Id | null) {
+  if (isDemo()) return
   if (!imageId) return
   const img = await db.images.get(imageId)
   if (!img) return
@@ -123,6 +125,10 @@ function liveSceneOf(campaignId: Id, d: Draft): LiveScene {
  * editor is opened later, it picks up from the cloud and keeps it in sync.
  */
 export async function showSceneToPlayers(campaign: Campaign, scene: Scene, userId: string): Promise<void> {
+  if (isDemo()) {
+    notifyDemoBlocked()
+    return
+  }
   await enableCampaignSharing({ id: campaign.id, name: campaign.name }, userId)
   await stopLiveScene(campaign.id)
   const members = await getCampaignMembers(campaign.id)
@@ -149,7 +155,10 @@ export function useDmLiveScene(
   applyRemoteMoves: (moves: { id: string; col: number; row: number }[]) => void,
 ) {
   const { user } = useAuth()
-  const available = !!supabase && !!user
+  // The demo never touches the live backend (it runs on a throwaway DB and must
+  // not reach Supabase). Forcing availability off hides every "show to players"
+  // control and stops the background mirror from running.
+  const available = !!supabase && !!user && !isDemo()
   const live = useLiveScene(available ? campaign.id : null)
   // Players see battle maps only inside a live session (Run mode → Start live
   // session), so showing needs one; ending the session takes the map down.

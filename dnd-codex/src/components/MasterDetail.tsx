@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import { isDemo } from '../lib/demo'
 
 // Shared by the campaign "list + editor" pages (NPCs, Locations, Notes,
 // Sessions, Tables). On a wide screen the list and the detail editor sit side
@@ -46,6 +47,19 @@ export function MasterDetail({
   listWidth?: number
 }) {
   const mobile = useIsMobile()
+  // In the demo every record editor is read-only: a disabled <fieldset> turns
+  // off all the editing controls inside the detail pane (inputs, selects,
+  // write-action buttons). Rich-text fields render read-only on their own
+  // (RichTextEditor checks isDemo). `.demo-ro` is layout-neutral (see styles).
+  const demo = isDemo()
+  const readonly = (node: ReactNode) =>
+    demo ? (
+      <fieldset className="demo-ro" disabled>
+        {node}
+      </fieldset>
+    ) : (
+      node
+    )
 
   if (mobile) {
     if (selected) {
@@ -54,7 +68,7 @@ export function MasterDetail({
           <button className="btn ghost small md-back" onClick={onBack}>
             <Icon name="arrow-left" size={14} color="inherit" /> {backLabel}
           </button>
-          {detail}
+          {readonly(detail)}
         </div>
       )
     }
@@ -64,7 +78,7 @@ export function MasterDetail({
   return (
     <div className="master-detail" style={{ gridTemplateColumns: `${listWidth}px 1fr` }}>
       <div>{list}</div>
-      <div>{detail}</div>
+      <div>{readonly(detail)}</div>
     </div>
   )
 }

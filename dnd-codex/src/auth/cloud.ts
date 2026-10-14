@@ -1,6 +1,15 @@
 import { supabase } from '../lib/supabase'
+import { isDemo } from '../lib/demo'
 import type { RevealedEntity } from '../lib/reveal'
 import type { WorldPin } from '../db/types'
+
+// The demo runs on a throwaway local DB and must never reach Supabase. These
+// cloud writers bypass the repo's own demo guard (blockDemoWrite), so each
+// mutating call short-circuits in the demo. Silent so background/teardown paths
+// (e.g. ending a live session on unmount) don't raise a toast.
+function demoSkipsCloud(): boolean {
+  return isDemo()
+}
 
 // Cloud-side helpers for Phase 2: registering a DM's campaign for sharing,
 // generating/reading its join code, and letting a player join by code. These
@@ -23,6 +32,7 @@ export async function enableCampaignSharing(
   campaign: { id: string; name: string },
   ownerId: string,
 ): Promise<string> {
+  if (demoSkipsCloud()) return campaign.id
   if (!supabase) throw new Error('Not signed in')
 
   const existing = await supabase.from('campaigns').select('join_code').eq('id', campaign.id).maybeSingle()
@@ -160,6 +170,7 @@ export async function shareImageToCampaign(
   kind: SharedImageKind = 'gallery',
   session?: { id?: string | null; title?: string | null; date?: string | null } | null,
 ): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_images').upsert(
     {
@@ -181,6 +192,7 @@ export async function shareImageToCampaign(
 
 /** Stop sharing an image — removes it from every player's view immediately. */
 export async function unshareImageFromCampaign(imageId: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   const { error } = await supabase.from('shared_images').delete().eq('id', imageId)
   if (error) throw new Error(error.message)
@@ -227,6 +239,7 @@ export async function shareWorldMap(
   campaignId: string,
   map: { name: string; imageId: string | null; width: number; height: number; pins: WorldPin[] },
 ): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_world_maps').upsert(
     {
@@ -245,6 +258,7 @@ export async function shareWorldMap(
 
 /** Stop sharing the world map — removes it from every player's view at once. */
 export async function unshareWorldMap(campaignId: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   const { error } = await supabase.from('shared_world_maps').delete().eq('campaign_id', campaignId)
   if (error) throw new Error(error.message)
@@ -286,6 +300,7 @@ export async function startLiveSession(
   campaignId: string,
   s: { sessionId?: string | null; title?: string; sessionDate?: string },
 ): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('live_sessions').upsert(
     {
@@ -302,6 +317,7 @@ export async function startLiveSession(
 
 /** End the live session — removes the row so players can no longer join. */
 export async function endLiveSession(campaignId: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   const { error } = await supabase.from('live_sessions').delete().eq('campaign_id', campaignId)
   if (error) throw new Error(error.message)
@@ -660,6 +676,7 @@ export async function pushEntity(
   kind: string,
   data: RevealedEntity,
 ): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.from('shared_entities').upsert(
     { id, campaign_id: campaignId, kind, data, pushed_at: new Date().toISOString() },
@@ -670,6 +687,7 @@ export async function pushEntity(
 
 /** Stop sharing an entity — removes it from players immediately. */
 export async function unshareEntity(id: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   const { error } = await supabase.from('shared_entities').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -743,6 +761,7 @@ export async function getNotifications(userId: string, limit = 30): Promise<AppN
 
 /** Mark one notification read (no-op if already read). */
 export async function markNotificationRead(id: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   await supabase
     .from('notifications')
@@ -753,6 +772,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 
 /** Mark all of the user's unread notifications read. */
 export async function markAllNotificationsRead(userId: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   await supabase
     .from('notifications')
@@ -763,6 +783,7 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 
 /** Dismiss (delete) one notification. */
 export async function deleteNotification(id: string): Promise<void> {
+  if (demoSkipsCloud()) return
   if (!supabase) return
   await supabase.from('notifications').delete().eq('id', id)
 }

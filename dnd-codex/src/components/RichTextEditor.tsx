@@ -9,6 +9,7 @@ import { Icon } from './Icon'
 import { useRevealConfirm } from './ConfirmDialog'
 import { useWikiResolver } from '../editor/useWikiResolver'
 import { processImageFile } from '../lib/image'
+import { isDemo } from '../lib/demo'
 import type { Id } from '../db/types'
 
 // A WYSIWYG rich-text editor storing HTML. Supports headings, bold/italic,
@@ -20,7 +21,7 @@ export function RichTextEditor({
   onChange,
   label,
   placeholder,
-  editable = true,
+  editable: editableProp = true,
   minHeight,
   revealNeedsConfirm = false,
   shareable = false,
@@ -44,6 +45,8 @@ export function RichTextEditor({
   const { follow } = useWikiResolver(campaignId)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  // The demo is read-only: every prose field renders as its non-editable view.
+  const editable = editableProp && !isDemo()
 
   const editor = useEditor({
     editable,

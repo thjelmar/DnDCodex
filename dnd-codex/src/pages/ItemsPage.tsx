@@ -11,6 +11,7 @@ import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
 import { Icon } from '../components/Icon'
 import { useConfirm } from '../components/ConfirmDialog'
+import { isDemo, demoGuard } from '../lib/demo'
 import type { Item, ItemRarity } from '../db/types'
 
 const RARITIES: ItemRarity[] = ['common', 'uncommon', 'rare', 'very rare', 'legendary', 'artifact']
@@ -150,7 +151,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
           <button
             className="btn danger"
             style={{ marginRight: 'auto' }}
-            onClick={async () => {
+            onClick={demoGuard(async () => {
               if (
                 await confirm({
                   title: 'Delete item?',
@@ -166,19 +167,20 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
                 await deleteItem(item.id)
                 onClose()
               }
-            }}
+            })}
           >
             Delete
           </button>
           <button className="btn ghost" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn primary" onClick={save}>
+          <button className="btn primary" onClick={demoGuard(save)}>
             Save
           </button>
         </>
       }
     >
+      <fieldset className="demo-ro" disabled={isDemo()}>
       <div className="share-bar">
         <ShareControl campaignId={item.campaignId} kind="item" entity={item} />
       </div>
@@ -230,6 +232,7 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         revealNeedsConfirm={item.sharedWithPlayers === true}
         shareable
       />
+      </fieldset>
     </SidePanel>
   )
 }
