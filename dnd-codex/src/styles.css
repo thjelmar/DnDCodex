@@ -3573,6 +3573,7 @@ kbd {
 .tabletop-cond-pip.more { fill: #334155; }
 .tabletop-cond-code { fill: #fff; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.35); stroke-width: 1px; vector-effect: non-scaling-stroke; }
 .tabletop-cond-glyph { stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tabletop-cond-cover { filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5)); }
 .battlemap-combat-ctl { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-elev); }
 .battlemap-dmg-row { display: flex; align-items: center; gap: 6px; }
 .battlemap-dmg-row .input { flex: 0 0 auto; }

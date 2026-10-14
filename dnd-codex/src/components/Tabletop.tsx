@@ -20,6 +20,7 @@ import {
 } from '../lib/tabletop'
 import { conditionMeta } from '../lib/combat'
 import { conditionIcon } from '../lib/conditionIcons'
+import { conditionArt, coverCondition, COVER_ASPECT } from '../lib/conditionArt'
 import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 
 // The battle-map board: an SVG viewport with pan (drag the background), zoom
@@ -676,6 +677,10 @@ export function Tabletop({
               const sel = t.id === selectedId
               const own = ownIds?.has(t.id) ?? false
               const cc = combat?.[t.id]
+              // The top-priority active condition renders as a half-token cover
+              // art; the rest stay as pips (and are filtered out of the arc).
+              const coverName = cc?.conditions?.length ? coverCondition(cc.conditions) : undefined
+              const coverArt = coverName ? conditionArt(coverName) : undefined
               // Combat overlay stacks below the token — token → HP bar/damage →
               // name — so the stat never covers the name. Conditions arc the top.
               const belowGap = Math.max(2, 2.5 / transform.k)
@@ -761,6 +766,23 @@ export function Tabletop({
                       )
                     })()}
 
+                    {/* Condition cover art for the top-priority condition: a
+                        half-disc over the token's bottom half, flat edge on the
+                        center line. Drawn here so the HP bar / name below render
+                        on top of its slight overhang and stay readable. */}
+                    {coverArt && (
+                      <image
+                        href={coverArt}
+                        x={-r}
+                        y={0}
+                        width={r * 2}
+                        height={r * 2 * COVER_ASPECT}
+                        preserveAspectRatio="xMidYMid meet"
+                        pointerEvents="none"
+                        className="tabletop-cond-cover"
+                      />
+                    )}
+
                     {/* Active-turn ring, then the HP bar / damage number, then the
                         name below it — the stat never overlaps the name. */}
                     {cc?.active && <circle r={r + Math.max(4, r * 0.2)} className="tabletop-combat-active" pointerEvents="none" />}
@@ -805,8 +827,11 @@ export function Tabletop({
                     {/* Conditions: colored status pips arced around the token's top
                         edge (Owlbear-style), full names on hover. Clear of the name. */}
                     {cc?.conditions && cc.conditions.length > 0 && (() => {
-                      const shown = cc.conditions.slice(0, 5)
-                      const extra = cc.conditions.length - shown.length
+                      // The cover condition isn't also shown as a pip.
+                      const pipConds = cc.conditions.filter((c) => c !== coverName)
+                      if (pipConds.length === 0) return null
+                      const shown = pipConds.slice(0, 5)
+                      const extra = pipConds.length - shown.length
                       const items = [...shown, ...(extra > 0 ? ['+'] : [])]
                       const pr = Math.max(r * 0.26, 6 / transform.k)
                       const ringR = r - pr * 0.2
