@@ -3492,6 +3492,26 @@ kbd {
 .player-spell-opt:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
 /* "New from template" split-button menu (sessions list, T-8). */
 .new-template-wrap { position: relative; }
+/* The caret segment of the split "New" button. align-self:stretch makes it the
+   same height as the primary button (the .row centers items, so without it the
+   caret collapses to its icon height). Square inner corners join the two. */
+.new-template-caret {
+  align-self: stretch;
+  padding: 0 10px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+/* A visible divider between the primary button and the caret. The compound
+   selector outranks `.btn.primary { border-color }`, which would otherwise win
+   and repaint this edge the (invisible) accent color. */
+.btn.primary.new-template-caret {
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+}
+/* A touch darker than the primary button's own hover, so the caret reads as its
+   own target. Specificity beats .btn.primary:hover. */
+.btn.primary.new-template-caret:hover {
+  background: color-mix(in srgb, var(--accent-strong) 82%, black);
+}
 .new-template-menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 40;
   display: flex; flex-direction: column; gap: 1px; padding: 6px; max-height: 60vh; overflow: auto;
