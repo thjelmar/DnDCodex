@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="D&amp;D Codex">
+  <!-- Temporary placeholder favicon: a d20 (twenty-sided die).
+       Replace this single file with the real artwork when it's ready. -->
+  <rect width="100" height="100" rx="20" fill="#7c5cff"/>
+  <g fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <polygon points="50,14 83,33 83,67 50,86 17,67 17,33"/>
+    <polygon points="50,14 68,44 50,58 32,44"/>
+    <path d="M32,44 L17,33 M68,44 L83,33 M50,58 L50,86 M32,44 L26,70 M68,44 L74,70"/>
+  </g>
+  <text x="50" y="44" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="16" font-weight="700" fill="#fff">20</text>
+</svg>
