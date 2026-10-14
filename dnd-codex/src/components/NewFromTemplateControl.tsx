@@ -66,10 +66,9 @@ export function NewFromTemplateControl({
           <Icon name="plus" size={15} color="inherit" /> {blankLabel}
         </button>
         <button
-          className="btn primary"
+          className="btn primary new-template-caret"
           aria-label="New from template"
           title="New from template"
-          style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: '1px solid rgba(0,0,0,0.2)', padding: '0 10px' }}
           onClick={() => setOpen((o) => !o)}
         >
           <Icon name="chevron-right" size={13} color="inherit" className={`sidebar-caret${open ? ' open' : ''}`} />
