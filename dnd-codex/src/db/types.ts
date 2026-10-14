@@ -132,16 +132,19 @@ export interface Session extends BaseRecord {
 // Ordered roughly from largest to smallest scope. The nesting hierarchy is
 // world > region > kingdom > city/town/village, with dungeon/landmark/other as
 // leaf places that can sit anywhere.
-export type LocationType =
-  | 'world'
-  | 'region'
-  | 'kingdom'
-  | 'city'
-  | 'town'
-  | 'village'
-  | 'dungeon'
-  | 'landmark'
-  | 'other'
+/** All location types, as a runtime list (largest → smallest for the tree). */
+export const LOCATION_TYPES = [
+  'world',
+  'region',
+  'kingdom',
+  'city',
+  'town',
+  'village',
+  'dungeon',
+  'landmark',
+  'other',
+] as const
+export type LocationType = (typeof LOCATION_TYPES)[number]
 
 /**
  * A place in the world. Locations nest via `parentLocationId` (the "auto-link"
@@ -554,8 +557,8 @@ export interface GenTable {
 // are NOT stored here; only the user's own saved templates live in this table.
 // ---------------------------------------------------------------------------
 
-/** Which entity type a template seeds. Only sessions for now; extensible. */
-export type TemplateKind = 'session'
+/** Which entity type a template seeds (T-8 sessions; T-30 npc/location). */
+export type TemplateKind = 'session' | 'npc' | 'location'
 
 export interface Template {
   id: Id

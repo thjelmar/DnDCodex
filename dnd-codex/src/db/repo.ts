@@ -3,6 +3,7 @@ import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
 import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
 import { isDemo, notifyDemoBlocked, DemoBlockedError } from '../lib/demo'
 import { tableForKind } from '../lib/syncKinds'
+import { LOCATION_TYPES } from './types'
 import type { ShareableKind } from '../lib/reveal'
 import type {
   Campaign,
@@ -173,7 +174,15 @@ export async function deleteSession(id: Id): Promise<void> {
 
 export async function createLocation(
   campaignId: Id,
-  input: Partial<Pick<Location, 'name' | 'type' | 'description' | 'parentLocationId' | 'tags'>> = {},
+  input: Partial<
+    Pick<
+      Location,
+      | 'name' | 'type' | 'description' | 'parentLocationId' | 'tags'
+      // Structured fields, seedable from a template (T-30).
+      | 'governmentType' | 'currency' | 'religion' | 'departments'
+      | 'population' | 'prosperity' | 'imports' | 'exports' | 'pointsOfInterest'
+    >
+  > = {},
 ): Promise<Location> {
   blockDemoWrite()
   const ts = now()
@@ -186,16 +195,16 @@ export async function createLocation(
     description: input.description ?? '',
     parentLocationId: input.parentLocationId ?? null,
     tags: input.tags ?? [],
-    governmentType: '',
+    governmentType: input.governmentType ?? '',
     rulerNpcId: null,
-    currency: '',
-    religion: '',
-    departments: '',
-    population: '',
-    prosperity: '',
-    imports: '',
-    exports: '',
-    pointsOfInterest: '',
+    currency: input.currency ?? '',
+    religion: input.religion ?? '',
+    departments: input.departments ?? '',
+    population: input.population ?? '',
+    prosperity: input.prosperity ?? '',
+    imports: input.imports ?? '',
+    exports: input.exports ?? '',
+    pointsOfInterest: input.pointsOfInterest ?? '',
     allyIds: [],
     enemyIds: [],
     createdAt: ts,
@@ -222,7 +231,14 @@ export async function deleteLocation(id: Id): Promise<void> {
 
 export async function createNPC(
   campaignId: Id,
-  input: Partial<Pick<NPC, 'name' | 'role' | 'description' | 'locationId' | 'disposition' | 'tags'>> = {},
+  input: Partial<
+    Pick<
+      NPC,
+      | 'name' | 'role' | 'description' | 'locationId' | 'disposition' | 'tags'
+      // Seedable from a template (T-30).
+      | 'race' | 'statBlock' | 'statBlockData'
+    >
+  > = {},
 ): Promise<NPC> {
   blockDemoWrite()
   const ts = now()
@@ -231,12 +247,12 @@ export async function createNPC(
     campaignId,
     name: input.name?.trim() || 'New NPC',
     role: input.role ?? '',
-    race: '',
+    race: input.race ?? '',
     imageId: null,
     description: input.description ?? '',
     locationId: input.locationId ?? null,
-    statBlockData: null,
-    statBlock: '',
+    statBlockData: input.statBlockData ?? null,
+    statBlock: input.statBlock ?? '',
     disposition: input.disposition ?? 'unknown',
     tags: input.tags ?? [],
     createdAt: ts,
@@ -436,10 +452,110 @@ export async function createSessionFromTemplate(
   data: Record<string, unknown>,
 ): Promise<Session> {
   return createSession(campaignId, {
-    title: typeof data.title === 'string' ? data.title : undefined,
-    notes: typeof data.notes === 'string' ? data.notes : undefined,
-    dmNotes: typeof data.dmNotes === 'string' ? data.dmNotes : undefined,
-    tags: Array.isArray(data.tags) ? (data.tags as string[]) : undefined,
+    title: tplStr(data, 'title'),
+    notes: tplStr(data, 'notes'),
+    dmNotes: tplStr(data, 'dmNotes'),
+    tags: tplTags(data),
+  })
+}
+
+// Template data is an untyped JSON blob (it may come from sync written by another
+// version), so pull values out defensively. An undefined return lets the create*
+// helpers fall back to their own defaults.
+function tplStr(data: Record<string, unknown>, key: string): string | undefined {
+  const v = data[key]
+  return typeof v === 'string' ? v : undefined
+}
+function tplTags(data: Record<string, unknown>): string[] | undefined {
+  return Array.isArray(data.tags) ? (data.tags as string[]).filter((t) => typeof t === 'string') : undefined
+}
+
+// --- NPC templates (T-30) ---
+
+/** Snapshot an existing NPC into a reusable template (excludes per-instance refs
+ *  like portrait, home location, and campaign). */
+export async function saveNpcAsTemplate(npc: NPC, label: string): Promise<Template> {
+  // Name is intentionally not snapshotted — a template is an archetype, so each
+  // new NPC from it starts as "New NPC" for the DM to name.
+  return createTemplate('npc', label, {
+    role: npc.role,
+    race: npc.race,
+    description: npc.description,
+    disposition: npc.disposition,
+    statBlock: npc.statBlock,
+    statBlockData: npc.statBlockData ?? null,
+    tags: npc.tags,
+  })
+}
+
+/** Create a new NPC pre-filled from a template's data. */
+export async function createNpcFromTemplate(
+  campaignId: Id,
+  data: Record<string, unknown>,
+): Promise<NPC> {
+  const disposition = tplStr(data, 'disposition')
+  return createNPC(campaignId, {
+    name: tplStr(data, 'name'),
+    role: tplStr(data, 'role'),
+    race: tplStr(data, 'race'),
+    description: tplStr(data, 'description'),
+    disposition:
+      disposition === 'friendly' || disposition === 'neutral' || disposition === 'hostile'
+        ? disposition
+        : undefined,
+    statBlock: tplStr(data, 'statBlock'),
+    statBlockData: (data.statBlockData as NPC['statBlockData']) ?? undefined,
+    tags: tplTags(data),
+  })
+}
+
+// --- Location templates (T-30) ---
+
+/** Snapshot an existing Location into a reusable template (excludes per-instance
+ *  refs like image, parent, ruler, and ally/enemy links). */
+export async function saveLocationAsTemplate(location: Location, label: string): Promise<Template> {
+  // Name is intentionally not snapshotted (see saveNpcAsTemplate).
+  return createTemplate('location', label, {
+    type: location.type,
+    description: location.description,
+    tags: location.tags,
+    governmentType: location.governmentType,
+    currency: location.currency,
+    religion: location.religion,
+    departments: location.departments,
+    population: location.population,
+    prosperity: location.prosperity,
+    imports: location.imports,
+    exports: location.exports,
+    pointsOfInterest: location.pointsOfInterest,
+  })
+}
+
+/** Create a new Location pre-filled from a template's data. `parentLocationId`
+ *  is passed through from the caller (the "child of" case), not the template. */
+export async function createLocationFromTemplate(
+  campaignId: Id,
+  data: Record<string, unknown>,
+  parentLocationId?: Id | null,
+): Promise<Location> {
+  const type = tplStr(data, 'type')
+  return createLocation(campaignId, {
+    name: tplStr(data, 'name'),
+    type: (LOCATION_TYPES as readonly string[]).includes(type ?? '')
+      ? (type as Location['type'])
+      : undefined,
+    description: tplStr(data, 'description'),
+    tags: tplTags(data),
+    parentLocationId: parentLocationId ?? undefined,
+    governmentType: tplStr(data, 'governmentType'),
+    currency: tplStr(data, 'currency'),
+    religion: tplStr(data, 'religion'),
+    departments: tplStr(data, 'departments'),
+    population: tplStr(data, 'population'),
+    prosperity: tplStr(data, 'prosperity'),
+    imports: tplStr(data, 'imports'),
+    exports: tplStr(data, 'exports'),
+    pointsOfInterest: tplStr(data, 'pointsOfInterest'),
   })
 }
 

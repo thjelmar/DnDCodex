@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createNPC, updateNPC, deleteNPC, createLocation } from '../db/repo'
+import { createNPC, updateNPC, deleteNPC, createLocation, createNpcFromTemplate, saveNpcAsTemplate } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { RichTextEditor } from '../components/RichTextEditor'
@@ -14,6 +14,9 @@ import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
 import { MasterDetail } from '../components/MasterDetail'
 import { Icon } from '../components/Icon'
+import { NewFromTemplateControl } from '../components/NewFromTemplateControl'
+import { SaveAsTemplateModal } from '../components/SaveAsTemplateModal'
+import { BUILTIN_NPC_TEMPLATES } from '../data/builtinTemplates'
 import { randomPersonName } from '../lib/nameGen'
 import { useGenOverrides } from '../lib/useGenOverrides'
 import type { NPC, StatBlock } from '../db/types'
@@ -50,6 +53,11 @@ export function NpcsPage() {
     setSelectedId(n.id)
   }
 
+  async function fromTemplate(data: Record<string, unknown>) {
+    const n = await createNpcFromTemplate(campaign.id, data)
+    setSelectedId(n.id)
+  }
+
   return (
     <MasterDetail
       selected={!!selected}
@@ -57,9 +65,14 @@ export function NpcsPage() {
       backLabel="All NPCs"
       list={
         <>
-          <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
-            <Icon name="plus" size={15} color="inherit" /> New NPC
-          </button>
+          <NewFromTemplateControl
+            kind="npc"
+            builtins={BUILTIN_NPC_TEMPLATES}
+            blankLabel="New NPC"
+            onBlank={add}
+            onFromTemplate={fromTemplate}
+            emptyHint="None yet — open an NPC and “Save as template”."
+          />
           {npcs?.length === 0 && <p className="faint">No NPCs yet.</p>}
           {npcs?.map((n) => (
             <div
@@ -112,6 +125,7 @@ function NpcEditor({
 }) {
   const confirm = useConfirm()
   const navigate = useNavigate()
+  const [savingTemplate, setSavingTemplate] = useState(false)
   const [name, setName] = useState(npc.name)
   const [role, setRole] = useState(npc.role)
   const [race, setRace] = useState(npc.race ?? '')
@@ -146,9 +160,25 @@ function NpcEditor({
 
   return (
     <div>
-      <div className="share-bar">
+      <div className="share-bar" style={{ gap: 8 }}>
+        <button
+          className="btn ghost small"
+          onClick={() => setSavingTemplate(true)}
+          title="Save this NPC's fields as a reusable template"
+        >
+          <Icon name="plus" size={12} /> Save as template
+        </button>
         <ShareControl campaignId={campaignId} kind="npc" entity={npc} />
       </div>
+      {savingTemplate && (
+        <SaveAsTemplateModal
+          defaultLabel={npc.name}
+          placeholder="e.g. Town guard"
+          description="Saves this NPC's role, race, description, disposition, stat block, and tags (not its name, portrait, or home location) as a reusable starting point. It syncs to your account and shows up under “New NPC → template”."
+          onSave={(label) => saveNpcAsTemplate(npc, label).then(() => {})}
+          onClose={() => setSavingTemplate(false)}
+        />
+      )}
       <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
         <EntityImage campaignId={campaignId} imageId={imageId} onChange={setImageId} label="portrait" />
         <div style={{ flex: 1, minWidth: 0 }}>
