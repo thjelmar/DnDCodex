@@ -399,6 +399,9 @@ export async function saveGenTable(
     updatedAt: now(),
   }
   await db.genTables.put(row)
+  // Generator word-lists ride the global (account-level) channel (T-31), keyed
+  // by slot, so they follow the account across devices like templates do.
+  await enqueueGlobalPut('genTables', slot)
 }
 
 // --- Entity templates (T-8; global, synced via user_records) ---------------
