@@ -9,12 +9,17 @@ import type {
   RollTable,
   PlotThread,
   TimelineEvent,
+  StoredImage,
+  Scene,
+  SceneToken,
+  WorldMap,
 } from '../db/types'
+import { DEMO_IMG_WORLDMAP, DEMO_IMG_DECREE, DEMO_IMG_WANTED, DEMO_IMG_SIGIL } from './demoSeedImages'
 
-// Sample campaign for the interactive demo (T-32). Loaded into the throwaway
-// demo database on entry via importSnapshot('replace'). Self-contained: no
-// uploaded/Storage images — just linked codex content across the main features.
-// Ids are stable strings; timestamps are fixed so the seed is deterministic.
+// Sample campaign for the interactive demo (T-32, enriched in T-34). Loaded into
+// the throwaway demo database on entry via importSnapshot('replace'). Images are
+// small embedded WebP data URLs (demoSeedImages.ts) — the demo never touches
+// Storage. Ids are stable strings; timestamps are fixed so the seed is deterministic.
 
 const CID = 'demo-campaign-0001'
 const T = '2026-02-14T18:00:00.000Z'
@@ -375,6 +380,100 @@ const timelineEvents: TimelineEvent[] = [
   event('demo-ev-3', 'Into the Sunken Vault', '5th of Deepwinter', 3, 'The party learns the crowns were faked from the start.'),
 ]
 
+// Embedded images (T-34). Small stylized WebP data URLs (see demoSeedImages.ts),
+// so the world map, handouts, and gallery have real content without the demo
+// touching Storage. The world-map background is referenced by the WorldMap below.
+const IMG_WORLDMAP = 'demo-img-worldmap'
+
+function image(
+  id: string,
+  name: string,
+  img: { dataUrl: string; width: number; height: number; bytes: number },
+  extra: Partial<StoredImage> = {},
+): StoredImage {
+  return {
+    id,
+    campaignId: CID,
+    name,
+    mime: 'image/webp',
+    dataUrl: img.dataUrl,
+    width: img.width,
+    height: img.height,
+    bytes: img.bytes,
+    createdAt: T,
+    updatedAt: T,
+    ...extra,
+  }
+}
+
+const images: StoredImage[] = [
+  image(IMG_WORLDMAP, 'realm-of-caldemar.webp', DEMO_IMG_WORLDMAP),
+  image('demo-img-decree', 'royal-proclamation.webp', DEMO_IMG_DECREE, {
+    isHandout: true,
+    caption: 'Royal proclamation — posted in Caldemar’s square.',
+  }),
+  image('demo-img-wanted', 'wanted-mordrek.webp', DEMO_IMG_WANTED, {
+    isHandout: true,
+    caption: 'Wanted poster — Lord Mordrek, “The Usurper.”',
+  }),
+  image('demo-img-sigil', 'hollow-crown-sigil.webp', DEMO_IMG_SIGIL, {
+    inGallery: true,
+    caption: 'The royal sigil — the Hollow Crown.',
+  }),
+]
+
+// Battle map (T-34): a blank-grid skirmish at the Gilded Stag. Tokens link to the
+// demo NPCs (npcId) so clicking one opens its sheet; no map image needed.
+function tok(id: string, label: string, color: string, col: number, row: number, extra: Partial<SceneToken> = {}): SceneToken {
+  return { id, label, color, col, row, size: 1, ...extra }
+}
+
+const scenes: Scene[] = [
+  {
+    id: 'demo-scene-stag',
+    campaignId: CID,
+    name: 'The Gilded Stag — Brawl',
+    imageId: null,
+    width: 770,
+    height: 560,
+    grid: { cellPx: 70, offsetX: 0, offsetY: 0, show: true, color: '#3a2f1f' },
+    tokens: [
+      tok('demo-tok-bram', 'Bram', '#16a34a', 1, 1, { npcId: NPC_INNKEEP, friendly: true }),
+      tok('demo-tok-sable', 'Sable', '#3b82f6', 9, 1, { npcId: NPC_ROGUE }),
+      tok('demo-tok-vara', 'Vara', '#14b8a6', 3, 5),
+      tok('demo-tok-pip', 'Pip', '#eab308', 4, 6),
+      tok('demo-tok-mordrek', 'Mordrek', '#dc2626', 9, 6, { npcId: NPC_VILLAIN }),
+      tok('demo-tok-thug1', 'Thug', '#b91c1c', 7, 5),
+      tok('demo-tok-thug2', 'Thug', '#b91c1c', 8, 6),
+      tok('demo-tok-crate', 'Crate', '#92400e', 5, 3, { icon: '📦', shape: 'square' }),
+    ],
+    createdAt: T,
+    updatedAt: T,
+  },
+]
+
+// World map (T-34): the stylized realm background with pins linked to the demo's
+// locations and the villain. Pin x/y are fractions of the image (0–1).
+const worldMaps: WorldMap[] = [
+  {
+    id: 'demo-worldmap',
+    campaignId: CID,
+    name: 'The Realm of Caldemar',
+    imageId: IMG_WORLDMAP,
+    width: DEMO_IMG_WORLDMAP.width,
+    height: DEMO_IMG_WORLDMAP.height,
+    pins: [
+      { id: 'demo-pin-city', x: 0.285, y: 0.42, label: 'Caldemar', color: '#eab308', ref: { kind: 'location', id: LOC_CITY } },
+      { id: 'demo-pin-stag', x: 0.31, y: 0.49, label: 'The Gilded Stag', color: '#a16207', ref: { kind: 'location', id: LOC_TAVERN } },
+      { id: 'demo-pin-forest', x: 0.58, y: 0.69, label: 'The Thornwood', color: '#16a34a', ref: { kind: 'location', id: LOC_FOREST } },
+      { id: 'demo-pin-vault', x: 0.875, y: 0.54, label: 'The Sunken Vault', color: '#475569', ref: { kind: 'location', id: LOC_RUIN } },
+      { id: 'demo-pin-mordrek', x: 0.82, y: 0.40, label: 'Mordrek’s camp', color: '#dc2626', ref: { kind: 'npc', id: NPC_VILLAIN } },
+    ],
+    createdAt: T,
+    updatedAt: T,
+  },
+]
+
 export const DEMO_SNAPSHOT: DatabaseSnapshot = {
   version: 8,
   exportedAt: T,
@@ -386,11 +485,11 @@ export const DEMO_SNAPSHOT: DatabaseSnapshot = {
   notes,
   playerNotes: [],
   rollTables,
-  images: [],
+  images,
   links: [],
   encounters: [],
-  scenes: [],
-  worldMaps: [],
+  scenes,
+  worldMaps,
   plotThreads,
   timelineEvents,
   genTables: [],
