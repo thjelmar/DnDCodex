@@ -6,10 +6,19 @@ import type { GlobalSyncTable } from '../db/types'
 // for the campaign channel.
 
 /** Every Dexie table that participates in the per-user global sync. */
-export const GLOBAL_SYNC_TABLES: GlobalSyncTable[] = ['templates']
+export const GLOBAL_SYNC_TABLES: GlobalSyncTable[] = ['templates', 'genTables']
 
 const TABLE_TO_KIND: Record<GlobalSyncTable, string> = {
   templates: 'template',
+  genTables: 'genTable',
+}
+
+// Each table's Dexie primary-key field. It becomes the record's `id` in the
+// cloud `user_records` row, so a record's identity is stable across devices
+// (templates keep their uuid; a generator table is keyed by its fixed slot).
+export const GLOBAL_TABLE_KEY: Record<GlobalSyncTable, string> = {
+  templates: 'id',
+  genTables: 'slot',
 }
 
 const KIND_TO_TABLE: Record<string, GlobalSyncTable> = Object.fromEntries(

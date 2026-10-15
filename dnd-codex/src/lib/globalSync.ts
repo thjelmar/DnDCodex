@@ -1,12 +1,13 @@
 import { db, now } from '../db/db'
 import { supabase } from './supabase'
-import { GLOBAL_SYNC_TABLES, kindForGlobalTable, tableForGlobalKind } from './globalSyncKinds'
+import { GLOBAL_SYNC_TABLES, GLOBAL_TABLE_KEY, kindForGlobalTable, tableForGlobalKind } from './globalSyncKinds'
 import { setGlobalSyncOwner, onGlobalChange } from './globalSyncQueue'
 import type { GlobalSyncTable } from '../db/types'
 
 // ---------------------------------------------------------------------------
 // Global (account-level) sync. The twin of lib/sync.ts, but for data that
-// belongs to the USER and is reusable across campaigns (templates today). Every
+// belongs to the USER and is reusable across campaigns (templates and generator
+// word-lists). Every
 // such entity is mirrored to the per-user `user_records` table (one JSONB row
 // per entity, keyed by owner_id + kind + id). Dexie stays the source of truth;
 // the cloud is a sync + backup channel so this data follows the account across
@@ -187,8 +188,9 @@ async function enqueueAllGlobal(): Promise<void> {
   const rows: { table: GlobalSyncTable; recordId: string; op: 'put'; at: string }[] = []
   const ts = now()
   for (const table of GLOBAL_SYNC_TABLES) {
-    const recs = (await db.table(table).toArray()) as { id: string }[]
-    for (const r of recs) rows.push({ table, recordId: r.id, op: 'put', at: ts })
+    const key = GLOBAL_TABLE_KEY[table]
+    const recs = (await db.table(table).toArray()) as Record<string, unknown>[]
+    for (const r of recs) rows.push({ table, recordId: String(r[key]), op: 'put', at: ts })
   }
   if (rows.length) await db.pendingGlobal.bulkAdd(rows)
 }

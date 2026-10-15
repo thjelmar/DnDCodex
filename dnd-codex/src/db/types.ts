@@ -642,7 +642,7 @@ export interface SyncOptOutRow {
 // ---------------------------------------------------------------------------
 
 /** Dexie tables synced through the per-user `user_records` channel. */
-export type GlobalSyncTable = 'templates'
+export type GlobalSyncTable = 'templates' | 'genTables'
 
 /** One queued local mutation of global data waiting to be pushed. */
 export interface PendingGlobalChange {
