@@ -115,12 +115,16 @@ function SidebarSection({
 }
 
 function Sidebar({
+  collapsed,
+  onToggleCollapse,
   onOpenSearch,
   onOpenDice,
   onAddPlayerCampaign,
   onOpenPrefs,
   onOpenBug,
 }: {
+  collapsed: boolean
+  onToggleCollapse: () => void
   onOpenSearch: () => void
   onOpenDice: () => void
   onAddPlayerCampaign: () => void
@@ -151,6 +155,14 @@ function Sidebar({
       <div className="brand">
         <span className="glyph">⚔️</span>
         <span>D&amp;D Codex</span>
+        <button
+          className="sidebar-collapse-btn"
+          onClick={onToggleCollapse}
+          aria-label={collapsed ? 'Dock sidebar' : 'Collapse sidebar'}
+          title={collapsed ? 'Dock sidebar' : 'Collapse sidebar'}
+        >
+          <Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={16} color="currentColor" />
+        </button>
       </div>
 
       {/* Search: a pill with a darker fill; the shortcut hint shows on hover. */}
@@ -368,6 +380,24 @@ export function App() {
   // it is hidden there, and the sidebar stays docked).
   const [navOpen, setNavOpen] = useState(false)
 
+  // Desktop: the sidebar can collapse to reclaim page width, with a left-edge
+  // handle to click-expand or hover-peek. Persisted per browser. On mobile the
+  // off-canvas drawer already serves this purpose, so the flag is inert there.
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('codex.sidebar.collapsed') === '1'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('codex.sidebar.collapsed', collapsed ? '1' : '0')
+    } catch {
+      /* private mode — the collapse state just won't persist; harmless */
+    }
+  }, [collapsed])
+
   // Global shortcuts: Cmd/Ctrl+K search, Cmd/Ctrl+E dice roller, Cmd/Ctrl+G
   // generators, and Escape to close the mobile nav drawer.
   useEffect(() => {
@@ -419,7 +449,12 @@ export function App() {
         {bugOpen && <BugReportModal onClose={() => setBugOpen(false)} />}
         {demo && <DemoBanner />}
         {demo && <DemoBlockedToast />}
-        <div className="app" data-nav-open={navOpen ? 'true' : undefined} data-demo={demo ? 'true' : undefined}>
+        <div
+          className="app"
+          data-nav-open={navOpen ? 'true' : undefined}
+          data-demo={demo ? 'true' : undefined}
+          data-collapsed={collapsed ? 'true' : undefined}
+        >
           {/* Mobile-only top bar: a hamburger to reveal the nav drawer, the
               brand (tap to go home), and a quick search. Hidden on desktop. */}
           <header className="topbar">
@@ -439,7 +474,19 @@ export function App() {
               <Icon name="search" color="currentColor" />
             </button>
           </header>
+          {/* Collapsed-sidebar edge handle (desktop only): click to re-dock,
+              hover to peek the sidebar as an overlay. Hidden unless collapsed. */}
+          <button
+            className="sidebar-edge"
+            onClick={() => setCollapsed(false)}
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+          >
+            <Icon name="chevron-right" size={14} color="currentColor" />
+          </button>
           <Sidebar
+            collapsed={collapsed}
+            onToggleCollapse={() => setCollapsed((c) => !c)}
             onOpenSearch={withClose(() => setSearchOpen(true))}
             onOpenDice={withClose(() => setDiceOpen(true))}
             onAddPlayerCampaign={withClose(() => setAddPlayerOpen(true))}
