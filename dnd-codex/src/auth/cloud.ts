@@ -69,7 +69,7 @@ export async function enableCampaignSharing(
 
 /** The join code for a campaign, or null if it hasn't been registered yet. */
 export async function getCampaignJoinCode(campaignId: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data } = await supabase.from('campaigns').select('join_code').eq('id', campaignId).maybeSingle()
   return (data?.join_code as string) ?? null
 }
@@ -95,7 +95,7 @@ export interface Member {
 /** The members of a campaign (with profile display names), for the DM to pick
  *  share recipients. */
 export async function getCampaignMembers(campaignId: string): Promise<Member[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const query = (cols: string) =>
     supabase!.from('campaign_members').select(cols).eq('campaign_id', campaignId)
   let { data, error } = await query('user_id, role, color, profiles ( display_name, avatar_url )')
@@ -118,7 +118,7 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
 
 /** The current user's own battle-map color in a campaign (null if unset). */
 export async function getMyColor(campaignId: string, userId: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data } = await supabase
     .from('campaign_members')
     .select('color')
@@ -200,7 +200,7 @@ export async function unshareImageFromCampaign(imageId: string): Promise<void> {
 
 /** The live shared gallery for a campaign the current user belongs to. */
 export async function getSharedImages(cloudCampaignId: string): Promise<SharedImage[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('shared_images')
     .select('id, data_url, caption, width, height, kind, session_id, session_title, session_date, created_at')
@@ -266,7 +266,7 @@ export async function unshareWorldMap(campaignId: string): Promise<void> {
 
 /** The shared world map for a campaign the current user belongs to, or null. */
 export async function getSharedWorldMap(cloudCampaignId: string): Promise<SharedWorldMap | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data, error } = await supabase
     .from('shared_world_maps')
     .select('name, image_id, width, height, pins')
@@ -323,9 +323,10 @@ export async function endLiveSession(campaignId: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-/** The current live session for a campaign the user belongs to, or null. */
+/** The current live session for a campaign the user belongs to, or null.
+ *  Demo never reaches Supabase, so it resolves to null (no live session). */
 export async function getLiveSession(cloudCampaignId: string): Promise<LiveSession | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data, error } = await supabase
     .from('live_sessions')
     .select('campaign_id, session_id, title, session_date, started_at')
@@ -383,7 +384,7 @@ export async function clearSessionSchedule(campaignId: string): Promise<void> {
 /** The campaign's calendar-subscription token (members read it to build their
  *  subscribe link), or null when the DM hasn't created one yet. */
 export async function getCalendarToken(campaignId: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data } = await supabase
     .from('campaign_calendar_tokens')
     .select('token')
@@ -394,7 +395,7 @@ export async function getCalendarToken(campaignId: string): Promise<string | nul
 
 /** Ensure the campaign has a calendar token (DM only) and return it. */
 export async function ensureCalendarToken(campaignId: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   // Insert if missing; the token defaults server-side. Ignore the conflict when
   // it already exists, then read it back.
   await supabase
@@ -407,7 +408,7 @@ export async function ensureCalendarToken(campaignId: string): Promise<string | 
 export async function getSessionSchedule(
   cloudCampaignId: string,
 ): Promise<CloudSessionSchedule | null> {
-  if (!supabase) return null
+  if (!supabase || demoSkipsCloud()) return null
   const { data, error } = await supabase
     .from('session_schedule')
     .select('next_date, next_time, rescheduled_from')
@@ -472,7 +473,7 @@ export async function clearMyRsvp(campaignId: string, userId: string): Promise<v
 
 /** Every member's RSVP for a campaign the current user belongs to. */
 export async function getSessionRsvps(cloudCampaignId: string): Promise<SessionRsvp[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('session_rsvps')
     .select('user_id, status, session_date, profiles ( display_name, avatar_url )')
@@ -519,7 +520,7 @@ export interface SessionAvailability {
 
 /** Every candidate day for a campaign the user belongs to (backups + suggestions). */
 export async function getSessionCandidates(cloudCampaignId: string): Promise<SessionCandidate[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('session_candidates')
     .select('date, status, suggested_by, profiles ( display_name )')
@@ -602,7 +603,7 @@ export async function withdrawSuggestedDay(campaignId: string, userId: string, d
 
 /** Every member's per-day availability for a campaign the user belongs to. */
 export async function getSessionAvailability(cloudCampaignId: string): Promise<SessionAvailability[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('session_availability')
     .select('user_id, date, status, profiles ( display_name, avatar_url )')
@@ -695,7 +696,7 @@ export async function unshareEntity(id: string): Promise<void> {
 
 /** The live set of entities shared with the current player for a campaign. */
 export async function getSharedEntities(cloudCampaignId: string): Promise<SharedEntityRow[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('shared_entities')
     .select('id, kind, data, pushed_at')
@@ -740,7 +741,7 @@ export interface AppNotification {
 
 /** The signed-in user's recent notifications (newest first), across campaigns. */
 export async function getNotifications(userId: string, limit = 30): Promise<AppNotification[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('notifications')
     .select('id, campaign_id, actor_id, type, payload, read_at, created_at')
@@ -948,7 +949,7 @@ export async function setTreasury(cloudCampaignId: string, coins: Treasury, user
 
 /** The campaign's shared loot list, oldest first. */
 export async function getLoot(cloudCampaignId: string): Promise<LootItem[]> {
-  if (!supabase) return []
+  if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('party_loot')
     .select('id, name, qty, value, claimed_by, notes, created_at')

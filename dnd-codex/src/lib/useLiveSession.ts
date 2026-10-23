@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
+import { isDemo } from './demo'
 import { useAuth } from '../auth/AuthProvider'
 import { getLiveSession, type LiveSession } from '../auth/cloud'
 
@@ -16,7 +17,8 @@ export function useLiveSession(linkedCampaignId: string | undefined | null): Liv
   const token = session?.access_token ?? null
 
   useEffect(() => {
-    if (!linkedCampaignId) {
+    // Demo never touches Supabase: no live session, no fetch, no channel.
+    if (!linkedCampaignId || isDemo()) {
       setLive(null)
       return
     }
