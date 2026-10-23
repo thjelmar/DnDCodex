@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, lazy, Suspense, Component, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
@@ -18,45 +18,92 @@ import { installErrorLog } from './lib/errorLog'
 import { HomePage } from './pages/HomePage'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
 import { isDemo } from './lib/demo'
-import { CampaignsPage } from './pages/CampaignsPage'
 import type { Campaign } from './db/types'
-import { BackupPage } from './pages/BackupPage'
-import { TemplatesPage } from './pages/TemplatesPage'
-import { ChangelogPage } from './pages/ChangelogPage'
 import { useChangelogUnseen } from './lib/useChangelog'
-import { CampaignLayout } from './pages/CampaignLayout'
-import { OverviewPage } from './pages/OverviewPage'
-import { SessionsPage } from './pages/SessionsPage'
-import { TimelinePage } from './pages/TimelinePage'
-import { NpcsPage } from './pages/NpcsPage'
-import { LocationsPage } from './pages/LocationsPage'
-import { ItemsPage } from './pages/ItemsPage'
-import { NotesPage } from './pages/NotesPage'
-import { RollTablesPage } from './pages/RollTablesPage'
-import { EncountersPage } from './pages/EncountersPage'
-import { GeneratorTablesPage } from './pages/GeneratorTablesPage'
-import { CombatTrackerPage } from './pages/CombatTrackerPage'
-import { RunPage } from './pages/RunPage'
-import { GalleryPage } from './pages/GalleryPage'
-import { HandoutsPage } from './pages/HandoutsPage'
-import { LootPage } from './pages/LootPage'
-import { MapPage } from './pages/MapPage'
-import { WorldMapPage } from './pages/WorldMapPage'
-import { BattleMapPage } from './pages/BattleMapPage'
-import { TagsPage } from './pages/TagsPage'
-import { PlayerNotesPage } from './pages/PlayerNotesPage'
-import { PlayerStoryPage } from './pages/PlayerStoryPage'
-import { PlayerLootPage } from './pages/PlayerLootPage'
-import { PlayerGalleryPage } from './pages/PlayerGalleryPage'
-import { PlayerWorldMapPage } from './pages/PlayerWorldMapPage'
-import { PlayerHandoutsPage } from './pages/PlayerHandoutsPage'
-import { PlayerSessionPage } from './pages/PlayerSessionPage'
-import { TicketsPage } from './pages/TicketsPage'
-import { RoadmapPage } from './pages/RoadmapPage'
+
+// Route pages are code-split: each loads on first navigation, keeping the
+// initial bundle (landing + app shell) small. The heavy deps (TipTap, the
+// battle-map renderer, the bundled SRD monsters) ride along with the routes
+// that use them instead of the first paint. Landing (HomePage) stays eager.
+// Named exports are mapped to the default export React.lazy expects.
+const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then((m) => ({ default: m.CampaignsPage })))
+const BackupPage = lazy(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
+const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
+const ChangelogPage = lazy(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
+const CampaignLayout = lazy(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
+const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
+const SessionsPage = lazy(() => import('./pages/SessionsPage').then((m) => ({ default: m.SessionsPage })))
+const TimelinePage = lazy(() => import('./pages/TimelinePage').then((m) => ({ default: m.TimelinePage })))
+const NpcsPage = lazy(() => import('./pages/NpcsPage').then((m) => ({ default: m.NpcsPage })))
+const LocationsPage = lazy(() => import('./pages/LocationsPage').then((m) => ({ default: m.LocationsPage })))
+const ItemsPage = lazy(() => import('./pages/ItemsPage').then((m) => ({ default: m.ItemsPage })))
+const NotesPage = lazy(() => import('./pages/NotesPage').then((m) => ({ default: m.NotesPage })))
+const RollTablesPage = lazy(() => import('./pages/RollTablesPage').then((m) => ({ default: m.RollTablesPage })))
+const EncountersPage = lazy(() => import('./pages/EncountersPage').then((m) => ({ default: m.EncountersPage })))
+const GeneratorTablesPage = lazy(() => import('./pages/GeneratorTablesPage').then((m) => ({ default: m.GeneratorTablesPage })))
+const CombatTrackerPage = lazy(() => import('./pages/CombatTrackerPage').then((m) => ({ default: m.CombatTrackerPage })))
+const RunPage = lazy(() => import('./pages/RunPage').then((m) => ({ default: m.RunPage })))
+const GalleryPage = lazy(() => import('./pages/GalleryPage').then((m) => ({ default: m.GalleryPage })))
+const HandoutsPage = lazy(() => import('./pages/HandoutsPage').then((m) => ({ default: m.HandoutsPage })))
+const LootPage = lazy(() => import('./pages/LootPage').then((m) => ({ default: m.LootPage })))
+const MapPage = lazy(() => import('./pages/MapPage').then((m) => ({ default: m.MapPage })))
+const WorldMapPage = lazy(() => import('./pages/WorldMapPage').then((m) => ({ default: m.WorldMapPage })))
+const BattleMapPage = lazy(() => import('./pages/BattleMapPage').then((m) => ({ default: m.BattleMapPage })))
+const TagsPage = lazy(() => import('./pages/TagsPage').then((m) => ({ default: m.TagsPage })))
+const PlayerNotesPage = lazy(() => import('./pages/PlayerNotesPage').then((m) => ({ default: m.PlayerNotesPage })))
+const PlayerStoryPage = lazy(() => import('./pages/PlayerStoryPage').then((m) => ({ default: m.PlayerStoryPage })))
+const PlayerLootPage = lazy(() => import('./pages/PlayerLootPage').then((m) => ({ default: m.PlayerLootPage })))
+const PlayerGalleryPage = lazy(() => import('./pages/PlayerGalleryPage').then((m) => ({ default: m.PlayerGalleryPage })))
+const PlayerWorldMapPage = lazy(() => import('./pages/PlayerWorldMapPage').then((m) => ({ default: m.PlayerWorldMapPage })))
+const PlayerHandoutsPage = lazy(() => import('./pages/PlayerHandoutsPage').then((m) => ({ default: m.PlayerHandoutsPage })))
+const PlayerSessionPage = lazy(() => import('./pages/PlayerSessionPage').then((m) => ({ default: m.PlayerSessionPage })))
+const TicketsPage = lazy(() => import('./pages/TicketsPage').then((m) => ({ default: m.TicketsPage })))
+const RoadmapPage = lazy(() => import('./pages/RoadmapPage').then((m) => ({ default: m.RoadmapPage })))
 
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
 installErrorLog()
+
+// Shown while a code-split route chunk loads (usually a blink on first visit).
+function RouteFallback() {
+  return (
+    <div className="route-fallback" role="status" aria-live="polite">
+      <span className="route-spinner" aria-hidden />
+      <span className="sr-only">Loading…</span>
+    </div>
+  )
+}
+
+// Catches a failed route render — most importantly a dynamic-import failure,
+// which happens when the app is deployed while someone has an old tab open and
+// the hashed chunk they request no longer exists. A one-time reload fetches the
+// fresh build; anything else shows a manual reload so the app never dead-ends.
+const CHUNK_RELOAD_KEY = 'codex.chunkReloaded'
+class RouteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(err: unknown) {
+    const msg = String((err as Error)?.message || err)
+    const isChunkError = /dynamically imported module|importing a module|chunk|Failed to fetch/i.test(msg)
+    if (isChunkError && !sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+      try { sessionStorage.setItem(CHUNK_RELOAD_KEY, '1') } catch { /* ignore */ }
+      window.location.reload()
+    }
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="route-fallback route-error">
+          <p>Something went wrong loading this page.</p>
+          <button className="btn primary small" onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 
@@ -495,6 +542,8 @@ export function App() {
           />
           <div className="nav-scrim" onClick={closeNav} aria-hidden />
         <main className="main">
+          <RouteBoundary>
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
@@ -536,6 +585,8 @@ export function App() {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
+          </RouteBoundary>
         </main>
         </div>
       </ConfirmProvider>
