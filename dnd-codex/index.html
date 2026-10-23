@@ -15,8 +15,23 @@
           var t = localStorage.getItem('codex.theme')
           var a = localStorage.getItem('codex.accent')
           var el = document.documentElement
-          el.dataset.theme = t === 'light' ? 'light' : 'dark'
-          el.dataset.accent = /^(violet|emerald|sky|amber|rose)$/.test(a || '') ? a : 'violet'
+          var light = t === 'light'
+          el.dataset.theme = light ? 'light' : 'dark'
+          if (/^#[0-9a-fA-F]{6}$/.test(a || '')) {
+            // Custom accent: derive the same tokens lib/theme.ts does (keep in sync).
+            var shade = function (hex, amt) {
+              var n = parseInt(hex.slice(1), 16), k = 1 - amt
+              var r = Math.round(((n >> 16) & 255) * k)
+              var g = Math.round(((n >> 8) & 255) * k)
+              var b = Math.round((n & 255) * k)
+              return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)
+            }
+            el.dataset.accent = 'custom'
+            el.style.setProperty('--accent', light ? shade(a, 0.22) : a)
+            el.style.setProperty('--accent-strong', shade(a, light ? 0.42 : 0.3))
+          } else {
+            el.dataset.accent = /^(violet|emerald|sky|amber|rose)$/.test(a || '') ? a : 'violet'
+          }
         } catch (e) {
           document.documentElement.dataset.theme = 'dark'
           document.documentElement.dataset.accent = 'violet'

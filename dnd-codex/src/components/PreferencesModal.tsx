@@ -9,12 +9,13 @@ import {
   ACCENTS,
   ACCENT_LABEL,
   ACCENT_SWATCH,
+  DEFAULT_ACCENT,
   setTheme,
   readCachedTheme,
   normalizeTheme,
   normalizeAccent,
+  isHexAccent,
   type Theme,
-  type Accent,
 } from '../lib/theme'
 import {
   REVEAL_CONFIRM_KEY,
@@ -47,19 +48,25 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
   // Appearance: reflect the current choice (profile when signed in, else the
   // local cache), apply instantly on change, and sync to the account if signed in.
   const [theme, setThemeChoice] = useState<Theme>(() => readCachedTheme().theme)
-  const [accent, setAccentChoice] = useState<Accent>(() => readCachedTheme().accent)
+  const [accent, setAccentChoice] = useState<string>(() => readCachedTheme().accent)
   useEffect(() => {
     if (!profile) return
     setThemeChoice(normalizeTheme(profile.theme))
     setAccentChoice(normalizeAccent(profile.accent))
   }, [profile?.theme, profile?.accent])
 
-  function chooseAppearance(nextTheme: Theme, nextAccent: Accent) {
+  // `persist` is false while dragging the custom-color picker (apply live, don't
+  // spam the account) and true on commit (a preset click, or the picker closing).
+  function applyAppearance(nextTheme: Theme, nextAccent: string, persist: boolean) {
     setThemeChoice(nextTheme)
     setAccentChoice(nextAccent)
     setTheme(nextTheme, nextAccent) // instant apply + local cache
-    if (profile) updateProfile({ theme: nextTheme, accent: nextAccent }).catch(() => {})
+    if (persist && profile) updateProfile({ theme: nextTheme, accent: nextAccent }).catch(() => {})
   }
+  function chooseAppearance(nextTheme: Theme, nextAccent: string) {
+    applyAppearance(nextTheme, nextAccent, true)
+  }
+  const customAccent = isHexAccent(accent) ? accent : ''
 
   // Session reminders: which offsets + channels this user wants. A missing key
   // means "on", so the toggles reflect `!== false` and we write explicit booleans.
@@ -153,6 +160,19 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
                   onClick={() => chooseAppearance(theme, a)}
                 />
               ))}
+              <label
+                className={`swatch swatch-custom${customAccent ? ' active' : ''}`}
+                style={customAccent ? { ['--sw' as string]: customAccent } : undefined}
+                title="Custom color"
+                aria-label="Custom accent color"
+              >
+                <input
+                  type="color"
+                  value={customAccent || ACCENT_SWATCH[DEFAULT_ACCENT]}
+                  onInput={(e) => applyAppearance(theme, e.currentTarget.value, false)}
+                  onChange={(e) => applyAppearance(theme, e.currentTarget.value, true)}
+                />
+              </label>
             </div>
           </div>
         </div>
