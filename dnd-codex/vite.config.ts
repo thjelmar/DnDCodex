@@ -20,6 +20,23 @@ export default defineConfig({
   define: {
     __APP_COMMIT__: JSON.stringify(commit),
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the stable core libraries into one `vendor` chunk so it stays
+        // cached across app deploys. Only the libs the shell loads eagerly are
+        // named here — TipTap/ProseMirror and anything used solely by a
+        // code-split route keep Vite's default chunking, so they still load
+        // lazily with their route rather than on first paint.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|dexie|dexie-react-hooks|@supabase)[\\/]/.test(id)) {
+            return 'vendor'
+          }
+        },
+      },
+    },
+  },
   // Listen on all addresses (IPv4 + IPv6) so the dev server is reachable at
   // http://localhost:5173 regardless of whether the browser resolves
   // "localhost" to 127.0.0.1 or ::1 — Node 17+ otherwise binds only ::1, which
