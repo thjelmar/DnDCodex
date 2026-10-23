@@ -30,7 +30,10 @@ export default defineConfig({
         // lazily with their route rather than on first paint.
         manualChunks(id) {
           if (!id.includes('node_modules')) return
-          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|dexie|dexie-react-hooks|@supabase)[\\/]/.test(id)) {
+          // Supabase in its own chunk so it caches independently of the React
+          // core (and keeps each vendor chunk comfortably small).
+          if (/[\\/]node_modules[\\/]@supabase[\\/]/.test(id)) return 'vendor-supabase'
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|dexie|dexie-react-hooks)[\\/]/.test(id)) {
             return 'vendor'
           }
         },
