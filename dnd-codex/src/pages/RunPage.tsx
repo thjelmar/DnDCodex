@@ -732,7 +732,7 @@ export function Peek({
           </div>
         </div>
         {prose(n.description)}
-        {sb && <StatBlockView name={n.name} block={sb} />}
+        {sb && <StatBlockView name={n.name} block={sb} showReferences />}
         {prose(n.statBlock)}
       </div>
     )

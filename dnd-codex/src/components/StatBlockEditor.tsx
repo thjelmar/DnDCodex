@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Icon } from './Icon'
 import { useRevealConfirm } from './ConfirmDialog'
-import type { StatBlock, StatBlockEntry, StatBlockSectionSpoilers } from '../db/types'
-import { searchSrd } from '../lib/monsters'
+import type { StatBlock, StatBlockEntry, StatBlockReference, StatBlockSectionSpoilers } from '../db/types'
+import { fetchOpen5eMonster, searchOpen5e, searchSrd } from '../lib/monsters'
+import type { Monster } from '../lib/monsters'
 import {
   ABILITIES,
   abilityMod,
@@ -10,23 +11,37 @@ import {
   effectivePb,
   emptyStatBlock,
   parseCr,
+  parseStatBlockText,
   saveValue,
   signed,
   statBlockFromMonster,
+  statBlockFromOpen5e,
+  statBlockHasContent,
 } from '../lib/statblock'
 
-// The five repeatable stat-block sections, in D&D Beyond order.
-type SectionKey = 'traits' | 'actions' | 'bonusActions' | 'reactions' | 'legendaryActions'
+// The repeatable stat-block sections, in D&D Beyond order. Spellcasting sits
+// with the actions (spells count as actions).
+type SectionKey = 'traits' | 'actions' | 'spellcasting' | 'bonusActions' | 'reactions' | 'legendaryActions'
 const SECTIONS: { key: SectionKey; label: string }[] = [
   { key: 'traits', label: 'Traits' },
   { key: 'actions', label: 'Actions' },
+  { key: 'spellcasting', label: 'Spellcasting' },
   { key: 'bonusActions', label: 'Bonus Actions' },
   { key: 'reactions', label: 'Reactions' },
   { key: 'legendaryActions', label: 'Legendary Actions' },
 ]
 
+/** Entries for a section, tolerating blocks saved before the section existed. */
+function sectionEntries(block: StatBlock, key: SectionKey): StatBlockEntry[] {
+  return block[key] ?? []
+}
+
 function newEntry(): StatBlockEntry {
   return { id: crypto.randomUUID(), name: '', text: '' }
+}
+
+function newReference(): StatBlockReference {
+  return { id: crypto.randomUUID(), label: '', url: '' }
 }
 
 export function StatBlockEditor({
@@ -63,7 +78,7 @@ export function StatBlockEditor({
 
   return (
     <div>
-      <StatBlockView name={name} block={value} onChange={onChange} revealNeedsConfirm={revealNeedsConfirm} />
+      <StatBlockView name={name} block={value} onChange={onChange} showReferences revealNeedsConfirm={revealNeedsConfirm} />
       <div className="row" style={{ gap: 8, marginTop: 8 }}>
         <button className="btn small" onClick={() => setEditing(true)}><Icon name="pencil" size={13} /> Edit stat block</button>
       </div>
@@ -72,7 +87,8 @@ export function StatBlockEditor({
 }
 
 // ---------------------------------------------------------------------------
-// Empty state: build from scratch, or prefill the basics from an SRD monster.
+// Empty state: build from scratch, or import a monster — search first (bundled
+// SRD, then all of Open5e), and if nothing turns up, paste the stat block text.
 // ---------------------------------------------------------------------------
 
 function StatBlockEmpty({
@@ -84,41 +100,153 @@ function StatBlockEmpty({
 }) {
   const [picking, setPicking] = useState(false)
   const [query, setQuery] = useState('')
-  const results = picking ? searchSrd({ query }).slice(0, 8) : []
+  const [online, setOnline] = useState<Monster[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [importing, setImporting] = useState<string | null>(null)
+  const [showPaste, setShowPaste] = useState(false)
+  const [pasted, setPasted] = useState('')
+  const [error, setError] = useState('')
+
+  const srdResults = picking && query.trim() ? searchSrd({ query }).slice(0, 8) : []
+  // Online results that aren't already in the SRD list (SRD comes first).
+  const srdSlugs = new Set(srdResults.map((m) => m.slug))
+  const onlineExtra = (online ?? []).filter((m) => !srdSlugs.has(m.slug)).slice(0, 12)
+  const noResults = query.trim() !== '' && srdResults.length === 0 && onlineExtra.length === 0
+  const searchedOnline = online != null
+
+  const reset = () => {
+    setPicking(false); setQuery(''); setOnline(null)
+    setSearching(false); setShowPaste(false); setPasted(''); setError('')
+  }
+
+  // Pull the full record and map a complete stat block; fall back to a
+  // basics-only fill if the fetch fails (offline, blocked, missing slug).
+  const importMonster = async (m: Monster) => {
+    setImporting(m.slug)
+    setError('')
+    try {
+      const full = await fetchOpen5eMonster(m.slug)
+      onPrefill(statBlockFromOpen5e(full))
+    } catch {
+      onPrefill(statBlockFromMonster(m))
+      setError(`Couldn’t fetch ${m.name}’s full stat block — filled the basics instead.`)
+    } finally {
+      setImporting(null)
+    }
+  }
+
+  const searchMoreOnline = async () => {
+    const q = query.trim()
+    if (!q) return
+    setSearching(true)
+    setError('')
+    try {
+      setOnline(await searchOpen5e(q))
+    } catch {
+      setError('Couldn’t reach Open5e. Check your connection and try again.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const importPasted = () => {
+    const block = parseStatBlockText(pasted)
+    if (!statBlockHasContent(block)) {
+      setError('Couldn’t find a stat block in that text. Paste the whole block — AC, HP, speed, abilities, and actions.')
+      return
+    }
+    onPrefill(block)
+  }
+
+  const Result = ({ m, badge }: { m: Monster; badge?: string }) => (
+    <button key={m.slug} className="sb-result" disabled={importing != null} onClick={() => importMonster(m)}>
+      <span>{m.name}{importing === m.slug ? ' — importing…' : ''}</span>
+      <span className="faint" style={{ fontSize: 12 }}>{m.type} · CR {m.cr}{badge ? ` · ${badge}` : ''}</span>
+    </button>
+  )
+
+  if (!picking) {
+    return (
+      <div className="sb-empty">
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button className="btn small primary" onClick={onBuild}><Icon name="plus" size={14} color="inherit" /> Build a stat block</button>
+          <button className="btn small" onClick={() => setPicking(true)}><Icon name="download" size={13} /> Import a monster</button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="sb-empty">
-      {!picking ? (
-        <div className="row wrap" style={{ gap: 8 }}>
-          <button className="btn small primary" onClick={onBuild}><Icon name="plus" size={14} color="inherit" /> Build a stat block</button>
-          <button className="btn small" onClick={() => setPicking(true)}>Prefill from SRD monster</button>
-        </div>
+      <form className="row" style={{ gap: 8, marginBottom: 8 }} onSubmit={(e) => { e.preventDefault(); void searchMoreOnline() }}>
+        <input
+          className="input"
+          autoFocus
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setOnline(null) }}
+          placeholder="Search a monster (e.g. Archmage)…"
+        />
+        <button type="button" className="btn small" onClick={reset}>Cancel</button>
+      </form>
+      {error && <p className="faint" style={{ fontSize: 13, color: 'var(--danger, #e2857f)' }}>{error}</p>}
+
+      {query.trim() === '' ? (
+        <p className="faint" style={{ fontSize: 13 }}>Type to search the 322 bundled SRD monsters. Importing fills the full stat block — stats, traits, actions, and spells.</p>
       ) : (
-        <div>
-          <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-            <input
-              className="input"
-              autoFocus
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search 322 SRD monsters (e.g. Archmage)…"
-            />
-            <button className="btn small" onClick={() => { setPicking(false); setQuery('') }}>Cancel</button>
-          </div>
-          {query.trim() === '' ? (
-            <p className="faint" style={{ fontSize: 13 }}>Type to search. Fills size, type, CR, AC, HP, and DEX — you fill in the rest.</p>
-          ) : results.length === 0 ? (
-            <p className="faint" style={{ fontSize: 13 }}>No SRD monster matches “{query}”.</p>
-          ) : (
+        <>
+          {srdResults.length > 0 && (
             <div className="sb-results">
-              {results.map((m) => (
-                <button key={m.slug} className="sb-result" onClick={() => onPrefill(statBlockFromMonster(m))}>
-                  <span>{m.name}</span>
-                  <span className="faint" style={{ fontSize: 12 }}>{m.type} · CR {m.cr}</span>
-                </button>
-              ))}
+              {srdResults.map((m) => <Result key={m.slug} m={m} />)}
             </div>
           )}
+          {onlineExtra.length > 0 && (
+            <>
+              <div className="faint" style={{ fontSize: 12, margin: '8px 0 4px' }}>More from Open5e</div>
+              <div className="sb-results">
+                {onlineExtra.map((m) => <Result key={m.slug} m={m} badge="online" />)}
+              </div>
+            </>
+          )}
+
+          {/* Not found yet: offer the wider online search, then fall back to paste. */}
+          {noResults && (
+            <p className="faint" style={{ fontSize: 13 }}>
+              {searchedOnline
+                ? `No match for “${query}” in the SRD or Open5e. If it’s from another source, paste its stat block below.`
+                : `No SRD monster matches “${query}”.`}
+            </p>
+          )}
+          {!searchedOnline && (
+            <button className="btn ghost small" style={{ marginTop: 8, marginRight: 8 }} disabled={searching} onClick={() => void searchMoreOnline()}>
+              <Icon name="search" size={13} /> {searching ? 'Searching Open5e…' : 'Search all of Open5e'}
+            </button>
+          )}
+          {noResults && !showPaste && (
+            <button className="btn ghost small" style={{ marginTop: 8 }} onClick={() => { setShowPaste(true); setError('') }}>
+              <Icon name="text" size={13} /> Can’t find it? Paste the stat block
+            </button>
+          )}
+        </>
+      )}
+
+      {showPaste && (
+        <div className="sb-paste">
+          <p className="faint" style={{ fontSize: 13, margin: '0 0 6px' }}>
+            Copy the stat block from D&amp;D Beyond (or a book, or homebrew) and paste it here. It fills everything it recognizes and leaves the rest for you.
+          </p>
+          <textarea
+            className="textarea"
+            autoFocus
+            value={pasted}
+            onChange={(e) => { setPasted(e.target.value); setError('') }}
+            placeholder={'Paste the full stat block, e.g.\n\nArchmage\nMedium humanoid (any race), any alignment\nArmor Class 12 (15 with mage armor)\nHit Points 99 (18d8 + 18)\nSpeed 30 ft.\n…'}
+            style={{ minHeight: 160, width: '100%' }}
+          />
+          <div className="row" style={{ gap: 8, marginTop: 8 }}>
+            <button className="btn small primary" disabled={!pasted.trim()} onClick={importPasted}>
+              <Icon name="download" size={13} color="inherit" /> Import from text
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -182,6 +310,7 @@ export function StatBlockView({
   onChange,
   hideAbilities,
   hidden,
+  showReferences = false,
   revealNeedsConfirm = false,
 }: {
   name: string
@@ -192,6 +321,8 @@ export function StatBlockView({
   hideAbilities?: boolean
   /** Player view: fixed rows the DM hid — render a "hidden" marker for each. */
   hidden?: StatBlockSectionSpoilers
+  /** DM-only contexts pass true to show reference links; players never see them. */
+  showReferences?: boolean
   /** When true (entity already shared), un-hiding a section/entry asks first. */
   revealNeedsConfirm?: boolean
 }) {
@@ -208,9 +339,10 @@ export function StatBlockView({
     set({ sectionSpoilers: { ...spoilers, [k]: !spoilers[k] } })
   }
   const toggleEntry = async (key: SectionKey, id: string) => {
-    const cur = block[key].find((e) => e.id === id)
+    const entries = sectionEntries(block, key)
+    const cur = entries.find((e) => e.id === id)
     if (!(await revealConfirm(!!cur?.spoiler, revealNeedsConfirm))) return
-    set({ [key]: block[key].map((e) => (e.id === id ? { ...e, spoiler: !e.spoiler } : e)) } as Partial<StatBlock>)
+    set({ [key]: entries.map((e) => (e.id === id ? { ...e, spoiler: !e.spoiler } : e)) } as Partial<StatBlock>)
   }
 
   const initiative = block.initiative || (block.abilities.dex ? signed(abilityMod(block.abilities.dex)) : '')
@@ -296,7 +428,7 @@ export function StatBlockView({
       ) : null}
 
       {SECTIONS.map(({ key, label }) => {
-        const entries = block[key]
+        const entries = sectionEntries(block, key)
         if (entries.length === 0) return null
         return (
           <div key={key} className="sb-section">
@@ -319,6 +451,17 @@ export function StatBlockView({
           </div>
         )
       })}
+
+      {showReferences && (block.referenceLinks?.length ?? 0) > 0 && (
+        <div className="sb-section sb-references">
+          <div className="sb-section-title">References <span className="faint" style={{ fontWeight: 400, fontSize: 11 }}>· DM only</span></div>
+          {block.referenceLinks!.map((r) => (
+            <a key={r.id} className="sb-reference-link" href={r.url} target="_blank" rel="noopener noreferrer">
+              <Icon name="external" size={13} /> {r.label.trim() || r.url}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -436,11 +579,16 @@ function StatBlockForm({
         <EntrySection
           key={key}
           label={label}
-          entries={value[key]}
+          entries={value[key] ?? []}
           onChange={(entries) => set({ [key]: entries } as Partial<StatBlock>)}
           revealNeedsConfirm={revealNeedsConfirm}
         />
       ))}
+
+      <ReferencesSection
+        references={value.referenceLinks ?? []}
+        onChange={(referenceLinks) => set({ referenceLinks })}
+      />
 
       <div className="row between" style={{ marginTop: 14 }}>
         <button className="btn small primary" onClick={onDone}>Done</button>
@@ -585,6 +733,51 @@ function EntrySection({
             placeholder="Description…"
             style={{ minHeight: 54, marginTop: 4 }}
           />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** DM-only reference links (label + URL). Never shared with players. */
+function ReferencesSection({
+  references,
+  onChange,
+}: {
+  references: StatBlockReference[]
+  onChange: (references: StatBlockReference[]) => void
+}) {
+  const update = (id: string, patch: Partial<StatBlockReference>) =>
+    onChange(references.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+  const remove = (id: string) => onChange(references.filter((r) => r.id !== id))
+
+  return (
+    <div className="sb-entry-section">
+      <div className="row between" style={{ alignItems: 'center' }}>
+        <label className="sb-form-label" style={{ margin: 0 }}>
+          References <span className="faint" style={{ fontWeight: 400, fontSize: 12 }}>· DM only, never shared</span>
+        </label>
+        <button className="btn ghost small" onClick={() => onChange([...references, newReference()])}><Icon name="plus" size={13} /> Add</button>
+      </div>
+      {references.map((r) => (
+        <div key={r.id} className="sb-reference-edit">
+          <div className="row" style={{ gap: 6 }}>
+            <input
+              className="input"
+              value={r.label}
+              onChange={(ev) => update(r.id, { label: ev.target.value })}
+              placeholder="Label (e.g. D&D Beyond)"
+              style={{ flex: '0 1 220px' }}
+            />
+            <input
+              className="input"
+              value={r.url}
+              onChange={(ev) => update(r.id, { url: ev.target.value })}
+              placeholder="https://…"
+              style={{ flex: 1 }}
+            />
+            <button className="btn ghost small" title="Remove" onClick={() => remove(r.id)}><Icon name="x" size={13} /></button>
+          </div>
         </div>
       ))}
     </div>
