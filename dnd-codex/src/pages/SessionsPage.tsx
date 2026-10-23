@@ -11,6 +11,7 @@ import {
 } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { Backlinks } from '../components/Backlinks'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { formatDate, todayISODate } from '../lib/format'
@@ -207,6 +208,13 @@ function SessionEditor({ session, onDelete }: { session: Session; onDelete: () =
           placeholder="Secret plans, foreshadowing, upcoming twists…"
         />
       )}
+
+      <label className="muted" style={{ fontSize: 13, fontWeight: 500, marginTop: 14, display: 'block' }}>
+        Linked from
+      </label>
+      <div style={{ marginTop: 8 }}>
+        <Backlinks campaignId={session.campaignId} kind="session" id={session.id} name={title} />
+      </div>
 
       <div className="row between" style={{ marginTop: 18 }}>
         <span className="faint" style={{ fontSize: 12 }}>

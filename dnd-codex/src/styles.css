@@ -1208,6 +1208,18 @@ button {
   border: 1px solid var(--border);
   color: var(--text-dim);
 }
+/* Clickable backlink chip ("what links here"). */
+button.tag.backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--text);
+}
+button.tag.backlink:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev-2));
+}
 
 .row {
   display: flex;

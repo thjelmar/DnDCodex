@@ -6,6 +6,7 @@ import { db } from '../db/db'
 import { createLocation, updateLocation, deleteLocation, createNPC, createLocationFromTemplate, saveLocationAsTemplate } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
+import { Backlinks } from '../components/Backlinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -731,6 +732,13 @@ function LocationEditor({
       </label>
       <div style={{ marginTop: 8, marginBottom: 18 }}>
         <EntityLinks campaignId={campaignId} kind="location" id={location.id} />
+      </div>
+
+      <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
+        Linked from
+      </label>
+      <div style={{ marginTop: 8, marginBottom: 18 }}>
+        <Backlinks campaignId={campaignId} kind="location" id={location.id} name={name} />
       </div>
 
       <div className="row between">

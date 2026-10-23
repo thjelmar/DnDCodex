@@ -6,6 +6,7 @@ import { createItem, updateItem, deleteItem } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { SidePanel } from '../components/SidePanel'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { Backlinks } from '../components/Backlinks'
 import { TagInput, TagChips } from '../components/TagInput'
 import { EntityImage } from '../components/EntityImage'
 import { ShareControl } from '../components/ShareControl'
@@ -232,6 +233,13 @@ function ItemModal({ item, onClose }: { item: Item; onClose: () => void }) {
         revealNeedsConfirm={item.sharedWithPlayers === true}
         shareable
       />
+
+      <label className="muted" style={{ fontSize: 13, fontWeight: 500, marginTop: 14, display: 'block' }}>
+        Linked from
+      </label>
+      <div style={{ marginTop: 8 }}>
+        <Backlinks campaignId={item.campaignId} kind="item" id={item.id} name={name} />
+      </div>
       </fieldset>
     </SidePanel>
   )
