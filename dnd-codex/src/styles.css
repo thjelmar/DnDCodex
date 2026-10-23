@@ -68,9 +68,30 @@
 .seg-btn { background: var(--bg-elev); color: var(--text-dim); border: none; padding: 5px 16px; font: inherit; cursor: pointer; }
 .seg-btn + .seg-btn { border-left: 1px solid var(--border); }
 .seg-btn.active { background: var(--accent-strong); color: #fff; }
-.swatch-row { display: flex; gap: 9px; }
+.swatch-row { display: flex; gap: 9px; align-items: center; }
 .swatch { width: 22px; height: 22px; border-radius: 50%; background: var(--sw); border: 2px solid var(--border); cursor: pointer; padding: 0; }
 .swatch.active { border-color: var(--text); box-shadow: 0 0 0 2px var(--sw); }
+/* Custom-color picker: a rainbow ring until a color is chosen, then the color.
+   The native <input type="color"> fills the circle but stays invisible. */
+.swatch-custom {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  background:
+    var(--sw, conic-gradient(red, yellow, lime, aqua, blue, magenta, red));
+}
+.swatch-custom input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+}
 
 * {
   box-sizing: border-box;
