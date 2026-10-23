@@ -148,3 +148,65 @@ export async function searchOpen5e(query: string): Promise<Monster[]> {
     source: 'open5e' as const,
   }))
 }
+
+/** One named block (action, trait, reaction…) in an Open5e monster record. */
+export interface Open5eAction {
+  name?: string
+  desc?: string
+}
+
+/** The full Open5e monster record, with the fields needed to fill a complete
+ *  stat block. Everything is optional — Open5e omits or nulls many fields, and
+ *  some list fields come back as an empty string instead of an array. */
+export interface Open5eFullMonster {
+  slug: string
+  name: string
+  size?: string
+  type?: string
+  subtype?: string
+  alignment?: string
+  armor_class?: number | null
+  armor_desc?: string | null
+  hit_points?: number | null
+  hit_dice?: string | null
+  speed?: Record<string, number | boolean> | null
+  strength?: number; dexterity?: number; constitution?: number
+  intelligence?: number; wisdom?: number; charisma?: number
+  strength_save?: number | null; dexterity_save?: number | null
+  constitution_save?: number | null; intelligence_save?: number | null
+  wisdom_save?: number | null; charisma_save?: number | null
+  skills?: Record<string, number> | null
+  damage_vulnerabilities?: string
+  damage_resistances?: string
+  damage_immunities?: string
+  condition_immunities?: string
+  senses?: string
+  languages?: string
+  cr?: number
+  challenge_rating?: string
+  special_abilities?: Open5eAction[] | string | null
+  actions?: Open5eAction[] | string | null
+  bonus_actions?: Open5eAction[] | string | null
+  reactions?: Open5eAction[] | string | null
+  legendary_desc?: string
+  legendary_actions?: Open5eAction[] | string | null
+}
+
+/**
+ * Fetch one monster's full record from Open5e by slug (both the bundled SRD set
+ * and live search use Open5e slugs). Bounded so a slow/blocked network fails
+ * gracefully; throws on error so the caller can fall back to a basics-only fill.
+ */
+export async function fetchOpen5eMonster(slug: string): Promise<Open5eFullMonster> {
+  const url = `https://api.open5e.com/v1/monsters/${encodeURIComponent(slug)}/`
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 10000)
+  let res: Response
+  try {
+    res = await fetch(url, { signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+  if (!res.ok) throw new Error(`Open5e request failed (${res.status})`)
+  return (await res.json()) as Open5eFullMonster
+}

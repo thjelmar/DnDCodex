@@ -2410,6 +2410,7 @@ button.monthcal-day:hover:not(.sel) {
 
 .sb-empty { padding: 4px 0; }
 .sb-results { display: flex; flex-direction: column; gap: 4px; }
+.sb-paste { margin-top: 12px; }
 .sb-result {
   display: flex;
   justify-content: space-between;
@@ -2538,6 +2539,22 @@ button.monthcal-day:hover:not(.sel) {
   border-color: var(--accent);
   box-shadow: inset 2px 0 0 var(--accent-strong);
 }
+.sb-reference-edit { margin-top: 6px; }
+
+/* DM-only reference links on the rendered stat block. */
+.sb-references .sb-reference-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 2px 0;
+  color: var(--accent);
+  text-decoration: none;
+  word-break: break-word;
+}
+.sb-references .sb-reference-link:hover { text-decoration: underline; }
+.sb-references .sb-reference-link + .sb-reference-link { margin-top: 2px; }
 
 /* Stat-block spoiler groups (rows the DM can hide from players). */
 .sb-group { margin-top: 8px; }

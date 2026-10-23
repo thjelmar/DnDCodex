@@ -214,6 +214,15 @@ export interface StatBlockEntry {
   hidden?: boolean
 }
 
+/** A DM-only reference link on a stat block (source page, homebrew doc). Never
+ *  included in the player-facing reveal — kept on the DM's side only. */
+export interface StatBlockReference {
+  id: Id
+  /** Display text; falls back to the URL when empty. */
+  label: string
+  url: string
+}
+
 /** Fixed stat-block rows the DM can mark as spoilers (each hidden as a unit). */
 export interface StatBlockSectionSpoilers {
   /** AC / HP / Speed / Initiative. */
@@ -263,9 +272,16 @@ export interface StatBlock {
   treasure: string
   traits: StatBlockEntry[]
   actions: StatBlockEntry[]
+  /** Spellcasting entries — spells count as actions, so they share the entry
+   *  shape (name + text) and spoiler handling. Optional for blocks saved before
+   *  this field existed. */
+  spellcasting?: StatBlockEntry[]
   bonusActions: StatBlockEntry[]
   reactions: StatBlockEntry[]
   legendaryActions: StatBlockEntry[]
+  /** DM-only reference links (source page, homebrew doc). Stripped from the
+   *  player reveal, so they never leave the DM's browser. */
+  referenceLinks?: StatBlockReference[]
   /** Fixed rows hidden from players when shared (per-entry spoilers live on the
    *  entries themselves). */
   sectionSpoilers?: StatBlockSectionSpoilers

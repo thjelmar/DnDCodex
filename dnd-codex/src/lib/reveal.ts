@@ -149,9 +149,12 @@ function revealStatBlock(sb: StatBlock): RevealedStatBlock {
     saveProficiencies: s.abilities ? [] : sb.saveProficiencies,
     traits: keep(sb.traits),
     actions: keep(sb.actions),
+    spellcasting: keep(sb.spellcasting ?? []),
     bonusActions: keep(sb.bonusActions),
     reactions: keep(sb.reactions),
     legendaryActions: keep(sb.legendaryActions),
+    // DM-only: never travels to players.
+    referenceLinks: undefined,
     sectionSpoilers: undefined,
   }
   return {
