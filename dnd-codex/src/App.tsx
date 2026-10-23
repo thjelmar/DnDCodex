@@ -439,7 +439,7 @@ export function App() {
   return (
     <AuthProvider>
     <SyncProvider>
-    <HashRouter>
+    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ConfirmProvider>
         <NavAutoClose onClose={closeNav} />
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
