@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { isDemo } from '../lib/demo'
 import { useAuth } from './AuthProvider'
 import { downloadMapObjectUrl } from '../lib/mapStorage'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
@@ -124,21 +125,21 @@ export function liveTokensForBoard(
 // ── Reads ──────────────────────────────────────────────────────────────────
 
 export async function getLiveScene(campaignId: string): Promise<LiveScene | null> {
-  if (!supabase) return null
+  if (!supabase || isDemo()) return null
   const { data, error } = await supabase.from('shared_scenes').select('*').eq('campaign_id', campaignId).maybeSingle()
   if (error || !data) return null
   return sceneFromRow(data)
 }
 
 export async function getLiveTokens(campaignId: string): Promise<LiveToken[]> {
-  if (!supabase) return []
+  if (!supabase || isDemo()) return []
   const { data, error } = await supabase.from('shared_scene_tokens').select('*').eq('campaign_id', campaignId)
   if (error || !data) return []
   return data.map(tokenFromRow)
 }
 
 export async function getLiveMap(id: string): Promise<string | null> {
-  if (!supabase) return null
+  if (!supabase || isDemo()) return null
   const { data, error } = await supabase.from('shared_scene_maps').select('data_url').eq('id', id).maybeSingle()
   if (error || !data) return null
   return data.data_url as string
@@ -245,7 +246,7 @@ function playerTemplateFromRow(r: Row): LivePlayerTemplate {
 }
 
 export async function getPlayerTemplates(campaignId: string): Promise<LivePlayerTemplate[]> {
-  if (!supabase) return []
+  if (!supabase || isDemo()) return []
   const { data, error } = await supabase.from('shared_scene_templates').select('*').eq('campaign_id', campaignId)
   if (error || !data) return []
   return (data as Row[]).map(playerTemplateFromRow)
