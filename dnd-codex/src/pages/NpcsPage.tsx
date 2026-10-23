@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { createNPC, updateNPC, deleteNPC, createLocation, createNpcFromTemplate, saveNpcAsTemplate } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
+import { Backlinks } from '../components/Backlinks'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { TagInput } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -276,6 +277,13 @@ function NpcEditor({
       </label>
       <div style={{ marginTop: 8, marginBottom: 18 }}>
         <EntityLinks campaignId={campaignId} kind="npc" id={npc.id} />
+      </div>
+
+      <label className="muted" style={{ fontSize: 13, fontWeight: 500 }}>
+        Linked from
+      </label>
+      <div style={{ marginTop: 8, marginBottom: 18 }}>
+        <Backlinks campaignId={campaignId} kind="npc" id={npc.id} name={name} />
       </div>
 
       <div className="row between">

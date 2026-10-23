@@ -5,6 +5,7 @@ import { db } from '../db/db'
 import { createNote, updateNote, deleteNote } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { Backlinks } from '../components/Backlinks'
 import { TagInput, TagChips } from '../components/TagInput'
 import { useConfirm } from '../components/ConfirmDialog'
 import { ShareControl } from '../components/ShareControl'
@@ -113,6 +114,13 @@ function NoteEditor({ note, onDelete }: { note: Note; onDelete: () => void }) {
         revealNeedsConfirm={note.sharedWithPlayers === true}
         shareable
       />
+
+      <label className="muted" style={{ fontSize: 13, fontWeight: 500, marginTop: 14, display: 'block' }}>
+        Linked from
+      </label>
+      <div style={{ marginTop: 8 }}>
+        <Backlinks campaignId={note.campaignId} kind="note" id={note.id} name={title} />
+      </div>
 
       <div className="row between" style={{ marginTop: 18 }}>
         <span className="faint" style={{ fontSize: 12 }}>Autosaves as you type.</span>
