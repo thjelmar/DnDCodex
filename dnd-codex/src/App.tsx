@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
-import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation } from 'react-router-dom'
+import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
@@ -15,6 +15,7 @@ import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog, logBoundaryError } from './lib/errorLog'
+import { PENDING_JOIN_KEY } from './lib/prefs'
 import { HomePage } from './pages/HomePage'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
 import { isDemo } from './lib/demo'
@@ -59,6 +60,7 @@ const PlayerHandoutsPage = lazy(() => import('./pages/PlayerHandoutsPage').then(
 const PlayerSessionPage = lazy(() => import('./pages/PlayerSessionPage').then((m) => ({ default: m.PlayerSessionPage })))
 const TicketsPage = lazy(() => import('./pages/TicketsPage').then((m) => ({ default: m.TicketsPage })))
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage').then((m) => ({ default: m.RoadmapPage })))
+const JoinLandingPage = lazy(() => import('./pages/JoinLandingPage').then((m) => ({ default: m.JoinLandingPage })))
 
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
@@ -445,6 +447,31 @@ function NavAutoClose({ onClose }: { onClose: () => void }) {
   return null
 }
 
+// After signing in from a shared invite link, the OAuth round-trip drops the
+// user back at the app root (the hash route is lost). If we stashed a pending
+// invite code before redirecting, send them back to the join page — now signed
+// in — to confirm and join. Runs eagerly (not inside a lazy route) so it catches
+// the return regardless of where they land.
+function PendingJoinResume() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (!user) return
+    let code: string | null = null
+    try {
+      code = localStorage.getItem(PENDING_JOIN_KEY)
+    } catch {
+      /* storage blocked */
+    }
+    if (!code) return
+    // Already on the right join page (e.g. signed in without a redirect)? Leave it.
+    if (pathname === `/join/${code}`) return
+    navigate(`/join/${code}`)
+  }, [user, pathname, navigate])
+  return null
+}
+
 export function App() {
   const demo = isDemo()
   const [searchOpen, setSearchOpen] = useState(false)
@@ -516,6 +543,7 @@ export function App() {
     <HashRouter>
       <ConfirmProvider>
         <NavAutoClose onClose={closeNav} />
+        <PendingJoinResume />
         <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
         <DiceRoller open={diceOpen} onClose={() => setDiceOpen(false)} />
         <AddPlayerCampaignModal open={addPlayerOpen} onClose={() => setAddPlayerOpen(false)} />
@@ -579,6 +607,7 @@ export function App() {
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/bug-reports" element={<Navigate to="/tickets" replace />} />
             <Route path="/roadmap" element={<RoadmapPage onReport={() => setBugOpen(true)} />} />
+            <Route path="/join/:code" element={<JoinLandingPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/generators" element={<GeneratorTablesPage />} />
             <Route path="/tools/templates" element={<TemplatesPage />} />

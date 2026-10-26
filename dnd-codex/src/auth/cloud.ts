@@ -83,6 +83,27 @@ export async function joinCampaignByCode(code: string): Promise<{ campaignId: st
   return { campaignId: campaignId as string, name: (info.data?.name as string) ?? 'the campaign' }
 }
 
+export interface CampaignPreview {
+  name: string
+  dmName: string
+}
+
+/**
+ * Looks up a campaign by its join code without joining — the campaign name and
+ * DM name to show in the "Join X, run by Y?" confirmation before committing.
+ * Returns null for an unknown code so the caller can say so. Requires sign-in
+ * (the RPC is granted to authenticated only).
+ */
+export async function previewCampaignByCode(code: string): Promise<CampaignPreview | null> {
+  if (!supabase) throw new Error('Not signed in')
+  const { data, error } = await supabase.rpc('preview_campaign', { code: code.trim() })
+  if (error) throw new Error(error.message || 'Could not look up that invite.')
+  // The RPC returns a set; a valid code yields exactly one row.
+  const row = (Array.isArray(data) ? data[0] : data) as { name: string; dm_name: string | null } | undefined
+  if (!row) return null
+  return { name: row.name, dmName: row.dm_name || 'your DM' }
+}
+
 export interface Member {
   userId: string
   role: string

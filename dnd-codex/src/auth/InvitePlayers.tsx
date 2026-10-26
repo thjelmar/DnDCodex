@@ -13,6 +13,7 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
   const [code, setCode] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -69,6 +70,23 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
     }
   }
 
+  // The shareable invite link: the app's own URL with a #/join/<code> route, so
+  // it survives whatever path the app is served from. Split off any existing
+  // hash so we don't double it.
+  function inviteLink(): string {
+    return `${window.location.href.split('#')[0]}#/join/${code}`
+  }
+  async function copyLink() {
+    if (!code) return
+    try {
+      await navigator.clipboard.writeText(inviteLink())
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 1500)
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
   return (
     <div ref={wrapRef} style={{ position: 'relative' }}>
       <button
@@ -99,6 +117,19 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
           </div>
           {code ? (
             <>
+              <p className="faint" style={{ fontSize: 12, marginTop: 0, marginBottom: 8 }}>
+                Share this link — players sign in, confirm the campaign, and join.
+              </p>
+              <button className="btn small primary" style={{ width: '100%' }} onClick={copyLink}>
+                {linkCopied ? (
+                  <><Icon name="check" size={13} color="inherit" /> Invite link copied</>
+                ) : (
+                  <><Icon name="link" size={13} color="inherit" /> Copy invite link</>
+                )}
+              </button>
+              <div className="faint" style={{ fontSize: 11, textAlign: 'center', margin: '10px 0 6px' }}>
+                or share the code
+              </div>
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
                 <code
                   style={{
