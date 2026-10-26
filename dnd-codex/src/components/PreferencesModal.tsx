@@ -68,6 +68,24 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
   }
   const customAccent = isHexAccent(accent) ? accent : ''
 
+  // Display name: the same account field the sidebar's Edit-profile modal writes,
+  // surfaced here because that's where people look for it. Mirror the current
+  // name while editing and commit on blur / Enter so a change syncs once, not on
+  // every keystroke. Only a non-empty, changed name is saved — clearing the box
+  // and leaving keeps the current name rather than wiping it.
+  const [nameDraft, setNameDraft] = useState('')
+  useEffect(() => {
+    setNameDraft(profile?.display_name ?? '')
+  }, [profile?.display_name])
+  function saveName() {
+    const next = nameDraft.trim()
+    if (!profile || !next || next === profile.display_name) {
+      setNameDraft(profile?.display_name ?? '') // discard an empty/unchanged edit
+      return
+    }
+    updateProfile({ display_name: next }).catch(() => {})
+  }
+
   // Session reminders: which offsets + channels this user wants. A missing key
   // means "on", so the toggles reflect `!== false` and we write explicit booleans.
   const [remOffsets, setRemOffsets] = useState({ day: true, hour: true, start: true })
@@ -128,6 +146,34 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
+      {profile && (
+        <div className="prefs-section">
+          <div className="prefs-section-title">Account</div>
+          <div className="prefs-row">
+            <div className="prefs-row-label">Display name</div>
+            <div className="prefs-row-value">
+              <input
+                className="input"
+                value={nameDraft}
+                maxLength={60}
+                placeholder="Your name"
+                aria-label="Display name"
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={saveName}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur()
+                  else if (e.key === 'Escape') setNameDraft(profile.display_name ?? '')
+                }}
+                style={{ maxWidth: 280 }}
+              />
+            </div>
+          </div>
+          <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+            This is how your DM and party see you in shares and member lists.
+          </div>
+        </div>
+      )}
+
       <div className="prefs-section">
         <div className="prefs-section-title">Appearance</div>
         <div className="prefs-row">
