@@ -17,6 +17,7 @@ import type {
   WorldMap,
   PlotThread,
   TimelineEvent,
+  Family,
   RaceGroup,
   GenTable,
   Template,
@@ -47,6 +48,7 @@ export class CodexDB extends Dexie {
   worldMaps!: EntityTable<WorldMap, 'id'>
   plotThreads!: EntityTable<PlotThread, 'id'>
   timelineEvents!: EntityTable<TimelineEvent, 'id'>
+  families!: EntityTable<Family, 'id'>
   raceGroups!: EntityTable<RaceGroup, 'id'>
   // Global one-click-generator word lists, keyed by slot. Universal across all
   // campaigns, so NOT campaign-scoped and not mirrored through the per-campaign
@@ -273,6 +275,10 @@ export class CodexDB extends Dexie {
     // v19 adds campaign race groups (T-38). Additive; synced.
     this.version(19).stores({
       raceGroups: 'id, campaignId, name, updatedAt',
+    })
+    // v20 adds campaign families (T-38). Additive; synced.
+    this.version(20).stores({
+      families: 'id, campaignId, name, updatedAt',
     })
   }
 }

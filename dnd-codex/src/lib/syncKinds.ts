@@ -23,6 +23,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'worldMaps',
   'plotThreads',
   'timelineEvents',
+  'families',
   'raceGroups',
 ]
 
@@ -42,6 +43,7 @@ const TABLE_TO_KIND: Record<SyncTable, string> = {
   worldMaps: 'worldmap',
   plotThreads: 'plotthread',
   timelineEvents: 'timelineevent',
+  families: 'family',
   raceGroups: 'racegroup',
 }
 

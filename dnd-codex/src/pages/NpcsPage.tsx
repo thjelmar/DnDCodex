@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createNPC, updateNPC, deleteNPC, createLocation, createNpcFromTemplate, saveNpcAsTemplate } from '../db/repo'
+import { createNPC, updateNPC, deleteNPC, createLocation, createNpcFromTemplate, saveNpcAsTemplate, createFamily } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { EntityLinks } from '../components/EntityLinks'
 import { Backlinks } from '../components/Backlinks'
@@ -133,6 +133,11 @@ function NpcEditor({
   const [imageId, setImageId] = useState<string | null>(npc.imageId ?? null)
   const [disposition, setDisposition] = useState(npc.disposition)
   const [locationId, setLocationId] = useState(npc.locationId ?? '')
+  const [familyId, setFamilyId] = useState<string | null>(npc.familyId ?? null)
+  const families = useLiveQuery(
+    () => db.families.where('campaignId').equals(campaignId).sortBy('name'),
+    [campaignId],
+  ) ?? []
   const [description, setDescription] = useState(npc.description)
   const [statBlockData, setStatBlockData] = useState<StatBlock | null>(npc.statBlockData ?? null)
   const [statBlock, setStatBlock] = useState(npc.statBlock)
@@ -160,6 +165,7 @@ function NpcEditor({
         imageId,
         disposition,
         locationId: locationId || null,
+        familyId,
         description,
         statBlockData,
         statBlock,
@@ -167,7 +173,7 @@ function NpcEditor({
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, role, race, imageId, disposition, locationId, description, statBlockData, statBlock, tags, npc.id])
+  }, [name, role, race, imageId, disposition, locationId, familyId, description, statBlockData, statBlock, tags, npc.id])
 
   return (
     <div>
@@ -264,6 +270,31 @@ function NpcEditor({
               ))}
             </select>
           )}
+        </div>
+        <div className="field">
+          <label>Family</label>
+          <select
+            className="select"
+            value={familyId ?? ''}
+            onChange={async (e) => {
+              const v = e.target.value
+              if (v === '__new__') {
+                // Create one on the spot and assign it; rename it on the Families tab.
+                const fam = await createFamily(campaignId)
+                setFamilyId(fam.id)
+              } else {
+                setFamilyId(v || null)
+              }
+            }}
+          >
+            <option value="">—</option>
+            {families.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+            <option value="__new__">＋ New family…</option>
+          </select>
         </div>
       </div>
         </div>
