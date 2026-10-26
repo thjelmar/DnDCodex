@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, Component, type ReactNode } from 'react'
+import { useEffect, useState, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
 import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
@@ -14,7 +14,7 @@ import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
-import { installErrorLog } from './lib/errorLog'
+import { installErrorLog, logBoundaryError } from './lib/errorLog'
 import { HomePage } from './pages/HomePage'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
 import { isDemo } from './lib/demo'
@@ -76,21 +76,48 @@ function RouteFallback() {
 
 // Catches a failed route render — most importantly a dynamic-import failure,
 // which happens when the app is deployed while someone has an old tab open and
-// the hashed chunk they request no longer exists. A one-time reload fetches the
-// fresh build; anything else shows a manual reload so the app never dead-ends.
-const CHUNK_RELOAD_KEY = 'codex.chunkReloaded'
+// the hashed chunk they request no longer exists. A reload fetches the fresh
+// build and recovers; anything else shows a manual reload so the app never
+// dead-ends.
+//
+// Browsers word a failed chunk import differently, so match loosely: Chrome says
+// "Failed to fetch dynamically imported module", Firefox "error loading
+// dynamically imported module", and Safari throws "Importing a module script
+// failed." or a bare "TypeError: Load failed". The old matcher missed Safari's
+// wording, so Safari users never auto-recovered — they saw the fallback on every
+// post-deploy load and had to reload by hand.
+function isChunkLoadError(msg: string): boolean {
+  return /dynamic(ally)? import|imported module|module script|loading chunk|chunkloaderror|failed to fetch|load failed/i.test(
+    msg,
+  )
+}
+
+// We reload at most once per short window, keyed on a timestamp rather than a
+// one-shot flag. The old flag was set on the first reload and never cleared, so
+// after a single recovery every later stale-chunk error in the same tab fell
+// through to the manual notice. A timestamp ages out on its own: each genuine
+// deploy gets a fresh auto-reload, while a chunk that's persistently broken (or
+// a real render bug that rethrows at once) can't loop — the second failure lands
+// inside the window and shows the manual prompt instead.
+const CHUNK_RELOAD_AT = 'codex.chunkReloadAt'
+const RELOAD_DEBOUNCE_MS = 10_000
 class RouteBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }
   }
-  componentDidCatch(err: unknown) {
-    const msg = String((err as Error)?.message || err)
-    const isChunkError = /dynamically imported module|importing a module|chunk|Failed to fetch/i.test(msg)
-    if (isChunkError && !sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
-      try { sessionStorage.setItem(CHUNK_RELOAD_KEY, '1') } catch { /* ignore */ }
-      window.location.reload()
-    }
+  componentDidCatch(err: unknown, info: ErrorInfo) {
+    // React swallows a caught error in production, so record it here or a bug
+    // report filed from the fallback carries no trace of what threw.
+    console.error('Route render failed:', err)
+    logBoundaryError(err, info?.componentStack)
+
+    if (!isChunkLoadError(String((err as Error)?.message || err))) return
+    let last = 0
+    try { last = Number(sessionStorage.getItem(CHUNK_RELOAD_AT)) || 0 } catch { /* storage blocked */ }
+    if (Date.now() - last < RELOAD_DEBOUNCE_MS) return // just reloaded; don't loop
+    try { sessionStorage.setItem(CHUNK_RELOAD_AT, String(Date.now())) } catch { /* storage blocked */ }
+    window.location.reload()
   }
   render() {
     if (this.state.failed) {
