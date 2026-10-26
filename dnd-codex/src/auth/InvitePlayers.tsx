@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from './AuthProvider'
-import { enableCampaignSharing, getCampaignJoinCode } from './cloud'
+import { enableCampaignSharing, getCampaignJoinCode, getCampaignMembers, type Member } from './cloud'
 import { Icon } from '../components/Icon'
+import { relativeTime, formatDate } from '../lib/format'
 
 /**
  * DM-side control for the campaign header: a compact "Invite players" button that
@@ -104,7 +105,7 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
             position: 'absolute',
             top: 'calc(100% + 6px)',
             right: 0,
-            width: 250,
+            width: 272,
             zIndex: 50,
             padding: 12,
             cursor: 'default',
@@ -151,6 +152,7 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
               <p className="faint mb-0" style={{ fontSize: 12, marginTop: 8 }}>
                 Players enter this under “Join a campaign” to link their account.
               </p>
+              <MemberList campaignId={campaign.id} />
             </>
           ) : (
             <>
@@ -167,6 +169,77 @@ export function InvitePlayers({ campaign }: { campaign: { id: string; name: stri
               {error}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The roster of players who've linked their account to this campaign, newest
+ * last, each with when they joined — so the DM can see who's in and chase anyone
+ * who was invited but hasn't joined yet. Fetched each time the popover opens, so
+ * it reflects the current roster. The DM's own 'dm' membership is left out; this
+ * is the players' list.
+ */
+function MemberList({ campaignId }: { campaignId: string }) {
+  const [members, setMembers] = useState<Member[] | null>(null)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    getCampaignMembers(campaignId)
+      .then((m) => !cancelled && setMembers(m))
+      .catch(() => !cancelled && setFailed(true))
+    return () => {
+      cancelled = true
+    }
+  }, [campaignId])
+
+  const players = (members ?? [])
+    .filter((m) => m.role !== 'dm')
+    .sort((a, b) => a.joinedAt.localeCompare(b.joinedAt))
+
+  return (
+    <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+      <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>
+        Players{players.length ? ` (${players.length})` : ''}
+      </div>
+      {failed ? (
+        <p className="faint mb-0" style={{ fontSize: 12 }}>Couldn’t load the player list.</p>
+      ) : members === null ? (
+        <p className="faint mb-0" style={{ fontSize: 12 }}>Loading…</p>
+      ) : players.length === 0 ? (
+        <p className="faint mb-0" style={{ fontSize: 12 }}>No players have joined yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
+          {players.map((m) => (
+            <div key={m.userId} className="row" style={{ gap: 8, alignItems: 'center', minWidth: 0 }}>
+              {m.avatarUrl ? (
+                <img
+                  src={m.avatarUrl}
+                  alt=""
+                  width={22}
+                  height={22}
+                  style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                />
+              ) : (
+                <span aria-hidden style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--text-faint)' }}>
+                  <Icon name="user" size={18} />
+                </span>
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.displayName}
+                </div>
+                {m.joinedAt && (
+                  <div className="faint" style={{ fontSize: 11 }} title={formatDate(m.joinedAt)}>
+                    Joined {relativeTime(m.joinedAt)}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
