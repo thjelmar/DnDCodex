@@ -103,6 +103,18 @@ body,
   height: 100%;
   margin: 0;
 }
+/* The shell is a fixed 100%-height layout: all scrolling happens inside .main
+   (and the sidebar), never the document. Clip the viewport so an off-screen
+   fixed element — the collapsed sidebar and the mobile drawer both sit at
+   translateX(-100%) — can't add phantom horizontal/vertical page scroll. Safari
+   counts such elements toward the scroll area (Chromium doesn't), which left a
+   stray side-to-side scrollbar after collapsing the sidebar. `clip` (not hidden)
+   avoids making the root a scroll container, so sticky elements inside .main are
+   unaffected. */
+html,
+body {
+  overflow: clip;
+}
 
 body {
   background: var(--bg);
@@ -483,7 +495,12 @@ button {
   /* Peek: hovering the edge handle or the revealed sidebar slides it in. */
   .app[data-collapsed='true'] .sidebar-edge:hover ~ .sidebar,
   .app[data-collapsed='true'] .sidebar:hover { transform: none; }
-  /* The always-visible edge handle: click to re-dock, hover to peek. */
+  /* The always-visible edge handle: click to re-dock, hover to peek. It sits
+     ABOVE the peeked sidebar (z-index 55 > the sidebar's 50): hovering the
+     handle slides the sidebar in, and without this the sidebar would cover the
+     handle, so the click to re-dock landed on the sidebar instead and the nav
+     could never be brought back. The handle is a thin 15px strip centred
+     vertically, so it doesn't block the sidebar's own nav items. */
   .app[data-collapsed='true'] .sidebar-edge {
     display: inline-flex;
     align-items: center;
@@ -494,7 +511,7 @@ button {
     transform: translateY(-50%);
     width: 15px;
     height: 80px;
-    z-index: 45;
+    z-index: 55;
     padding: 0;
     background: var(--bg-elev);
     color: var(--text-faint);
