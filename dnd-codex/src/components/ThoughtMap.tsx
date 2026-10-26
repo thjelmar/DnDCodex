@@ -91,6 +91,25 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
   const nodeByKey = useMemo(() => new Map(view.nodes.map((n) => [n.key, n])), [view])
   const connected = useMemo(() => connectedKeys(view), [view])
 
+  // Multiple connections between the SAME two entities would otherwise draw as
+  // overlapping straight lines (one hidden behind another). Assign each edge a
+  // "lane" within its unordered node-pair so the renderer can fan them out into
+  // separate curves. A pair with a single edge gets lane 0 (drawn straight).
+  const edgeLane = useMemo(() => {
+    const groups = new Map<string, string[]>()
+    for (const e of view.edges) {
+      const pk = e.fromKey < e.toKey ? `${e.fromKey}\u0000${e.toKey}` : `${e.toKey}\u0000${e.fromKey}`
+      const arr = groups.get(pk)
+      if (arr) arr.push(e.key)
+      else groups.set(pk, [e.key])
+    }
+    const lane = new Map<string, { idx: number; count: number }>()
+    for (const keys of groups.values()) {
+      keys.forEach((k, i) => lane.set(k, { idx: i, count: keys.length }))
+    }
+    return lane
+  }, [view])
+
   const reheat = (frames = 260) => {
     heatRef.current = Math.max(heatRef.current, frames)
     if (rafRef.current == null) tick()
@@ -363,15 +382,28 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
                 const incident = selected != null && (e.fromKey === selected || e.toKey === selected)
                 const dim = neighborhood != null && !incident
                 const showLabel = incident || (!e.derived && neighborhood == null)
-                const mx = (a.x + b.x) / 2
-                const my = (a.y + b.y) / 2
+                // Fan parallel edges (multiple links between the same pair) apart:
+                // bow each one out from the straight line by its lane offset, so
+                // every connection reads as its own curve with its own label.
+                const { idx, count } = edgeLane.get(e.key) ?? { idx: 0, count: 1 }
+                const dx = b.x - a.x
+                const dy = b.y - a.y
+                const len = Math.hypot(dx, dy) || 1
+                // Unit normal to the a->b line; lanes spread symmetrically around 0.
+                const nx = -dy / len
+                const ny = dx / len
+                const bow = (idx - (count - 1) / 2) * 18 // mid-curve offset, px
+                const mx = (a.x + b.x) / 2 + nx * bow
+                const my = (a.y + b.y) / 2 + ny * bow
+                // Quadratic control point sits at ~2x the mid offset so the curve's
+                // midpoint lands on (mx,my); bow 0 => control at midpoint => straight.
+                const cx = (a.x + b.x) / 2 + nx * bow * 2
+                const cy = (a.y + b.y) / 2 + ny * bow * 2
                 return (
                   <g key={e.key} style={{ opacity: dim ? 0.08 : e.derived ? 0.5 : 0.85 }}>
-                    <line
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
+                    <path
+                      d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
+                      fill="none"
                       stroke={incident ? 'var(--accent)' : 'var(--text-faint)'}
                       strokeWidth={incident ? 2 : 1.2}
                       strokeDasharray={e.derived ? '4 4' : undefined}
