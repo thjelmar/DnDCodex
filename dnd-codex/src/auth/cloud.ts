@@ -90,6 +90,8 @@ export interface Member {
   avatarUrl: string | null
   /** The member's chosen battle-map color (#rrggbb), or null if unset. */
   color: string | null
+  /** When this member joined (ISO timestamp). */
+  joinedAt: string
 }
 
 /** The members of a campaign (with profile display names), for the DM to pick
@@ -98,9 +100,9 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
   if (!supabase || demoSkipsCloud()) return []
   const query = (cols: string) =>
     supabase!.from('campaign_members').select(cols).eq('campaign_id', campaignId)
-  let { data, error } = await query('user_id, role, color, profiles ( display_name, avatar_url )')
+  let { data, error } = await query('user_id, role, color, joined_at, profiles ( display_name, avatar_url )')
   // Before migration 0016 there's no `color` column; fall back without it.
-  if (error) ({ data, error } = await query('user_id, role, profiles ( display_name, avatar_url )'))
+  if (error) ({ data, error } = await query('user_id, role, joined_at, profiles ( display_name, avatar_url )'))
   if (error || !data) return []
   return (data as unknown as Record<string, unknown>[]).map((r) => {
     const p = (Array.isArray(r.profiles) ? r.profiles[0] : r.profiles) as
@@ -112,6 +114,7 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
       displayName: p?.display_name || 'Player',
       avatarUrl: p?.avatar_url ?? null,
       color: (r.color as string) ?? null,
+      joinedAt: (r.joined_at as string) ?? '',
     }
   })
 }
