@@ -38,6 +38,19 @@ export function installErrorLog() {
   })
 }
 
+/**
+ * Record an error a React error boundary caught. React swallows a caught render
+ * error in production, so the global `error` listener never sees it — without
+ * this, a bug report filed after the boundary's fallback appears carries no
+ * trace of what actually threw.
+ */
+export function logBoundaryError(err: unknown, componentStack?: string | null) {
+  const message =
+    err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? 'Unknown render error')
+  const source = componentStack ? componentStack.trim().split('\n')[0]?.trim() : 'react-boundary'
+  push({ at: new Date().toISOString(), kind: 'error', message: message.slice(0, 500), source })
+}
+
 /** A snapshot of the recent errors (most recent last). */
 export function getRecentErrors(): LoggedError[] {
   return buffer.slice()
