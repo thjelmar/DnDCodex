@@ -628,6 +628,7 @@ export type SyncTable =
   | 'worldMaps'
   | 'plotThreads'
   | 'timelineEvents'
+  | 'raceGroups'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -828,8 +829,9 @@ export interface WorldPin {
   label: string
   /** Pin color (hex), for grouping by kind/region. */
   color: string
-  /** The entity this pin points to (click → open its sheet). Null = label only. */
-  ref: { kind: 'location' | 'npc'; id: Id } | null
+  /** The entity this pin points to (click → open its sheet). Null = label only.
+   *  A raceGroup pin marks where that people live. */
+  ref: { kind: 'location' | 'npc' | 'raceGroup'; id: Id } | null
 }
 
 /** A reference/prep map of the world or a region, with pins linked to entities.
@@ -887,6 +889,20 @@ export interface TimelineEvent extends BaseRecord {
   refs: EventRef[]
 }
 
+// --- Race groups (T-38) ----------------------------------------------------
+
+/** A named grouping of ancestries/species the DM uses in this campaign (e.g.
+ *  "Elves" → High Elf, Wood Elf, Drow). Its races feed the NPC race picker, and
+ *  the group can be pinned to the world map to mark where those peoples live. */
+export interface RaceGroup extends BaseRecord {
+  campaignId: Id
+  name: string
+  color: string
+  /** The individual races/ancestries in this group. */
+  races: string[]
+  description: string
+}
+
 export interface DatabaseSnapshot {
   version: number
   exportedAt: ISODate
@@ -905,6 +921,7 @@ export interface DatabaseSnapshot {
   worldMaps?: WorldMap[]
   plotThreads?: PlotThread[]
   timelineEvents?: TimelineEvent[]
+  raceGroups?: RaceGroup[]
   /** Global generator word lists (not campaign-scoped). */
   genTables?: GenTable[]
   /** Global reusable entity templates (not campaign-scoped). */
