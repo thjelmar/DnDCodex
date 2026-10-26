@@ -11,6 +11,9 @@ const CONFIRM_SKIP_PREFIX = 'codex.confirmSkip.'
 /** The shared "don't ask again" key used by the reveal-to-players confirm. */
 export const REVEAL_CONFIRM_KEY = 'spoiler-reveal'
 
+/** Invite code parked across the OAuth round-trip when joining via a link. */
+export const PENDING_JOIN_KEY = 'codex.pendingJoin'
+
 /** Whether a "don't ask again" confirm with this key has been dismissed for good. */
 export function isConfirmSkipped(key: string): boolean {
   try {
