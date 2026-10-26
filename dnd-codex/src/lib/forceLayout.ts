@@ -12,6 +12,8 @@ export interface SimNode {
   vy: number
   /** Fixed in place (the user dragged it, or it's being dragged now). */
   pinned: boolean
+  /** Optional cohesion group (e.g. an NPC family): members drift together. */
+  group?: string
 }
 
 export interface SimEdge {
@@ -23,6 +25,7 @@ const REPULSION = 9000 // node-node push
 const SPRING_LEN = 90 // desired edge length
 const SPRING_K = 0.02 // edge pull stiffness
 const GRAVITY = 0.015 // pull toward center
+const GROUP_COHESION = 0.035 // same-group pull toward the group's centroid
 const DAMPING = 0.85 // velocity retained each frame
 const MAX_SPEED = 30
 
@@ -83,6 +86,25 @@ export function stepLayout(nodes: SimNode[], edges: SimEdge[], center: { x: numb
     a.vy += fy
     b.vx -= fx
     b.vy -= fy
+  }
+
+  // Group cohesion — nodes sharing a group (e.g. an NPC family) drift toward
+  // their group's centroid, so related characters settle into a cluster.
+  const centroids = new Map<string, { x: number; y: number; n: number }>()
+  for (const n of nodes) {
+    if (!n.group) continue
+    const c = centroids.get(n.group) ?? { x: 0, y: 0, n: 0 }
+    c.x += n.x
+    c.y += n.y
+    c.n += 1
+    centroids.set(n.group, c)
+  }
+  for (const n of nodes) {
+    if (!n.group) continue
+    const c = centroids.get(n.group)!
+    if (c.n < 2) continue // a lone member has nothing to cluster with
+    n.vx += (c.x / c.n - n.x) * GROUP_COHESION
+    n.vy += (c.y / c.n - n.y) * GROUP_COHESION
   }
 
   // Gravity toward center + integrate.

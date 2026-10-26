@@ -25,6 +25,11 @@ export interface GraphNode {
   sub?: string
   /** Campaign sub-route this node lives on, for the "open" deep link. */
   section: string
+  /** The family this node belongs to (NPCs only, T-38): members cluster and
+   *  share this color on the map, and the legend lists the name. */
+  groupId?: string
+  groupName?: string
+  groupColor?: string
 }
 
 /**
@@ -77,24 +82,46 @@ const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`)
  * we don't also draw the structural (dashed) edge for that same pair.
  */
 export async function buildCampaignGraph(campaignId: Id): Promise<CampaignGraph> {
-  const [npcs, locations, items, notes, sessions, links] = await Promise.all([
+  const [npcs, locations, items, notes, sessions, links, families] = await Promise.all([
     db.npcs.where('campaignId').equals(campaignId).toArray(),
     db.locations.where('campaignId').equals(campaignId).toArray(),
     db.items.where('campaignId').equals(campaignId).toArray(),
     db.notes.where('campaignId').equals(campaignId).toArray(),
     db.sessions.where('campaignId').equals(campaignId).toArray(),
     db.links.where('campaignId').equals(campaignId).toArray(),
+    db.families.where('campaignId').equals(campaignId).toArray(),
   ])
+  const familyById = new Map(families.map((f) => [f.id, f]))
 
   const nodes: GraphNode[] = []
   const present = new Set<string>()
-  const add = (kind: NodeKind, id: Id, name: string, sub?: string) => {
+  const add = (
+    kind: NodeKind,
+    id: Id,
+    name: string,
+    sub?: string,
+    group?: { id: string; name: string; color: string },
+  ) => {
     const k = key(kind, id)
     present.add(k)
-    nodes.push({ key: k, kind, linkKind: kind, id, name: name || '(untitled)', sub, section: KIND_META[kind].section })
+    nodes.push({
+      key: k,
+      kind,
+      linkKind: kind,
+      id,
+      name: name || '(untitled)',
+      sub,
+      section: KIND_META[kind].section,
+      groupId: group?.id,
+      groupName: group?.name,
+      groupColor: group?.color,
+    })
   }
 
-  npcs.forEach((n) => add('npc', n.id, n.name, n.role))
+  npcs.forEach((n) => {
+    const fam = n.familyId ? familyById.get(n.familyId) : undefined
+    add('npc', n.id, n.name, n.role, fam ? { id: fam.id, name: fam.name, color: fam.color } : undefined)
+  })
   locations.forEach((l) => add('location', l.id, l.name, l.type))
   items.forEach((i) => add('item', i.id, i.name, i.rarity))
   notes.forEach((n) => add('note', n.id, n.title))

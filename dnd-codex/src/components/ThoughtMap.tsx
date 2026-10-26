@@ -91,6 +91,17 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
   const nodeByKey = useMemo(() => new Map(view.nodes.map((n) => [n.key, n])), [view])
   const connected = useMemo(() => connectedKeys(view), [view])
 
+  // Distinct groups among the visible nodes (NPC families), for the color legend.
+  const groupLegend = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; color: string }>()
+    for (const n of view.nodes) {
+      if (n.groupId && n.groupColor && !seen.has(n.groupId)) {
+        seen.set(n.groupId, { id: n.groupId, name: n.groupName ?? 'Family', color: n.groupColor })
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [view])
+
   const reheat = (frames = 260) => {
     heatRef.current = Math.max(heatRef.current, frames)
     if (rafRef.current == null) tick()
@@ -105,7 +116,10 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
       seen.add(n.key)
       if (!pos.has(n.key)) {
         const p = seedPosition(i, view.nodes.length, centerRef.current.x, centerRef.current.y)
-        pos.set(n.key, { key: n.key, x: p.x, y: p.y, vx: 0, vy: 0, pinned: false })
+        pos.set(n.key, { key: n.key, x: p.x, y: p.y, vx: 0, vy: 0, pinned: false, group: n.groupId })
+      } else {
+        // Keep the cohesion group current if the node's family changed.
+        pos.get(n.key)!.group = n.groupId
       }
     })
     for (const k of [...pos.keys()]) if (!seen.has(k)) pos.delete(k)
@@ -324,6 +338,18 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
         </div>
       </div>
 
+      {groupLegend.length > 0 && (
+        <div className="row wrap" style={{ gap: 10, marginBottom: 10, alignItems: 'center' }}>
+          <span className="faint" style={{ fontSize: 11 }}>Families:</span>
+          {groupLegend.map((g) => (
+            <span key={g.id} className="row" style={{ gap: 5, alignItems: 'center', fontSize: 11.5, color: 'var(--text-dim)' }}>
+              <span aria-hidden style={{ width: 10, height: 10, borderRadius: '50%', background: g.color, display: 'inline-block' }} />
+              {g.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="row" style={{ gap: 12, alignItems: 'stretch' }}>
         <div
           ref={wrapRef}
@@ -413,7 +439,7 @@ export function ThoughtMap({ graph, config }: { graph: CampaignGraph | undefined
                     {isLinkTarget && <circle r={r + 8} fill="var(--accent)" opacity={0.18} />}
                     <circle
                       r={r}
-                      fill={meta.color}
+                      fill={n.groupColor ?? meta.color}
                       stroke={isLinkTarget ? 'var(--accent)' : isSel ? 'var(--text)' : 'var(--bg)'}
                       strokeWidth={isLinkTarget || isSel ? 2.5 : 2}
                     />

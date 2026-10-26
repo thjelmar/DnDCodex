@@ -300,6 +300,9 @@ export interface NPC extends BaseRecord {
   description: string
   /** Where this NPC is usually found. */
   locationId: Id | null
+  /** The family/house this NPC belongs to (T-38), or null. Clusters and colors
+   *  them together on the thought map. */
+  familyId?: Id | null
   /** Structured stat block. Null/undefined until the DM builds one. */
   statBlockData?: StatBlock | null
   /** Freeform additional mechanical notes (markdown), below the stat block. */
@@ -628,6 +631,7 @@ export type SyncTable =
   | 'worldMaps'
   | 'plotThreads'
   | 'timelineEvents'
+  | 'families'
 
 /**
  * One queued local mutation waiting to be pushed to the cloud. `put` mirrors the
@@ -887,6 +891,16 @@ export interface TimelineEvent extends BaseRecord {
   refs: EventRef[]
 }
 
+// --- Families (T-38) -------------------------------------------------------
+
+/** A family / house / clan that NPCs belong to. Members cluster and share a
+ *  color on the thought map. */
+export interface Family extends BaseRecord {
+  campaignId: Id
+  name: string
+  color: string
+}
+
 export interface DatabaseSnapshot {
   version: number
   exportedAt: ISODate
@@ -905,6 +919,7 @@ export interface DatabaseSnapshot {
   worldMaps?: WorldMap[]
   plotThreads?: PlotThread[]
   timelineEvents?: TimelineEvent[]
+  families?: Family[]
   /** Global generator word lists (not campaign-scoped). */
   genTables?: GenTable[]
   /** Global reusable entity templates (not campaign-scoped). */

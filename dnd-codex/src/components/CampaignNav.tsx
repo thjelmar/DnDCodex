@@ -29,6 +29,7 @@ const NAV: NavEntry[] = [
     items: [
       { to: 'notes', label: 'World' },
       { to: 'npcs', label: 'NPCs' },
+      { to: 'families', label: 'Families' },
       { to: 'locations', label: 'Locations' },
       { to: 'items', label: 'Items' },
       { to: 'tables', label: 'Tables' },

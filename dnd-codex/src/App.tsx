@@ -36,6 +36,7 @@ const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ de
 const SessionsPage = lazy(() => import('./pages/SessionsPage').then((m) => ({ default: m.SessionsPage })))
 const TimelinePage = lazy(() => import('./pages/TimelinePage').then((m) => ({ default: m.TimelinePage })))
 const NpcsPage = lazy(() => import('./pages/NpcsPage').then((m) => ({ default: m.NpcsPage })))
+const FamiliesPage = lazy(() => import('./pages/FamiliesPage').then((m) => ({ default: m.FamiliesPage })))
 const LocationsPage = lazy(() => import('./pages/LocationsPage').then((m) => ({ default: m.LocationsPage })))
 const ItemsPage = lazy(() => import('./pages/ItemsPage').then((m) => ({ default: m.ItemsPage })))
 const NotesPage = lazy(() => import('./pages/NotesPage').then((m) => ({ default: m.NotesPage })))
@@ -627,6 +628,7 @@ export function App() {
               <Route path="sessions" element={<SessionsPage />} />
               <Route path="timeline" element={<TimelinePage />} />
               <Route path="npcs" element={<NpcsPage />} />
+              <Route path="families" element={<FamiliesPage />} />
               <Route path="locations" element={<LocationsPage />} />
               <Route path="items" element={<ItemsPage />} />
               <Route path="tables" element={<RollTablesPage />} />
