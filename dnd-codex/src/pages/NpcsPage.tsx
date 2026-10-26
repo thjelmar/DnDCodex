@@ -145,6 +145,16 @@ function NpcEditor({
   // Global name tables override the built-in default pool (ancestry-specific
   // races keep their built-in flavor).
   const ov = useGenOverrides()
+  // Race suggestions: every race across this campaign's race groups (T-38). The
+  // field stays free-text (a datalist offers the groups' races but any value is
+  // allowed), so existing free-text races keep working with no migration.
+  const raceOptions =
+    useLiveQuery(async () => {
+      const groups = await db.raceGroups.where('campaignId').equals(campaignId).toArray()
+      const set = new Set<string>()
+      for (const g of groups) for (const r of g.races) set.add(r)
+      return [...set].sort((a, b) => a.localeCompare(b))
+    }, [campaignId]) ?? []
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -211,7 +221,20 @@ function NpcEditor({
         </div>
         <div className="field">
           <label>Race</label>
-          <input className="input" value={race} onChange={(e) => setRace(e.target.value)} placeholder="Human, Elf, Dragon…" />
+          <input
+            className="input"
+            value={race}
+            onChange={(e) => setRace(e.target.value)}
+            placeholder="Human, Elf, Dragon…"
+            list="npc-race-options"
+          />
+          {raceOptions.length > 0 && (
+            <datalist id="npc-race-options">
+              {raceOptions.map((r) => (
+                <option key={r} value={r} />
+              ))}
+            </datalist>
+          )}
         </div>
       </div>
       <div className="form-row">

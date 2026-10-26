@@ -25,6 +25,7 @@ import type {
   WorldMap,
   PlotThread,
   Family,
+  RaceGroup,
   TimelineEvent,
   EntityKind,
   Id,
@@ -108,7 +109,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
   blockDemoWrite()
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.families],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.families, db.raceGroups],
     async () => {
       await Promise.all([
         db.sessions.where('campaignId').equals(id).delete(),
@@ -126,6 +127,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
         db.plotThreads.where('campaignId').equals(id).delete(),
         db.timelineEvents.where('campaignId').equals(id).delete(),
         db.families.where('campaignId').equals(id).delete(),
+        db.raceGroups.where('campaignId').equals(id).delete(),
       ])
       await db.campaigns.delete(id)
     },
@@ -798,6 +800,51 @@ export async function deleteFamily(id: Id): Promise<void> {
   for (const n of members) await updateNPC(n.id, { familyId: null })
 }
 
+// --- Race groups (T-38) ----------------------------------------------------
+
+const RACE_COLORS = ['#7f77dd', '#1d9e75', '#d4537e', '#378add', '#ba7517', '#e2504a', '#888780']
+
+export async function createRaceGroup(
+  campaignId: Id,
+  input: Partial<Pick<RaceGroup, 'name' | 'color' | 'races' | 'description'>> = {},
+): Promise<RaceGroup> {
+  const ts = now()
+  const count = await db.raceGroups.where('campaignId').equals(campaignId).count()
+  const group: RaceGroup = {
+    id: newId(),
+    campaignId,
+    name: input.name?.trim() || 'New race group',
+    color: input.color ?? RACE_COLORS[count % RACE_COLORS.length],
+    races: input.races ?? [],
+    description: input.description ?? '',
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  await db.raceGroups.add(group)
+  await enqueuePut('raceGroups', group.id, campaignId)
+  return group
+}
+export async function updateRaceGroup(id: Id, patch: Partial<RaceGroup>): Promise<void> {
+  await db.raceGroups.update(id, { ...patch, updatedAt: now() })
+  await enqueuePutById('raceGroups', id)
+}
+export async function deleteRaceGroup(id: Id): Promise<void> {
+  const existing = await db.raceGroups.get(id)
+  await db.raceGroups.delete(id)
+  if (!existing) return
+  await enqueueDel('raceGroups', id, existing.campaignId)
+  // Don't leave world-map pins pointing at a group that no longer exists — drop
+  // the ref but keep the pin (as a label).
+  const maps = await db.worldMaps.where('campaignId').equals(existing.campaignId).toArray()
+  for (const m of maps) {
+    if (m.pins.some((p) => p.ref?.kind === 'raceGroup' && p.ref.id === id)) {
+      await updateWorldMap(m.id, {
+        pins: m.pins.map((p) => (p.ref?.kind === 'raceGroup' && p.ref.id === id ? { ...p, ref: null } : p)),
+      })
+    }
+  }
+}
+
 export async function createTimelineEvent(campaignId: Id, input: Partial<Pick<TimelineEvent, 'title' | 'dateLabel' | 'sortKey' | 'body' | 'threadId' | 'refs' | 'year'>> = {}): Promise<TimelineEvent> {
   const ts = now()
   // Default sortKey to just after the current max, so a new event lands at the end.
@@ -985,7 +1032,7 @@ async function deleteEntity(kind: Exclude<EntityKind, never>, id: Id): Promise<v
 export const SNAPSHOT_VERSION = 10
 
 export async function exportSnapshot(): Promise<DatabaseSnapshot> {
-  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, plotThreads, timelineEvents, families, genTables, templates] =
+  const [campaigns, sessions, locations, npcs, items, notes, playerNotes, rollTables, images, links, encounters, scenes, worldMaps, plotThreads, timelineEvents, families, raceGroups, genTables, templates] =
     await Promise.all([
       db.campaigns.toArray(),
       db.sessions.toArray(),
@@ -1003,6 +1050,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
       db.plotThreads.toArray(),
       db.timelineEvents.toArray(),
       db.families.toArray(),
+      db.raceGroups.toArray(),
       db.genTables.toArray(),
       db.templates.toArray(),
     ])
@@ -1025,6 +1073,7 @@ export async function exportSnapshot(): Promise<DatabaseSnapshot> {
     plotThreads,
     timelineEvents,
     families,
+    raceGroups,
     genTables,
     templates,
   }
@@ -1043,7 +1092,7 @@ export async function importSnapshot(
   }
   await db.transaction(
     'rw',
-    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.families, db.genTables, db.templates],
+    [db.campaigns, db.sessions, db.locations, db.npcs, db.items, db.notes, db.rollTables, db.playerNotes, db.images, db.links, db.encounters, db.scenes, db.worldMaps, db.plotThreads, db.timelineEvents, db.families, db.raceGroups, db.genTables, db.templates],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -1063,6 +1112,7 @@ export async function importSnapshot(
           db.plotThreads.clear(),
           db.timelineEvents.clear(),
           db.families.clear(),
+          db.raceGroups.clear(),
           db.genTables.clear(),
           db.templates.clear(),
         ])
@@ -1084,6 +1134,7 @@ export async function importSnapshot(
         db.plotThreads.bulkPut(snapshot.plotThreads ?? []),
         db.timelineEvents.bulkPut(snapshot.timelineEvents ?? []),
         db.families.bulkPut(snapshot.families ?? []),
+        db.raceGroups.bulkPut(snapshot.raceGroups ?? []),
         db.genTables.bulkPut(snapshot.genTables ?? []),
         db.templates.bulkPut(snapshot.templates ?? []),
       ])

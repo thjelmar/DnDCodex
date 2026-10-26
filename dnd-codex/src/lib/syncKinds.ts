@@ -24,6 +24,7 @@ export const SYNC_TABLES: SyncTable[] = [
   'plotThreads',
   'timelineEvents',
   'families',
+  'raceGroups',
 ]
 
 const TABLE_TO_KIND: Record<SyncTable, string> = {
@@ -43,6 +44,7 @@ const TABLE_TO_KIND: Record<SyncTable, string> = {
   plotThreads: 'plotthread',
   timelineEvents: 'timelineevent',
   families: 'family',
+  raceGroups: 'racegroup',
 }
 
 const KIND_TO_TABLE: Record<string, SyncTable> = Object.fromEntries(

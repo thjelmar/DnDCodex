@@ -31,6 +31,7 @@ export function WorldMapPage() {
   const image = useLiveQuery(() => (map?.imageId ? db.images.get(map.imageId) : undefined), [map?.imageId])
   const locations = useLiveQuery(() => db.locations.where('campaignId').equals(campaign.id).sortBy('name'), [campaign.id]) ?? []
   const npcs = useLiveQuery(() => db.npcs.where('campaignId').equals(campaign.id).sortBy('name'), [campaign.id]) ?? []
+  const raceGroups = useLiveQuery(() => db.raceGroups.where('campaignId').equals(campaign.id).sortBy('name'), [campaign.id]) ?? []
 
   // Pins live in local state, mirrored from the record, and saved debounced so a
   // drag or a burst of label edits doesn't thrash the DB.
@@ -52,7 +53,7 @@ export function WorldMapPage() {
   const selected = pins.find((p) => p.id === selectedId) ?? null
   const nameFor = (ref: WorldPin['ref']) => {
     if (!ref) return null
-    const list = ref.kind === 'location' ? locations : npcs
+    const list = ref.kind === 'location' ? locations : ref.kind === 'raceGroup' ? raceGroups : npcs
     return list.find((e) => e.id === ref.id)?.name ?? null
   }
 
@@ -124,6 +125,8 @@ export function WorldMapPage() {
 
   const openRef = (ref: WorldPin['ref']) => {
     if (!ref) return
+    // The Races tab has no per-item selection, so a race-group pin just opens it.
+    if (ref.kind === 'raceGroup') return navigate(`/campaign/${campaign.id}/races`)
     navigate(`/campaign/${campaign.id}/${ref.kind === 'location' ? 'locations' : 'npcs'}?sel=${ref.id}`)
   }
 
@@ -139,7 +142,7 @@ export function WorldMapPage() {
             <Icon name="map" size={18} /> World Map
           </h2>
           <p className="muted" style={{ margin: '2px 0 0' }}>
-            A prep/reference map. Click the map to drop a pin, then link it to a location or NPC.
+            A prep/reference map. Click the map to drop a pin, then link it to a location, NPC, or race group.
             For the best fit, use a landscape image around 16:10 (for example 2400×1500 px); other shapes
             leave margins in the default view.
           </p>
@@ -203,7 +206,7 @@ export function WorldMapPage() {
                   onChange={(e) => {
                     const v = e.target.value
                     if (!v) return patchPin(selected.id, { ref: null })
-                    const [kind, id] = v.split(':') as ['location' | 'npc', string]
+                    const [kind, id] = v.split(':') as ['location' | 'npc' | 'raceGroup', string]
                     patchPin(selected.id, { ref: { kind, id } })
                   }}
                 >
@@ -214,6 +217,11 @@ export function WorldMapPage() {
                   <optgroup label="NPCs">
                     {npcs.map((n) => <option key={n.id} value={`npc:${n.id}`}>{n.name}</option>)}
                   </optgroup>
+                  {raceGroups.length > 0 && (
+                    <optgroup label="Race groups">
+                      {raceGroups.map((r) => <option key={r.id} value={`raceGroup:${r.id}`}>{r.name}</option>)}
+                    </optgroup>
+                  )}
                 </select>
                 {selected.ref && (
                   <button className="btn small" style={{ marginTop: 8 }} onClick={() => openRef(selected.ref)}>
