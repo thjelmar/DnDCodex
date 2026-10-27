@@ -22,3 +22,17 @@ when asked what to work on next:
    something beyond fixing the described problem, check with the owner first.
 
 If the CLI says no key is found, tell the owner. Don't go looking for the key.
+
+## On each merge to `main`
+
+After a PR is merged to `main`, do both of these as part of closing it out:
+
+1. **Update the What's New page.** Add a player-facing entry to
+   `dnd-codex/src/data/changelog.ts` (the `CHANGELOG` array, newest first:
+   `{ date, title, changes: [{ kind, text }] }`, `kind` = new | improved | fixed,
+   plain language written for players, not developers). Skip only changes a player
+   would never notice (pure dev, infra, security, or docs).
+2. **Back up memory to the SSD.** Write a new dated snapshot under
+   `/Volumes/Sandisk External SSD/Work/Backups/DnD-Codex/Memories/` (SSD only —
+   OneDrive is not used for this project), verify checksums, and keep the two
+   newest (move older ones to the Trash). If the SSD isn't mounted, say so.
