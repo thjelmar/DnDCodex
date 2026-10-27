@@ -9,6 +9,8 @@ import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
+import { VoiceRoster } from '../components/VoiceRoster'
+import { parseDiscordChannelLink } from '../lib/discord'
 import { useLiveSession } from '../lib/useLiveSession'
 import { formatDate } from '../lib/format'
 
@@ -125,6 +127,9 @@ export function PlayerSessionPage() {
     />
   )
 
+  // The DM's voice channel, forwarded on the live session as "guildId/channelId".
+  const voice = parseDiscordChannelLink(live.discordVoice ?? '')
+
   return (
     <div className="session-page">
       <div className="session-header">
@@ -133,11 +138,13 @@ export function PlayerSessionPage() {
         <span className="run-live-on"><span className="run-live-dot" /> Live</span>
         {live.sessionDate && <span className="faint" style={{ fontSize: 13 }}>{formatDate(live.sessionDate)}</span>}
         <div style={{ flex: 1 }} />
-        <JoinVoiceButton campaign={campaign} />
+        <JoinVoiceButton channel={voice} />
         <Link to={`/player/${campaignId}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Leave
         </Link>
       </div>
+
+      <VoiceRoster channelId={voice?.channelId} />
 
       {/* While the DM is showing a map it takes the main column and your notes
           move to the rail; otherwise notes lead and the Tabletop waits there. */}

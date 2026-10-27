@@ -3960,3 +3960,99 @@ kbd {
   white-space: nowrap;
   border: 0;
 }
+
+/* Live Discord voice roster (T-43). A slim bar under the Run/session header. */
+.voice-roster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 2px 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.voice-roster-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.voice-rec {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--danger);
+}
+.voice-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: voice-rec-pulse 1.4s ease-in-out infinite;
+}
+@keyframes voice-rec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.voice-roster-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.voice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  font-size: 12px;
+  transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.voice-chip.speaking {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.voice-av {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.voice-av img,
+.voice-av-fallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.voice-av-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+}
+.voice-av-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-elev);
+}
+.voice-av-badge.muted { background: #d9a400; }
+.voice-av-badge.deafened { background: var(--danger); }
+.voice-chip-name {
+  color: var(--text);
+  white-space: nowrap;
+}

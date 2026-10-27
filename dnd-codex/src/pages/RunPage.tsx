@@ -13,6 +13,8 @@ import { Icon } from '../components/Icon'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { RunHandouts } from '../components/RunHandouts'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
+import { VoiceRoster } from '../components/VoiceRoster'
+import { campaignVoiceRef } from '../lib/discord'
 import { useAuth } from '../auth/AuthProvider'
 import { useLiveSession } from '../lib/useLiveSession'
 import { startLiveSession, endLiveSession } from '../auth/cloud'
@@ -202,7 +204,7 @@ export function RunPage() {
           <Icon name="plus" size={13} /> New session
         </button>
         <div style={{ flex: 1 }} />
-        <JoinVoiceButton campaign={campaign} />
+        <JoinVoiceButton channel={campaignVoiceRef(campaign)} />
         <LiveSessionControl
           campaign={campaign}
           session={session}
@@ -215,6 +217,8 @@ export function RunPage() {
           <Icon name="arrow-left" size={13} /> Exit run mode
         </Link>
       </div>
+
+      <VoiceRoster channelId={campaign.discordVoiceChannelId} />
 
       <div className={`run-grid${center === 'map' ? ' map-mode' : ''}`}>
         {/* In play */}
@@ -557,10 +561,12 @@ function LiveSessionControl({
   async function start() {
     setBusy(true); setErr(null)
     try {
+      const vref = campaignVoiceRef(campaign)
       await startLiveSession(campaignId, {
         sessionId: session?.id ?? null,
         title: session?.title || 'Session',
         sessionDate: session?.date || '',
+        discordVoice: vref ? `${vref.guildId}/${vref.channelId}` : null,
       })
       await openOffer()
     } catch {

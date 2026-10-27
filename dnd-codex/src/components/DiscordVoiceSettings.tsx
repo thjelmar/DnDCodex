@@ -90,7 +90,7 @@ export function DiscordVoiceSettings({ campaign }: { campaign: Campaign }) {
               <Icon name="x" size={12} />
             </button>
           </span>
-          <JoinVoiceButton campaign={campaign} />
+          <JoinVoiceButton channel={ref} />
         </>
       ) : (
         <button className="btn ghost small" onClick={() => setEditing(true)}>
