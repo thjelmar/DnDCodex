@@ -16,6 +16,59 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-27',
+    title: 'Voice, right in your session',
+    changes: [
+      { kind: 'new', text: 'Link your campaign’s Discord voice channel, then jump into voice with one click from the session page.' },
+      { kind: 'new', text: 'During a game, see a live roster of who’s in voice — with a glow around whoever’s talking and muted/deafened badges — in both Run mode and the player view. If you record with Craig, a Recording badge appears automatically.' },
+    ],
+  },
+  {
+    date: '2026-10-26',
+    title: 'Group your NPCs — and a clearer map',
+    changes: [
+      { kind: 'new', text: 'Families: group NPCs into families, give each a color, and watch them cluster together (and share that color) on the Thought Map.' },
+      { kind: 'new', text: 'Race groups: organize your world’s races under Codex → Races. An NPC’s race is now a pick-or-type box that suggests your groups’ races, and a world-map pin can point at a race group.' },
+      { kind: 'improved', text: 'When two people or places have several connections, the Thought Map now fans them out into separate labeled arcs instead of stacking them into one line.' },
+    ],
+  },
+  {
+    date: '2026-10-26',
+    title: 'Invite players with a link',
+    changes: [
+      { kind: 'new', text: 'Share a campaign with a single invite link — players open it, sign in, and confirm to join. No more reading out a code.' },
+      { kind: 'new', text: 'See who has joined your campaign, and when, right from the invite panel.' },
+      { kind: 'improved', text: 'Set your display name in Preferences — it’s how you show up to the rest of your group.' },
+      { kind: 'fixed', text: 'Safari: fixed a “Something went wrong” that could appear right after an update, plus a couple of collapsed-sidebar and scrolling glitches.' },
+    ],
+  },
+  {
+    date: '2026-10-23',
+    title: 'Monsters, colors & backlinks',
+    changes: [
+      { kind: 'new', text: 'Monster stat blocks: search the SRD and all of Open5e and import a full stat block in a click, add a spellcasting section, and keep DM-only reference links — or paste one in from elsewhere.' },
+      { kind: 'new', text: 'Pick any accent color you like, not just the presets, under Preferences → Appearance.' },
+      { kind: 'new', text: '“Linked from”: every NPC, location, item, note and session now shows everywhere it’s mentioned, so you can hop straight to what references it.' },
+    ],
+  },
+  {
+    date: '2026-10-15',
+    title: 'More room to run the table',
+    changes: [
+      { kind: 'improved', text: 'Collapse the sidebar for a wider workspace — hover the left edge to peek, click to bring it back. Your choice is remembered.' },
+      { kind: 'new', text: 'Battle-map tokens can show condition art: a character’s most important condition appears as cover art on the token instead of just a pip.' },
+      { kind: 'new', text: 'Reusable templates for NPCs, locations and sessions, so you can start a new one from a ready-made starting point.' },
+    ],
+  },
+  {
+    date: '2026-10-13',
+    title: 'Take it for a spin',
+    changes: [
+      { kind: 'new', text: 'Try the live demo from the home page — explore a fully built example campaign (world, maps, battle map and handouts) without signing up. Nothing you do in the demo touches real data.' },
+      { kind: 'improved', text: 'Your generators and templates now follow your account across devices.' },
+    ],
+  },
+  {
     date: '2026-10-12',
     title: 'Codex on your phone',
     changes: [
