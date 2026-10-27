@@ -1,0 +1,20 @@
+# systemd service for the D&D Codex voice bot (see README.md -> Deploy).
+# Edit User= and WorkingDirectory= for your host, then:
+#   sudo cp codexbot.service /etc/systemd/system/codexbot.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now codexbot
+[Unit]
+Description=D&D Codex Discord voice bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/DnDCodex/dnd-codex/bot
+ExecStart=/usr/bin/node index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

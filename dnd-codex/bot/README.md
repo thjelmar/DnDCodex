@@ -48,8 +48,59 @@ npm start
 The bot joins the channel while people are in it and leaves when it empties, so
 it isn't idling in an empty call.
 
-## Hosting
+## Deploy (always-on)
 
-Any host that runs a long-lived Node process works (Fly.io, Railway, a small
-VPS) — it can't run on Cloudflare Pages, which is serverless. Deploy config is
-added when we pick a host.
+The bot holds a persistent connection to Discord, so it needs a host that keeps a
+long-lived Node process running — it can't run on Cloudflare Pages (serverless).
+Any always-on box works: a Raspberry Pi, a small VPS, Fly.io, Railway, or an
+Oracle Cloud Always Free VM. It talks to Discord and Supabase over **outbound**
+connections only — no inbound port or public URL — so nothing needs opening on
+your router.
+
+### On a Raspberry Pi (the reference deployment)
+
+Runs on a Raspberry Pi 3 with 64-bit Raspberry Pi OS Lite, reached over SSH /
+Tailscale.
+
+1. Install Node (22 LTS — discord.js wants Node 22+) and git:
+
+   ```
+   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+   sudo apt install -y nodejs git
+   ```
+
+2. Clone and install:
+
+   ```
+   git clone https://github.com/thjelmar/DnDCodex.git
+   cd DnDCodex/dnd-codex/bot
+   npm install
+   ```
+
+3. Create `.env`. The quickest way, with no retyping, is to `scp` an already
+   filled-in `.env` from another machine:
+
+   ```
+   scp /path/to/dnd-codex/bot/.env <user>@<host>:DnDCodex/dnd-codex/bot/.env
+   ```
+
+4. Install the systemd service so it auto-starts on boot and restarts on crash.
+   Edit `codexbot.service` first — set `User=` and the `WorkingDirectory=` path to
+   match your box — then:
+
+   ```
+   sudo cp codexbot.service /etc/systemd/system/codexbot.service
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now codexbot
+   systemctl status codexbot
+   ```
+
+   `status` should show `active (running)`.
+
+Handy afterwards:
+
+```
+journalctl -u codexbot -f        # live logs
+sudo systemctl restart codexbot  # restart after a config change
+sudo systemctl stop codexbot     # stop
+```
