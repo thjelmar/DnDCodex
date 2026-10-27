@@ -12,6 +12,7 @@ import { DicePanel } from '../components/DiceRoller'
 import { Icon } from '../components/Icon'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { RunHandouts } from '../components/RunHandouts'
+import { JoinVoiceButton } from '../components/JoinVoiceButton'
 import { useAuth } from '../auth/AuthProvider'
 import { useLiveSession } from '../lib/useLiveSession'
 import { startLiveSession, endLiveSession } from '../auth/cloud'
@@ -201,6 +202,7 @@ export function RunPage() {
           <Icon name="plus" size={13} /> New session
         </button>
         <div style={{ flex: 1 }} />
+        <JoinVoiceButton campaign={campaign} />
         <LiveSessionControl
           campaign={campaign}
           session={session}
