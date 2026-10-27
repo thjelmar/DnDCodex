@@ -1,0 +1,21 @@
+{
+  "name": "dnd-codex-voice-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Presence bot for D&D Codex: mirrors a Discord voice channel's roster (who's in, muted, deafened, speaking) to Supabase Realtime. Reads no audio.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@discordjs/voice": "^0.18.0",
+    "@supabase/supabase-js": "^2.112.4",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "libsodium-wrappers": "^0.7.15"
+  }
+}

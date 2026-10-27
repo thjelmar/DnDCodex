@@ -317,12 +317,16 @@ export interface LiveSession {
   title: string
   sessionDate: string
   startedAt: string
+  /** The campaign's Discord voice channel as "guildId/channelId", so players
+   *  can show the Join-voice button and live roster during the session. Null
+   *  when the DM hasn't linked a channel. */
+  discordVoice: string | null
 }
 
 /** Start (or refresh) the live session for a campaign — DM only. */
 export async function startLiveSession(
   campaignId: string,
-  s: { sessionId?: string | null; title?: string; sessionDate?: string },
+  s: { sessionId?: string | null; title?: string; sessionDate?: string; discordVoice?: string | null },
 ): Promise<void> {
   if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
@@ -332,6 +336,7 @@ export async function startLiveSession(
       session_id: s.sessionId ?? null,
       title: s.title ?? '',
       session_date: s.sessionDate ?? '',
+      discord_voice: s.discordVoice ?? null,
       started_at: new Date().toISOString(),
     },
     { onConflict: 'campaign_id' },
@@ -353,7 +358,7 @@ export async function getLiveSession(cloudCampaignId: string): Promise<LiveSessi
   if (!supabase || demoSkipsCloud()) return null
   const { data, error } = await supabase
     .from('live_sessions')
-    .select('campaign_id, session_id, title, session_date, started_at')
+    .select('campaign_id, session_id, title, session_date, started_at, discord_voice')
     .eq('campaign_id', cloudCampaignId)
     .maybeSingle()
   if (error || !data) return null
@@ -363,6 +368,7 @@ export async function getLiveSession(cloudCampaignId: string): Promise<LiveSessi
     title: (data.title as string) ?? '',
     sessionDate: (data.session_date as string) ?? '',
     startedAt: data.started_at as string,
+    discordVoice: (data.discord_voice as string) ?? null,
   }
 }
 
