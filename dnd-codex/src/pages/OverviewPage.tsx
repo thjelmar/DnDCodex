@@ -8,6 +8,7 @@ import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { AddLinkButton } from '../components/AddLinkButton'
 import { CampaignLinks } from '../components/CampaignLinks'
+import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -106,6 +107,11 @@ export function OverviewPage() {
       <div style={{ marginBottom: 20 }}>
         <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>
         <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Voice</div>
+        <DiscordVoiceSettings campaign={campaign} />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', marginBottom: 24 }}>

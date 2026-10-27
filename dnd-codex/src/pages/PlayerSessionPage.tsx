@@ -8,6 +8,7 @@ import { SharedHandouts } from '../components/SharedHandouts'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
+import { JoinVoiceButton } from '../components/JoinVoiceButton'
 import { useLiveSession } from '../lib/useLiveSession'
 import { formatDate } from '../lib/format'
 
@@ -132,6 +133,7 @@ export function PlayerSessionPage() {
         <span className="run-live-on"><span className="run-live-dot" /> Live</span>
         {live.sessionDate && <span className="faint" style={{ fontSize: 13 }}>{formatDate(live.sessionDate)}</span>}
         <div style={{ flex: 1 }} />
+        <JoinVoiceButton campaign={campaign} />
         <Link to={`/player/${campaignId}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Leave
         </Link>

@@ -76,6 +76,14 @@ export interface Campaign extends BaseRecord {
    * on the original day. Cleared once that day has passed.
    */
   rescheduledFrom?: string | null
+  /**
+   * Discord server (guild) and voice-channel IDs for the "Join voice" link and
+   * the future live-roster bot (T-42/T-43). Set by the DM from a channel link;
+   * both null when voice isn't wired up. Optional, so no Dexie migration — the
+   * fields ride the generic `records` sync channel like the rest of the campaign.
+   */
+  discordGuildId?: string | null
+  discordVoiceChannelId?: string | null
 }
 
 /**
