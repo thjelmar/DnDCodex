@@ -1,0 +1,17 @@
+# Uptime check for the D&D Codex (see pi/README.md). Started by codex-uptime.timer.
+# The install steps replace YOUR_USER with your login name.
+[Unit]
+Description=D&D Codex uptime check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/DnDCodex/dnd-codex/pi
+EnvironmentFile=/home/YOUR_USER/DnDCodex/dnd-codex/pi/.env
+# Creates /var/lib/codex-pi owned by the service user and sets $STATE_DIRECTORY.
+StateDirectory=codex-pi
+ExecStart=/usr/bin/node uptime/check.mjs
+NoNewPrivileges=true
+PrivateTmp=true

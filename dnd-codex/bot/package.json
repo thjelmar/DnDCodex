@@ -6,7 +6,8 @@
   "description": "Presence bot for D&D Codex: mirrors a Discord voice channel's roster (who's in, muted, deafened, speaking) to Supabase Realtime. Reads no audio.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=18"

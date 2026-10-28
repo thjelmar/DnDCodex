@@ -9,9 +9,18 @@
 // "speaking" start/stop signal (which arrives over the voice gateway); it never
 // subscribes to anyone's audio stream, so nothing is decoded or recorded.
 // Recording stays entirely with the Craig bot.
+//
+// It also answers the /roll slash command (see dice.js) in the same server.
 
 import 'dotenv/config'
-import { Client, GatewayIntentBits, Events } from 'discord.js'
+import {
+  ApplicationCommandOptionType,
+  Client,
+  GatewayIntentBits,
+  Events,
+  MessageFlags,
+} from 'discord.js'
+import { formatRoll, rollExpression } from './dice.js'
 import { joinVoiceChannel, getVoiceConnection, VoiceConnectionStatus } from '@discordjs/voice'
 import { createClient } from '@supabase/supabase-js'
 
@@ -143,6 +152,63 @@ function joinAndListen(channel) {
   console.log(`Joined voice channel "${channel.name}" to read the speaking signal.`)
 }
 
+// --- Slash commands --------------------------------------------------------
+const COMMANDS = [
+  {
+    name: 'roll',
+    description: 'Roll dice, for example 2d6+3 or d20+5',
+    options: [
+      {
+        type: ApplicationCommandOptionType.String,
+        name: 'dice',
+        description: 'What to roll: 2d6+3, d20+5, 1d8+1d6-1',
+        required: true,
+        max_length: 100,
+      },
+      {
+        type: ApplicationCommandOptionType.String,
+        name: 'mode',
+        description: 'Roll every single d20 twice and keep one',
+        required: false,
+        choices: [
+          { name: 'Advantage', value: 'advantage' },
+          { name: 'Disadvantage', value: 'disadvantage' },
+        ],
+      },
+    ],
+  },
+]
+
+/** Guild commands appear instantly (global ones can take up to an hour). */
+async function registerCommands(guild) {
+  try {
+    await guild.commands.set(COMMANDS)
+    console.log('Slash commands registered: /roll.')
+  } catch (err) {
+    console.error(
+      'Could not register slash commands. Re-invite the bot with the applications.commands scope (see README.md):',
+      err.message,
+    )
+  }
+}
+
+client.on(Events.InteractionCreate, async (interaction) => {
+  if (!interaction.isChatInputCommand() || interaction.commandName !== 'roll') return
+  const result = rollExpression(interaction.options.getString('dice', true), {
+    mode: interaction.options.getString('mode') ?? 'normal',
+  })
+  if (!result) {
+    await interaction.reply({
+      content: "I can't read that. Try `2d6+3` or `d20+5` (up to 100 dice, up to 1000 sides each).",
+      flags: MessageFlags.Ephemeral,
+    })
+    return
+  }
+  const who = interaction.member?.displayName ?? interaction.user.username
+  // allowedMentions stops a name or nickname from pinging anyone.
+  await interaction.reply({ content: formatRoll(result, who), allowedMentions: { parse: [] } })
+})
+
 client.once(Events.ClientReady, async (c) => {
   console.log(`Discord: logged in as ${c.user.tag}.`)
   try {
@@ -150,6 +216,7 @@ client.once(Events.ClientReady, async (c) => {
     await guild.channels.fetch(DISCORD_VOICE_CHANNEL_ID)
     ensureVoice(guild)
     publish()
+    await registerCommands(guild)
   } catch (err) {
     console.error('Could not reach the configured guild/channel:', err)
   }

@@ -1,0 +1,19 @@
+# Nightly database dump for the D&D Codex (see pi/README.md). Started by codex-db-backup.timer.
+# The install steps replace YOUR_USER with your login name.
+[Unit]
+Description=D&D Codex nightly database backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=YOUR_USER
+WorkingDirectory=/home/YOUR_USER/DnDCodex/dnd-codex/pi
+EnvironmentFile=/home/YOUR_USER/DnDCodex/dnd-codex/pi/.env
+StateDirectory=codex-pi
+ExecStart=/usr/bin/bash backup/db-backup.sh
+# Keep the Pi responsive for the Discord bot while a dump runs.
+Nice=10
+TimeoutStartSec=30min
+NoNewPrivileges=true
+PrivateTmp=true
