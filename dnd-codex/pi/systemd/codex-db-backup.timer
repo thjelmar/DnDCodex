@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the D&D Codex database backup every night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=10min
+# The Pi has no battery-backed clock. If it was off at 03:30, run once after it boots.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -18,11 +18,15 @@ automatically.
 2. **Bot** → **Reset Token**, copy the token (this is your `DISCORD_BOT_TOKEN`).
    No privileged intents are needed.
 3. Invite it to your server with this URL (replace `CLIENT_ID` with your app's
-   Application ID). Scopes `bot`; permissions **View Channel** + **Connect**:
+   Application ID). Scopes `bot` and `applications.commands` (the second one lets
+   the bot register `/roll`); permissions **View Channel** + **Connect**:
 
    ```
-   https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&scope=bot&permissions=1049600
+   https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&scope=bot%20applications.commands&permissions=1049600
    ```
+
+   If the bot is already in your server, open this URL again. Discord adds the new
+   scope without removing the bot, and its roster keeps working.
 
 ## Run it
 
@@ -47,6 +51,19 @@ npm start
 
 The bot joins the channel while people are in it and leaves when it empties, so
 it isn't idling in an empty call.
+
+## Slash commands
+
+| Command | What it does |
+| --- | --- |
+| `/roll dice:<expression> [mode]` | Rolls dice such as `2d6+3`, `d20+5`, or `1d8+1d6-1` (up to 100 dice with up to 1000 sides each) and posts the result. `mode` is **Advantage** or **Disadvantage**: every single d20 rolls twice and keeps one, and the dropped die is struck through. |
+
+The bot registers its commands in your server each time it starts, so they appear
+within seconds. If the log says it could not register them, re-invite the bot with
+the URL in [Set up the Discord bot](#set-up-the-discord-bot). The dice rules match
+the app's roller in `src/lib/dice.ts`.
+
+Run the tests with `npm test`.
 
 ## Deploy (always-on)
 
