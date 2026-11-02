@@ -3,9 +3,8 @@ import { test, expect } from './fixtures'
 // Local-first path: no account, no backend. Everything here writes to IndexedDB
 // only, so it runs on any machine with no credentials.
 //
-// Known gap: with the placeholder backend configured, Run mode still reads
-// `live_sessions` from Supabase while signed out. The requests are aborted by the
-// fixture and the test passes. Demo mode is clean (demo-isolation.spec.ts).
+// The signed-out live-session read is covered by signed-out-run-mode.spec.ts.
+// Demo mode is covered by demo-isolation.spec.ts.
 
 test.describe('core flows (local, signed out)', () => {
   test('create a campaign, a session, and a battle map, then keep them after reload', async ({ page }) => {

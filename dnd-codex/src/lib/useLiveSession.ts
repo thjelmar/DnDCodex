@@ -18,7 +18,9 @@ export function useLiveSession(linkedCampaignId: string | undefined | null): Liv
 
   useEffect(() => {
     // Demo never touches Supabase: no live session, no fetch, no channel.
-    if (!linkedCampaignId || isDemo()) {
+    // Signed out, there is no account to read a live session for, so skip the
+    // read too (T-53). The effect reruns when the token arrives.
+    if (!linkedCampaignId || isDemo() || !token) {
       setLive(null)
       return
     }
@@ -30,7 +32,7 @@ export function useLiveSession(linkedCampaignId: string | undefined | null): Liv
       if (!cancelled) setLive(fresh(ls))
     }
     refresh()
-    if (!supabase || !token) return
+    if (!supabase) return
     let timer: ReturnType<typeof setTimeout> | null = null
     const schedule = () => {
       if (timer) clearTimeout(timer)
