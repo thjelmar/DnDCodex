@@ -17,6 +17,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-02',
+    title: 'Smoother pop-ups',
+    changes: [
+      { kind: 'improved', text: 'Pop-up windows and side panels now slide and fade in and out instead of appearing all at once. If you prefer less motion, your system’s reduced-motion setting turns the movement off.' },
+    ],
+  },
+  {
+    date: '2026-11-02',
     title: 'Invite links no longer trap you',
     changes: [
       { kind: 'fixed', text: 'Pressing Cancel on a campaign invite now takes you back home instead of reopening the invite, and you can browse other pages without being sent back to it.' },
