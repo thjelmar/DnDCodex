@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import { useDialogExit } from '../lib/useDialogExit'
 
 // A right-side detail drawer used for reading/editing a single entity. Unlike a
 // centered Modal it sits against the edge, can be dragged wider/narrower, and
@@ -34,12 +35,13 @@ export function SidePanel({
   const [full, setFull] = useState(false)
   const dragging = useRef(false)
   const widthRef = useRef(width)
+  const { closing, requestClose } = useDialogExit(onClose)
 
   useEffect(() => {
-    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && requestClose()
     document.addEventListener('keydown', onEsc)
     return () => document.removeEventListener('keydown', onEsc)
-  }, [onClose])
+  }, [requestClose])
 
   // Drag-to-resize: track the pointer while a drag is active, clamp to the
   // viewport, and persist the final width. Listeners mount once; the live width
@@ -78,8 +80,8 @@ export function SidePanel({
   }
 
   return (
-    <div className="sidepanel-root">
-      <div className="sidepanel-scrim" onMouseDown={onClose} />
+    <div className={`sidepanel-root${closing ? ' closing' : ''}`}>
+      <div className="sidepanel-scrim" onMouseDown={requestClose} />
       <aside
         className={`sidepanel${full ? ' full' : ''}`}
         style={full ? undefined : { width }}
@@ -102,7 +104,7 @@ export function SidePanel({
             </button>
             <button
               className="btn ghost small icon-only"
-              onClick={onClose}
+              onClick={requestClose}
               title="Close"
               aria-label="Close"
             >
