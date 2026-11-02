@@ -17,6 +17,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-02',
+    title: 'Easier sign-in on phones',
+    changes: [
+      { kind: 'improved', text: 'On a phone, a Sign in button now sits in the top bar whenever you’re signed out, so you no longer have to open the menu to find it.' },
+      { kind: 'fixed', text: 'The Sign in window no longer gets cut off at the edge of the phone menu, and the menu now scrolls only up and down instead of drifting sideways.' },
+      { kind: 'fixed', text: 'If signing in took too long to check your account, the Sign in option could stay hidden. It now always appears.' },
+    ],
+  },
+  {
+    date: '2026-11-02',
     title: 'Smoother pop-ups',
     changes: [
       { kind: 'improved', text: 'Pop-up windows and side panels now slide and fade in and out instead of appearing all at once. If you prefer less motion, your system’s reduced-motion setting turns the movement off.' },
