@@ -142,7 +142,7 @@ export function WorldMapPage() {
             <Icon name="map" size={18} /> World Map
           </h2>
           <p className="muted" style={{ margin: '2px 0 0' }}>
-            A prep/reference map. Click the map to drop a pin, then link it to a location, NPC, or race group.
+            A prep and reference map. Click the map to drop a pin, then link it to a location, NPC, or race group.
             For the best fit, use a landscape image around 16:10 (for example 2400×1500 px); other shapes
             leave margins in the default view.
           </p>
