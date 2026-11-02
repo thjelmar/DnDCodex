@@ -200,8 +200,10 @@ function Sidebar({
   onAddPlayerCampaign,
   onOpenPrefs,
   onOpenBug,
+  onNavigate,
 }: {
   collapsed: boolean
+  onNavigate: () => void
   onToggleCollapse: () => void
   onOpenSearch: () => void
   onOpenDice: () => void
@@ -229,7 +231,10 @@ function Sidebar({
   )
 
   return (
-    <nav className="sidebar">
+    // A tap on any link closes the mobile drawer, even when it points at the
+    // page you're already on (no route change, so NavAutoClose wouldn't fire).
+    // Section headers are buttons, not links, so they keep expanding in place (T-56).
+    <nav className="sidebar" onClick={(e) => { if ((e.target as HTMLElement).closest('a')) onNavigate() }}>
       <div className="brand">
         <span className="glyph">⚔️</span>
         <span>D&amp;D Codex</span>
@@ -600,6 +605,7 @@ export function App() {
             onAddPlayerCampaign={withClose(() => setAddPlayerOpen(true))}
             onOpenPrefs={withClose(() => setPrefsOpen(true))}
             onOpenBug={withClose(() => setBugOpen(true))}
+            onNavigate={closeNav}
           />
           <div className="nav-scrim" onClick={closeNav} aria-hidden />
         <main className="main">
