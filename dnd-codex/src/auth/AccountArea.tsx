@@ -77,6 +77,25 @@ export function AccountArea() {
   )
 }
 
+/**
+ * Phone top-bar sign-in. The sidebar's Sign in sits at the bottom of the
+ * off-canvas drawer, so a signed-out phone user had to open the menu and find
+ * it (T-61). This puts it in the always-visible bar. Hidden on desktop by CSS.
+ */
+export function TopbarSignIn() {
+  const { configured, user } = useAuth()
+  const [open, setOpen] = useState(false)
+  if (isDemo() || !configured || user) return null
+  return (
+    <>
+      <button className="topbar-signin" onClick={() => setOpen(true)}>
+        <Icon name="user" size={16} color="currentColor" /> Sign in
+      </button>
+      {open && <SignInModal onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
 /** Edit-profile modal: change display name and avatar. */
 function ProfileModal({ onClose }: { onClose: () => void }) {
   const { user, profile, updateProfile } = useAuth()

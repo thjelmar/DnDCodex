@@ -569,6 +569,20 @@ button {
   }
   .topbar-brand:hover { text-decoration: none; }
   .topbar-brand .glyph { font-size: 19px; }
+  .topbar-signin {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+    flex: none;
+  }
 
   /* The sidebar becomes a drawer sliding in under the top bar. */
   .sidebar {
