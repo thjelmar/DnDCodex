@@ -32,6 +32,22 @@ test.describe('sign in at phone width, signed out', () => {
     await expectTopbarSignIn(page)
   })
 
+  test('sign in dialog from the drawer is not clipped by it', async ({ page }) => {
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    await page.locator('.sidebar').getByRole('button', { name: 'Sign in' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Sign in' })
+    await expect(dialog).toBeVisible()
+    await expect
+      .poll(async () => {
+        const b = await dialog.boundingBox()
+        return !!b && b.x >= 0 && b.x + b.width <= 390
+      })
+      .toBe(true)
+    // Rendered under <body>, not inside the drawer.
+    expect(await dialog.evaluate((el) => !!el.closest('.sidebar'))).toBe(false)
+  })
+
   test('drawer still lists sign in', async ({ page }) => {
     await page.goto('/#/')
     await page.getByRole('button', { name: 'Open menu' }).click()
