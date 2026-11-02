@@ -27,7 +27,7 @@ export function TagsPage() {
     return (
       <div>
         <p className="muted" style={{ marginTop: 0 }}>
-          Tag any entity to organize your campaign. Click a tag to see everything under it.
+          Tag any entity to organize your campaign. Select a tag to see everything under it.
         </p>
         {tagCounts.length === 0 ? (
           <div className="empty">
