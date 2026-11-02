@@ -15,6 +15,7 @@ import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog, logBoundaryError } from './lib/errorLog'
+import { isChunkLoadError } from './lib/chunkError'
 import { PENDING_JOIN_KEY } from './lib/prefs'
 import { HomePage } from './pages/HomePage'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
@@ -84,17 +85,7 @@ function RouteFallback() {
 // build and recovers; anything else shows a manual reload so the app never
 // dead-ends.
 //
-// Browsers word a failed chunk import differently, so match loosely: Chrome says
-// "Failed to fetch dynamically imported module", Firefox "error loading
-// dynamically imported module", and Safari throws "Importing a module script
-// failed." or a bare "TypeError: Load failed". The old matcher missed Safari's
-// wording, so Safari users never auto-recovered — they saw the fallback on every
-// post-deploy load and had to reload by hand.
-function isChunkLoadError(msg: string): boolean {
-  return /dynamic(ally)? import|imported module|module script|loading chunk|chunkloaderror|failed to fetch|load failed/i.test(
-    msg,
-  )
-}
+// The matcher lives in lib/chunkError.ts so a test can import it.
 
 // We reload at most once per short window, keyed on a timestamp rather than a
 // one-shot flag. The old flag was set on the first reload and never cleared, so
