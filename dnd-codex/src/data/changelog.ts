@@ -17,6 +17,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-02',
+    title: 'The phone menu gets out of your way',
+    changes: [
+      { kind: 'fixed', text: 'On a phone, the menu now closes whenever you tap a link in it, including a link to the page you’re already on, so it no longer covers the page.' },
+    ],
+  },
+  {
+    date: '2026-11-02',
     title: 'Easier sign-in on phones',
     changes: [
       { kind: 'improved', text: 'On a phone, a Sign in button now sits in the top bar whenever you’re signed out, so you no longer have to open the menu to find it.' },
