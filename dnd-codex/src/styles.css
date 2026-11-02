@@ -193,6 +193,10 @@ button {
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
+  /* Scroll up and down only: with overflow-y set, overflow-x computes to auto,
+     so anything wider than the drawer let it pan sideways (T-61). */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
 }
 
 .brand {

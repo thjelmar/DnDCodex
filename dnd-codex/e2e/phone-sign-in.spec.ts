@@ -48,6 +48,13 @@ test.describe('sign in at phone width, signed out', () => {
     expect(await dialog.evaluate((el) => !!el.closest('.sidebar'))).toBe(false)
   })
 
+  test('drawer cannot scroll sideways', async ({ page }) => {
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    const overflowX = await page.locator('.sidebar').evaluate((el) => getComputedStyle(el).overflowX)
+    expect(overflowX).toBe('hidden')
+  })
+
   test('drawer still lists sign in', async ({ page }) => {
     await page.goto('/#/')
     await page.getByRole('button', { name: 'Open menu' }).click()
