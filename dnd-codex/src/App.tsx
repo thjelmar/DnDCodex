@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocat
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
+import { DragonLoader } from './components/DragonLoader'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
@@ -73,7 +74,7 @@ installErrorLog()
 function RouteFallback() {
   return (
     <div className="route-fallback" role="status" aria-live="polite">
-      <span className="route-spinner" aria-hidden />
+      <DragonLoader />
       <span className="sr-only">Loading…</span>
     </div>
   )
