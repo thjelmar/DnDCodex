@@ -822,6 +822,9 @@ button {
   cursor: zoom-in;
 }
 .bug-lightbox {
+  animation: backdrop-in var(--dialog-in-duration) ease-out backwards;
+}
+.bug-lightbox {
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -1066,6 +1069,19 @@ button {
 .loc-gen-reroll:hover { color: var(--text); border-color: var(--accent); }
 .loc-gen-remove:hover { color: var(--danger); border-color: var(--danger); }
 
+/* ---------- Dialog motion (Modal, SidePanel, search palette) ----------
+   One set of timings for every dialog. Entrance uses ease-out so it settles
+   softly; exit uses a shorter ease-in so it leaves quickly. Components keep the
+   dialog mounted for --dialog-out-duration after a close (see useDialogExit),
+   and add `.closing` while the exit plays. Reduced motion keeps a plain fade. */
+
+:root {
+  --dialog-in-duration: 180ms;
+  --dialog-out-duration: 140ms;
+  --dialog-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dialog-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
 /* ---------- Modal ---------- */
 
 .modal-backdrop {
@@ -1079,6 +1095,11 @@ button {
   /* Above the side panel (z 60) so a confirm opened from inside a drawer wins. */
   z-index: 70;
   overflow-y: auto;
+  animation: backdrop-in var(--dialog-in-duration) ease-out backwards;
+}
+.modal-backdrop.closing {
+  animation: backdrop-out var(--dialog-out-duration) ease-in forwards;
+  pointer-events: none;
 }
 .modal {
   background: var(--bg-elev);
@@ -1088,6 +1109,10 @@ button {
   width: 100%;
   max-width: 560px;
   padding: 22px 24px;
+  animation: modal-in var(--dialog-in-duration) var(--dialog-ease-out) backwards;
+}
+.modal-backdrop.closing .modal {
+  animation: modal-out var(--dialog-out-duration) var(--dialog-ease-in) forwards;
 }
 .modal h2 {
   margin-top: 0;
@@ -1122,7 +1147,13 @@ button {
   box-shadow: -12px 0 40px rgba(0, 0, 0, 0.55);
   display: flex;
   flex-direction: column;
-  animation: sidepanel-in 0.16s ease-out;
+  animation: sidepanel-in var(--dialog-in-duration) var(--dialog-ease-out) backwards;
+}
+.sidepanel-root.closing { pointer-events: none; }
+.sidepanel-scrim { animation: backdrop-in var(--dialog-in-duration) ease-out backwards; }
+.sidepanel-root.closing .sidepanel-scrim { animation: backdrop-out var(--dialog-out-duration) ease-in forwards; }
+.sidepanel-root.closing .sidepanel {
+  animation: sidepanel-out var(--dialog-out-duration) var(--dialog-ease-in) forwards;
 }
 /* Full screen = a large card covering the majority of the viewport, floating on
    the darkened page (rather than a full-bleed panel with empty side margins). */
@@ -1137,9 +1168,42 @@ button {
   border-radius: var(--radius);
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
 }
+/* The full-screen card is centred with translateX(-50%), so it gets its own
+   keyframes that keep that offset; otherwise the entrance would jump. */
+.sidepanel.full { animation-name: sidepanel-in-full; }
+.sidepanel-root.closing .sidepanel.full { animation-name: sidepanel-out-full; }
+
+@keyframes backdrop-in { from { opacity: 0; } }
+@keyframes backdrop-out { to { opacity: 0; } }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+}
+@keyframes modal-out {
+  to { opacity: 0; transform: translateY(6px) scale(0.98); }
+}
 @keyframes sidepanel-in {
-  from { transform: translateX(24px); opacity: 0.6; }
-  to { transform: translateX(0); opacity: 1; }
+  from { opacity: 0; transform: translateX(32px); }
+}
+@keyframes sidepanel-out {
+  to { opacity: 0; transform: translateX(32px); }
+}
+@keyframes sidepanel-in-full {
+  from { opacity: 0; transform: translate(-50%, 12px) scale(0.97); }
+}
+@keyframes sidepanel-out-full {
+  to { opacity: 0; transform: translate(-50%, 8px) scale(0.98); }
+}
+@keyframes dialog-fade-in { from { opacity: 0; } }
+@keyframes dialog-fade-out { to { opacity: 0; } }
+
+/* Reduced motion: keep a short fade, drop the movement. Declared after the
+   rules above so it wins at equal specificity. */
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation-name: dialog-fade-in; }
+  .modal-backdrop.closing .modal { animation-name: dialog-fade-out; }
+  .sidepanel, .sidepanel.full { animation-name: dialog-fade-in; }
+  .sidepanel-root.closing .sidepanel,
+  .sidepanel-root.closing .sidepanel.full { animation-name: dialog-fade-out; }
 }
 .sidepanel-resize {
   position: absolute;
