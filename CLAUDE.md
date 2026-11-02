@@ -1,4 +1,4 @@
-# misc_Proj
+# DnDCodex
 
 The D&D Codex app lives in `dnd-codex/` (run npm from there).
 
