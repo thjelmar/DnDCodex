@@ -4023,16 +4023,14 @@ kbd {
 .dragon-loader .dl-front { stroke-dasharray: 9 4; animation: dl-crawl 0.9s linear infinite; }
 .dragon-loader .dl-head-shape { fill: var(--accent); stroke: var(--accent); stroke-width: 1; stroke-linejoin: round; }
 .dragon-loader .dl-horn { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; }
-.dragon-loader .dl-breath { fill: var(--accent); transform-box: fill-box; transform-origin: center; animation: dl-breathe 1.8s ease-in-out infinite; }
-.dragon-loader .dl-head { transform-box: fill-box; transform-origin: 0% 100%; animation: dl-nod 1.8s ease-in-out infinite; }
-.dragon-loader .dl-die { transform-box: fill-box; transform-origin: center; animation: dl-bob 1.8s ease-in-out infinite; }
+.dragon-loader .dl-mouth { stroke: var(--bg-elev-2); stroke-width: 0.8; stroke-linecap: round; }
+.dragon-loader .dl-eye { fill: var(--bg-elev-2); stroke: none; }
+.dragon-loader .dl-nums text { fill: var(--text-dim); stroke: none; text-anchor: middle; font-weight: 700; font-family: inherit; }
+.dragon-loader .dl-head { transform-box: view-box; transform-origin: 0 0; animation: dl-nod 1.8s ease-in-out infinite; }
 @keyframes dl-crawl { to { stroke-dashoffset: -13; } }
-@keyframes dl-breathe { 0%, 100% { opacity: 0; transform: scale(0.5); } 50% { opacity: 1; transform: scale(2); } }
 @keyframes dl-nod { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
-@keyframes dl-bob { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
 @media (prefers-reduced-motion: reduce) {
-  .dragon-loader .dl-front, .dragon-loader .dl-head, .dragon-loader .dl-die { animation: none; }
-  .dragon-loader .dl-breath { animation: none; opacity: 0.8; }
+  .dragon-loader .dl-front, .dragon-loader .dl-head { animation: none; }
 }
 .sr-only {
   position: absolute;
