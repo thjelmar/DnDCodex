@@ -7,7 +7,7 @@ import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
-import { AccountArea } from './auth/AccountArea'
+import { AccountArea, TopbarSignIn } from './auth/AccountArea'
 import { Icon } from './components/Icon'
 import { NotificationBell } from './components/NotificationBell'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
@@ -574,6 +574,7 @@ export function App() {
               <span className="glyph" aria-hidden>⚔️</span>
               <span>D&amp;D Codex</span>
             </Link>
+            <TopbarSignIn />
             <button className="topbar-icon" onClick={withClose(() => setSearchOpen(true))} aria-label="Search">
               <Icon name="search" color="currentColor" />
             </button>

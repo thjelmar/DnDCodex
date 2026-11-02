@@ -60,12 +60,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-      setLoading(false)
-    })
+    // `loading` hides the account controls, so it must always end: a hung or
+    // rejected getSession() (storage blocked, a stuck auth lock on a phone)
+    // would otherwise leave a signed-out user with no way to sign in (T-61).
+    const giveUp = window.setTimeout(() => setLoading(false), 4000)
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch(() => {})
+      .finally(() => {
+        window.clearTimeout(giveUp)
+        setLoading(false)
+      })
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
-    return () => data.subscription.unsubscribe()
+    return () => {
+      window.clearTimeout(giveUp)
+      data.subscription.unsubscribe()
+    }
   }, [])
 
   // Load (or create) the profile row whenever the signed-in user changes.
