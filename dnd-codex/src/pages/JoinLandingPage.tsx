@@ -70,6 +70,19 @@ export function JoinLandingPage() {
     }
   }
 
+  function clearPending() {
+    try {
+      localStorage.removeItem(PENDING_JOIN_KEY)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function cancel() {
+    clearPending()
+    navigate('/')
+  }
+
   const card = (children: React.ReactNode) => (
     <div className="content" style={{ maxWidth: 440 }}>
       <div className="card" style={{ padding: 24, marginTop: 40 }}>
@@ -131,7 +144,7 @@ export function JoinLandingPage() {
           The link may be mistyped or the DM may have generated a new code. Ask them for a fresh
           invite link.
         </p>
-        <Link className="btn" to="/">Go to your campaigns</Link>
+        <Link className="btn" to="/" onClick={clearPending}>Go to your campaigns</Link>
       </>,
     )
   }
@@ -140,7 +153,7 @@ export function JoinLandingPage() {
       <>
         <h2 style={{ marginTop: 0 }}>Something went wrong</h2>
         <p className="faint">Couldn’t look up that invite. Check your connection and try again.</p>
-        <Link className="btn" to="/">Go to your campaigns</Link>
+        <Link className="btn" to="/" onClick={clearPending}>Go to your campaigns</Link>
       </>,
     )
   }
@@ -157,7 +170,7 @@ export function JoinLandingPage() {
         <button className="btn primary" disabled={joining} onClick={join}>
           {joining ? 'Joining…' : <><Icon name="check" size={14} color="inherit" /> Join campaign</>}
         </button>
-        <button className="btn ghost" disabled={joining} onClick={() => navigate('/')}>
+        <button className="btn ghost" disabled={joining} onClick={cancel}>
           Cancel
         </button>
       </div>

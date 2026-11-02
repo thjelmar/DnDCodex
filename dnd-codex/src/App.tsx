@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
 import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
@@ -458,8 +458,12 @@ function PendingJoinResume() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  // Resume once per page load. Re-running on every route change would pull the
+  // user back to the join prompt whenever they tried to leave it (T-57).
+  const resumed = useRef(false)
   useEffect(() => {
-    if (!user) return
+    if (!user || resumed.current) return
+    resumed.current = true
     let code: string | null = null
     try {
       code = localStorage.getItem(PENDING_JOIN_KEY)
