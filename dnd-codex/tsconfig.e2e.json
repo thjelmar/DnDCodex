@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": { "composite": false, "tsBuildInfoFile": null },
+  "include": ["playwright.config.ts", "e2e"]
+}
