@@ -21,6 +21,7 @@ it.
 | --- | --- | --- |
 | `core-flows.spec.ts` | Create a campaign, a session, and a battle map (the live scene the DM shows players). Reload and check they persist. | Nothing. Local only. |
 | `demo-isolation.spec.ts` | Demo mode makes zero `supabase.co` requests. Each demo surface is checked with `performance.getEntriesByType('resource')`. A positive control confirms the check can see a Supabase request. | Nothing. Local only. |
+| `signed-out-run-mode.spec.ts` | Signed out, Run mode makes no `live_sessions` request (T-53). | Nothing. Local only. |
 | `sync-repair.spec.ts` | Sync delete (a deleted record must not come back) and Repair sync (restores a missing live record). | A local Supabase stack. Skipped in `npm run e2e`; run with `npm run e2e:live`. |
 
 ## Live sync tests
@@ -53,8 +54,10 @@ local stack. No key is written to a file or printed.
   pull runs. The repair test removes a record from IndexedDB only, then clicks **Repair
   sync**.
 
-## Known gap found while writing the tests
+## Found while writing the tests
 
-With a backend configured, Run mode reads `live_sessions` from Supabase even while
-signed out. The fixtures abort the request, and the core-flow test passes. Demo mode
-is not affected: `demo-isolation.spec.ts` checks it.
+With a backend configured, Run mode read `live_sessions` from Supabase even while
+signed out. The fixtures abort the request, so the core-flow test passed anyway.
+`signed-out-run-mode.spec.ts` caught it (T-53). `useLiveSession` now skips the read
+until there is a session token. Demo mode was never affected: `demo-isolation.spec.ts`
+checks it.
