@@ -17,6 +17,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-02',
+    title: 'The phone menu gets out of your way',
+    changes: [
+      { kind: 'fixed', text: 'On a phone, the menu now closes whenever you tap a link in it, including a link to the page you’re already on, so it no longer covers the page.' },
+    ],
+  },
+  {
+    date: '2026-11-02',
     title: 'Invite links no longer trap you',
     changes: [
       { kind: 'fixed', text: 'Pressing Cancel on a campaign invite now takes you back home instead of reopening the invite, and you can browse other pages without being sent back to it.' },
