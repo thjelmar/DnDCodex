@@ -17,6 +17,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-04',
+    title: 'Daily Duel: an easier-to-read battle log',
+    changes: [
+      { kind: 'improved', text: 'The Daily Duel battle log is now grouped by round. Each attack shows who swung, whether it hit or missed, the d20 roll against Armor Class, the damage, and how many hit points the target has left, with your attacks and your opponent’s in different colors.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
     title: 'Daily Duel: a much bigger cast',
     changes: [
       { kind: 'new', text: 'Daily Duel now has 20 heroes and 40 opponents, from kobold champions and dire wolves to wyverns and fallen knights, so duels stay fresh for months.' },
