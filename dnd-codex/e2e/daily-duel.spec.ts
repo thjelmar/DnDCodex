@@ -41,6 +41,7 @@ test.describe('daily duel', () => {
     }
     await expect(result).toBeVisible()
     await expect(page.getByText(/D&D Codex Daily Duel \d{4}-\d{2}-\d{2}/)).toBeVisible()
+    await expect(page.getByText(/\((Easy|Standard|Hard)\)/).first()).toBeVisible()
 
     // The finished duel is saved: a reload shows the result, not a new duel.
     await page.reload()
