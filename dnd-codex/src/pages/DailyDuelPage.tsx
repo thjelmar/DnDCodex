@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { isDemo } from '../lib/demo'
 import {
-  availableAttacks, endTurn, foeOf, heroAttack, heroOf, loadDuel, saveDuel,
-  shareText, startDuel, utcDayKey, type DuelState,
+  availableAttacks, challengeLink, compareToChallenge, endTurn, foeOf, heroAttack, heroOf,
+  loadDuel, parseChallenge, saveDuel, shareText, startDuel, utcDayKey, type DuelState,
 } from '../lib/dailyDuel'
 
 // Daily Duel (T-63): one Wordle-style 1v1 per UTC day, same matchup for
@@ -38,6 +38,8 @@ export function DailyDuelPage() {
   const [duel, setDuel] = useState<DuelState | null>(() => (demo ? null : loadDuel(day)))
   const [copied, setCopied] = useState(false)
   const logEnd = useRef<HTMLDivElement>(null)
+  const [params] = useSearchParams()
+  const challenge = parseChallenge(params.get('beat'))
 
   useEffect(() => {
     if (duel && !demo) saveDuel(duel)
@@ -54,7 +56,8 @@ export function DailyDuelPage() {
 
   async function share() {
     if (!duel) return
-    const text = shareText(duel)
+    const base = `${window.location.origin}${window.location.pathname}`
+    const text = shareText(duel, challengeLink(duel, base))
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
@@ -72,6 +75,27 @@ export function DailyDuelPage() {
           <div className="subtitle">One duel a day, the same for everyone. Resets at midnight UTC ({day}).</div>
         </div>
       </div>
+
+      {challenge && (
+        <div className="card" style={{ maxWidth: 640, marginBottom: 16 }}>
+          <strong>A friend challenged you.</strong>{' '}
+          {challenge.outcome === 'won'
+            ? `They won in ${challenge.rounds} round${challenge.rounds === 1 ? '' : 's'} with ${challenge.hpLeft} HP left.`
+            : challenge.outcome === 'lost'
+              ? 'They were defeated. Can you win?'
+              : 'Their duel ended in a stalemate. Can you win?'}
+          {challenge.day !== day && (
+            <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
+              That challenge was for {challenge.day}. You’re playing today’s duel instead.
+            </div>
+          )}
+          {challenge.day === day && duel && duel.outcome !== 'playing' && (
+            <div style={{ marginTop: 4 }}>
+              {{ beat: '🏆 You beat their score!', tied: '🤝 You tied their score.', lost: '💀 Their score still stands.' }[compareToChallenge(duel, challenge)]}
+            </div>
+          )}
+        </div>
+      )}
 
       {!duel && (
         <div className="card" style={{ maxWidth: 560 }}>
@@ -115,7 +139,7 @@ export function DailyDuelPage() {
                 {duel.outcome === 'won' ? '🏆 Victory!' : duel.outcome === 'lost' ? '💀 Defeat' : '🤝 Stalemate'}
               </h3>
               <pre style={{ margin: '8px 0', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>{shareText(duel)}</pre>
-              <button className="btn primary" onClick={share}>{copied ? 'Copied!' : 'Copy result'}</button>
+              <button className="btn primary" onClick={share}>{copied ? 'Copied!' : 'Copy result and challenge link'}</button>
               <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
                 A new duel arrives at midnight UTC.
               </div>
