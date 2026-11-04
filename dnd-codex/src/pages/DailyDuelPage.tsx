@@ -7,7 +7,7 @@ import { isDemo } from '../lib/demo'
 import {
   availableAttacks, challengeLink, compareToChallenge, dailyTier, endTurn, foeOf, heroAttack, heroOf,
   gridEmoji, historyStats, loadDuel, parseChallenge, saveDuel, shareText, startDuel, toDuelRecord,
-  utcDayKey, type DuelState,
+  utcDayKey, type DuelState, type LogEntry,
 } from '../lib/dailyDuel'
 import { FOES, HEROES, TIER_LABEL } from '../data/duelists'
 
@@ -33,6 +33,78 @@ function HpBar({ label, emoji, hp, max, tone }: { label: string; emoji: string; 
         <div style={{ width: `${pct}%`, height: '100%', background: tone, transition: 'width .3s' }} />
       </div>
       <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{Math.max(0, hp)} / {max} HP</div>
+    </div>
+  )
+}
+
+const CHIP: Record<LogEntry['kind'], { label: string; bg: string; fg: string } | null> = {
+  hit: { label: 'HIT', bg: 'rgba(22,163,74,.18)', fg: '#16a34a' },
+  crit: { label: 'CRIT!', bg: 'rgba(234,179,8,.25)', fg: '#ca8a04' },
+  miss: { label: 'MISS', bg: 'rgba(127,127,127,.2)', fg: 'var(--text-dim)' },
+  fumble: { label: 'NAT 1', bg: 'rgba(127,127,127,.2)', fg: 'var(--text-dim)' },
+  info: null,
+}
+
+/** The play-by-play: grouped by round, each attack on its own row with the
+ *  attacker, the roll against Armor Class, and the damage with HP left. */
+function BattleLog({ log, heroEmoji, foeEmoji }: { log: LogEntry[]; heroEmoji: string; foeEmoji: string }) {
+  const rounds: { round: number; rows: LogEntry[] }[] = []
+  for (const e of log) {
+    const last = rounds[rounds.length - 1]
+    if (last && last.round === e.round) last.rows.push(e)
+    else rounds.push({ round: e.round, rows: [e] })
+  }
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {rounds.map((r) => (
+        <div key={r.round}>
+          <div className="faint" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>
+            Round {r.round}
+          </div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {r.rows.map((e, i) => {
+              const chip = CHIP[e.kind]
+              const mine = e.side === 'hero'
+              if (!chip || e.attack === undefined) {
+                return (
+                  <div key={i} className="faint" style={{ fontSize: 13, fontStyle: e.kind === 'info' ? 'italic' : undefined }}>
+                    {e.text}
+                  </div>
+                )
+              }
+              const hit = e.kind === 'hit' || e.kind === 'crit'
+              return (
+                <div
+                  key={i}
+                  style={{
+                    borderLeft: `3px solid ${mine ? '#16a34a' : '#dc2626'}`,
+                    background: mine ? 'rgba(22,163,74,.07)' : 'rgba(220,38,38,.07)',
+                    borderRadius: 4,
+                    padding: '5px 8px',
+                    fontSize: 14,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                    <span aria-hidden>{mine ? heroEmoji : foeEmoji}</span>
+                    <strong>{e.who}</strong>
+                    <span>used {e.attack}</span>
+                    <span style={{ background: chip.bg, color: chip.fg, borderRadius: 4, padding: '0 6px', fontSize: 11, fontWeight: 700 }}>
+                      {chip.label}
+                    </span>
+                    {hit && (
+                      <strong style={{ marginLeft: 'auto', color: mine ? '#16a34a' : '#dc2626' }}>−{e.damage} HP</strong>
+                    )}
+                  </div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
+                    d20 {e.d20} {(e.bonus ?? 0) >= 0 ? '+' : '−'} {Math.abs(e.bonus ?? 0)} = {e.total} vs AC {e.ac}
+                    {hit && e.targetHp !== undefined && e.targetMax !== undefined && ` · ${e.targetHp}/${e.targetMax} HP left`}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -164,12 +236,8 @@ export function DailyDuelPage() {
 
           <div className="card" aria-live="polite">
             <h3>Battle log</h3>
-            <div style={{ maxHeight: 260, overflowY: 'auto', display: 'grid', gap: 4, fontSize: 14 }}>
-              {duel.log.map((e, i) => (
-                <div key={i} style={{ color: e.side === 'foe' ? 'var(--text-dim)' : undefined }}>
-                  <span className="faint">R{e.round}</span> {e.text}
-                </div>
-              ))}
+            <div style={{ maxHeight: 380, overflowY: 'auto', paddingRight: 8 }}>
+              <BattleLog log={duel.log} heroEmoji={hero.emoji} foeEmoji={foe.emoji} />
               <div ref={logEnd} />
             </div>
           </div>

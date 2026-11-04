@@ -88,6 +88,16 @@ export interface LogEntry {
   kind: 'hit' | 'crit' | 'miss' | 'fumble' | 'info'
   text: string
   damage?: number
+  /** Structured detail for the log display (absent on older saves and info rows). */
+  who?: string
+  attack?: string
+  d20?: number
+  bonus?: number
+  total?: number
+  ac?: number
+  /** The target's HP after this attack, and its maximum. */
+  targetHp?: number
+  targetMax?: number
 }
 
 export interface DuelState {
@@ -170,6 +180,7 @@ function swing(attack: DuelAttack, attacker: string, ac: number, side: Side, rou
       cell: (lower ? 'm' : 'M') as GridCell,
       entry: {
         round, side, kind: fumble ? 'fumble' : 'miss',
+        who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
         text: `${attacker} misses with ${attack.name} (${roll}${fumble ? ', natural 1' : ''}).`,
       },
     }
@@ -179,6 +190,7 @@ function swing(attack: DuelAttack, attacker: string, ac: number, side: Side, rou
     cell: (crit ? (lower ? 'c' : 'C') : lower ? 'h' : 'H') as GridCell,
     entry: {
       round, side, kind: crit ? 'crit' : 'hit', damage: dmg.total,
+      who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
       text: `${attacker} ${crit ? 'CRITS' : 'hits'} with ${attack.name} for ${dmg.total} (${roll}${crit ? ', natural 20' : ''}).`,
     },
   }
@@ -203,12 +215,13 @@ function foeTurn(s: DuelState): DuelState {
     if (next.heroHp <= 0) break
     const sw = swing(attack, foe.name, hero.ac, 'foe', next.round)
     const dmg = sw.entry.damage ?? 0
+    const left = Math.max(0, next.heroHp - dmg)
     next = {
       ...next,
       heroHp: next.heroHp - dmg,
       taken: next.taken + dmg,
       grid: [...next.grid, sw.cell],
-      log: [...next.log, sw.entry],
+      log: [...next.log, { ...sw.entry, targetHp: left, targetMax: hero.hp }],
     }
   }
   return finish(next)
@@ -261,12 +274,13 @@ export function heroAttack(s: DuelState, attackId: string): DuelState {
     if (next.foeHp <= 0) break
     const sw = swing(attack, hero.name, foe.ac, 'hero', next.round)
     const dmg = sw.entry.damage ?? 0
+    const left = Math.max(0, next.foeHp - dmg)
     next = {
       ...next,
       foeHp: next.foeHp - dmg,
       dealt: next.dealt + dmg,
       grid: [...next.grid, sw.cell],
-      log: [...next.log, sw.entry],
+      log: [...next.log, { ...sw.entry, targetHp: left, targetMax: foe.hp }],
     }
   }
   next = finish(next)
