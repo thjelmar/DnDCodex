@@ -16,6 +16,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-04',
+    title: 'Daily Duel',
+    changes: [
+      { kind: 'new', text: 'Daily Duel is a quick one-on-one fight that’s the same for everyone each day. Pick your attacks, the Codex rolls the dice, and your opponent strikes back. You get one try a day, and it resets at midnight UTC.' },
+      { kind: 'new', text: 'When your duel ends, copy your result as a colorful grid, along with a link. A friend who opens the link plays the same duel and sees if they can beat your score.' },
+    ],
+  },
+  {
     date: '2026-11-02',
     title: 'The phone menu gets out of your way',
     changes: [

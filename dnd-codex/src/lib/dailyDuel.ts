@@ -265,8 +265,57 @@ const CELL_EMOJI: Record<GridCell, string> = {
   H: '🟩', C: '🟨', M: '⬛', h: '🟥', c: '🟧', m: '⬜',
 }
 
-/** Wordle-style text: a header, the roll-by-roll grid, and the remaining HP. */
-export function shareText(s: DuelState): string {
+/**
+ * A finished duel's score, small enough to ride in a link. Nothing is stored
+ * server-side, so the code is trusted only for a friendly "beat this" banner.
+ */
+export interface Challenge {
+  day: string
+  outcome: Exclude<Outcome, 'playing'>
+  rounds: number
+  hpLeft: number
+}
+
+const OUTCOME_CODE: Record<Challenge['outcome'], string> = { won: 'w', lost: 'l', stalemate: 's' }
+
+/** `2026-11-04.w.5.23` — day, outcome (w/l/s), rounds, hero HP left. */
+export function encodeChallenge(s: DuelState): string {
+  if (s.outcome === 'playing') return ''
+  return `${s.day}.${OUTCOME_CODE[s.outcome]}.${s.round}.${Math.max(0, s.heroHp)}`
+}
+
+/** Parses a challenge code; returns null for anything malformed. */
+export function parseChallenge(code: string | null | undefined): Challenge | null {
+  const m = /^(\d{4}-\d{2}-\d{2})\.([wls])\.(\d{1,2})\.(\d{1,3})$/.exec(code ?? '')
+  if (!m) return null
+  const outcome = (Object.keys(OUTCOME_CODE) as Challenge['outcome'][]).find((k) => OUTCOME_CODE[k] === m[2])
+  if (!outcome) return null
+  const rounds = Number(m[3])
+  if (rounds < 1 || rounds > MAX_ROUNDS) return null
+  return { day: m[1], outcome, rounds, hpLeft: Number(m[4]) }
+}
+
+/** Higher is better. Only wins score: fewer rounds first, then more HP left. */
+export function challengeScore(c: Pick<Challenge, 'outcome' | 'rounds' | 'hpLeft'>): number {
+  return c.outcome === 'won' ? 10000 - c.rounds * 200 + c.hpLeft : 0
+}
+
+export type Comparison = 'beat' | 'tied' | 'lost'
+
+/** How a finished duel stacks up against a friend's challenge. */
+export function compareToChallenge(s: DuelState, c: Challenge): Comparison {
+  const mine = challengeScore({ outcome: s.outcome === 'playing' ? 'lost' : s.outcome, rounds: s.round, hpLeft: Math.max(0, s.heroHp) })
+  const theirs = challengeScore(c)
+  return mine > theirs ? 'beat' : mine === theirs ? 'tied' : 'lost'
+}
+
+/** The link a friend opens to play the same day's duel and try to beat you. */
+export function challengeLink(s: DuelState, base: string): string {
+  return `${base}#/daily?beat=${encodeChallenge(s)}`
+}
+
+/** Wordle-style text: a header, the roll-by-roll grid, the HP left, and a link. */
+export function shareText(s: DuelState, link?: string): string {
   const hero = heroOf(s)
   const foe = foeOf(s)
   const verdict = s.outcome === 'won' ? 'Victory' : s.outcome === 'lost' ? 'Defeat' : 'Stalemate'
@@ -277,6 +326,7 @@ export function shareText(s: DuelState): string {
     `${hero.emoji} ${hero.name} vs ${foe.emoji} ${foe.name}`,
     `${verdict} in ${s.round} round${s.round === 1 ? '' : 's'} · ${Math.max(0, s.heroHp)}/${hero.hp} HP left`,
     ...rows,
+    ...(link ? ['', `Think you can beat me? ${link}`] : []),
   ].join('\n')
 }
 
