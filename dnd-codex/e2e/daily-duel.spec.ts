@@ -43,10 +43,16 @@ test.describe('daily duel', () => {
     await expect(page.getByText(/D&D Codex Daily Duel \d{4}-\d{2}-\d{2}/)).toBeVisible()
     await expect(page.getByText(/\((Easy|Standard|Hard)\)/).first()).toBeVisible()
 
+    // It also lands in the battle history, once per day.
+    await expect(page.getByRole('heading', { name: 'Battle history' })).toBeVisible()
+    await expect(page.getByText(/1 played · [01] won/)).toBeVisible()
+    await expect(page.getByText(/Sign in to keep it across your devices/)).toBeVisible()
+
     // The finished duel is saved: a reload shows the result, not a new duel.
     await page.reload()
     await expect(page.getByRole('button', { name: 'Copy result and challenge link' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Roll initiative' })).toHaveCount(0)
+    await expect(page.getByText(/1 played · [01] won/)).toBeVisible()
     expect(supabaseRequests).toEqual([])
   })
 
