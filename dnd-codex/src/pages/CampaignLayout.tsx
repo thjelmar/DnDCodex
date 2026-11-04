@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { DragonLoader } from '../components/DragonLoader'
 import { useParams, Outlet, useOutletContext, useLocation, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -35,7 +36,12 @@ export function CampaignLayout() {
   const [nameDraft, setNameDraft] = useState('')
 
   if (campaign === undefined) {
-    return <div className="content faint">Loading…</div>
+    return (
+      <div className="route-fallback" role="status" aria-live="polite">
+        <DragonLoader />
+        <span className="sr-only">Loading…</span>
+      </div>
+    )
   }
   if (campaign === null || !campaign) {
     return (

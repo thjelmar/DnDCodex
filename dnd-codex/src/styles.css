@@ -4031,6 +4031,25 @@ kbd {
 }
 @keyframes route-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .route-spinner { animation: none; } }
+.dragon-loader { display: block; overflow: visible; }
+.dragon-loader .dl-die-body { fill: var(--bg-elev-2); }
+.dragon-loader .dl-die * , .dragon-loader .dl-die { stroke: var(--text-faint); stroke-width: 1; stroke-linejoin: round; }
+.dragon-loader .dl-die-body { stroke: var(--accent); stroke-width: 1.6; }
+.dragon-loader .dl-back,
+.dragon-loader .dl-front { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.dragon-loader .dl-back { opacity: 0.45; }
+.dragon-loader .dl-front { stroke-dasharray: 9 4; animation: dl-crawl 0.9s linear infinite; }
+.dragon-loader .dl-head-shape { fill: var(--accent); stroke: var(--accent); stroke-width: 1; stroke-linejoin: round; }
+.dragon-loader .dl-horn { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; }
+.dragon-loader .dl-mouth { stroke: var(--bg-elev-2); stroke-width: 0.8; stroke-linecap: round; }
+.dragon-loader .dl-eye { fill: var(--bg-elev-2); stroke: none; }
+.dragon-loader .dl-nums text { fill: var(--text-dim); stroke: none; text-anchor: middle; font-weight: 700; font-family: inherit; }
+.dragon-loader .dl-head { transform-box: view-box; transform-origin: 0 0; animation: dl-nod 1.8s ease-in-out infinite; }
+@keyframes dl-crawl { to { stroke-dashoffset: -13; } }
+@keyframes dl-nod { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .dragon-loader .dl-front, .dragon-loader .dl-head { animation: none; }
+}
 .sr-only {
   position: absolute;
   width: 1px;
