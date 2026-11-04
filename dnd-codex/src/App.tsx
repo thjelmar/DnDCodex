@@ -62,6 +62,7 @@ const PlayerWorldMapPage = lazy(() => import('./pages/PlayerWorldMapPage').then(
 const PlayerHandoutsPage = lazy(() => import('./pages/PlayerHandoutsPage').then((m) => ({ default: m.PlayerHandoutsPage })))
 const PlayerSessionPage = lazy(() => import('./pages/PlayerSessionPage').then((m) => ({ default: m.PlayerSessionPage })))
 const TicketsPage = lazy(() => import('./pages/TicketsPage').then((m) => ({ default: m.TicketsPage })))
+const DailyDuelPage = lazy(() => import('./pages/DailyDuelPage').then((m) => ({ default: m.DailyDuelPage })))
 const RoadmapPage = lazy(() => import('./pages/RoadmapPage').then((m) => ({ default: m.RoadmapPage })))
 const JoinLandingPage = lazy(() => import('./pages/JoinLandingPage').then((m) => ({ default: m.JoinLandingPage })))
 
@@ -276,6 +277,13 @@ function Sidebar({
       <NavLink to="/" end className="nav-link" style={{ marginBottom: 2 }}>
         <span className="ico"><Icon name="home" /></span> Home
       </NavLink>
+
+      {/* Daily Duel: public + local-only, so it's hidden in the demo. */}
+      {!isDemo() && (
+        <NavLink to="/daily" className="nav-link" style={{ marginBottom: 2 }}>
+          <span className="ico"><Icon name="swords" /></span> Daily Duel
+        </NavLink>
+      )}
 
       {/* DM: campaign creation & management */}
       <SidebarSection label="DM" sectionKey="dm">
@@ -610,6 +618,7 @@ export function App() {
             <Route path="/changelog" element={<ChangelogPage />} />
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/bug-reports" element={<Navigate to="/tickets" replace />} />
+            <Route path="/daily" element={<DailyDuelPage />} />
             <Route path="/roadmap" element={<RoadmapPage onReport={() => setBugOpen(true)} />} />
             <Route path="/join/:code" element={<JoinLandingPage />} />
             <Route path="/tools/encounters" element={<EncountersPage />} />
