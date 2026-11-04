@@ -20,6 +20,7 @@ import type {
   Family,
   RaceGroup,
   GenTable,
+  DuelRecord,
   Template,
   PendingChange,
   SyncStateRow,
@@ -57,6 +58,9 @@ export class CodexDB extends Dexie {
   // Reusable, cross-campaign entity templates (T-8). GLOBAL (not campaign-scoped);
   // synced per-user through the user_records channel (see globalSync).
   templates!: EntityTable<Template, 'id'>
+  // Daily Duel battle history (T-63), one row per UTC day. GLOBAL; synced per-user
+  // through the user_records channel like templates.
+  duelHistory!: EntityTable<DuelRecord, 'day'>
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
@@ -279,6 +283,11 @@ export class CodexDB extends Dexie {
     // v20 adds campaign families (T-38). Additive; synced.
     this.version(20).stores({
       families: 'id, campaignId, name, updatedAt',
+    })
+    // v21 adds the Daily Duel battle history (T-63), keyed by UTC day. Additive;
+    // rides the global user_records channel (no Supabase migration).
+    this.version(21).stores({
+      duelHistory: 'day, updatedAt',
     })
   }
 }

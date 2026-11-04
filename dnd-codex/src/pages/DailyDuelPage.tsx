@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useAuth } from '../auth/AuthProvider'
+import { getDuelHistory, saveDuelResult } from '../db/repo'
 import { isDemo } from '../lib/demo'
 import {
   availableAttacks, challengeLink, compareToChallenge, dailyTier, endTurn, foeOf, heroAttack, heroOf,
-  loadDuel, parseChallenge, saveDuel, shareText, startDuel, utcDayKey, type DuelState,
+  gridEmoji, historyStats, loadDuel, parseChallenge, saveDuel, shareText, startDuel, toDuelRecord,
+  utcDayKey, type DuelState,
 } from '../lib/dailyDuel'
-import { TIER_LABEL } from '../data/duelists'
+import { FOES, HEROES, TIER_LABEL } from '../data/duelists'
 
 // Daily Duel (T-63): one Wordle-style 1v1 per UTC day, same matchup for
 // everyone. Public (no sign-in) and local-only — it never calls Supabase, and
@@ -45,6 +49,16 @@ export function DailyDuelPage() {
   useEffect(() => {
     if (duel && !demo) saveDuel(duel)
   }, [duel, demo])
+
+  // A finished duel goes into the battle history (one row per UTC day, so a
+  // reload can't duplicate it). Signed in, it then syncs with the account.
+  useEffect(() => {
+    const rec = duel && !demo ? toDuelRecord(duel) : null
+    if (rec) saveDuelResult(rec).catch(() => {})
+  }, [duel, demo])
+
+  const { user } = useAuth()
+  const history = useLiveQuery(() => (demo ? Promise.resolve([]) : getDuelHistory()), [demo])
 
   useEffect(() => {
     logEnd.current?.scrollIntoView?.({ block: 'nearest' })
@@ -161,6 +175,47 @@ export function DailyDuelPage() {
           </div>
         </div>
       )}
+
+      <div className="card" style={{ maxWidth: 640, marginTop: 16 }}>
+        <h3>Battle history</h3>
+        {history && history.length > 0 ? (
+          <>
+            {(() => {
+              const st = historyStats(history)
+              return (
+                <div className="faint" style={{ fontSize: 13, marginBottom: 8 }}>
+                  {st.played} played · {st.won} won · win streak {st.streak} (best {st.bestStreak})
+                </div>
+              )
+            })()}
+            <div style={{ display: 'grid', gap: 10 }}>
+              {history.map((r) => {
+                const hero = HEROES.find((h) => h.id === r.heroId)
+                const foe = FOES.find((f) => f.id === r.foeId)
+                return (
+                  <div key={r.day}>
+                    <div>
+                      <span aria-hidden>{r.outcome === 'won' ? '🏆' : '💀'}</span>{' '}
+                      <strong>{r.day}</strong> · {TIER_LABEL[r.tier]} · {hero?.name ?? r.heroId} vs {foe?.name ?? r.foeId}
+                    </div>
+                    <div className="faint" style={{ fontSize: 12 }}>
+                      {r.outcome === 'won' ? 'Won' : 'Lost'} in {r.rounds} round{r.rounds === 1 ? '' : 's'} · {r.heroHpLeft}/{r.heroHpMax} HP left
+                    </div>
+                    <div aria-label="Roll-by-roll results" style={{ wordBreak: 'break-all', lineHeight: 1.2 }}>{gridEmoji(r.grid)}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="faint" style={{ fontSize: 13 }}>Finished duels show up here.</div>
+        )}
+        {!user && (
+          <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
+            Your history is saved in this browser. Sign in to keep it across your devices.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { rollDice } from './dice'
+import type { DuelRecord } from '../db/types'
 import { FOES, HEROES, TIER_LABEL, TIERS, type DuelAttack, type Duelist, type Tier } from '../data/duelists'
 
 // Daily Duel (T-63): a Wordle-style 1v1 that is the same for everyone each UTC
@@ -348,6 +349,53 @@ export function shareText(s: DuelState, link?: string): string {
     ...rows,
     ...(link ? ['', `Think you can beat me? ${link}`] : []),
   ].join('\n')
+}
+
+// ── Battle history ───────────────────────────────────────────────────────────
+
+/** A finished duel as a history row (see DuelRecord); null while still playing. */
+export function toDuelRecord(s: DuelState): Omit<DuelRecord, 'updatedAt'> | null {
+  if (s.outcome === 'playing') return null
+  return {
+    day: s.day, tier: s.tier, heroId: s.heroId, foeId: s.foeId, outcome: s.outcome,
+    rounds: s.round, heroHpLeft: Math.max(0, s.heroHp), heroHpMax: heroOf(s).hp,
+    dealt: s.dealt, taken: s.taken, grid: s.grid.join(''),
+  }
+}
+
+/** A saved grid string as emoji (unknown characters are skipped). */
+export function gridEmoji(grid: string): string {
+  return [...grid].map((c) => CELL_EMOJI[c as GridCell] ?? '').join('')
+}
+
+export interface HistoryStats {
+  played: number
+  won: number
+  /** Consecutive UTC days won, counting back from today or yesterday. */
+  streak: number
+  bestStreak: number
+}
+
+const DAY_MS = 86_400_000
+const dayNumber = (day: string) => Math.round(Date.parse(`${day}T00:00:00Z`) / DAY_MS)
+
+/** Totals and win streaks for a list of history rows (any order). */
+export function historyStats(records: Pick<DuelRecord, 'day' | 'outcome'>[], today: string = utcDayKey()): HistoryStats {
+  const wins = records.filter((r) => r.outcome === 'won').map((r) => dayNumber(r.day)).sort((a, b) => a - b)
+  let best = 0
+  let run = 0
+  for (let i = 0; i < wins.length; i++) {
+    run = i > 0 && wins[i] === wins[i - 1] + 1 ? run + 1 : 1
+    best = Math.max(best, run)
+  }
+  // The current streak is the run that ends today or yesterday; older runs have lapsed.
+  let streak = 0
+  const last = wins[wins.length - 1]
+  if (last !== undefined && last >= dayNumber(today) - 1) {
+    streak = 1
+    for (let i = wins.length - 1; i > 0 && wins[i - 1] === wins[i] - 1; i--) streak++
+  }
+  return { played: records.length, won: wins.length, streak, bestStreak: best }
 }
 
 // ── Persistence (one play per UTC day, this browser) ─────────────────────────
