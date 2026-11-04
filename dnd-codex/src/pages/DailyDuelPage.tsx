@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useAuth } from '../auth/AuthProvider'
+import { getDuelHistory, saveDuelResult } from '../db/repo'
 import { isDemo } from '../lib/demo'
 import {
   availableAttacks, challengeLink, compareToChallenge, dailyTier, endTurn, foeOf, heroAttack, heroOf,
-  loadDuel, parseChallenge, saveDuel, shareText, startDuel, utcDayKey, type DuelState,
+  gridEmoji, historyStats, loadDuel, parseChallenge, saveDuel, shareText, startDuel, toDuelRecord,
+  utcDayKey, type DuelState, type LogEntry,
 } from '../lib/dailyDuel'
-import { TIER_LABEL } from '../data/duelists'
+import { FOES, HEROES, TIER_LABEL } from '../data/duelists'
 
 // Daily Duel (T-63): one Wordle-style 1v1 per UTC day, same matchup for
 // everyone. Public (no sign-in) and local-only — it never calls Supabase, and
@@ -33,6 +37,78 @@ function HpBar({ label, emoji, hp, max, tone }: { label: string; emoji: string; 
   )
 }
 
+const CHIP: Record<LogEntry['kind'], { label: string; bg: string; fg: string } | null> = {
+  hit: { label: 'HIT', bg: 'rgba(22,163,74,.18)', fg: '#16a34a' },
+  crit: { label: 'CRIT!', bg: 'rgba(234,179,8,.25)', fg: '#ca8a04' },
+  miss: { label: 'MISS', bg: 'rgba(127,127,127,.2)', fg: 'var(--text-dim)' },
+  fumble: { label: 'NAT 1', bg: 'rgba(127,127,127,.2)', fg: 'var(--text-dim)' },
+  info: null,
+}
+
+/** The play-by-play: grouped by round, each attack on its own row with the
+ *  attacker, the roll against Armor Class, and the damage with HP left. */
+function BattleLog({ log, heroEmoji, foeEmoji }: { log: LogEntry[]; heroEmoji: string; foeEmoji: string }) {
+  const rounds: { round: number; rows: LogEntry[] }[] = []
+  for (const e of log) {
+    const last = rounds[rounds.length - 1]
+    if (last && last.round === e.round) last.rows.push(e)
+    else rounds.push({ round: e.round, rows: [e] })
+  }
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {rounds.map((r) => (
+        <div key={r.round}>
+          <div className="faint" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', marginBottom: 4 }}>
+            Round {r.round}
+          </div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {r.rows.map((e, i) => {
+              const chip = CHIP[e.kind]
+              const mine = e.side === 'hero'
+              if (!chip || e.attack === undefined) {
+                return (
+                  <div key={i} className="faint" style={{ fontSize: 13, fontStyle: e.kind === 'info' ? 'italic' : undefined }}>
+                    {e.text}
+                  </div>
+                )
+              }
+              const hit = e.kind === 'hit' || e.kind === 'crit'
+              return (
+                <div
+                  key={i}
+                  style={{
+                    borderLeft: `3px solid ${mine ? '#16a34a' : '#dc2626'}`,
+                    background: mine ? 'rgba(22,163,74,.07)' : 'rgba(220,38,38,.07)',
+                    borderRadius: 4,
+                    padding: '5px 8px',
+                    fontSize: 14,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+                    <span aria-hidden>{mine ? heroEmoji : foeEmoji}</span>
+                    <strong>{e.who}</strong>
+                    <span>used {e.attack}</span>
+                    <span style={{ background: chip.bg, color: chip.fg, borderRadius: 4, padding: '0 6px', fontSize: 11, fontWeight: 700 }}>
+                      {chip.label}
+                    </span>
+                    {hit && (
+                      <strong style={{ marginLeft: 'auto', color: mine ? '#16a34a' : '#dc2626' }}>−{e.damage} HP</strong>
+                    )}
+                  </div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
+                    d20 {e.d20} {(e.bonus ?? 0) >= 0 ? '+' : '−'} {Math.abs(e.bonus ?? 0)} = {e.total} vs AC {e.ac}
+                    {hit && e.targetHp !== undefined && e.targetMax !== undefined && ` · ${e.targetHp}/${e.targetMax} HP left`}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function DailyDuelPage() {
   const demo = isDemo()
   const day = utcDayKey()
@@ -45,6 +121,16 @@ export function DailyDuelPage() {
   useEffect(() => {
     if (duel && !demo) saveDuel(duel)
   }, [duel, demo])
+
+  // A finished duel goes into the battle history (one row per UTC day, so a
+  // reload can't duplicate it). Signed in, it then syncs with the account.
+  useEffect(() => {
+    const rec = duel && !demo ? toDuelRecord(duel) : null
+    if (rec) saveDuelResult(rec).catch(() => {})
+  }, [duel, demo])
+
+  const { user } = useAuth()
+  const history = useLiveQuery(() => (demo ? Promise.resolve([]) : getDuelHistory()), [demo])
 
   useEffect(() => {
     logEnd.current?.scrollIntoView?.({ block: 'nearest' })
@@ -150,17 +236,54 @@ export function DailyDuelPage() {
 
           <div className="card" aria-live="polite">
             <h3>Battle log</h3>
-            <div style={{ maxHeight: 260, overflowY: 'auto', display: 'grid', gap: 4, fontSize: 14 }}>
-              {duel.log.map((e, i) => (
-                <div key={i} style={{ color: e.side === 'foe' ? 'var(--text-dim)' : undefined }}>
-                  <span className="faint">R{e.round}</span> {e.text}
-                </div>
-              ))}
+            <div style={{ maxHeight: 380, overflowY: 'auto', paddingRight: 8 }}>
+              <BattleLog log={duel.log} heroEmoji={hero.emoji} foeEmoji={foe.emoji} />
               <div ref={logEnd} />
             </div>
           </div>
         </div>
       )}
+
+      <div className="card" style={{ maxWidth: 640, marginTop: 16 }}>
+        <h3>Battle history</h3>
+        {history && history.length > 0 ? (
+          <>
+            {(() => {
+              const st = historyStats(history)
+              return (
+                <div className="faint" style={{ fontSize: 13, marginBottom: 8 }}>
+                  {st.played} played · {st.won} won · win streak {st.streak} (best {st.bestStreak})
+                </div>
+              )
+            })()}
+            <div style={{ display: 'grid', gap: 10 }}>
+              {history.map((r) => {
+                const hero = HEROES.find((h) => h.id === r.heroId)
+                const foe = FOES.find((f) => f.id === r.foeId)
+                return (
+                  <div key={r.day}>
+                    <div>
+                      <span aria-hidden>{r.outcome === 'won' ? '🏆' : '💀'}</span>{' '}
+                      <strong>{r.day}</strong> · {TIER_LABEL[r.tier]} · {hero?.name ?? r.heroId} vs {foe?.name ?? r.foeId}
+                    </div>
+                    <div className="faint" style={{ fontSize: 12 }}>
+                      {r.outcome === 'won' ? 'Won' : 'Lost'} in {r.rounds} round{r.rounds === 1 ? '' : 's'} · {r.heroHpLeft}/{r.heroHpMax} HP left
+                    </div>
+                    <div aria-label="Roll-by-roll results" style={{ wordBreak: 'break-all', lineHeight: 1.2 }}>{gridEmoji(r.grid)}</div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="faint" style={{ fontSize: 13 }}>Finished duels show up here.</div>
+        )}
+        {!user && (
+          <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
+            Your history is saved in this browser. Sign in to keep it across your devices.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

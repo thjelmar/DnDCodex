@@ -17,6 +17,27 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-04',
+    title: 'Daily Duel: an easier-to-read battle log',
+    changes: [
+      { kind: 'improved', text: 'The Daily Duel battle log is now grouped by round. Each attack shows who swung, whether it hit or missed, the d20 roll against Armor Class, the damage, and how many hit points the target has left, with your attacks and your opponent’s in different colors.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
+    title: 'Daily Duel: a much bigger cast',
+    changes: [
+      { kind: 'new', text: 'Daily Duel now has 20 heroes and 40 opponents, from kobold champions and dire wolves to wyverns and fallen knights, so duels stay fresh for months.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
+    title: 'Daily Duel battle history',
+    changes: [
+      { kind: 'new', text: 'Daily Duel now keeps a battle history: every duel you finish, with the matchup, the result, and your roll-by-roll grid, plus your wins and win streak. Sign in and your history follows you across your devices.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
     title: 'Daily Duel gets harder as the week goes on',
     changes: [
       { kind: 'improved', text: 'Daily Duel now has three difficulties. Early in the week your opponent is easy to beat, and by the weekend it has stronger attacks and more hit points. Each turn it picks one attack from the ones it knows at that difficulty.' },

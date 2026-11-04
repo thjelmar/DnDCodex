@@ -1,4 +1,5 @@
 import { rollDice } from './dice'
+import type { DuelRecord } from '../db/types'
 import { FOES, HEROES, TIER_LABEL, TIERS, type DuelAttack, type Duelist, type Tier } from '../data/duelists'
 
 // Daily Duel (T-63): a Wordle-style 1v1 that is the same for everyone each UTC
@@ -87,6 +88,16 @@ export interface LogEntry {
   kind: 'hit' | 'crit' | 'miss' | 'fumble' | 'info'
   text: string
   damage?: number
+  /** Structured detail for the log display (absent on older saves and info rows). */
+  who?: string
+  attack?: string
+  d20?: number
+  bonus?: number
+  total?: number
+  ac?: number
+  /** The target's HP after this attack, and its maximum. */
+  targetHp?: number
+  targetMax?: number
 }
 
 export interface DuelState {
@@ -169,6 +180,7 @@ function swing(attack: DuelAttack, attacker: string, ac: number, side: Side, rou
       cell: (lower ? 'm' : 'M') as GridCell,
       entry: {
         round, side, kind: fumble ? 'fumble' : 'miss',
+        who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
         text: `${attacker} misses with ${attack.name} (${roll}${fumble ? ', natural 1' : ''}).`,
       },
     }
@@ -178,6 +190,7 @@ function swing(attack: DuelAttack, attacker: string, ac: number, side: Side, rou
     cell: (crit ? (lower ? 'c' : 'C') : lower ? 'h' : 'H') as GridCell,
     entry: {
       round, side, kind: crit ? 'crit' : 'hit', damage: dmg.total,
+      who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
       text: `${attacker} ${crit ? 'CRITS' : 'hits'} with ${attack.name} for ${dmg.total} (${roll}${crit ? ', natural 20' : ''}).`,
     },
   }
@@ -202,12 +215,13 @@ function foeTurn(s: DuelState): DuelState {
     if (next.heroHp <= 0) break
     const sw = swing(attack, foe.name, hero.ac, 'foe', next.round)
     const dmg = sw.entry.damage ?? 0
+    const left = Math.max(0, next.heroHp - dmg)
     next = {
       ...next,
       heroHp: next.heroHp - dmg,
       taken: next.taken + dmg,
       grid: [...next.grid, sw.cell],
-      log: [...next.log, sw.entry],
+      log: [...next.log, { ...sw.entry, targetHp: left, targetMax: hero.hp }],
     }
   }
   return finish(next)
@@ -221,8 +235,8 @@ function newRound(s: DuelState): DuelState {
 }
 
 /** Starts today's duel: rolls initiative; the foe may open with its turn. */
-export function startDuel(day: string): DuelState {
-  const { hero, foe, tier } = dailyMatchup(day)
+export function startDuel(day: string, matchup: Matchup = dailyMatchup(day)): DuelState {
+  const { hero, foe, tier } = matchup
   const heroInit = rollDice(1, 20)[0] + hero.init
   const foeInit = rollDice(1, 20)[0] + foe.init
   const heroFirst = heroInit >= foeInit
@@ -260,12 +274,13 @@ export function heroAttack(s: DuelState, attackId: string): DuelState {
     if (next.foeHp <= 0) break
     const sw = swing(attack, hero.name, foe.ac, 'hero', next.round)
     const dmg = sw.entry.damage ?? 0
+    const left = Math.max(0, next.foeHp - dmg)
     next = {
       ...next,
       foeHp: next.foeHp - dmg,
       dealt: next.dealt + dmg,
       grid: [...next.grid, sw.cell],
-      log: [...next.log, sw.entry],
+      log: [...next.log, { ...sw.entry, targetHp: left, targetMax: foe.hp }],
     }
   }
   next = finish(next)
@@ -348,6 +363,53 @@ export function shareText(s: DuelState, link?: string): string {
     ...rows,
     ...(link ? ['', `Think you can beat me? ${link}`] : []),
   ].join('\n')
+}
+
+// ── Battle history ───────────────────────────────────────────────────────────
+
+/** A finished duel as a history row (see DuelRecord); null while still playing. */
+export function toDuelRecord(s: DuelState): Omit<DuelRecord, 'updatedAt'> | null {
+  if (s.outcome === 'playing') return null
+  return {
+    day: s.day, tier: s.tier, heroId: s.heroId, foeId: s.foeId, outcome: s.outcome,
+    rounds: s.round, heroHpLeft: Math.max(0, s.heroHp), heroHpMax: heroOf(s).hp,
+    dealt: s.dealt, taken: s.taken, grid: s.grid.join(''),
+  }
+}
+
+/** A saved grid string as emoji (unknown characters are skipped). */
+export function gridEmoji(grid: string): string {
+  return [...grid].map((c) => CELL_EMOJI[c as GridCell] ?? '').join('')
+}
+
+export interface HistoryStats {
+  played: number
+  won: number
+  /** Consecutive UTC days won, counting back from today or yesterday. */
+  streak: number
+  bestStreak: number
+}
+
+const DAY_MS = 86_400_000
+const dayNumber = (day: string) => Math.round(Date.parse(`${day}T00:00:00Z`) / DAY_MS)
+
+/** Totals and win streaks for a list of history rows (any order). */
+export function historyStats(records: Pick<DuelRecord, 'day' | 'outcome'>[], today: string = utcDayKey()): HistoryStats {
+  const wins = records.filter((r) => r.outcome === 'won').map((r) => dayNumber(r.day)).sort((a, b) => a - b)
+  let best = 0
+  let run = 0
+  for (let i = 0; i < wins.length; i++) {
+    run = i > 0 && wins[i] === wins[i - 1] + 1 ? run + 1 : 1
+    best = Math.max(best, run)
+  }
+  // The current streak is the run that ends today or yesterday; older runs have lapsed.
+  let streak = 0
+  const last = wins[wins.length - 1]
+  if (last !== undefined && last >= dayNumber(today) - 1) {
+    streak = 1
+    for (let i = wins.length - 1; i > 0 && wins[i - 1] === wins[i] - 1; i--) streak++
+  }
+  return { played: records.length, won: wins.length, streak, bestStreak: best }
 }
 
 // ── Persistence (one play per UTC day, this browser) ─────────────────────────

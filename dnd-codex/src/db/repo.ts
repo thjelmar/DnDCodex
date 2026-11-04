@@ -15,6 +15,7 @@ import type {
   RollTable,
   RollTableEntry,
   GenTable,
+  DuelRecord,
   Template,
   TemplateKind,
   PlayerNote,
@@ -406,6 +407,28 @@ export async function saveGenTable(
   // Generator word-lists ride the global (account-level) channel (T-31), keyed
   // by slot, so they follow the account across devices like templates do.
   await enqueueGlobalPut('genTables', slot)
+}
+
+// --- Daily Duel battle history (T-63; global, synced via user_records) ------
+
+/** Every finished duel, newest first. */
+export async function getDuelHistory(): Promise<DuelRecord[]> {
+  const rows = await db.duelHistory.toArray()
+  return rows.sort((a, b) => b.day.localeCompare(a.day))
+}
+
+/**
+ * Records a finished duel. Keyed by UTC day, so saving twice (a reload, a
+ * second device) overwrites the same row instead of adding one. Silent no-op in
+ * the demo; the sync enqueue is a no-op when signed out.
+ */
+export async function saveDuelResult(rec: Omit<DuelRecord, 'updatedAt'>): Promise<void> {
+  if (skipDemoWrite()) return
+  const existing = await db.duelHistory.get(rec.day)
+  // A day's first finished result stands: replays and cross-device syncs don't overwrite it.
+  if (existing) return
+  await db.duelHistory.put({ ...rec, updatedAt: now() })
+  await enqueueGlobalPut('duelHistory', rec.day)
 }
 
 // --- Entity templates (T-8; global, synced via user_records) ---------------

@@ -577,6 +577,26 @@ export interface GenTable {
   updatedAt: ISODate
 }
 
+/** One finished Daily Duel (T-63), kept for the player's battle history. Keyed
+ *  by the UTC day, so a replay can never create a second entry. Account-level:
+ *  rides the global `user_records` sync channel when signed in. */
+export interface DuelRecord {
+  /** UTC day, `YYYY-MM-DD`. Primary key. */
+  day: string
+  tier: 'easy' | 'standard' | 'hard'
+  heroId: string
+  foeId: string
+  outcome: 'won' | 'lost'
+  rounds: number
+  heroHpLeft: number
+  heroHpMax: number
+  dealt: number
+  taken: number
+  /** The roll-by-roll grid (see lib/dailyDuel GridCell). */
+  grid: string
+  updatedAt: ISODate
+}
+
 // ---------------------------------------------------------------------------
 // Templates (T-8). A reusable starting point for a new entity. GLOBAL (not tied
 // to a campaign) so it's reusable everywhere, and synced through the per-user
@@ -671,7 +691,7 @@ export interface SyncOptOutRow {
 // ---------------------------------------------------------------------------
 
 /** Dexie tables synced through the per-user `user_records` channel. */
-export type GlobalSyncTable = 'templates' | 'genTables'
+export type GlobalSyncTable = 'templates' | 'genTables' | 'duelHistory'
 
 /** One queued local mutation of global data waiting to be pushed. */
 export interface PendingGlobalChange {
