@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { isDemo } from '../lib/demo'
 import {
-  availableAttacks, challengeLink, compareToChallenge, endTurn, foeOf, heroAttack, heroOf,
+  availableAttacks, challengeLink, compareToChallenge, dailyTier, endTurn, foeOf, heroAttack, heroOf,
   loadDuel, parseChallenge, saveDuel, shareText, startDuel, utcDayKey, type DuelState,
 } from '../lib/dailyDuel'
+import { TIER_LABEL } from '../data/duelists'
 
 // Daily Duel (T-63): one Wordle-style 1v1 per UTC day, same matchup for
 // everyone. Public (no sign-in) and local-only — it never calls Supabase, and
@@ -81,9 +82,7 @@ export function DailyDuelPage() {
           <strong>A friend challenged you.</strong>{' '}
           {challenge.outcome === 'won'
             ? `They won in ${challenge.rounds} round${challenge.rounds === 1 ? '' : 's'} with ${challenge.hpLeft} HP left.`
-            : challenge.outcome === 'lost'
-              ? 'They were defeated. Can you win?'
-              : 'Their duel ended in a stalemate. Can you win?'}
+            : 'They were defeated. Can you win?'}
           {challenge.day !== day && (
             <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>
               That challenge was for {challenge.day}. You’re playing today’s duel instead.
@@ -101,8 +100,11 @@ export function DailyDuelPage() {
         <div className="card" style={{ maxWidth: 560 }}>
           <h3>Today’s duel is ready</h3>
           <p className="faint">
-            Pick an attack each turn, and the Codex rolls it. Then your opponent strikes back.
-            You get one try a day, so make it count.
+            Each turn, pick an attack. The Codex rolls a d20 and adds the attack bonus: if the total
+            meets or beats the target’s Armor Class, it hits and rolls damage. A natural 20 always hits
+            and doubles the damage dice, and a natural 1 always misses. Then your opponent takes its
+            turn, and you trade turns until one of you drops to 0 HP. You get one try a day, so make
+            it count. Today’s difficulty: {TIER_LABEL[dailyTier(day)]}.
           </p>
           <button className="btn primary" onClick={() => setDuel(startDuel(day))}>Roll initiative</button>
         </div>
@@ -116,7 +118,7 @@ export function DailyDuelPage() {
               <HpBar label={foe.name} emoji={foe.emoji} hp={duel.foeHp} max={foe.hp} tone="#dc2626" />
             </div>
             <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>
-              AC {hero.ac} vs AC {foe.ac} · Round {duel.round}
+              {TIER_LABEL[duel.tier]} · AC {hero.ac} vs AC {foe.ac} · Round {duel.round}
             </div>
           </div>
 
@@ -136,7 +138,7 @@ export function DailyDuelPage() {
           ) : (
             <div className="card">
               <h3>
-                {duel.outcome === 'won' ? '🏆 Victory!' : duel.outcome === 'lost' ? '💀 Defeat' : '🤝 Stalemate'}
+                {duel.outcome === 'won' ? '🏆 Victory!' : '💀 Defeat'}
               </h3>
               <pre style={{ margin: '8px 0', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>{shareText(duel)}</pre>
               <button className="btn primary" onClick={share}>{copied ? 'Copied!' : 'Copy result and challenge link'}</button>

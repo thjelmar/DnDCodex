@@ -17,6 +17,8 @@ export interface DuelAttack {
   times?: number
   /** Short flavor line for the button. */
   blurb?: string
+  /** Foes only: the lowest difficulty (1 easy, 2 standard, 3 hard) that can use it. */
+  tier?: 1 | 2 | 3
 }
 
 export interface Duelist {
@@ -89,59 +91,124 @@ export const HEROES: Duelist[] = [
   },
 ]
 
-export const FOES: Duelist[] = [
+export type Tier = 'easy' | 'standard' | 'hard'
+export const TIERS: Tier[] = ['easy', 'standard', 'hard']
+export const TIER_LABEL: Record<Tier, string> = { easy: 'Easy', standard: 'Standard', hard: 'Hard' }
+
+/**
+ * A foe has one armor class and initiative, but its hit points and the set of
+ * attacks it may use grow with difficulty. Each turn the foe picks one attack
+ * at random from those unlocked at the day's tier (see `tier` on each attack).
+ */
+export interface Foe {
+  id: string
+  name: string
+  emoji: string
+  ac: number
+  init: number
+  /** Hit points at [easy, standard, hard]. */
+  hp: [number, number, number]
+  attacks: DuelAttack[]
+}
+
+const a = (tier: 1 | 2 | 3, id: string, name: string, toHit: number, damage: string, times = 1): DuelAttack =>
+  ({ id, name, kind: 'action', tier, toHit, damage, times })
+
+export const FOES: Foe[] = [
   {
-    id: 'goblin-boss', name: 'Goblin Boss', emoji: '👺', hp: 48, ac: 17, init: 2,
-    attacks: [{ id: 'scimitar', name: 'Scimitar', kind: 'action', toHit: 6, damage: '1d6+4', times: 3 }],
-  },
-  {
-    id: 'bugbear', name: 'Bugbear Chief', emoji: '🐻', hp: 65, ac: 17, init: 2,
-    attacks: [{ id: 'morningstar', name: 'Morningstar', kind: 'action', toHit: 4, damage: '2d8+2', times: 2 }],
-  },
-  {
-    id: 'orc', name: 'Orc War Chief', emoji: '👹', hp: 72, ac: 15, init: 1,
-    attacks: [{ id: 'greataxe', name: 'Greataxe', kind: 'action', toHit: 5, damage: '1d12+3', times: 2 }],
-  },
-  {
-    id: 'ogre', name: 'Ogre', emoji: '🧌', hp: 80, ac: 12, init: -1,
-    attacks: [{ id: 'club', name: 'Greatclub', kind: 'action', toHit: 7, damage: '2d8+6' }],
-  },
-  {
-    id: 'owlbear', name: 'Owlbear', emoji: '🦉', hp: 59, ac: 13, init: 1,
+    id: 'goblin-boss', name: 'Goblin Boss', emoji: '👺', ac: 17, init: 2, hp: [56, 67, 70],
     attacks: [
-      { id: 'beak', name: 'Beak', kind: 'action', toHit: 7, damage: '1d10+5' },
-      { id: 'claws', name: 'Claws', kind: 'action', toHit: 7, damage: '2d8+5' },
+      a(1, 'jab', 'Scimitar Jab', 6, '1d6+4'),
+      a(2, 'flurry', 'Scimitar Flurry', 6, '1d6+4', 3),
+      a(3, 'frenzy', 'Nimble Frenzy', 7, '1d6+4+1d6', 3),
     ],
   },
   {
-    id: 'giant-spider', name: 'Giant Spider', emoji: '🕷️', hp: 50, ac: 15, init: 3,
-    attacks: [{ id: 'bite', name: 'Venomous Bite', kind: 'action', toHit: 6, damage: '1d8+3+2d8', times: 2 }],
-  },
-  {
-    id: 'wight', name: 'Wight', emoji: '💀', hp: 58, ac: 15, init: 2,
-    attacks: [{ id: 'sword', name: 'Longsword', kind: 'action', toHit: 5, damage: '1d8+3+1d6', times: 2 }],
-  },
-  {
-    id: 'gnoll-fang', name: 'Gnoll Fang of Yeenoghu', emoji: '🐺', hp: 65, ac: 14, init: 2,
-    attacks: [{ id: 'rampage', name: 'Bite and Spear', kind: 'action', toHit: 6, damage: '1d8+3', times: 3 }],
-  },
-  {
-    id: 'ghoul', name: 'Ghoul Pack Leader', emoji: '🧟', hp: 58, ac: 13, init: 2,
-    attacks: [{ id: 'claws', name: 'Paralyzing Claws', kind: 'action', toHit: 5, damage: '2d6+3', times: 2 }],
-  },
-  {
-    id: 'minotaur-skeleton', name: 'Minotaur Skeleton', emoji: '🐂', hp: 67, ac: 12, init: 0,
-    attacks: [{ id: 'gore', name: 'Gore', kind: 'action', toHit: 6, damage: '2d12+4' }],
-  },
-  {
-    id: 'hobgoblin-captain', name: 'Hobgoblin Captain', emoji: '⚔️', hp: 52, ac: 17, init: 1,
-    attacks: [{ id: 'greatsword', name: 'Greatsword', kind: 'action', toHit: 5, damage: '2d6+3', times: 2 }],
-  },
-  {
-    id: 'troll', name: 'Troll', emoji: '🪨', hp: 62, ac: 14, init: 1,
+    id: 'bugbear', name: 'Bugbear Chief', emoji: '🐻', ac: 17, init: 2, hp: [78, 94, 98],
     attacks: [
-      { id: 'bite', name: 'Bite', kind: 'action', toHit: 6, damage: '1d6+3' },
-      { id: 'claw', name: 'Claws', kind: 'action', toHit: 6, damage: '2d6+3', times: 2 },
+      a(1, 'swing', 'Morningstar Swing', 4, '2d8+2'),
+      a(2, 'pair', 'Morningstar Pair', 4, '2d8+2', 2),
+      a(3, 'ambush', 'Brutal Ambush', 5, '2d8+2+2d6', 2),
+    ],
+  },
+  {
+    id: 'orc', name: 'Orc War Chief', emoji: '👹', ac: 15, init: 1, hp: [88, 106, 110],
+    attacks: [
+      a(1, 'chop', 'Axe Chop', 5, '1d12+3'),
+      a(2, 'flurry', 'Greataxe Flurry', 5, '1d12+3', 2),
+      a(3, 'fury', 'Blood Fury', 6, '1d12+3+1d6', 2),
+    ],
+  },
+  {
+    id: 'ogre', name: 'Ogre', emoji: '🧌', ac: 12, init: -1, hp: [97, 116, 121],
+    attacks: [
+      a(1, 'smash', 'Club Smash', 7, '2d8+6'),
+      a(2, 'wild', 'Wild Swings', 6, '2d8+4', 2),
+      a(3, 'overhead', 'Crushing Overhead', 8, '3d8+6'),
+    ],
+  },
+  {
+    id: 'owlbear', name: 'Owlbear', emoji: '🦉', ac: 13, init: 1, hp: [72, 86, 90],
+    attacks: [
+      a(1, 'beak', 'Beak', 7, '1d10+5'),
+      a(2, 'claws', 'Claws', 7, '2d8+5'),
+      a(3, 'hug', 'Rending Bear Hug', 7, '2d8+5', 2),
+    ],
+  },
+  {
+    id: 'giant-spider', name: 'Giant Spider', emoji: '🕷️', ac: 15, init: 3, hp: [62, 74, 78],
+    attacks: [
+      a(1, 'bite', 'Bite', 6, '1d8+3+1d8'),
+      a(2, 'venom', 'Venomous Bite', 6, '1d8+3+2d8', 2),
+      a(3, 'web', 'Web and Bite', 7, '1d8+3+3d8', 2),
+    ],
+  },
+  {
+    id: 'wight', name: 'Wight', emoji: '💀', ac: 15, init: 2, hp: [70, 84, 88],
+    attacks: [
+      a(1, 'sword', 'Longsword', 5, '1d8+3'),
+      a(2, 'pair', 'Longsword Pair', 5, '1d8+3+1d6', 2),
+      a(3, 'drain', 'Life Drain', 6, '1d8+3+2d6', 2),
+    ],
+  },
+  {
+    id: 'gnoll-fang', name: 'Gnoll Fang of Yeenoghu', emoji: '🐺', ac: 14, init: 2, hp: [82, 98, 102],
+    attacks: [
+      a(1, 'spear', 'Spear', 6, '1d8+3'),
+      a(2, 'bite', 'Bite and Spear', 6, '1d8+3', 2),
+      a(3, 'rampage', 'Rampage', 6, '1d8+3', 3),
+    ],
+  },
+  {
+    id: 'ghoul', name: 'Ghoul Pack Leader', emoji: '🧟', ac: 13, init: 2, hp: [72, 86, 90],
+    attacks: [
+      a(1, 'claw', 'Claw', 5, '2d6+3'),
+      a(2, 'claws', 'Paralyzing Claws', 5, '2d6+3', 2),
+      a(3, 'frenzy', 'Ravenous Frenzy', 6, '2d6+5', 2),
+    ],
+  },
+  {
+    id: 'minotaur-skeleton', name: 'Minotaur Skeleton', emoji: '🐂', ac: 12, init: 0, hp: [84, 101, 105],
+    attacks: [
+      a(1, 'slam', 'Horn Slam', 6, '2d8+4'),
+      a(2, 'gore', 'Gore', 6, '2d12+4'),
+      a(3, 'charge', 'Rampaging Charge', 7, '3d12+4'),
+    ],
+  },
+  {
+    id: 'hobgoblin-captain', name: 'Hobgoblin Captain', emoji: '⚔️', ac: 17, init: 1, hp: [66, 79, 82],
+    attacks: [
+      a(1, 'greatsword', 'Greatsword', 5, '2d6+3'),
+      a(2, 'pair', 'Greatsword Pair', 5, '2d6+3', 2),
+      a(3, 'barrage', 'Disciplined Barrage', 6, '2d6+3+1d6', 2),
+    ],
+  },
+  {
+    id: 'troll', name: 'Troll', emoji: '🪨', ac: 14, init: 1, hp: [78, 94, 98],
+    attacks: [
+      a(1, 'bite', 'Bite', 6, '1d6+3'),
+      a(2, 'claws', 'Claws', 6, '2d6+3', 2),
+      a(3, 'rend', 'Rend', 7, '2d6+4', 3),
     ],
   },
 ]

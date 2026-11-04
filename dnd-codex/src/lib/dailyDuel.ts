@@ -1,13 +1,13 @@
 import { rollDice } from './dice'
-import { FOES, HEROES, type DuelAttack, type Duelist } from '../data/duelists'
+import { FOES, HEROES, TIER_LABEL, TIERS, type DuelAttack, type Duelist, type Tier } from '../data/duelists'
 
 // Daily Duel (T-63): a Wordle-style 1v1 that is the same for everyone each UTC
 // day. The matchup is derived from the date (no server); dice are free. Pure
 // logic only — it never touches the shared combat tracker store (codex.combat),
 // Dexie, or Supabase, so it is safe in any context and trivially testable.
 
-/** Safety cap so a stalemate (both sides whiffing) still ends. */
-export const MAX_ROUNDS = 12
+/** Sanity bound for a decoded challenge's round count (duels run to a winner). */
+const MAX_CODE_ROUNDS = 999
 
 // ── Seeding ──────────────────────────────────────────────────────────────────
 
@@ -37,24 +37,49 @@ function mulberry32(seed: number): () => number {
   }
 }
 
+/**
+ * The day's difficulty ramps through the UTC week: Mon–Tue easy, Wed–Thu
+ * standard, Fri–Sun hard.
+ */
+export function dailyTier(day: string): Tier {
+  const dow = new Date(`${day}T00:00:00Z`).getUTCDay() // 0 = Sunday
+  if (dow === 1 || dow === 2) return 'easy'
+  if (dow === 3 || dow === 4) return 'standard'
+  return 'hard'
+}
+
 export interface Matchup {
   day: string
+  tier: Tier
   hero: Duelist
+  /** The foe at the day's difficulty: its HP and unlocked attacks. */
   foe: Duelist
 }
 
+/** A foe flattened to one difficulty: that tier's HP and its unlocked attacks. */
+export function resolveFoe(foeId: string, tier: Tier): Duelist {
+  const f = FOES.find((x) => x.id === foeId)
+  if (!f) throw new Error(`Unknown foe ${foeId}`)
+  const level = (TIERS.indexOf(tier) + 1) as 1 | 2 | 3
+  return {
+    id: f.id, name: f.name, emoji: f.emoji, ac: f.ac, init: f.init,
+    hp: f.hp[level - 1],
+    attacks: f.attacks.filter((x) => (x.tier ?? 1) <= level),
+  }
+}
+
 /** Today's hero and opponent — identical for everyone on the same UTC day. */
-export function dailyMatchup(day: string): Matchup {
+export function dailyMatchup(day: string, tier: Tier = dailyTier(day)): Matchup {
   const rand = mulberry32(hashString(`dnd-codex-daily-duel:${day}`))
   const hero = HEROES[Math.floor(rand() * HEROES.length)]
-  const foe = FOES[Math.floor(rand() * FOES.length)]
-  return { day, hero, foe }
+  const foeBase = FOES[Math.floor(rand() * FOES.length)]
+  return { day, tier, hero, foe: resolveFoe(foeBase.id, tier) }
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
 
 export type Side = 'hero' | 'foe'
-export type Outcome = 'playing' | 'won' | 'lost' | 'stalemate'
+export type Outcome = 'playing' | 'won' | 'lost'
 
 export interface LogEntry {
   round: number
@@ -66,6 +91,7 @@ export interface LogEntry {
 
 export interface DuelState {
   day: string
+  tier: Tier
   heroId: string
   foeId: string
   heroHp: number
@@ -98,7 +124,7 @@ export function heroOf(s: DuelState): Duelist {
   return byId(HEROES, s.heroId)
 }
 export function foeOf(s: DuelState): Duelist {
-  return byId(FOES, s.foeId)
+  return resolveFoe(s.foeId, s.tier)
 }
 
 // ── Rolling ──────────────────────────────────────────────────────────────────
@@ -165,49 +191,43 @@ function finish(s: DuelState): DuelState {
   return s
 }
 
-/** Resolves the foe's whole turn (every attack it has), then starts the hero's. */
+/** The foe's turn: it picks one attack at random from the set unlocked at the
+ *  day's difficulty and makes every swing of it (a Multiattack is one choice). */
 function foeTurn(s: DuelState): DuelState {
   const foe = foeOf(s)
+  const hero = heroOf(s)
+  const attack = foe.attacks[Math.floor(Math.random() * foe.attacks.length)]
   let next = s
-  for (const attack of foe.attacks) {
-    for (let i = 0; i < (attack.times ?? 1); i++) {
-      if (next.heroHp <= 0) break
-      const sw = swing(attack, foe.name, heroOf(s).ac, 'foe', next.round)
-      const dmg = sw.entry.damage ?? 0
-      next = {
-        ...next,
-        heroHp: next.heroHp - dmg,
-        taken: next.taken + dmg,
-        grid: [...next.grid, sw.cell],
-        log: [...next.log, sw.entry],
-      }
+  for (let i = 0; i < (attack.times ?? 1); i++) {
+    if (next.heroHp <= 0) break
+    const sw = swing(attack, foe.name, hero.ac, 'foe', next.round)
+    const dmg = sw.entry.damage ?? 0
+    next = {
+      ...next,
+      heroHp: next.heroHp - dmg,
+      taken: next.taken + dmg,
+      grid: [...next.grid, sw.cell],
+      log: [...next.log, sw.entry],
     }
-    // A foe with several separate actions (e.g. Owlbear beak + claws, Troll)
-    // uses all of them each turn, like a Multiattack.
   }
   return finish(next)
 }
 
-/** Opens a new round: hero's turn flags reset; round cap ends a stalemate. */
+/** Opens a new round: the hero's action and bonus action refresh. The duel
+ *  runs until one side reaches 0 HP. */
 function newRound(s: DuelState): DuelState {
   if (s.outcome !== 'playing') return s
-  if (s.round >= MAX_ROUNDS) {
-    return {
-      ...s, outcome: 'stalemate',
-      log: [...s.log, { round: s.round, side: 'hero', kind: 'info', text: 'Both fighters are spent. The duel ends in a stalemate.' }],
-    }
-  }
   return { ...s, round: s.round + 1, turn: 'hero', actionUsed: false, bonusUsed: false }
 }
 
 /** Starts today's duel: rolls initiative; the foe may open with its turn. */
 export function startDuel(day: string): DuelState {
-  const { hero, foe } = dailyMatchup(day)
+  const { hero, foe, tier } = dailyMatchup(day)
   const heroInit = rollDice(1, 20)[0] + hero.init
   const foeInit = rollDice(1, 20)[0] + foe.init
   const heroFirst = heroInit >= foeInit
   const base: DuelState = {
-    day, heroId: hero.id, foeId: foe.id,
+    day, tier, heroId: hero.id, foeId: foe.id,
     heroHp: hero.hp, foeHp: foe.hp,
     round: 1, turn: 'hero', actionUsed: false, bonusUsed: false,
     outcome: 'playing', dealt: 0, taken: 0, grid: [],
@@ -276,7 +296,7 @@ export interface Challenge {
   hpLeft: number
 }
 
-const OUTCOME_CODE: Record<Challenge['outcome'], string> = { won: 'w', lost: 'l', stalemate: 's' }
+const OUTCOME_CODE: Record<Challenge['outcome'], string> = { won: 'w', lost: 'l' }
 
 /** `2026-11-04.w.5.23` — day, outcome (w/l/s), rounds, hero HP left. */
 export function encodeChallenge(s: DuelState): string {
@@ -286,18 +306,18 @@ export function encodeChallenge(s: DuelState): string {
 
 /** Parses a challenge code; returns null for anything malformed. */
 export function parseChallenge(code: string | null | undefined): Challenge | null {
-  const m = /^(\d{4}-\d{2}-\d{2})\.([wls])\.(\d{1,2})\.(\d{1,3})$/.exec(code ?? '')
+  const m = /^(\d{4}-\d{2}-\d{2})\.([wl])\.(\d{1,3})\.(\d{1,3})$/.exec(code ?? '')
   if (!m) return null
   const outcome = (Object.keys(OUTCOME_CODE) as Challenge['outcome'][]).find((k) => OUTCOME_CODE[k] === m[2])
   if (!outcome) return null
   const rounds = Number(m[3])
-  if (rounds < 1 || rounds > MAX_ROUNDS) return null
+  if (rounds < 1 || rounds > MAX_CODE_ROUNDS) return null
   return { day: m[1], outcome, rounds, hpLeft: Number(m[4]) }
 }
 
 /** Higher is better. Only wins score: fewer rounds first, then more HP left. */
 export function challengeScore(c: Pick<Challenge, 'outcome' | 'rounds' | 'hpLeft'>): number {
-  return c.outcome === 'won' ? 10000 - c.rounds * 200 + c.hpLeft : 0
+  return c.outcome === 'won' ? Math.max(1, 10000 - c.rounds * 10) * 1000 + c.hpLeft : 0
 }
 
 export type Comparison = 'beat' | 'tied' | 'lost'
@@ -318,12 +338,12 @@ export function challengeLink(s: DuelState, base: string): string {
 export function shareText(s: DuelState, link?: string): string {
   const hero = heroOf(s)
   const foe = foeOf(s)
-  const verdict = s.outcome === 'won' ? 'Victory' : s.outcome === 'lost' ? 'Defeat' : 'Stalemate'
+  const verdict = s.outcome === 'won' ? 'Victory' : 'Defeat'
   const rows: string[] = []
   for (let i = 0; i < s.grid.length; i += 6) rows.push(s.grid.slice(i, i + 6).map((c) => CELL_EMOJI[c]).join(''))
   return [
     `⚔️ D&D Codex Daily Duel ${s.day}`,
-    `${hero.emoji} ${hero.name} vs ${foe.emoji} ${foe.name}`,
+    `${hero.emoji} ${hero.name} vs ${foe.emoji} ${foe.name} (${TIER_LABEL[s.tier]})`,
     `${verdict} in ${s.round} round${s.round === 1 ? '' : 's'} · ${Math.max(0, s.heroHp)}/${hero.hp} HP left`,
     ...rows,
     ...(link ? ['', `Think you can beat me? ${link}`] : []),
@@ -340,7 +360,9 @@ export function loadDuel(day: string): DuelState | null {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const s = JSON.parse(raw) as DuelState
-    return s.day === day ? s : null
+    // Saves from before difficulty tiers (no `tier`) or with the removed
+    // stalemate outcome can't be resumed.
+    return s.day === day && s.tier && (s.outcome as string) !== 'stalemate' ? s : null
   } catch {
     return null
   }

@@ -17,6 +17,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-04',
+    title: 'Daily Duel gets harder as the week goes on',
+    changes: [
+      { kind: 'improved', text: 'Daily Duel now has three difficulties. Early in the week your opponent is easy to beat, and by the weekend it has stronger attacks and more hit points. Each turn it picks one attack from the ones it knows at that difficulty.' },
+      { kind: 'improved', text: 'Duels now run turn by turn until one fighter reaches 0 HP, with no draws. Attacks hit when the d20 roll plus the attack bonus meets or beats the target’s Armor Class.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
     title: 'Daily Duel',
     changes: [
       { kind: 'new', text: 'Daily Duel is a quick one-on-one fight that’s the same for everyone each day. Pick your attacks, the Codex rolls the dice, and your opponent strikes back. You get one try a day, and it resets at midnight UTC.' },
