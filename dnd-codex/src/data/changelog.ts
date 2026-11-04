@@ -17,6 +17,13 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-04',
+    title: 'Daily Duel: a much bigger cast',
+    changes: [
+      { kind: 'new', text: 'Daily Duel now has 20 heroes and 40 opponents, from kobold champions and dire wolves to wyverns and fallen knights, so duels stay fresh for months.' },
+    ],
+  },
+  {
+    date: '2026-11-04',
     title: 'Daily Duel battle history',
     changes: [
       { kind: 'new', text: 'Daily Duel now keeps a battle history: every duel you finish, with the matchup, the result, and your roll-by-roll grid, plus your wins and win streak. Sign in and your history follows you across your devices.' },

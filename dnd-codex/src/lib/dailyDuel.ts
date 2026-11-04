@@ -222,8 +222,8 @@ function newRound(s: DuelState): DuelState {
 }
 
 /** Starts today's duel: rolls initiative; the foe may open with its turn. */
-export function startDuel(day: string): DuelState {
-  const { hero, foe, tier } = dailyMatchup(day)
+export function startDuel(day: string, matchup: Matchup = dailyMatchup(day)): DuelState {
+  const { hero, foe, tier } = matchup
   const heroInit = rollDice(1, 20)[0] + hero.init
   const foeInit = rollDice(1, 20)[0] + foe.init
   const heroFirst = heroInit >= foeInit
