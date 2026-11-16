@@ -303,6 +303,12 @@ const viewOf = (d: DuelState): View => ({ hero: d.heroHp, foe: d.foeHp, shown: d
 interface D20View { values: number[]; kept: number; tumbling: boolean; crit: boolean; fumble: boolean; label: string }
 interface DmgView { dice: { sides: number; value: number }[]; flat: number; tumbling: boolean; total: number | null; label: string }
 
+/** The battle log starts open on the right of the duel; a visitor's choice is remembered. */
+const LOG_OPEN_KEY = 'codex.duelLogOpen'
+function loadLogOpen(): boolean {
+  try { return localStorage.getItem(LOG_OPEN_KEY) !== '0' } catch { return true }
+}
+
 const sleepMs = (ms: number) => new Promise<void>((r) => setTimeout(r, reducedMotion() ? Math.min(ms, 40) : ms))
 
 export function DailyDuelPage() {
@@ -322,7 +328,8 @@ export function DailyDuelPage() {
   const [lean, setLean] = useState<Lean | null>(null)
   const [leanReady, setLeanReady] = useState(demo)
   const arena = useRef<HTMLDivElement>(null)
-  const logEnd = useRef<HTMLDivElement>(null)
+  const logBox = useRef<HTMLDivElement>(null)
+  const [logOpen, setLogOpen] = useState(loadLogOpen)
   const run = useRef(0)
   const ids = useRef(1)
   const [params] = useSearchParams()
@@ -353,9 +360,19 @@ export function DailyDuelPage() {
   const { user } = useAuth()
   const history = useLiveQuery(() => (demo ? Promise.resolve([]) : getDuelHistory()), [demo])
 
+  // Keep the newest entry in view by scrolling the log box itself. (scrollIntoView
+  // would also scroll the whole page, which made the screen jump on every roll.)
   useEffect(() => {
-    logEnd.current?.scrollIntoView?.({ block: 'nearest' })
-  }, [view?.shown])
+    const box = logBox.current
+    if (box) box.scrollTop = box.scrollHeight
+  }, [view?.shown, logOpen])
+
+  function toggleLog() {
+    setLogOpen((open) => {
+      try { localStorage.setItem(LOG_OPEN_KEY, open ? '0' : '1') } catch { /* private mode: not remembered */ }
+      return !open
+    })
+  }
 
   const confetti = useMemo(
     () => Array.from({ length: 34 }, (_, i) => {
@@ -620,7 +637,8 @@ export function DailyDuelPage() {
       )}
 
       {duel && hero && foe && live && (
-        <div className="duel-stack">
+        <div className="duel-layout">
+          <div className="duel-main">
           {twist && (
             <div className="card duel-twist" aria-live="polite">
               <span className="duel-eyebrow">Today’s twist</span>
@@ -663,23 +681,6 @@ export function DailyDuelPage() {
               />
             ))}
           </div>
-
-          {duel.outcome === 'playing' && intent && (
-            <div className={`card duel-intent${busy && live.acting === 'foe' ? ' acting' : ''}`} aria-live="polite">
-              <div className="duel-eyebrow">{foe.name}’s next move</div>
-              <div className="duel-intent-row">
-                <span className="duel-intent-name">{intent.name}</span>
-                <span className={`duel-odds ${intentOdds >= 0.4 ? 'high' : intentOdds <= 0.25 ? 'low' : ''}`}>
-                  {pct(intentOdds)} to hit you{duel.dodging ? ' (dodging)' : ''}
-                </span>
-              </div>
-              <div className="faint" style={{ fontSize: 13 }}>
-                +{intent.toHit} to hit · {intent.damage}{intent.times && intent.times > 1 ? ` ×${intent.times}` : ''} (avg {Math.round(averageDamage(intent.damage))}
-                {intent.times && intent.times > 1 ? ' each' : ''})
-                {!duel.dodging && foeMode === 'normal' && ` · Dodge makes it ${pct(intentOddsDodge)} and halves its first hit`}
-              </div>
-            </div>
-          )}
 
           <div className="card duel-tray">
             <div className="duel-roller">
@@ -772,12 +773,37 @@ export function DailyDuelPage() {
             ) : null}
           </div>
 
-          <div className="card" aria-live="polite">
-            <h3>Battle log</h3>
-            <div style={{ maxHeight: 380, overflowY: 'auto', paddingRight: 8 }}>
-              <BattleLog log={duel.log.slice(0, live.shown)} />
-              <div ref={logEnd} />
+          </div>
+          <div className="duel-side">
+          {duel.outcome === 'playing' && intent && (
+            <div className={`card duel-intent${busy && live.acting === 'foe' ? ' acting' : ''}`} aria-live="polite">
+              <div className="duel-eyebrow">{foe.name}’s next move</div>
+              <div className="duel-intent-row">
+                <span className="duel-intent-name">{intent.name}</span>
+                <span className={`duel-odds ${intentOdds >= 0.4 ? 'high' : intentOdds <= 0.25 ? 'low' : ''}`}>
+                  {pct(intentOdds)} to hit you{duel.dodging ? ' (dodging)' : ''}
+                </span>
+              </div>
+              <div className="faint" style={{ fontSize: 13 }}>
+                +{intent.toHit} to hit · {intent.damage}{intent.times && intent.times > 1 ? ` ×${intent.times}` : ''} (avg {Math.round(averageDamage(intent.damage))}
+                {intent.times && intent.times > 1 ? ' each' : ''})
+                {!duel.dodging && foeMode === 'normal' && ` · Dodge makes it ${pct(intentOddsDodge)} and halves its first hit`}
+              </div>
             </div>
+          )}
+
+          <div className="card duel-log">
+            <button type="button" className="duel-log-head" aria-expanded={logOpen} aria-controls="duel-log-body" onClick={toggleLog}>
+              <svg className={`chev${logOpen ? ' open' : ''}`} viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+              <span className="duel-log-title">Battle log</span>
+              <span className="faint">{logOpen ? 'Hide' : 'Show'}</span>
+            </button>
+            {logOpen && (
+              <div id="duel-log-body" ref={logBox} className="duel-log-body" aria-live="polite">
+                <BattleLog log={duel.log.slice(0, live.shown)} />
+              </div>
+            )}
+          </div>
           </div>
         </div>
       )}

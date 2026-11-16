@@ -17,6 +17,15 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-16',
+    title: 'Daily Duel: a roomier layout',
+    changes: [
+      { kind: 'improved', text: 'On a wide screen, the Daily Duel now shows your opponent’s next move and the battle log in a column on the right, so the fighters and all your moves fit on screen without scrolling.' },
+      { kind: 'improved', text: 'The battle log can be collapsed with one click, and the game remembers your choice.' },
+      { kind: 'fixed', text: 'The screen no longer jumps down to the battle log every time it updates.' },
+    ],
+  },
+  {
+    date: '2026-11-16',
     title: 'Daily Duel: a bigger, livelier fight',
     changes: [
       { kind: 'new', text: 'Tap the d20 to roll every attack yourself. Each kind of die has its own shape (triangle, square, diamond, kite, pentagon, hexagon), and a hit rolls its damage dice where you can see them add up.' },
