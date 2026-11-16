@@ -17,6 +17,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-16',
+    title: 'Daily Duel: a bigger, livelier fight',
+    changes: [
+      { kind: 'new', text: 'Tap the d20 to roll every attack yourself. Each kind of die has its own shape (triangle, square, diamond, kite, pentagon, hexagon), and a hit rolls its damage dice where you can see them add up.' },
+      { kind: 'new', text: 'Your opponent now shows its next attack, and your chance of being hit, before you choose your move.' },
+      { kind: 'new', text: 'Two new moves: Dodge makes the next attack roll twice and keep the worse roll, and the first hit it lands deals half damage. Power Attack trades accuracy for extra damage on every swing, so it shines against soft targets and struggles against heavy armor.' },
+      { kind: 'new', text: 'Every hero has a signature move you can use once per duel, such as Action Surge, Rage, Divine Smite, Shield, or Preserve Life. Pick the right moment to spend it.' },
+      { kind: 'new', text: 'Each day brings a twist that bends the fight for everyone, such as Troll’s Blood, Blessed, or Plated Foe. It appears above the arena and in your shared result.' },
+      { kind: 'improved', text: 'Slashes, smashes, arrows, and sweeping blows now play out on the board, with floating damage numbers, a trailing health bar, a flash on critical hits, and confetti for a win. If you turn on reduced motion in your device settings, the effects are skipped.' },
+      { kind: 'improved', text: 'Fighters are now icon tokens that match the battle map. Opponents and heroes were also re-balanced for the new moves.' },
+    ],
+  },
+  {
+    date: '2026-11-16',
+    title: 'Daily Duel: the twist follows yesterday’s results',
+    changes: [
+      { kind: 'new', text: 'When yesterday’s duels were much easier or harder than intended, the next twist now leans the other way to even things out. Results are counted anonymously, with no account or name attached, and the game works the same if you are offline.' },
+    ],
+  },
+  {
+    date: '2026-11-16',
     title: 'Token icons on the battle map',
     changes: [
       { kind: 'new', text: 'Battle-map tokens now show a picture icon instead of initials: a goblin head for a goblin, a beer stein for an innkeeper, a dragon for a dragon. The icon is picked from the name, role, race, or creature type, and tokens with no match get a generic pawn.' },
