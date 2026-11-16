@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
+import { isTokenIcon, pickTokenIcon, useTokenIconPaths } from '../lib/tokenIcons'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
@@ -148,6 +149,7 @@ export function Tabletop({
   measureTool = false,
   renderTokenPanel,
 }: Props) {
+  const iconPaths = useTokenIconPaths()
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
   const maskId = useId()
@@ -728,6 +730,8 @@ export function Tabletop({
                         either way, so size/snap/overlays are unaffected. */}
                     {(() => {
                       const square = t.shape === 'square'
+                      const iconId = isTokenIcon(t.tokenIcon) ? t.tokenIcon : pickTokenIcon({ name: t.label })
+                      const glyph = iconId ? iconPaths?.[iconId]?.d : undefined
                       const rx = Math.max(1.5, r * 0.14)
                       const clip = square
                         ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} />
@@ -756,6 +760,14 @@ export function Tabletop({
                             <text className="tabletop-emoji" textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} pointerEvents="none">
                               {t.icon}
                             </text>
+                          ) : glyph ? (
+                            <path
+                              className="tabletop-glyph"
+                              d={glyph}
+                              fill="#fff"
+                              transform={`translate(${-r * 0.62} ${-r * 0.62}) scale(${(r * 1.24) / 512})`}
+                              pointerEvents="none"
+                            />
                           ) : (
                             <text className="tabletop-initials" textAnchor="middle" dominantBaseline="central" fontSize={r * 0.8}>
                               {initials(t.label)}

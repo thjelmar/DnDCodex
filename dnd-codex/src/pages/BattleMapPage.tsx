@@ -34,6 +34,8 @@ import {
   snapCenterToCell,
   tokenRevealed,
 } from '../lib/tabletop'
+import { TokenIconPicker } from '../components/TokenIcon'
+import { npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
@@ -443,6 +445,9 @@ export function SceneEditor({
       label: count > 0 ? `${npc.name} ${count + 1}` : npc.name,
       npcId: npc.id,
       imageId: npc.imageId ?? null,
+      // Stamped on the token so players' boards (which have no NPC data)
+      // show the same icon.
+      tokenIcon: npcTokenIcon(npc),
       size: sizeFromStatBlock(npc.statBlockData?.size),
     })
   }
@@ -668,7 +673,12 @@ export function SceneEditor({
   ).map((t) => {
     // Tokens a player controls wear that player's color.
     const c = live.colorFor(t)
-    return c === t.color ? t : { ...t, color: c }
+    // The DM's board follows the NPC's current icon (override or keyword
+    // pick) so a change on the NPC sheet shows up without re-placing tokens.
+    const npc = t.npcId ? npcs?.find((n) => n.id === t.npcId) : undefined
+    const icon = npc && !t.tokenIcon ? npcTokenIcon(npc) : t.tokenIcon
+    const next = icon && icon !== t.tokenIcon ? { ...t, tokenIcon: icon } : t
+    return c === t.color ? next : { ...next, color: c }
   })
 
   return (
@@ -1131,6 +1141,11 @@ export function SceneEditor({
                     ))}
                   </div>
                 </label>
+                <TokenIconPicker
+                  value={current.tokenIcon}
+                  autoId={pickTokenIcon({ name: current.label })}
+                  onChange={(id) => patchToken(current.id, { tokenIcon: id })}
+                />
                 <label>
                   Emoji
                   <input

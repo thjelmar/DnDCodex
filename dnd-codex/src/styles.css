@@ -3879,6 +3879,14 @@ kbd {
 .tabletop-token.hidden-token { opacity: 0.45; }
 .tabletop-token.selected { filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.75)); }
 .tabletop-initials { fill: #fff; font-weight: 700; pointer-events: none; }
+.tabletop-glyph { pointer-events: none; }
+.token-icon-preview { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: #fff; flex: none; }
+.token-icon-preview .faint { color: #fff; opacity: 0.85; font-weight: 700; }
+.token-icon-panel { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+.token-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; max-height: 220px; overflow-y: auto; }
+.token-icon-opt { display: inline-flex; align-items: center; justify-content: center; height: 40px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; }
+.token-icon-opt:hover { background: var(--bg-elev, rgba(127,127,127,.15)); }
+.token-icon-opt.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
 .tabletop-emoji { pointer-events: none; user-select: none; }
 .tabletop-label {
   fill: #fff;

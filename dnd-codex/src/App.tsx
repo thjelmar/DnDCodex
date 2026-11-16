@@ -31,6 +31,7 @@ import { useChangelogUnseen } from './lib/useChangelog'
 const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then((m) => ({ default: m.CampaignsPage })))
 const BackupPage = lazy(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
+const CreditsPage = lazy(() => import('./pages/CreditsPage').then((m) => ({ default: m.CreditsPage })))
 const ChangelogPage = lazy(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
 const CampaignLayout = lazy(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
 const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
@@ -616,6 +617,7 @@ export function App() {
             <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/backup" element={<BackupPage />} />
             <Route path="/changelog" element={<ChangelogPage />} />
+            <Route path="/credits" element={<CreditsPage />} />
             <Route path="/tickets" element={<TicketsPage />} />
             <Route path="/bug-reports" element={<Navigate to="/tickets" replace />} />
             <Route path="/daily" element={<DailyDuelPage />} />
