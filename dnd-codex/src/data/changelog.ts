@@ -16,6 +16,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-16',
+    title: 'Token icons on the battle map',
+    changes: [
+      { kind: 'new', text: 'Battle-map tokens now show a picture icon instead of initials: a goblin head for a goblin, a beer stein for an innkeeper, a dragon for a dragon. The icon is picked from the name, role, race, or creature type, and tokens with no match get a generic pawn.' },
+      { kind: 'new', text: 'Pick your own icon for any NPC from the new Token icon picker on the NPC sheet, or for a single token in the token editor. A portrait you upload still takes priority.' },
+      { kind: 'improved', text: 'The quick-add objects (horse, boat, wagon, crate, chest, door, campfire, rock, tree, trap, flag, remains) now use icons instead of emoji. An emoji you type yourself still shows as typed.' },
+      { kind: 'new', text: 'A new Credits page, linked at the bottom of the sidebar, thanks the artists behind the icons (from game-icons.net).' },
+    ],
+  },
+  {
     date: '2026-11-04',
     title: 'Daily Duel: an easier-to-read battle log',
     changes: [
