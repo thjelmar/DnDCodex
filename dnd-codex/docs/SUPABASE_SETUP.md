@@ -98,5 +98,10 @@ delete everywhere. Full campaign-delete propagation is a later refinement.
 `0024_security_lints.sql` — revokes `anon` EXECUTE on the SECURITY DEFINER functions and pins
 `touch_records_updated_at`'s search_path (clears the Supabase security-advisor warnings). Run it like the others.
 
+`0041_daily_duel_tally.sql` — the Daily Duel win-rate tally (T-66). Its three RPCs
+(`record_duel_result`, `get_duel_lean`, `get_duel_stats`) are **deliberately callable by `anon`**, because the
+Daily Duel is public and signed-out. The tables have RLS on and no policies, so only those validated functions
+can touch rows. The security advisor may flag them; that's intentional.
+
 **Dashboard-only setting:** Authentication → Sign In / Providers → Email → enable *Leaked password
 protection*. (Needs Supabase Pro; the app only uses OAuth sign-in, so it has no practical effect here.)

@@ -59,9 +59,11 @@ export function dailyTier(day: string): Tier {
 }
 
 /** The day's twist: one rule that bends the duel, the same for everyone. */
-export function dailyTwist(day: string): Twist {
+export function dailyTwist(day: string, lean?: 'hero' | 'foe' | null): Twist {
   const rand = mulberry32(hashString(`dnd-codex-daily-duel-twist:${day}`))
-  return TWISTS[Math.floor(rand() * TWISTS.length)]
+  // With a lean (T-66), pick among the twists that favor that side, same seed.
+  const pool = lean ? TWISTS.filter((t) => t.favors === lean) : TWISTS
+  return pool[Math.floor(rand() * pool.length)]
 }
 
 export interface Matchup {
@@ -86,11 +88,11 @@ export function resolveFoe(foeId: string, tier: Tier): Duelist {
 }
 
 /** Today's hero, opponent and twist — identical for everyone on the same UTC day. */
-export function dailyMatchup(day: string, tier: Tier = dailyTier(day)): Matchup {
+export function dailyMatchup(day: string, tier: Tier = dailyTier(day), lean?: 'hero' | 'foe' | null): Matchup {
   const rand = mulberry32(hashString(`dnd-codex-daily-duel:${day}`))
   const hero = HEROES[Math.floor(rand() * HEROES.length)]
   const foeBase = FOES[Math.floor(rand() * FOES.length)]
-  return { day, tier, hero, foe: resolveFoe(foeBase.id, tier), twist: dailyTwist(day) }
+  return { day, tier, hero, foe: resolveFoe(foeBase.id, tier), twist: dailyTwist(day, lean) }
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
