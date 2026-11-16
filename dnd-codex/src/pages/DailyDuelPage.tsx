@@ -5,9 +5,11 @@ import { useAuth } from '../auth/AuthProvider'
 import { TokenIcon } from '../components/TokenIcon'
 import { getDuelHistory, saveDuelResult } from '../db/repo'
 import { isDemo } from '../lib/demo'
+import { fetchDuelLean, recordDuelResult } from '../lib/duelTally'
+import type { Lean } from '../lib/duelLean'
 import {
   availableAttacks, averageDamage, canDodge, canUseSignature, challengeLink, chooseAttack, compareToChallenge,
-  dailyTier, dailyTwist, endTurn, foeAc, foeAttackMode, foeIntent, foeOf, gridEmoji, heroAc, heroAttackMode, heroOf,
+  dailyMatchup, dailyTier, dailyTwist, endTurn, foeAc, foeAttackMode, foeIntent, foeOf, gridEmoji, heroAc, heroAttackMode, heroOf,
   heroAttacks, heroToHit, historyStats, hitChance, loadDuel, parseChallenge, rollPending, saveDuel, shareText, signatureOf,
   startDuel, toDuelRecord, twistOf, useDodge, useSignature, utcDayKey, type DuelState, type LogEntry, type Side,
 } from '../lib/dailyDuel'
@@ -315,12 +317,23 @@ export function DailyDuelPage() {
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [sprites, setSprites] = useState<Record<Side, { cls: string; k: number }>>({ hero: { cls: '', k: 0 }, foe: { cls: '', k: 0 } })
   const [copied, setCopied] = useState(false)
+  // Yesterday's win rate leans today's twist (T-66). `leanReady` holds the
+  // button until the lookup answers or times out; offline it falls back to the seeded twist.
+  const [lean, setLean] = useState<Lean | null>(null)
+  const [leanReady, setLeanReady] = useState(demo)
   const arena = useRef<HTMLDivElement>(null)
   const logEnd = useRef<HTMLDivElement>(null)
   const run = useRef(0)
   const ids = useRef(1)
   const [params] = useSearchParams()
   const challenge = parseChallenge(params.get('beat'))
+
+  useEffect(() => {
+    if (demo) return
+    let live = true
+    fetchDuelLean(day).then((l) => { if (live) { setLean(l); setLeanReady(true) } }, () => { if (live) setLeanReady(true) })
+    return () => { live = false }
+  }, [day, demo])
 
   useEffect(() => {
     if (duel && !demo) saveDuel(duel)
@@ -332,6 +345,7 @@ export function DailyDuelPage() {
   useEffect(() => {
     const rec = duel && !demo && !busy ? toDuelRecord(duel) : null
     if (rec) saveDuelResult(rec).catch(() => {})
+    if (rec && duel) void recordDuelResult(rec, duel.twist) // shared tally; fails quietly
   }, [duel, demo, busy])
 
   useEffect(() => () => { run.current++ }, []) // stop a replay when leaving the page
@@ -357,7 +371,7 @@ export function DailyDuelPage() {
 
   if (demo) return <Navigate to="/" replace />
 
-  const todaysTwist = dailyTwist(day)
+  const todaysTwist = dailyTwist(day, lean)
   const hero = duel ? heroOf(duel) : null
   const foe = duel ? foeOf(duel) : null
   const twist = duel ? twistOf(duel) : null
@@ -516,7 +530,7 @@ export function DailyDuelPage() {
   }
 
   function begin() {
-    const first = startDuel(day)
+    const first = startDuel(day, dailyMatchup(day, undefined, lean))
     setDuel(first)
     setView({ ...viewOf(first), shown: 0 })
     setD20(null)
@@ -596,7 +610,12 @@ export function DailyDuelPage() {
             drops to 0 HP, and you get one try a day. Today’s difficulty: {TIER_LABEL[dailyTier(day)]}.
           </p>
           <p className="faint">Today’s twist: <strong>{todaysTwist.name}</strong>. {todaysTwist.text}</p>
-          <button className="btn primary" onClick={begin}>Roll initiative</button>
+          {lean && (
+            <p className="faint">
+              {lean === 'foe' ? 'Yesterday’s duel was too easy, so today’s twist favors the foe.' : 'Yesterday’s duel was too hard, so today’s twist favors you.'}
+            </p>
+          )}
+          <button className="btn primary" onClick={begin} disabled={!leanReady}>Roll initiative</button>
         </div>
       )}
 
@@ -607,6 +626,11 @@ export function DailyDuelPage() {
               <span className="duel-eyebrow">Today’s twist</span>
               <strong>{twist.name}</strong>
               <span className="faint">{twist.text}</span>
+              {lean && twist.favors === lean && (
+                <span className="faint">
+                  {lean === 'foe' ? 'Yesterday’s duel was too easy, so this twist favors the foe.' : 'Yesterday’s duel was too hard, so this twist favors you.'}
+                </span>
+              )}
             </div>
           )}
 

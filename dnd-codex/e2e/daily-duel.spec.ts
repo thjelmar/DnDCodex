@@ -20,6 +20,23 @@ async function playToEnd(page: Page) {
 }
 
 test.describe('daily duel', () => {
+  test('a foe lean from the tally picks a foe-favoring twist and is explained', async ({ page }) => {
+    await page.route(/\/rpc\/get_duel_lean/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '"foe"' }))
+    let recorded: Record<string, unknown> | null = null
+    await page.route(/\/rpc\/record_duel_result/, (route) => {
+      recorded = route.request().postDataJSON()
+      return route.fulfill({ status: 200, contentType: 'application/json', body: 'true' })
+    })
+    await page.goto('/#/daily')
+    await expect(page.getByText(/too easy, so today’s twist favors the foe/)).toBeVisible()
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await expect(page.locator('.duel-twist')).toContainText('this twist favors the foe')
+    await playToEnd(page)
+    await expect.poll(() => recorded).not.toBeNull()
+    expect(Object.keys(recorded!).sort()).toEqual(
+      ['p_day', 'p_device_id', 'p_foe_id', 'p_hero_id', 'p_outcome', 'p_rounds', 'p_tier', 'p_twist_id'])
+  })
+
   test('a challenge link shows the friend’s score, and bad codes are ignored', async ({ page }) => {
     await page.goto('/#/daily?beat=2026-11-04.w.5.23')
     await expect(page.getByText('A friend challenged you.')).toBeVisible()
@@ -43,10 +60,11 @@ test.describe('daily duel', () => {
     await expect(page.getByText('A friend challenged you.')).toBeVisible()
   })
 
-  test('plays to a result, resumes after a reload, and never calls Supabase', async ({ page, supabaseRequests }) => {
+  test('plays to a result, resumes after a reload, and calls only the tally RPCs', async ({ page, supabaseRequests }) => {
     const errors: string[] = []
+    // Failed-resource noise comes from the aborted tally calls.
     page.on('pageerror', (e) => errors.push(e.message))
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+    page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errors.push(m.text()) })
     await page.goto('/#/daily')
     await expect(page.getByRole('heading', { name: 'Daily Duel' })).toBeVisible()
     await expect(page.getByText(/Today’s twist:/)).toBeVisible()
@@ -67,7 +85,8 @@ test.describe('daily duel', () => {
     await expect(page.getByRole('button', { name: 'Copy result and challenge link' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Roll initiative' })).toHaveCount(0)
     await expect(page.getByText(/1 played · [01] won/)).toBeVisible()
-    expect(supabaseRequests).toEqual([])
+    // The tally may call only these two RPCs (both abort here, and the game still works).
+    for (const u of supabaseRequests) expect(u).toMatch(/\/rpc\/(get_duel_lean|record_duel_result)/)
     expect(errors, 'no console errors during a full duel').toEqual([])
     await expect(result).toBeVisible()
   })

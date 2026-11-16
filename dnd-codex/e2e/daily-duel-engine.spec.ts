@@ -4,6 +4,7 @@ import {
   foeAttackMode, foeIntent, heroAc, heroAttack, heroAttacks, heroOf, hitChance, powerAttackOf, resolveFoe,
   rollPending, signatureOf, startDuel, upgradeSave, useDodge, useSignature, type DuelState,
 } from '../src/lib/dailyDuel'
+import { leanFor, MIN_DUELS } from '../src/lib/duelLean'
 import { attackFx } from '../src/lib/duelFx'
 import { isTokenIcon } from '../src/lib/tokenIcons'
 import { DUELIST_ICONS, FOES, HEROES, SIGNATURES, TWISTS, type Tier, type TwistId } from '../src/data/duelists'
@@ -310,5 +311,29 @@ test.describe('saves, effects and icons', () => {
       expect(f.hp[1], f.id).toBeGreaterThanOrEqual(f.hp[0])
       expect(f.hp[2], f.id).toBeGreaterThanOrEqual(f.hp[1])
     }
+  })
+})
+
+test.describe('twist lean (T-66)', () => {
+  test('no lean behaves like the seeded twist; a lean picks only that side, deterministically', () => {
+    const days = Array.from({ length: 60 }, (_, i) => `2026-12-${String((i % 28) + 1).padStart(2, '0')}`)
+    for (const d of days) {
+      expect(dailyTwist(d, null)).toEqual(dailyTwist(d))
+      expect(dailyTwist(d, 'foe').favors).toBe('foe')
+      expect(dailyTwist(d, 'hero').favors).toBe('hero')
+      expect(dailyTwist(d, 'foe')).toEqual(dailyTwist(d, 'foe'))
+    }
+    expect(new Set(days.map((d) => dailyTwist(d, 'foe').id)).size).toBeGreaterThan(1)
+  })
+
+  test('lean thresholds: 20 duels minimum, +/-0.12 around the tier target', () => {
+    expect(leanFor('standard', 19, 19)).toBeNull()
+    expect(MIN_DUELS).toBe(20)
+    expect(leanFor('easy', 20, 20)).toBeNull() // 1.00 vs 0.95
+    expect(leanFor('standard', 17, 20)).toBe('foe') // 0.85 vs 0.65
+    expect(leanFor('standard', 10, 20)).toBe('hero') // 0.50 vs 0.65
+    expect(leanFor('standard', 13, 20)).toBeNull() // exactly on target
+    expect(leanFor('hard', 2, 20)).toBe('hero') // 0.10 vs 0.39
+    expect(leanFor('hard', 12, 20)).toBe('foe') // 0.60 vs 0.39
   })
 })

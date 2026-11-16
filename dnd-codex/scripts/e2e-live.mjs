@@ -38,7 +38,7 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) {
   process.exit(1)
 }
 
-const res = spawnSync('npx', ['playwright', 'test', 'e2e/sync-repair.spec.ts', ...process.argv.slice(2)], {
+const res = spawnSync('npx', ['playwright', 'test', 'e2e/sync-repair.spec.ts', 'e2e/daily-duel-tally.spec.ts', ...process.argv.slice(2)], {
   stdio: 'inherit',
   env: {
     ...process.env,

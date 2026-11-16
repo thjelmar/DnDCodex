@@ -22,6 +22,7 @@ it.
 | `core-flows.spec.ts` | Create a campaign, a session, and a battle map (the live scene the DM shows players). Reload and check they persist. | Nothing. Local only. |
 | `demo-isolation.spec.ts` | Demo mode makes zero `supabase.co` requests. Each demo surface is checked with `performance.getEntriesByType('resource')`. A positive control confirms the check can see a Supabase request. | Nothing. Local only. |
 | `signed-out-run-mode.spec.ts` | Signed out, Run mode makes no `live_sessions` request (T-53). | Nothing. Local only. |
+| `daily-duel-tally.spec.ts` | Daily Duel tally (T-66): `record_duel_result`, `get_duel_lean` and `get_duel_stats` validation, per-device dedupe, hidden rows, persisted lean. Needs migration 0041 applied to the local DB. | A local Supabase stack. Skipped in `npm run e2e`. |
 | `sync-repair.spec.ts` | Sync delete (a deleted record must not come back) and Repair sync (restores a missing live record). | A local Supabase stack. Skipped in `npm run e2e`; run with `npm run e2e:live`. |
 
 ## Live sync tests
