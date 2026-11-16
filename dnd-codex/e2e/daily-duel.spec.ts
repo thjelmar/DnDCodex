@@ -1,6 +1,23 @@
+import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
 
-// Daily Duel (T-63): public, local-only, hidden in the demo.
+// Daily Duel (T-63, T-65): public, local-only, hidden in the demo. Reduced
+// motion is on so each replayed roll takes tens of milliseconds, not seconds.
+
+test.use({ reducedMotion: 'reduce' })
+
+/** Plays the duel to its end: roll the d20 when asked, otherwise use the first move that is enabled. */
+async function playToEnd(page: Page) {
+  const result = page.getByRole('button', { name: 'Copy result and challenge link' })
+  const roll = page.getByRole('button', { name: 'Roll the d20' })
+  const moves = page.locator('.duel-move:not(:disabled)')
+  for (let i = 0; i < 800 && !(await result.isVisible()); i++) {
+    if (await roll.isVisible()) await roll.click()
+    else if ((await moves.count()) > 0) await moves.first().click()
+    await page.waitForTimeout(40)
+  }
+  await expect(result).toBeVisible()
+}
 
 test.describe('daily duel', () => {
   test('a challenge link shows the friend’s score, and bad codes are ignored', async ({ page }) => {
@@ -16,30 +33,27 @@ test.describe('daily duel', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     await page.goto('/#/daily')
     await page.getByRole('button', { name: 'Roll initiative' }).click()
-    const result = page.getByRole('button', { name: 'Copy result and challenge link' })
-    for (let i = 0; i < 80 && !(await result.isVisible()); i++) {
-      await page.locator('.card button.btn.primary').first().click()
-    }
-    await result.click()
+    await playToEnd(page)
+    await page.getByRole('button', { name: 'Copy result and challenge link' }).click()
     const text = await page.evaluate('navigator.clipboard.readText()') as string
     const link = /(https?:\/\/\S+#\/daily\?beat=\S+)/.exec(text)?.[1]
     expect(link, 'the copied text must carry a challenge link').toBeTruthy()
+    expect(text).toMatch(/Twist: /)
     await page.goto(link as string)
     await expect(page.getByText('A friend challenged you.')).toBeVisible()
   })
 
   test('plays to a result, resumes after a reload, and never calls Supabase', async ({ page, supabaseRequests }) => {
+    const errors: string[] = []
+    page.on('pageerror', (e) => errors.push(e.message))
+    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
     await page.goto('/#/daily')
     await expect(page.getByRole('heading', { name: 'Daily Duel' })).toBeVisible()
+    await expect(page.getByText(/Today’s twist:/)).toBeVisible()
     await page.getByRole('button', { name: 'Roll initiative' }).click()
 
-    // Keep attacking until the duel ends (a hard cap guards against a hang).
+    await playToEnd(page)
     const result = page.getByRole('button', { name: 'Copy result and challenge link' })
-    for (let i = 0; i < 80 && !(await result.isVisible()); i++) {
-      const attack = page.locator('.card button.btn.primary').first()
-      await attack.click()
-    }
-    await expect(result).toBeVisible()
     await expect(page.getByText(/D&D Codex Daily Duel \d{4}-\d{2}-\d{2}/)).toBeVisible()
     await expect(page.getByText(/\((Easy|Standard|Hard)\)/).first()).toBeVisible()
 
@@ -54,6 +68,77 @@ test.describe('daily duel', () => {
     await expect(page.getByRole('button', { name: 'Roll initiative' })).toHaveCount(0)
     await expect(page.getByText(/1 played · [01] won/)).toBeVisible()
     expect(supabaseRequests).toEqual([])
+    expect(errors, 'no console errors during a full duel').toEqual([])
+    await expect(result).toBeVisible()
+  })
+
+  test('shows the foe’s next move and the day’s twist before you act', async ({ page }) => {
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await expect(page.locator('.duel-twist')).toContainText('Today’s twist')
+    await expect(page.locator('.duel-intent')).toContainText('next move')
+    await expect(page.locator('.duel-intent')).toContainText(/% to hit you/)
+    // Dodge, the signature move and End turn are always on the board.
+    await expect(page.getByRole('button', { name: /^Dodge/ })).toBeVisible()
+    await expect(page.locator('.duel-move.signature')).toContainText(/once/)
+    await expect(page.getByRole('button', { name: 'End turn' })).toBeVisible()
+  })
+
+  test('an attack waits for you to tap the d20', async ({ page }) => {
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    const attack = page.locator('.duel-move:not(:disabled)').first()
+    await expect(attack).toBeVisible()
+    const logBefore = await page.locator('.card', { hasText: 'Battle log' }).innerText()
+    await attack.click()
+    const roll = page.getByRole('button', { name: 'Roll the d20' })
+    await expect(roll).toBeVisible()
+    await expect(page.getByText(/Tap the d20 to roll/)).toBeVisible()
+    // Nothing was rolled yet, so the log has not changed.
+    expect(await page.locator('.card', { hasText: 'Battle log' }).innerText()).toBe(logBefore)
+    await roll.click()
+    await expect(page.locator('.duel-die[data-sides="20"]').first()).toBeVisible()
+    await expect(page.locator('.card', { hasText: 'Battle log' })).toContainText(/d20 \d+/)
+  })
+
+  test('Dodge shows a chip and logs the stance', async ({ page }) => {
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    const dodge = page.getByRole('button', { name: /^Dodge/ })
+    await expect(dodge).toBeEnabled()
+    await dodge.click()
+    await expect(page.locator('.duel-chip', { hasText: 'Dodging' })).toBeVisible()
+    await expect(page.locator('.duel-intent')).toContainText('(dodging)')
+    await expect(page.locator('.card', { hasText: 'Battle log' })).toContainText('takes the Dodge action')
+  })
+
+  test('the signature move works once', async ({ page }) => {
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    const sig = page.locator('.duel-move.signature')
+    // Some signature moves need a spent action first (Action Surge), so spend it.
+    if (await sig.isDisabled()) {
+      await page.locator('.duel-move:not(:disabled)').first().click()
+      const roll = page.getByRole('button', { name: 'Roll the d20' })
+      for (let i = 0; i < 6 && (await sig.isDisabled()); i++) {
+        if (await roll.isVisible()) await roll.click()
+        await page.waitForTimeout(80)
+      }
+    }
+    if (await sig.isEnabled()) {
+      await sig.click()
+      await expect(sig).toBeDisabled()
+      await expect(sig).toContainText('used')
+    }
+  })
+
+  test('fits a phone screen without sideways scrolling', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await expect(page.locator('.duel-arena')).toBeVisible()
+    const overflow = await page.evaluate('document.documentElement.scrollWidth - window.innerWidth') as number
+    expect(overflow).toBeLessThanOrEqual(0)
   })
 
   test('is hidden in the demo', async ({ page }) => {
