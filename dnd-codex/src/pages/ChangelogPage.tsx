@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { CHANGELOG, type ChangeKind } from '../data/changelog'
 import { markChangelogSeen } from '../lib/useChangelog'
 import { formatDate } from '../lib/format'
@@ -46,7 +47,7 @@ export function ChangelogPage() {
       </div>
 
       <div className="faint" style={{ fontSize: 12, marginTop: 24 }}>
-        Have an idea or found a bug? Use “Report something” in the sidebar, and see what’s on the way under “Roadmap”.
+        Have an idea or found a bug? Use “Report something” in the sidebar, and see what’s on the way under “Roadmap”. <Link to="/credits">Credits</Link>
       </div>
     </div>
   )

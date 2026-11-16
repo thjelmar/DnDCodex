@@ -305,6 +305,8 @@ export interface NPC extends BaseRecord {
   race: string
   /** Portrait image (StoredImage id), shown in the editor and list. */
   imageId?: Id | null
+  /** Token icon override (T-64), a slug from lib/tokenIconCatalog; unset = automatic. */
+  tokenIcon?: string | null
   description: string
   /** Where this NPC is usually found. */
   locationId: Id | null
@@ -779,6 +781,9 @@ export interface SceneToken {
   /** An emoji shown inside the token (custom object tokens — 🐴 ⛵ 📦). Takes
    *  precedence over initials; an uploaded image still wins over the emoji. */
   icon?: string | null
+  /** Default line icon (T-64): a game-icons.net slug from lib/tokenIconCatalog.
+   *  Unset = pick by keyword from the label. A portrait or emoji still wins. */
+  tokenIcon?: string | null
   /** Outline shape; defaults to a circle when unset. */
   shape?: TokenShape | null
   /** Never sent to players (not even as a placeholder). */

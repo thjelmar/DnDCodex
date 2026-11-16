@@ -20,6 +20,8 @@ import { SaveAsTemplateModal } from '../components/SaveAsTemplateModal'
 import { BUILTIN_NPC_TEMPLATES } from '../data/builtinTemplates'
 import { randomPersonName } from '../lib/nameGen'
 import { useGenOverrides } from '../lib/useGenOverrides'
+import { TokenIconPicker } from '../components/TokenIcon'
+import { GENERIC_TOKEN_ICON, npcTokenIcon } from '../lib/tokenIcons'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -131,6 +133,7 @@ function NpcEditor({
   const [role, setRole] = useState(npc.role)
   const [race, setRace] = useState(npc.race ?? '')
   const [imageId, setImageId] = useState<string | null>(npc.imageId ?? null)
+  const [tokenIcon, setTokenIcon] = useState<string | null>(npc.tokenIcon ?? null)
   const [disposition, setDisposition] = useState(npc.disposition)
   const [locationId, setLocationId] = useState(npc.locationId ?? '')
   const [familyId, setFamilyId] = useState<string | null>(npc.familyId ?? null)
@@ -163,6 +166,7 @@ function NpcEditor({
         role,
         race,
         imageId,
+        tokenIcon,
         disposition,
         locationId: locationId || null,
         familyId,
@@ -173,7 +177,7 @@ function NpcEditor({
       })
     }, 500)
     return () => clearTimeout(t)
-  }, [name, role, race, imageId, disposition, locationId, familyId, description, statBlockData, statBlock, tags, npc.id])
+  }, [name, role, race, imageId, tokenIcon, disposition, locationId, familyId, description, statBlockData, statBlock, tags, npc.id])
 
   return (
     <div>
@@ -237,6 +241,11 @@ function NpcEditor({
           )}
         </div>
       </div>
+      <TokenIconPicker
+        value={tokenIcon}
+        autoId={npcTokenIcon({ name, role, race, statBlockData }) ?? GENERIC_TOKEN_ICON}
+        onChange={setTokenIcon}
+      />
       <div className="form-row">
         <div className="field">
           <label>Disposition</label>
