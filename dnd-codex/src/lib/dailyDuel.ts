@@ -1,11 +1,20 @@
 import { rollDice } from './dice'
+import { attackFx, type DuelFxKind } from './duelFx'
 import type { DuelRecord } from '../db/types'
-import { FOES, HEROES, TIER_LABEL, TIERS, type DuelAttack, type Duelist, type Tier } from '../data/duelists'
+import {
+  FOES, HEROES, SIGNATURES, TIER_LABEL, TIERS, TWISTS,
+  type DuelAttack, type Duelist, type Signature, type Tier, type Twist,
+} from '../data/duelists'
 
-// Daily Duel (T-63): a Wordle-style 1v1 that is the same for everyone each UTC
-// day. The matchup is derived from the date (no server); dice are free. Pure
-// logic only — it never touches the shared combat tracker store (codex.combat),
-// Dexie, or Supabase, so it is safe in any context and trivially testable.
+// Daily Duel (T-63, T-65): a Wordle-style 1v1 that is the same for everyone each
+// UTC day. The matchup and the day's twist are derived from the date (no
+// server); dice are free. Pure logic only — it never touches the shared combat
+// tracker store (codex.combat), Dexie, or Supabase, so it is safe in any
+// context and trivially testable.
+//
+// A turn works in small steps so the page can animate each roll: choose an
+// attack (`chooseAttack`), roll each swing (`rollPending`), then `endTurn`.
+// `heroAttack` runs a whole attack at once for the simulation and tests.
 
 /** Sanity bound for a decoded challenge's round count (duels run to a winner). */
 const MAX_CODE_ROUNDS = 999
@@ -49,12 +58,19 @@ export function dailyTier(day: string): Tier {
   return 'hard'
 }
 
+/** The day's twist: one rule that bends the duel, the same for everyone. */
+export function dailyTwist(day: string): Twist {
+  const rand = mulberry32(hashString(`dnd-codex-daily-duel-twist:${day}`))
+  return TWISTS[Math.floor(rand() * TWISTS.length)]
+}
+
 export interface Matchup {
   day: string
   tier: Tier
   hero: Duelist
   /** The foe at the day's difficulty: its HP and unlocked attacks. */
   foe: Duelist
+  twist: Twist
 }
 
 /** A foe flattened to one difficulty: that tier's HP and its unlocked attacks. */
@@ -69,18 +85,24 @@ export function resolveFoe(foeId: string, tier: Tier): Duelist {
   }
 }
 
-/** Today's hero and opponent — identical for everyone on the same UTC day. */
+/** Today's hero, opponent and twist — identical for everyone on the same UTC day. */
 export function dailyMatchup(day: string, tier: Tier = dailyTier(day)): Matchup {
   const rand = mulberry32(hashString(`dnd-codex-daily-duel:${day}`))
   const hero = HEROES[Math.floor(rand() * HEROES.length)]
   const foeBase = FOES[Math.floor(rand() * FOES.length)]
-  return { day, tier, hero, foe: resolveFoe(foeBase.id, tier) }
+  return { day, tier, hero, foe: resolveFoe(foeBase.id, tier), twist: dailyTwist(day) }
 }
 
 // ── State ────────────────────────────────────────────────────────────────────
 
 export type Side = 'hero' | 'foe'
 export type Outcome = 'playing' | 'won' | 'lost'
+export type RollMode = 'normal' | 'adv' | 'dis'
+
+export interface DieRoll {
+  sides: number
+  value: number
+}
 
 export interface LogEntry {
   round: number
@@ -98,11 +120,27 @@ export interface LogEntry {
   /** The target's HP after this attack, and its maximum. */
   targetHp?: number
   targetMax?: number
+  /** T-65 detail, so the page can replay the roll with its dice and effect. */
+  /** Every d20 rolled (two for advantage or disadvantage); `d20` is the one kept. */
+  d20s?: number[]
+  mode?: RollMode
+  /** The damage dice rolled, and the flat bonus added to them. */
+  dice?: DieRoll[]
+  flat?: number
+  /** The effect to play. */
+  fx?: DuelFxKind
+  /** Whose hit points changed (attacks: the target; heals and regeneration: who healed). */
+  to?: Side
+  heal?: number
+  /** The foe's attack was halved by a ward. */
+  warded?: boolean
 }
 
 export interface DuelState {
   day: string
   tier: Tier
+  /** The day's twist id; empty on saves from before twists. */
+  twist: string
   heroId: string
   foeId: string
   heroHp: number
@@ -119,6 +157,21 @@ export interface DuelState {
   /** One entry per attack roll: the shareable play-by-play grid. */
   grid: GridCell[]
   log: LogEntry[]
+  /** The id of the foe attack it will use on its next turn (telegraphed). */
+  intent: string
+  /** An attack the hero has chosen and is still rolling (one tap per swing). */
+  pending: { attackId: string; left: number } | null
+  /** Dodging: the foe attacks at disadvantage until the next round. */
+  dodging: boolean
+  /** The hero's once-per-duel signature move has been spent. */
+  sigUsed: boolean
+  /** Buffs waiting to be used. */
+  adv: boolean
+  strikeDice: string | null
+  ward: boolean
+  hinder: boolean
+  /** Flat damage added to every hero hit (from an empowering signature). */
+  rage: number
 }
 
 /** A compact result for one attack, used for the emoji share grid. */
@@ -137,6 +190,20 @@ export function heroOf(s: DuelState): Duelist {
 export function foeOf(s: DuelState): Duelist {
   return resolveFoe(s.foeId, s.tier)
 }
+export function twistOf(s: Pick<DuelState, 'twist'>): Twist | null {
+  return TWISTS.find((t) => t.id === s.twist) ?? null
+}
+export function signatureOf(s: Pick<DuelState, 'heroId'>): Signature | null {
+  return SIGNATURES[s.heroId] ?? null
+}
+/** The hero's Armor Class today (a twist can lower it). */
+export function heroAc(s: DuelState): number {
+  return heroOf(s).ac - (s.twist === 'frail' ? 2 : 0)
+}
+/** The foe's Armor Class today (a twist can raise it). */
+export function foeAc(s: DuelState): number {
+  return foeOf(s).ac + (s.twist === 'armored' ? 2 : 0)
+}
 
 // ── Rolling ──────────────────────────────────────────────────────────────────
 
@@ -154,46 +221,173 @@ export function parseDamage(expr: string): { dice: [number, number][]; flat: num
 }
 
 /** Rolls damage; a critical hit doubles the dice (not the modifier). */
-export function rollDamage(expr: string, crit: boolean): { total: number; rolls: number[] } {
+export function rollDamage(expr: string, crit: boolean): { total: number; rolls: number[]; dice: DieRoll[]; flat: number } {
+  const { dice: groups, flat } = parseDamage(expr)
+  const dice: DieRoll[] = []
+  for (const [count, sides] of groups) {
+    for (const value of rollDice(crit ? count * 2 : count, sides)) dice.push({ sides, value })
+  }
+  const rolls = dice.map((d) => d.value)
+  return { total: Math.max(0, rolls.reduce((a, b) => a + b, 0) + flat), rolls, dice, flat }
+}
+
+/** Average damage of an expression (no crit). */
+export function averageDamage(expr: string): number {
   const { dice, flat } = parseDamage(expr)
-  const rolls: number[] = []
-  for (const [count, sides] of dice) rolls.push(...rollDice(crit ? count * 2 : count, sides))
-  return { total: Math.max(0, rolls.reduce((a, b) => a + b, 0) + flat), rolls }
+  return dice.reduce((sum, [n, sides]) => sum + (n * (sides + 1)) / 2, flat)
+}
+
+/** The chance an attack hits: a natural 20 always hits and a 1 always misses. */
+export function hitChance(toHit: number, ac: number, mode: RollMode = 'normal'): number {
+  const p = Math.min(0.95, Math.max(0.05, (21 - (ac - toHit)) / 20))
+  if (mode === 'dis') return p * p
+  if (mode === 'adv') return 1 - (1 - p) * (1 - p)
+  return p
+}
+
+function rollD20(mode: RollMode, rerollOne: boolean): { kept: number; all: number[] } {
+  const all = rollDice(mode === 'normal' ? 1 : 2, 20)
+  let kept = mode === 'adv' ? Math.max(...all) : mode === 'dis' ? Math.min(...all) : all[0]
+  if (rerollOne && kept === 1) {
+    const again = rollDice(1, 20)[0]
+    all.push(again)
+    kept = again
+  }
+  return { kept, all }
+}
+
+interface SwingOpts {
+  attack: DuelAttack
+  attacker: string
+  side: Side
+  round: number
+  ac: number
+  mode: RollMode
+  /** Added to the attack bonus (a twist). */
+  toHitBonus?: number
+  rerollOne?: boolean
+  /** Flat damage added on a hit, and extra dice (doubled on a crit). */
+  flat?: number
+  extraDice?: string | null
+  /** Halve the damage (a ward). */
+  halve?: boolean
 }
 
 interface Swing {
   entry: LogEntry
   cell: GridCell
+  hit: boolean
 }
 
 /** One attack roll against `ac`: nat 20 crits, nat 1 always misses. */
-function swing(attack: DuelAttack, attacker: string, ac: number, side: Side, round: number): Swing {
-  const d20 = rollDice(1, 20)[0]
-  const total = d20 + attack.toHit
+function swing(o: SwingOpts): Swing {
+  const { attack, attacker, side, round, ac, mode } = o
+  const bonus = attack.toHit + (o.toHitBonus ?? 0)
+  const { kept: d20, all } = rollD20(mode, !!o.rerollOne)
+  const total = d20 + bonus
   const crit = d20 === 20
   const hit = crit || (d20 !== 1 && total >= ac)
-  const roll = `d20 ${d20}${attack.toHit >= 0 ? '+' : ''}${attack.toHit} = ${total} vs AC ${ac}`
+  const shown = all.length > 1 ? `d20 ${all.join('/')} keeps ${d20}` : `d20 ${d20}`
+  const roll = `${shown}${bonus >= 0 ? '+' : ''}${bonus} = ${total} vs AC ${ac}`
   const lower = side === 'foe'
+  const base = {
+    round, side, who: attacker, attack: attack.name, d20, bonus, total, ac, d20s: all, mode,
+    fx: attackFx(attack), to: (lower ? 'hero' : 'foe') as Side,
+  }
   if (!hit) {
     const fumble = d20 === 1
     return {
+      hit: false,
       cell: (lower ? 'm' : 'M') as GridCell,
       entry: {
-        round, side, kind: fumble ? 'fumble' : 'miss',
-        who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
+        ...base, kind: fumble ? 'fumble' : 'miss',
         text: `${attacker} misses with ${attack.name} (${roll}${fumble ? ', natural 1' : ''}).`,
       },
     }
   }
-  const dmg = rollDamage(attack.damage, crit)
+  const dmg = rollDamage(o.extraDice ? `${attack.damage}+${o.extraDice}` : attack.damage, crit)
+  const flat = dmg.flat + (o.flat ?? 0)
+  let damage = Math.max(0, dmg.rolls.reduce((a, b) => a + b, 0) + flat)
+  const warded = !!o.halve
+  if (warded) damage = Math.ceil(damage / 2)
   return {
+    hit: true,
     cell: (crit ? (lower ? 'c' : 'C') : lower ? 'h' : 'H') as GridCell,
     entry: {
-      round, side, kind: crit ? 'crit' : 'hit', damage: dmg.total,
-      who: attacker, attack: attack.name, d20, bonus: attack.toHit, total, ac,
-      text: `${attacker} ${crit ? 'CRITS' : 'hits'} with ${attack.name} for ${dmg.total} (${roll}${crit ? ', natural 20' : ''}).`,
+      ...base, kind: crit ? 'crit' : 'hit', damage, dice: dmg.dice, flat, warded: warded || undefined,
+      text: `${attacker} ${crit ? 'CRITS' : 'hits'} with ${attack.name} for ${damage}${warded ? ' (halved)' : ''} (${roll}${crit ? ', natural 20' : ''}).`,
     },
   }
+}
+
+// ── Moves ────────────────────────────────────────────────────────────────────
+
+/**
+ * Power Attack: the hero's main action with every swing at −5 to hit and +6
+ * damage per hit. It beats a plain attack against a soft target (low Armor
+ * Class) and loses to it against heavy armor, so the foe's AC is the choice.
+ */
+export function powerAttackOf(hero: Duelist): DuelAttack | null {
+  const base = hero.attacks.find((a) => a.kind === 'action')
+  if (!base) return null
+  return {
+    id: 'power', name: 'Power Attack', kind: 'action', toHit: base.toHit - 5,
+    damage: `${base.damage}+6`, times: base.times ?? 1, blurb: '−5 to hit, +6 damage per hit',
+  }
+}
+
+/** Every attack the hero can choose from, including Power Attack. */
+export function heroAttacks(hero: Duelist): DuelAttack[] {
+  const power = powerAttackOf(hero)
+  const actions = hero.attacks.filter((a) => a.kind === 'action')
+  const bonus = hero.attacks.filter((a) => a.kind === 'bonus')
+  return [...actions, ...(power ? [power] : []), ...bonus]
+}
+
+/** The attack the foe has telegraphed for its next turn. */
+export function foeIntent(s: DuelState): DuelAttack {
+  const attacks = foeOf(s).attacks
+  return attacks.find((a) => a.id === s.intent) ?? attacks[0]
+}
+
+function pickIntent(foe: Duelist): string {
+  return foe.attacks[Math.floor(Math.random() * foe.attacks.length)].id
+}
+
+/** The roll mode of the foe's next attack: dodging or a hindered foe rolls twice, keeps the lower. */
+export function foeAttackMode(s: DuelState): RollMode {
+  return s.dodging || s.hinder ? 'dis' : 'normal'
+}
+
+const canAct = (s: DuelState) => s.outcome === 'playing' && s.turn === 'hero' && !s.pending
+
+/** The hero's attacks still usable this turn. */
+export function availableAttacks(s: DuelState): DuelAttack[] {
+  if (!canAct(s)) return []
+  return heroAttacks(heroOf(s)).filter((a) => (a.kind === 'action' ? !s.actionUsed : !s.bonusUsed))
+}
+
+export function canDodge(s: DuelState): boolean {
+  return canAct(s) && !s.actionUsed
+}
+
+/** Whether the hero's signature move can be used right now. */
+export function canUseSignature(s: DuelState): boolean {
+  const sig = signatureOf(s)
+  if (!sig || !canAct(s) || s.sigUsed) return false
+  if (sig.cost === 'bonus' && s.bonusUsed) return false
+  if (sig.kind === 'surge' && !s.actionUsed) return false
+  return true
+}
+
+/** The mode of the hero's next attack roll. */
+export function heroAttackMode(s: DuelState): RollMode {
+  return s.adv ? 'adv' : 'normal'
+}
+
+/** The hero's attack bonus for `attack` today (a twist can raise it). */
+export function heroToHit(s: DuelState, attack: DuelAttack): number {
+  return attack.toHit + (s.twist === 'blessed' ? 2 : 0)
 }
 
 // ── Turn flow ────────────────────────────────────────────────────────────────
@@ -204,16 +398,25 @@ function finish(s: DuelState): DuelState {
   return s
 }
 
-/** The foe's turn: it picks one attack at random from the set unlocked at the
- *  day's difficulty and makes every swing of it (a Multiattack is one choice). */
+const info = (s: DuelState, e: Partial<LogEntry> & { text: string; side: Side }): LogEntry => ({ round: s.round, kind: 'info', ...e })
+
+/** The foe's turn: it makes every swing of its telegraphed attack, then telegraphs the next. */
 function foeTurn(s: DuelState): DuelState {
   const foe = foeOf(s)
   const hero = heroOf(s)
-  const attack = foe.attacks[Math.floor(Math.random() * foe.attacks.length)]
+  const attack = foeIntent(s)
+  const mode = foeAttackMode(s)
   let next = s
+  // A ward, or dodging, halves the first hit this turn. A ward is spent by it; dodging ends with the round.
+  let halve = s.ward || s.dodging
+  let ward = s.ward
   for (let i = 0; i < (attack.times ?? 1); i++) {
     if (next.heroHp <= 0) break
-    const sw = swing(attack, foe.name, hero.ac, 'foe', next.round)
+    const sw = swing({
+      attack, attacker: foe.name, side: 'foe', round: next.round, ac: heroAc(s), mode,
+      flat: s.twist === 'vicious' ? 2 : 0, halve,
+    })
+    if (sw.hit) { halve = false; ward = false }
     const dmg = sw.entry.damage ?? 0
     const left = Math.max(0, next.heroHp - dmg)
     next = {
@@ -224,6 +427,7 @@ function foeTurn(s: DuelState): DuelState {
       log: [...next.log, { ...sw.entry, targetHp: left, targetMax: hero.hp }],
     }
   }
+  next = { ...next, ward, hinder: false, intent: pickIntent(foe) }
   return finish(next)
 }
 
@@ -231,20 +435,33 @@ function foeTurn(s: DuelState): DuelState {
  *  runs until one side reaches 0 HP. */
 function newRound(s: DuelState): DuelState {
   if (s.outcome !== 'playing') return s
-  return { ...s, round: s.round + 1, turn: 'hero', actionUsed: false, bonusUsed: false }
+  let next: DuelState = { ...s, round: s.round + 1, turn: 'hero', actionUsed: false, bonusUsed: false, dodging: false }
+  if (next.twist === 'mending') {
+    const max = heroOf(next).hp
+    const healed = Math.min(max, next.heroHp + 3) - next.heroHp
+    if (healed > 0) {
+      next = {
+        ...next, heroHp: next.heroHp + healed,
+        log: [...next.log, info(next, { side: 'hero', fx: 'heal', to: 'hero', heal: healed, targetHp: next.heroHp + healed, targetMax: max, text: `Mending Light: you regain ${healed} HP.` })],
+      }
+    }
+  }
+  return next
 }
 
 /** Starts today's duel: rolls initiative; the foe may open with its turn. */
 export function startDuel(day: string, matchup: Matchup = dailyMatchup(day)): DuelState {
-  const { hero, foe, tier } = matchup
+  const { hero, foe, tier, twist } = matchup
   const heroInit = rollDice(1, 20)[0] + hero.init
   const foeInit = rollDice(1, 20)[0] + foe.init
   const heroFirst = heroInit >= foeInit
   const base: DuelState = {
-    day, tier, heroId: hero.id, foeId: foe.id,
+    day, tier, twist: twist.id, heroId: hero.id, foeId: foe.id,
     heroHp: hero.hp, foeHp: foe.hp,
     round: 1, turn: 'hero', actionUsed: false, bonusUsed: false,
     outcome: 'playing', dealt: 0, taken: 0, grid: [],
+    intent: pickIntent(foe), pending: null, dodging: false, sigUsed: false,
+    adv: false, strikeDice: null, ward: false, hinder: false, rage: 0,
     log: [{
       round: 1, side: heroFirst ? 'hero' : 'foe', kind: 'info',
       text: `Initiative: ${hero.name} ${heroInit}, ${foe.name} ${foeInit}. ${heroFirst ? 'You go first.' : `${foe.name} strikes first.`}`,
@@ -253,45 +470,146 @@ export function startDuel(day: string, matchup: Matchup = dailyMatchup(day)): Du
   return heroFirst ? base : foeTurn(base)
 }
 
-/** The hero's attacks still usable this turn. */
-export function availableAttacks(s: DuelState): DuelAttack[] {
-  if (s.outcome !== 'playing' || s.turn !== 'hero') return []
-  return heroOf(s).attacks.filter((a) => (a.kind === 'action' ? !s.actionUsed : !s.bonusUsed))
+/** Whether nothing useful is left to do this turn, so it ends by itself. */
+function turnIsSpent(s: DuelState): boolean {
+  if (!canAct(s)) return false
+  if (availableAttacks(s).length > 0 || canDodge(s)) return false
+  const sig = signatureOf(s)
+  // An unused Action Surge keeps the turn open: it grants another action.
+  return !(sig && sig.kind === 'surge' && canUseSignature(s))
 }
 
-/** The hero uses an attack. Ends the turn automatically once nothing is left. */
-export function heroAttack(s: DuelState, attackId: string): DuelState {
+function settle(s: DuelState): DuelState {
+  return turnIsSpent(s) ? endTurn(s) : s
+}
+
+/** Starts an attack: spends the action or bonus action; roll each swing with `rollPending`. */
+export function chooseAttack(s: DuelState, attackId: string): DuelState {
   const attack = availableAttacks(s).find((a) => a.id === attackId)
   if (!attack) return s
-  const hero = heroOf(s)
-  const foe = foeOf(s)
-  let next: DuelState = {
+  return {
     ...s,
     actionUsed: s.actionUsed || attack.kind === 'action',
     bonusUsed: s.bonusUsed || attack.kind === 'bonus',
+    pending: { attackId: attack.id, left: attack.times ?? 1 },
   }
-  for (let i = 0; i < (attack.times ?? 1); i++) {
-    if (next.foeHp <= 0) break
-    const sw = swing(attack, hero.name, foe.ac, 'hero', next.round)
-    const dmg = sw.entry.damage ?? 0
-    const left = Math.max(0, next.foeHp - dmg)
-    next = {
-      ...next,
-      foeHp: next.foeHp - dmg,
-      dealt: next.dealt + dmg,
-      grid: [...next.grid, sw.cell],
-      log: [...next.log, { ...sw.entry, targetHp: left, targetMax: foe.hp }],
-    }
+}
+
+/** Rolls the next swing of the chosen attack. */
+export function rollPending(s: DuelState): DuelState {
+  if (s.outcome !== 'playing' || s.turn !== 'hero' || !s.pending) return s
+  const hero = heroOf(s)
+  const attack = heroAttacks(hero).find((a) => a.id === s.pending!.attackId)
+  if (!attack) return { ...s, pending: null }
+  const foe = foeOf(s)
+  const mode = heroAttackMode(s)
+  const sw = swing({
+    attack, attacker: hero.name, side: 'hero', round: s.round, ac: foeAc(s), mode,
+    toHitBonus: s.twist === 'blessed' ? 2 : 0,
+    rerollOne: s.twist === 'fey-luck',
+    flat: s.rage + (s.twist === 'brittle' ? 3 : 0),
+    extraDice: s.strikeDice,
+  })
+  const dmg = sw.entry.damage ?? 0
+  const left = Math.max(0, s.foeHp - dmg)
+  const remaining = s.pending.left - 1
+  let next: DuelState = {
+    ...s,
+    adv: false, // advantage covers the next attack roll only
+    strikeDice: sw.hit ? null : s.strikeDice,
+    foeHp: s.foeHp - dmg,
+    dealt: s.dealt + dmg,
+    pending: remaining > 0 ? { attackId: attack.id, left: remaining } : null,
+    grid: [...s.grid, sw.cell],
+    log: [...s.log, { ...sw.entry, targetHp: left, targetMax: foe.hp }],
   }
   next = finish(next)
-  if (next.outcome !== 'playing') return next
-  return availableAttacks(next).length === 0 ? endTurn(next) : next
+  if (next.outcome !== 'playing') return { ...next, pending: null }
+  return next.pending ? next : settle(next)
+}
+
+/** The hero uses a whole attack at once (every swing). The page rolls swing by swing instead. */
+export function heroAttack(s: DuelState, attackId: string): DuelState {
+  let next = chooseAttack(s, attackId)
+  if (next === s) return s
+  while (next.pending && next.outcome === 'playing') next = rollPending(next)
+  return next
+}
+
+/**
+ * Dodge: spends the action. Until the next round the foe attacks at
+ * disadvantage, and the first hit it lands deals half damage.
+ */
+export function useDodge(s: DuelState): DuelState {
+  if (!canDodge(s)) return s
+  const next: DuelState = {
+    ...s, actionUsed: true, dodging: true,
+    log: [...s.log, info(s, { side: 'hero', fx: 'dodge', text: `${heroOf(s).name} takes the Dodge action. ${foeOf(s).name} attacks at disadvantage and its first hit deals half damage.` })],
+  }
+  return settle(next)
+}
+
+/** The hero's once-per-duel signature move. */
+export function useSignature(s: DuelState): DuelState {
+  const sig = signatureOf(s)
+  if (!sig || !canUseSignature(s)) return s
+  const hero = heroOf(s)
+  let next: DuelState = { ...s, sigUsed: true, bonusUsed: s.bonusUsed || sig.cost === 'bonus' }
+  const say = (text: string, extra: Partial<LogEntry> = {}): DuelState => ({
+    ...next, log: [...next.log, info(next, { side: 'hero', text: `${hero.name} uses ${sig.name}. ${text}`, ...extra })],
+  })
+  switch (sig.kind) {
+    case 'surge':
+      next = say('You gain another action.', { fx: 'surge' })
+      next = { ...next, actionUsed: false }
+      break
+    case 'heal': {
+      const roll = rollDamage(sig.dice ?? '1d8', false)
+      const healed = Math.min(hero.hp, next.heroHp + roll.total) - next.heroHp
+      next = say(`You regain ${healed} HP.`, { fx: 'heal', to: 'hero', heal: healed, dice: roll.dice, flat: roll.flat, targetHp: next.heroHp + healed, targetMax: hero.hp })
+      next = { ...next, heroHp: next.heroHp + healed }
+      break
+    }
+    case 'empower':
+      next = say(`Every hit deals ${sig.bonus ?? 0} more damage.`, { fx: 'buff' })
+      next = { ...next, rage: next.rage + (sig.bonus ?? 0) }
+      break
+    case 'ward':
+      next = say('The next hit on you deals half damage.', { fx: 'ward' })
+      next = { ...next, ward: true }
+      break
+    case 'strike':
+      next = say(`Your next hit deals +${sig.dice}.`, { fx: 'buff' })
+      next = { ...next, strikeDice: sig.dice ?? null }
+      break
+    case 'advantage':
+      next = say('Your next attack has advantage.', { fx: 'buff' })
+      next = { ...next, adv: true }
+      break
+    case 'hinder':
+      next = say(`${foeOf(s).name}'s next turn is at disadvantage.`, { fx: 'ward' })
+      next = { ...next, hinder: true }
+      break
+  }
+  return settle(next)
 }
 
 /** Ends the hero's turn: the foe acts, then a new round begins. */
 export function endTurn(s: DuelState): DuelState {
   if (s.outcome !== 'playing' || s.turn !== 'hero') return s
-  return newRound(foeTurn({ ...s, turn: 'foe' }))
+  let next = foeTurn({ ...s, turn: 'foe', pending: null })
+  if (next.outcome !== 'playing') return next
+  if (next.twist === 'troll-blood') {
+    const max = foeOf(next).hp
+    const healed = Math.min(max, next.foeHp + 4) - next.foeHp
+    if (healed > 0) {
+      next = {
+        ...next, foeHp: next.foeHp + healed,
+        log: [...next.log, info(next, { side: 'foe', fx: 'heal', to: 'foe', heal: healed, targetHp: next.foeHp + healed, targetMax: max, text: `Troll’s Blood: ${foeOf(next).name} regains ${healed} HP.` })],
+      }
+    }
+  }
+  return newRound(next)
 }
 
 // ── Sharing ──────────────────────────────────────────────────────────────────
@@ -353,12 +671,14 @@ export function challengeLink(s: DuelState, base: string): string {
 export function shareText(s: DuelState, link?: string): string {
   const hero = heroOf(s)
   const foe = foeOf(s)
+  const twist = twistOf(s)
   const verdict = s.outcome === 'won' ? 'Victory' : 'Defeat'
   const rows: string[] = []
   for (let i = 0; i < s.grid.length; i += 6) rows.push(s.grid.slice(i, i + 6).map((c) => CELL_EMOJI[c]).join(''))
   return [
     `⚔️ D&D Codex Daily Duel ${s.day}`,
     `${hero.emoji} ${hero.name} vs ${foe.emoji} ${foe.name} (${TIER_LABEL[s.tier]})`,
+    ...(twist ? [`Twist: ${twist.name}`] : []),
     `${verdict} in ${s.round} round${s.round === 1 ? '' : 's'} · ${Math.max(0, s.heroHp)}/${hero.hp} HP left`,
     ...rows,
     ...(link ? ['', `Think you can beat me? ${link}`] : []),
@@ -416,15 +736,28 @@ export function historyStats(records: Pick<DuelRecord, 'day' | 'outcome'>[], tod
 
 const KEY = 'codex.dailyDuel'
 
+/**
+ * Brings a saved duel up to the current shape. A finished duel from before
+ * twists, telegraphed attacks or signature moves keeps its result (so a reload
+ * can't start a second try); a duel still in progress can't be resumed.
+ */
+export function upgradeSave(s: DuelState): DuelState | null {
+  if (!s.tier || (s.outcome as string) === 'stalemate') return null
+  if (typeof s.twist === 'string' && typeof s.intent === 'string') return s
+  if (s.outcome === 'playing') return null
+  return {
+    ...s, twist: s.twist ?? '', intent: s.intent ?? '', pending: null, dodging: false, sigUsed: true,
+    adv: false, strikeDice: null, ward: false, hinder: false, rage: 0,
+  }
+}
+
 /** Today's saved duel (so a reload resumes it), or null if none for this day. */
 export function loadDuel(day: string): DuelState | null {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const s = JSON.parse(raw) as DuelState
-    // Saves from before difficulty tiers (no `tier`) or with the removed
-    // stalemate outcome can't be resumed.
-    return s.day === day && s.tier && (s.outcome as string) !== 'stalemate' ? s : null
+    return s.day === day ? upgradeSave(s) : null
   } catch {
     return null
   }
