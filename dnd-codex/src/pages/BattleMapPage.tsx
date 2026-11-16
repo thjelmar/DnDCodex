@@ -35,7 +35,7 @@ import {
   tokenRevealed,
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
-import { npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
+import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
@@ -1071,7 +1071,7 @@ export function SceneEditor({
                     className="battlemap-token-preset"
                     title={p.label}
                     onClick={() => {
-                      addToken({ label: p.label, icon: p.icon, shape: p.shape })
+                      addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape })
                       setAddTokenOpen(false)
                     }}
                   >
@@ -1143,7 +1143,7 @@ export function SceneEditor({
                 </label>
                 <TokenIconPicker
                   value={current.tokenIcon}
-                  autoId={pickTokenIcon({ name: current.label })}
+                  autoId={pickTokenIcon({ name: current.label }) ?? GENERIC_TOKEN_ICON}
                   onChange={(id) => patchToken(current.id, { tokenIcon: id })}
                 />
                 <label>

@@ -21,7 +21,7 @@ import { BUILTIN_NPC_TEMPLATES } from '../data/builtinTemplates'
 import { randomPersonName } from '../lib/nameGen'
 import { useGenOverrides } from '../lib/useGenOverrides'
 import { TokenIconPicker } from '../components/TokenIcon'
-import { npcTokenIcon } from '../lib/tokenIcons'
+import { GENERIC_TOKEN_ICON, npcTokenIcon } from '../lib/tokenIcons'
 import type { NPC, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
@@ -243,7 +243,7 @@ function NpcEditor({
       </div>
       <TokenIconPicker
         value={tokenIcon}
-        autoId={npcTokenIcon({ name, role, race, statBlockData })}
+        autoId={npcTokenIcon({ name, role, race, statBlockData }) ?? GENERIC_TOKEN_ICON}
         onChange={setTokenIcon}
       />
       <div className="form-row">

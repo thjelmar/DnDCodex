@@ -302,6 +302,9 @@ function Sidebar({
       <div className="faint" style={{ fontSize: 11, padding: '0 8px' }}>
         Stored locally in your browser.
       </div>
+      <div style={{ fontSize: 11, padding: '0 8px' }}>
+        <NavLink to="/credits" className="faint">Credits</NavLink>
+      </div>
     </nav>
   )
 }

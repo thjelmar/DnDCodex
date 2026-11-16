@@ -42,7 +42,7 @@ export function TokenIconPicker({
           {effective ? <TokenIcon id={effective} size={28} /> : <span className="faint">Aa</span>}
         </span>
         <span className="faint" style={{ fontSize: 12, flex: 1 }}>
-          {current ? tokenIconLabel(current) : autoId ? `Automatic (${tokenIconLabel(autoId)})` : 'Automatic (initials)'}
+          {current ? tokenIconLabel(current) : autoId ? `Automatic (${tokenIconLabel(autoId)})` : 'Automatic'}
         </span>
         <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {open ? 'Done' : 'Change'}

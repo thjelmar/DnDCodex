@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import fs from 'node:fs'
-import { pickTokenIcon, npcTokenIcon, TOKEN_ICON_RULES, TOKEN_ICON_CATALOG, isTokenIcon, TOKEN_ICON_AUTHORS } from '../src/lib/tokenIcons'
+import { pickTokenIcon, npcTokenIcon, TOKEN_ICON_RULES, TOKEN_ICON_CATALOG, isTokenIcon, TOKEN_ICON_AUTHORS, tokenGlyphId, EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON } from '../src/lib/tokenIcons'
 
 // Default token icons (T-64): the keyword map and the bundled set. Pure logic, no browser.
 
@@ -36,6 +36,17 @@ test.describe('token icon keyword map', () => {
   })
 })
 
+test.describe('board token glyph', () => {
+  test('known object emoji map to icons; custom emoji stay emoji', () => {
+    expect(tokenGlyphId({ label: 'Horse', icon: '🐴' })).toBe('horse-head')
+    expect(tokenGlyphId({ label: 'Mascot', icon: '🦄' })).toBeNull()
+  })
+  test('explicit icon wins; unmatched labels get the generic icon, not initials', () => {
+    expect(tokenGlyphId({ label: 'Goblin', tokenIcon: 'ogre' })).toBe('ogre')
+    expect(tokenGlyphId({ label: 'Thorin Oakenshield' })).toBe(GENERIC_TOKEN_ICON)
+  })
+})
+
 test.describe('bundled icon set', () => {
   const paths = JSON.parse(fs.readFileSync('src/data/tokenIconPaths.json', 'utf8')) as Record<string, { a: string; d: string }>
   test('every catalog icon and every rule target has glyph data', () => {
@@ -44,6 +55,7 @@ test.describe('bundled icon set', () => {
       expect(isTokenIcon(icon), icon).toBe(true)
       expect(paths[icon], icon).toBeTruthy()
     }
+    for (const id of [GENERIC_TOKEN_ICON, ...Object.values(EMOJI_TOKEN_ICONS)]) expect(paths[id], id).toBeTruthy()
     expect(new Set(TOKEN_ICON_CATALOG.map(([id]) => id)).size).toBe(TOKEN_ICON_CATALOG.length)
   })
   test('every bundled author is credited', () => {

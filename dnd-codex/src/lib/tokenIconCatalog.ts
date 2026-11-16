@@ -38,7 +38,10 @@ export const TOKEN_ICON_CATALOG: ReadonlyArray<readonly [string, string]> = [
   ['beer-stein', 'Innkeeper'], ['coins', 'Merchant'], ['anvil', 'Smith'], ['wheat', 'Farmer'],
   ['fishing-pole', 'Fisher'], ['bread', 'Baker'], ['spell-book', 'Scholar'], ['quill-ink', 'Scribe'],
   ['drum', 'Musician'], ['lyre', 'Minstrel'], ['stethoscope', 'Healer'],   ['dig-dug', 'Miner'], ['hunter-eyes', 'Hunter'], ['chef-toque', 'Cook'],
-  ['jester-hat', 'Jester'], ['spy', 'Spy'],   ['prisoner', 'Prisoner'],   // Generic
+  ['jester-hat', 'Jester'], ['spy', 'Spy'],   ['prisoner', 'Prisoner'],   // Objects and generic
+  ['pawn', 'Generic'], ['sailboat', 'Boat'], ['old-wagon', 'Wagon'], ['wooden-crate', 'Crate'],
+  ['locked-chest', 'Chest'], ['wooden-door', 'Door'], ['campfire', 'Campfire'], ['rock', 'Rock'],
+  ['pine-tree', 'Tree'], ['mantrap', 'Trap'], ['flag-objective', 'Flag'],
   ['person', 'Person'], ['woman-elf-face', 'Elf woman'],   ['dragon-breath', 'Dragon breath'], ['angel-wings', 'Angel'], ['sword-brandish', 'Warrior'], ['cross-shield', 'Paladin'],
   ['crossed-swords', 'Combatant'], ['spiked-halo', 'Celestial'], ['horned-helm', 'Viking'], ['bull-horns', 'Bull'],
   ['claw-slashes', 'Claws'], ['croc-jaws', 'Crocodile'], ['robin-hood-hat', 'Ranger'], ['executioner-hood', 'Executioner'], ['fanged-skull', 'Fanged skull'], ['bestial-fangs', 'Fangs'], ['bat-wing', 'Wings'], ['skull-staff', 'Necromancer'],

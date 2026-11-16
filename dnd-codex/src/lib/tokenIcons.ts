@@ -197,6 +197,28 @@ export function pickTokenIcon(src: TokenIconSource): string | null {
   return null
 }
 
+/** Icon for tokens with no keyword match, shown instead of initials. */
+export const GENERIC_TOKEN_ICON = 'pawn'
+
+/** The object-token emoji (battle-map quick-add presets) and their icons. A
+ *  token carrying one of these shows the icon; any other emoji is the user's
+ *  own choice and still shows as typed. */
+export const EMOJI_TOKEN_ICONS: Record<string, string> = {
+  '🐴': 'horse-head', '⛵': 'sailboat', '🛒': 'old-wagon', '📦': 'wooden-crate', '🧰': 'locked-chest',
+  '🚪': 'wooden-door', '🔥': 'campfire', '🪨': 'rock', '🌲': 'pine-tree', '⚠️': 'mantrap',
+  '🚩': 'flag-objective', '💀': 'skull-crossed-bones',
+}
+
+/** Which bundled glyph a board token wears, or null when it shows a custom
+ *  emoji. Order: portrait is handled by the caller; then an explicit icon, a
+ *  known preset emoji, a custom emoji (null), a keyword match on the label,
+ *  and finally the generic icon. */
+export function tokenGlyphId(t: { tokenIcon?: string | null; icon?: string | null; label: string }): string | null {
+  if (isTokenIcon(t.tokenIcon)) return t.tokenIcon
+  if (t.icon) return EMOJI_TOKEN_ICONS[t.icon] ?? null
+  return pickTokenIcon({ name: t.label }) ?? GENERIC_TOKEN_ICON
+}
+
 /** The icon for an NPC: its saved override, else the keyword pick. */
 export function npcTokenIcon(npc: {
   name: string

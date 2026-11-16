@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
-import { isTokenIcon, pickTokenIcon, useTokenIconPaths } from '../lib/tokenIcons'
+import { tokenGlyphId, useTokenIconPaths } from '../lib/tokenIcons'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
 import {
   MAX_TOKEN_SIZE,
@@ -730,7 +730,7 @@ export function Tabletop({
                         either way, so size/snap/overlays are unaffected. */}
                     {(() => {
                       const square = t.shape === 'square'
-                      const iconId = isTokenIcon(t.tokenIcon) ? t.tokenIcon : pickTokenIcon({ name: t.label })
+                      const iconId = tokenGlyphId(t)
                       const glyph = iconId ? iconPaths?.[iconId]?.d : undefined
                       const rx = Math.max(1.5, r * 0.14)
                       const clip = square
@@ -756,10 +756,6 @@ export function Tabletop({
                               clipPath={`url(#tt-clip-${t.id})`}
                               preserveAspectRatio="xMidYMid slice"
                             />
-                          ) : t.icon ? (
-                            <text className="tabletop-emoji" textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} pointerEvents="none">
-                              {t.icon}
-                            </text>
                           ) : glyph ? (
                             <path
                               className="tabletop-glyph"
@@ -768,7 +764,11 @@ export function Tabletop({
                               transform={`translate(${-r * 0.62} ${-r * 0.62}) scale(${(r * 1.24) / 512})`}
                               pointerEvents="none"
                             />
-                          ) : (
+                          ) : t.icon && !iconId ? (
+                            <text className="tabletop-emoji" textAnchor="middle" dominantBaseline="central" fontSize={r * 1.1} pointerEvents="none">
+                              {t.icon}
+                            </text>
+                          ) : iconId ? null : (
                             <text className="tabletop-initials" textAnchor="middle" dominantBaseline="central" fontSize={r * 0.8}>
                               {initials(t.label)}
                             </text>
