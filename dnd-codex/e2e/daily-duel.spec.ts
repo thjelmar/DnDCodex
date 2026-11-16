@@ -151,6 +151,50 @@ test.describe('daily duel', () => {
     }
   })
 
+  test('on a wide screen the next move and battle log sit on the right, and the log collapses', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 800 })
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await expect(page.locator('.duel-intent')).toBeVisible()
+    const arena = (await page.locator('.duel-arena').boundingBox())!
+    const intent = (await page.locator('.duel-intent').boundingBox())!
+    const log = (await page.locator('.duel-log').boundingBox())!
+    expect(intent.x).toBeGreaterThanOrEqual(arena.x + arena.width - 1)
+    expect(log.x).toBeGreaterThanOrEqual(arena.x + arena.width - 1)
+    expect(log.y).toBeGreaterThan(intent.y)
+    // The moves fit on screen without scrolling.
+    const end = (await page.getByRole('button', { name: 'End turn' }).boundingBox())!
+    expect(end.y + end.height).toBeLessThanOrEqual(800)
+
+    // The log collapses, and the choice is remembered after a reload.
+    const head = page.getByRole('button', { name: /Battle log/ })
+    await expect(page.locator('#duel-log-body')).toBeVisible()
+    await head.click()
+    await expect(head).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('#duel-log-body')).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByRole('button', { name: /Battle log/ })).toHaveAttribute('aria-expanded', 'false')
+    await page.getByRole('button', { name: /Battle log/ }).click()
+    await expect(page.locator('#duel-log-body')).toBeVisible()
+  })
+
+  test('on a narrow screen the next move comes before the moves, and a roll does not scroll the page', async ({ page }) => {
+    await page.setViewportSize({ width: 900, height: 600 })
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    const intent = (await page.locator('.duel-intent').boundingBox())!
+    const tray = (await page.locator('.duel-tray').boundingBox())!
+    expect(intent.y).toBeLessThan(tray.y)
+    await page.locator('main').evaluate((el) => { el.scrollTop = 200 })
+    const before = await page.locator('main').evaluate((el) => el.scrollTop)
+    const attack = page.locator('.duel-move:not(:disabled)').first()
+    await expect(attack).toBeVisible()
+    await attack.click()
+    await page.getByRole('button', { name: 'Roll the d20' }).click()
+    await expect(page.locator('.duel-log-body')).toContainText(/d20 \d+/)
+    expect(await page.locator('main').evaluate((el) => el.scrollTop)).toBe(before)
+  })
+
   test('fits a phone screen without sideways scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/#/daily')

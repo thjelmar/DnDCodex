@@ -4154,7 +4154,30 @@ kbd {
    --------------------------------------------------------------------------- */
 .duel { --duel-gold: #eab308; --duel-die: #f3efe3; --duel-die-fg: #1d1a27; --duel-die-edge: #2a2438; }
 :root[data-theme="light"] .duel { --duel-gold: #a16207; --duel-die: #ffffff; }
-.duel-stack { display: grid; gap: 16px; max-width: 720px; }
+/* One column on narrow screens (arena, next move, moves, log). From 1100px the
+   next move and the battle log move to a column on the right, so the icons and
+   the moves fit on screen without scrolling. */
+.duel-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 720px; }
+.duel-main, .duel-side { display: contents; }
+.duel-twist { order: 1; }
+.duel-arena { order: 2; }
+.duel-intent { order: 3; }
+.duel-tray { order: 4; }
+.duel-log { order: 5; }
+.duel-log-body { margin-top: 12px; max-height: 380px; overflow-y: auto; padding-right: 8px; }
+@media (min-width: 1100px) {
+  .duel-layout { grid-template-columns: minmax(0, 1fr) 340px; max-width: 1120px; align-items: start; }
+  .duel-main, .duel-side { display: grid; gap: 16px; min-width: 0; align-content: start; }
+  .duel-side { position: sticky; top: 16px; }
+  .duel-twist, .duel-arena, .duel-intent, .duel-tray, .duel-log { order: 0; }
+  .duel-log-body { max-height: calc(100vh - 330px); min-height: 140px; }
+}
+.duel-log-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0; background: none; border: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.duel-log-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.duel-log-title { font-weight: 600; font-size: 16px; flex: 1; }
+.duel-log-head .faint { font-size: 12px; }
+.duel-log-head .chev { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.duel-log-head .chev.open { transform: rotate(90deg); }
 .duel-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--text-faint); }
 .duel-twist { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; border-color: var(--accent); }
 .duel-twist strong { font-size: 16px; }
