@@ -72,7 +72,12 @@ export function RichTextEditor({
   // programmatic fill (e.g. importing a backstory) shows up without ever
   // disrupting the user's active typing.
   useEffect(() => {
-    if (!editor || value === editor.getHTML()) return
+    // useEditor creates the editor while React renders and schedules its destruction 1 ms
+    // later, cancelling that when the component's effects run. If the effects run later
+    // than that (it happens in Safari), `editor` here is one tiptap has already destroyed,
+    // and getHTML() throws because a destroyed editor has no schema (T-71). useEditor then
+    // swaps in a new editor, which re-runs this effect, so skipping is safe.
+    if (!editor || editor.isDestroyed || value === editor.getHTML()) return
     if (editable && editor.isFocused) return
     editor.commands.setContent(value || '', { emitUpdate: false })
   }, [value, editable, editor])

@@ -1,11 +1,11 @@
 # End-to-end tests
 
-Browser tests for the core flows, run with [Playwright](https://playwright.dev) in Chromium.
+Browser tests for the core flows, run with [Playwright](https://playwright.dev) in Chromium. One spec (`editor-webkit-race.spec.ts`) runs in WebKit, Safari's engine.
 
 ```bash
 cd dnd-codex
 npm install            # once, to get @playwright/test
-npx playwright install chromium   # once per Playwright version
+npx playwright install chromium webkit   # once per Playwright version (webkit is for one spec)
 npm run e2e
 ```
 
@@ -21,6 +21,7 @@ it.
 | --- | --- | --- |
 | `core-flows.spec.ts` | Create a campaign, a session, and a battle map (the live scene the DM shows players). Reload and check they persist. | Nothing. Local only. |
 | `demo-isolation.spec.ts` | Demo mode makes zero `supabase.co` requests. Each demo surface is checked with `performance.getEntriesByType('resource')`. A positive control confirms the check can see a Supabase request. | Nothing. Local only. |
+| `editor-webkit-race.spec.ts` | The demo Overview must load without the rich-text editor crash (T-71). It loads the Overview 40 times from fresh contexts in WebKit, because Chromium's timing hides the race. | Nothing. Local only. Needs `npx playwright install webkit`. |
 | `signed-out-run-mode.spec.ts` | Signed out, Run mode makes no `live_sessions` request (T-53). | Nothing. Local only. |
 | `daily-duel-tally.spec.ts` | Daily Duel tally (T-66): `record_duel_result`, `get_duel_lean` and `get_duel_stats` validation, per-device dedupe, hidden rows, persisted lean. Needs migration 0041 applied to the local DB. | A local Supabase stack. Skipped in `npm run e2e`. |
 | `sync-repair.spec.ts` | Sync delete (a deleted record must not come back) and Repair sync (restores a missing live record). | A local Supabase stack. Skipped in `npm run e2e`; run with `npm run e2e:live`. |
