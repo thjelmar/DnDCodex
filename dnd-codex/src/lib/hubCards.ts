@@ -2,6 +2,16 @@
 // Lore, Reference). Pure functions over plain records, so they are easy to test
 // and never touch the network.
 
+/** The few token fields the Run card's avatars need. */
+export interface SceneTokenSummary {
+  id: string
+  label: string
+  color: string
+  imageId?: string | null
+  icon?: string | null
+  tokenIcon?: string | null
+}
+
 export interface SceneSummary {
   id: string
   name: string
@@ -10,6 +20,17 @@ export interface SceneSummary {
   /** Size of one grid cell in image pixels; 0 when unknown. */
   cellPx: number
   updatedAt: string
+  /** The map image (a StoredImage id), or null for a blank grid. */
+  imageId: string | null
+  /** The first few visible tokens, for the avatars over the thumbnail. */
+  tokens: SceneTokenSummary[]
+}
+
+/** The world map the World card previews. */
+export interface WorldMapSummary {
+  id: string
+  name: string
+  imageId: string | null
 }
 
 export interface HubInput {
@@ -38,7 +59,7 @@ export interface HubCards {
   run: {
     scenes: number
     /** The most recently updated scene, or null when there are none. */
-    latestScene: { id: string; name: string } | null
+    latestScene: SceneSummary | null
     /** Grid size of that scene as columns by rows, or null when unknown. */
     grid: { cols: number; rows: number } | null
     /** True when there is a session to run and a scene to show. */
@@ -131,7 +152,7 @@ export function deriveHubCards(input: HubInput): HubCards {
     },
     run: {
       scenes: input.scenes.length,
-      latestScene: latestScene ? { id: latestScene.id, name: latestScene.name } : null,
+      latestScene: latestScene ?? null,
       grid: latestScene ? gridSize(latestScene) : null,
       ready: input.sessions.length > 0 && input.scenes.length > 0,
     },
@@ -146,4 +167,16 @@ export function deriveHubCards(input: HubInput): HubCards {
         .map((i) => ({ id: i.id, name: i.name || 'Untitled', rarity: i.rarity })),
     },
   }
+}
+
+/**
+ * The NPCs to show in the World card's portrait strip: up to `max`, those with a
+ * portrait first, then the rest, each group newest-edited first. Only ids are read
+ * later, so at most `max` portraits are ever fetched.
+ */
+export function pickPortraitNpcs<T extends { imageId?: string | null; updatedAt: string }>(npcs: T[], max = 5): T[] {
+  const byNewest = (a: T, b: T) => b.updatedAt.localeCompare(a.updatedAt)
+  const withImage = npcs.filter((n) => !!n.imageId).sort(byNewest)
+  const without = npcs.filter((n) => !n.imageId).sort(byNewest)
+  return [...withImage, ...without].slice(0, max)
 }
