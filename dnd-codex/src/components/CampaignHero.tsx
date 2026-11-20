@@ -83,6 +83,19 @@ export function CampaignHero({
         style={{ display: 'none' }}
         onChange={(e) => handleFiles(e.target.files)}
       />
+      <div className="ov-hero-actions">
+        <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <Icon name="image" size={13} /> {busy ? '…' : cover ? 'Change cover' : 'Add cover'}
+        </button>
+        {cover && (
+          <button className="btn small danger" onClick={removeCover}>
+            Remove
+          </button>
+        )}
+        <button className="btn small" onClick={onOpenSettings}>
+          <Icon name="settings" size={13} /> Campaign settings
+        </button>
+      </div>
       <div className="ov-hero-body">
         <div className="ov-hero-title">
           {renaming ? (
@@ -112,19 +125,6 @@ export function CampaignHero({
           )}
         </div>
         {campaign.summary && <p className="ov-hero-summary">{campaign.summary}</p>}
-      </div>
-      <div className="ov-hero-actions">
-        <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
-          <Icon name="image" size={13} /> {busy ? '…' : cover ? 'Change cover' : 'Add cover'}
-        </button>
-        {cover && (
-          <button className="btn small danger" onClick={removeCover}>
-            Remove
-          </button>
-        )}
-        <button className="btn small" onClick={onOpenSettings}>
-          <Icon name="settings" size={13} /> Campaign settings
-        </button>
       </div>
     </div>
   )

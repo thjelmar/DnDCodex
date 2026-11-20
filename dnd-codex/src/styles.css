@@ -4425,7 +4425,21 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-hero.has-cover h1, .ov-hero.has-cover .ov-hero-summary { color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5); }
 .ov-hero-input { font-family: var(--serif); font-size: 26px; font-weight: 600; padding: 2px 8px; max-width: 460px; }
 .ov-hero-summary { margin: 4px 0 0; color: var(--text-dim); max-width: 70ch; }
-.ov-hero-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+/* The actions sit in the flow, above the title (margin-bottom:auto pins them to the
+   top of the banner and the title block to the bottom), and wrap onto more rows on a
+   narrow screen, so they can't overlap the title. */
+.ov-hero-actions {
+  align-self: flex-end;
+  margin-bottom: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 100%;
+}
+/* A solid fill, so the buttons stay readable over a cover image. */
+.ov-hero-actions .btn { background: var(--bg-elev); }
+.ov-hero-actions .btn:hover { background: var(--bg-elev-2); }
 
 .ov-next { margin-bottom: 14px; }
 
@@ -4442,7 +4456,7 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   transition: border-color 0.12s;
 }
 .ov-stat:hover { border-color: var(--accent); text-decoration: none; }
-.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--accent); }
+.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--link); }
 .ov-stat-l { font-size: 12.5px; color: var(--text-dim); }
 
 .ov-bento {
@@ -4480,6 +4494,7 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 }
 .ov-panel-toggle .sidebar-caret { color: var(--text-faint); }
 .ov-panel-body { margin-top: 10px; }
+.ov-panel-body[hidden] { display: none; }
 
 @media (max-width: 960px) {
   .ov-bento > .ov-main, .ov-bento > .ov-side { grid-column: 1 / -1; }
@@ -4493,6 +4508,5 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   .ov-hero { padding: 18px 16px; min-height: 150px; }
   .ov-hero.has-cover { min-height: 200px; }
   .ov-hero-title h1 { font-size: 26px; }
-  .ov-hero-actions { top: 8px; right: 8px; }
   .camp-crumb-name { max-width: 16ch; }
 }

@@ -4,7 +4,8 @@ import { Icon } from './Icon'
 
 // An Overview panel with a heading that toggles it open or closed. Wide screens
 // show it open; on a phone the less-used panels start closed so the page stays
-// one short stack. The default is read once, at mount.
+// one short stack. The default is read once, at mount. The heading is an <h3>
+// that wraps the toggle button, so the panel keeps its place in the heading outline.
 
 const WIDE = '(min-width: 961px)'
 
@@ -33,28 +34,30 @@ export function CollapsePanel({
   return (
     <section className="ov-panel">
       <div className="ov-panel-head">
-        <button
-          type="button"
-          className="ov-panel-toggle"
-          aria-expanded={open}
-          aria-controls={bodyId}
-          onClick={() => setOpen((o) => !o)}
-        >
-          <Icon
-            name="chevron-right"
-            size={13}
-            color="currentColor"
-            className={`sidebar-caret${open ? ' open' : ''}`}
-          />
-          <h3 className="mb-0">{title}</h3>
-        </button>
+        <h3 className="mb-0">
+          <button
+            type="button"
+            className="ov-panel-toggle"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen((o) => !o)}
+          >
+            <Icon
+              name="chevron-right"
+              size={13}
+              color="currentColor"
+              className={`sidebar-caret${open ? ' open' : ''}`}
+            />
+            {title}
+          </button>
+        </h3>
         {actions}
       </div>
-      {open && (
-        <div id={bodyId} className="ov-panel-body">
-          {children}
-        </div>
-      )}
+      {/* Stays mounted while closed (hidden), so aria-controls always resolves and
+          text typed into a panel survives a close. */}
+      <div id={bodyId} className="ov-panel-body" hidden={!open}>
+        {children}
+      </div>
     </section>
   )
 }
