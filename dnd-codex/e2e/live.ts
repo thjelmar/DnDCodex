@@ -218,3 +218,24 @@ export async function libraryRows(id?: string): Promise<Record<string, unknown>[
 
 /** Public URL of a library object, as a signed-out visitor would fetch it. */
 export const libraryPublicUrl = (path: string) => `${URL_}/storage/v1/object/public/battlemap-library/${path}`
+
+// --- account-level records (user_records; service key, local stack only) ----
+
+/** Reads one account's global records of one kind straight from the backend. */
+export async function cloudUserRecords(ownerId: string, kind: string): Promise<CloudRecord[]> {
+  const r = await fetch(`${URL_}/rest/v1/user_records?owner_id=eq.${ownerId}&kind=eq.${kind}&select=id,deleted,data`, {
+    headers: svc(),
+  })
+  if (!r.ok) throw new Error(`user_records query failed: ${r.status}`)
+  return (await r.json()) as CloudRecord[]
+}
+
+/** Writes one account-level record as another device would. */
+export async function putCloudUserRecord(ownerId: string, kind: string, id: string, data: Record<string, unknown>): Promise<void> {
+  const r = await fetch(`${URL_}/rest/v1/user_records?on_conflict=owner_id,kind,id`, {
+    method: 'POST',
+    headers: { ...svc(), 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates' },
+    body: JSON.stringify({ owner_id: ownerId, kind, id, data, deleted: false }),
+  })
+  if (!r.ok) throw new Error(`user_records write failed: ${r.status} ${await r.text()}`)
+}

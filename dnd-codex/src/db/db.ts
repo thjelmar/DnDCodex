@@ -21,6 +21,7 @@ import type {
   RaceGroup,
   GenTable,
   DuelRecord,
+  OverviewLayoutRecord,
   Template,
   PendingChange,
   SyncStateRow,
@@ -61,6 +62,7 @@ export class CodexDB extends Dexie {
   // Daily Duel battle history (T-63), one row per UTC day. GLOBAL; synced per-user
   // through the user_records channel like templates.
   duelHistory!: EntityTable<DuelRecord, 'day'>
+  overviewLayout!: EntityTable<OverviewLayoutRecord, 'id'>
   // Local-only sync bookkeeping (Phase 3). Not exported, not mirrored.
   pending!: EntityTable<PendingChange, 'id'>
   syncState!: EntityTable<SyncStateRow, 'campaignId'>
@@ -288,6 +290,12 @@ export class CodexDB extends Dexie {
     // rides the global user_records channel (no Supabase migration).
     this.version(21).stores({
       duelHistory: 'day, updatedAt',
+    })
+    // v22 adds the saved campaign Overview layout (T-88): one record per account, keyed
+    // by a fixed UUID (the cloud id column is a uuid). Additive; rides the global user_records channel
+    // (no Supabase migration).
+    this.version(22).stores({
+      overviewLayout: 'id, updatedAt',
     })
   }
 }

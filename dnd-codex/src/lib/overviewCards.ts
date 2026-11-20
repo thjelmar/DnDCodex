@@ -58,7 +58,7 @@ export interface LayoutCard {
 
 /** What a user saves. Phase B stores this; until then everyone gets the default. */
 export interface SavedLayout {
-  version: 1
+  version: number
   cards: { id: string; span: number }[]
   hidden: string[]
   /** Every card id that existed when the layout was last saved. */
@@ -72,6 +72,9 @@ export interface ResolvedLayout {
 }
 
 export const LAYOUT_VERSION = 1
+
+/** The one layout record's key, in Dexie and in the cloud (`user_records.id` is a uuid). */
+export const OVERVIEW_LAYOUT_ID = '0b6f2f5e-7a1c-4c3e-9d52-6f1a8e4c0001'
 
 export const DEFAULT_LAYOUT: ResolvedLayout = {
   cards: CARDS.filter((c) => !c.defaultHidden).map((c) => ({ id: c.id, span: c.defaultSpan })),

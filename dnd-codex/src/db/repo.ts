@@ -4,6 +4,7 @@ import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
 import { isDemo, notifyDemoBlocked, DemoBlockedError } from '../lib/demo'
 import { tableForKind } from '../lib/syncKinds'
 import { LOCATION_TYPES } from './types'
+import { CARDS, LAYOUT_VERSION, OVERVIEW_LAYOUT_ID, type ResolvedLayout } from '../lib/overviewCards'
 import type { ShareableKind } from '../lib/reveal'
 import type {
   Campaign,
@@ -429,6 +430,34 @@ export async function saveDuelResult(rec: Omit<DuelRecord, 'updatedAt'>): Promis
   if (existing) return
   await db.duelHistory.put({ ...rec, updatedAt: now() })
   await enqueueGlobalPut('duelHistory', rec.day)
+}
+
+// --- Overview layout (T-88; global, synced via user_records) ----------------
+
+/**
+ * Saves the user's Overview layout, one record for the account (every campaign shares
+ * it). `knownIds` is every card that exists right now, so a card shipped later reads as
+ * new and a card the user hid reads as hidden. Silent no-op in the demo, like every
+ * passive save; the sync enqueue is a no-op when signed out.
+ */
+export async function saveOverviewLayout(layout: ResolvedLayout): Promise<void> {
+  if (skipDemoWrite()) return
+  await db.overviewLayout.put({
+    id: OVERVIEW_LAYOUT_ID,
+    version: LAYOUT_VERSION,
+    cards: layout.cards.map((c) => ({ id: c.id, span: c.span })),
+    hidden: [...layout.hidden],
+    knownIds: CARDS.map((c) => c.id),
+    updatedAt: now(),
+  })
+  await enqueueGlobalPut('overviewLayout', OVERVIEW_LAYOUT_ID)
+}
+
+/** Back to the default layout: deletes the record, and syncs the delete as a tombstone. */
+export async function resetOverviewLayout(): Promise<void> {
+  if (skipDemoWrite()) return
+  await db.overviewLayout.delete(OVERVIEW_LAYOUT_ID)
+  await enqueueGlobalDel('overviewLayout', OVERVIEW_LAYOUT_ID)
 }
 
 // --- Entity templates (T-8; global, synced via user_records) ---------------

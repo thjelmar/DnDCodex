@@ -19,7 +19,8 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
 import { useOverviewData } from '../lib/useOverviewData'
-import { DEFAULT_LAYOUT, cardDef, type CardId } from '../lib/overviewCards'
+import { cardDef, type CardId } from '../lib/overviewCards'
+import { useOverviewLayout } from '../lib/useOverviewLayout'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -93,9 +94,8 @@ export function OverviewPage() {
   // DOM order, and so the Tab order, equals the visual order at every width. The grid
   // places them with plain row-major flow (see .ov-bento in styles.css): no explicit rows
   // and no reordering. Each card sits in a keyed cell, so panel state and the editor
-  // survive a reorder or a resize. Phase A renders the default layout; saving a custom
-  // one comes later.
-  const layout = DEFAULT_LAYOUT
+  // survive a reorder or a resize. The layout is the user's saved one, or the default.
+  const layout = useOverviewLayout()
   const nodes: Record<CardId, ReactNode> = {
     world: (
       <CollapsePanel
@@ -163,7 +163,7 @@ export function OverviewPage() {
       <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
 
       <div className="ov-bento">
-        {layout.cards.map((c) => {
+        {layout?.cards.map((c) => {
           // Cards that read the local data render nothing until it loads; skip their cell
           // so an empty cell does not add a grid gap.
           const waiting = !data && ['prep', 'run', 'lore', 'reference', 'prep-checklist', 'recently-edited'].includes(c.id)

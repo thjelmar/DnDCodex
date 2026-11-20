@@ -24,6 +24,8 @@ it.
 | `editor-webkit-race.spec.ts` | The demo Overview must load without the rich-text editor crash (T-71). It loads the Overview 40 times from fresh contexts in WebKit, because Chromium's timing hides the race. | Nothing. Local only. Needs `npx playwright install webkit`. |
 | `signed-out-run-mode.spec.ts` | Signed out, Run mode makes no `live_sessions` request (T-53). | Nothing. Local only. |
 | `daily-duel-tally.spec.ts` | Daily Duel tally (T-66): `record_duel_result`, `get_duel_lean` and `get_duel_stats` validation, per-device dedupe, hidden rows, persisted lean. Needs migration 0041 applied to the local DB. | A local Supabase stack. Skipped in `npm run e2e`. |
+| `overview-layout-saved.spec.ts` | Saved Overview layout (T-88): order and widths honored after a reload, Tab order equals visual order, phone stays one column, stale or newer layouts repaired on read, Reset, the editor is not remounted, the demo stays local. | Nothing. Local only. |
+| `overview-layout-sync.spec.ts` | The saved layout reaches `user_records` as one record, Reset sends a tombstone, and a layout from another device is pulled. | A local Supabase stack. Skipped in `npm run e2e`; run with `npm run e2e:live`. |
 | `sync-repair.spec.ts` | Sync delete (a deleted record must not come back) and Repair sync (restores a missing live record). | A local Supabase stack. Skipped in `npm run e2e`; run with `npm run e2e:live`. |
 
 ## Live sync tests
