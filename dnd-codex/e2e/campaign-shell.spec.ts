@@ -96,6 +96,50 @@ test.describe('campaign page tree (desktop)', () => {
     await expect(crumb.getByRole('link', { name: /All campaigns/ })).toBeVisible()
   })
 
+  test('a deep link opens only the group that holds the page, and keeps other stored choices', async ({ page }) => {
+    const id = await createCampaign(page)
+    const tree = page.locator('.ctree')
+
+    // Deep link straight to NPCs: World is open and its link is visible; the rest stay closed.
+    await page.goto(`/#/campaign/${id}/npcs`)
+    await page.reload()
+    await expect(tree.getByRole('button', { name: 'World' })).toHaveAttribute('aria-expanded', 'true')
+    await expect(tree.getByRole('link', { name: 'NPCs' })).toBeVisible()
+    for (const g of ['Prep', 'Run', 'Reference']) {
+      await expect(tree.getByRole('button', { name: g })).toHaveAttribute('aria-expanded', 'false')
+    }
+
+    // The automatic open is not stored: a reload on the Overview closes World again.
+    await page.goto(`/#/campaign/${id}`)
+    await page.reload()
+    await expect(tree.getByRole('button', { name: 'World' })).toHaveAttribute('aria-expanded', 'false')
+
+    // A stored choice for another group survives a deep link into a different group.
+    await tree.getByRole('button', { name: 'Prep' }).click()
+    await page.goto(`/#/campaign/${id}/items`)
+    await page.reload()
+    await expect(tree.getByRole('button', { name: 'Reference' })).toHaveAttribute('aria-expanded', 'true')
+    await expect(tree.getByRole('button', { name: 'Prep' })).toHaveAttribute('aria-expanded', 'true')
+    await expect(tree.getByRole('button', { name: 'World' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  test('moving to a page in a closed group opens that group; closing it by hand sticks until the route changes', async ({ page }) => {
+    const id = await createCampaign(page)
+    const tree = page.locator('.ctree')
+    await expect(tree.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-expanded', 'false')
+
+    // A jump from elsewhere (search, a backlink chip) is a route change.
+    await page.evaluate((cid) => { location.hash = `#/campaign/${cid}/battlemap` }, id)
+    await expect(tree.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-expanded', 'true')
+    await expect(tree.getByRole('link', { name: 'Battle Map' })).toBeVisible()
+
+    // Closing the active group by hand sticks while the route stays put.
+    await tree.getByRole('button', { name: 'Run' }).click()
+    await expect(tree.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-expanded', 'false')
+    await page.waitForTimeout(300)
+    await expect(tree.getByRole('button', { name: 'Run' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
   test('light theme keeps the tree and Overview readable', async ({ page }) => {
     await createCampaign(page)
     await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'))

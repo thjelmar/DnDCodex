@@ -4478,7 +4478,7 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   transition: border-color 0.12s;
 }
 .ov-stat:hover { border-color: var(--accent); text-decoration: none; }
-.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--link); }
+.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--accent); }
 .ov-stat-l { font-size: 12.5px; color: var(--text-dim); }
 
 .ov-grid {
