@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
-import { createImage, createScene, deleteImage, deleteScene, updateImage, updateScene } from '../db/repo'
-import { deleteMapImage, downloadMapDataUrl, uploadMapImage } from '../lib/mapStorage'
+import { createImage, createScene, deleteImage, deleteScene, updateScene } from '../db/repo'
+import { deleteMapImage, downloadMapDataUrl } from '../lib/mapStorage'
+import { importMapImage } from '../lib/mapImport'
 import { useCampaign } from './CampaignLayout'
 import { Peek, type PeekKind } from './RunPage'
 import { Tabletop } from '../components/Tabletop'
 import { TokenStatusCard, hasFloatingStatus } from '../components/TokenStatusCard'
 import { SidePanel } from '../components/SidePanel'
+import { BattleLibrary } from '../components/BattleLibrary'
+import { libraryAvailable } from '../lib/battleLibrary'
 import { EntityImage } from '../components/EntityImage'
 import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -90,6 +93,10 @@ export function BattleMapPage() {
     setSelectedId(s.id)
   }
 
+  // Map library panel (hidden in the demo and when there is no backend).
+  const [libOpen, setLibOpen] = useState(false)
+  const canBrowse = libraryAvailable()
+
   return (
     // While a map is open the list collapses into a switcher in the editor
     // header, so the board gets the whole width instead of a tall, mostly-empty
@@ -100,6 +107,11 @@ export function BattleMapPage() {
           <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
             <Icon name="plus" size={15} color="inherit" /> New Battle Map
           </button>
+          {canBrowse && (
+            <button className="btn" style={{ width: '100%', marginBottom: 12 }} onClick={() => setLibOpen(true)}>
+              <Icon name="map" size={15} /> Browse library
+            </button>
+          )}
           {scenes?.length === 0 && <p className="faint">No battle maps yet.</p>}
           {scenes?.map((s) => (
             <div
@@ -127,6 +139,7 @@ export function BattleMapPage() {
             scenes={scenes ?? []}
             onSelectScene={setSelectedId}
             onNewScene={add}
+            onBrowseLibrary={canBrowse ? () => setLibOpen(true) : undefined}
           />
         ) : (
           <div className="empty">
@@ -135,6 +148,17 @@ export function BattleMapPage() {
           </div>
         )}
       </div>
+      {libOpen && (
+        <SidePanel title="Battle map library" onClose={() => setLibOpen(false)}>
+          <BattleLibrary
+            campaignId={campaign.id}
+            onUsed={(scene) => {
+              setSelectedId(scene.id)
+              setLibOpen(false)
+            }}
+          />
+        </SidePanel>
+      )}
     </div>
   )
 }
@@ -152,6 +176,7 @@ export function SceneEditor({
   scenes,
   onSelectScene,
   onNewScene,
+  onBrowseLibrary,
 }: {
   campaign: Campaign
   scene: Scene
@@ -165,6 +190,8 @@ export function SceneEditor({
   scenes?: Scene[]
   onSelectScene?: (id: string) => void
   onNewScene?: () => void
+  /** Opens the map library panel (omitted when the library is unavailable). */
+  onBrowseLibrary?: () => void
 }) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -482,7 +509,8 @@ export function SceneEditor({
     setUploadError(null)
     try {
       const processed = await processImageFile(file, MAP_MAX_DIM)
-      const img = await createImage(scene.campaignId, {
+      // Creates the local image and uploads the binary to Storage (best effort).
+      const img = await importMapImage(scene.campaignId, {
         name: file.name,
         mime: processed.mime,
         dataUrl: processed.dataUrl,
@@ -490,16 +518,6 @@ export function SceneEditor({
         height: processed.height,
         bytes: processed.bytes,
       })
-      // Upload the binary to Storage and record its path, so the base64 never
-      // syncs through the records table (keeps rows small; lets maps be bigger).
-      // Best-effort: if it fails (offline / not signed in), the local map still
-      // works and the base64 falls back to the records sync, as before.
-      try {
-        const path = await uploadMapImage(scene.campaignId, img.id, img.dataUrl)
-        await updateImage(img.id, { storagePath: path })
-      } catch {
-        /* keep the local map; storagePath stays unset (legacy base64 sync) */
-      }
       const old = imageId
       const oldImg = old ? await db.images.get(old) : undefined
       touch()
@@ -721,6 +739,11 @@ export function SceneEditor({
               <Icon name="plus" size={14} /> {tight ? null : 'New'}
             </button>
           )}
+          {onBrowseLibrary && (
+            <button className="btn small" onClick={onBrowseLibrary} title="Browse the battle map library">
+              <Icon name="map" size={14} /> {tight ? null : 'Library'}
+            </button>
+          )}
         </div>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           {live.available && (
@@ -816,6 +839,16 @@ export function SceneEditor({
         </div>
       </div>
       {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
+      {scene.source?.credit && (
+        <p className="faint" style={{ fontSize: 12, margin: '4px 0' }}>
+          Map art:{' '}
+          {scene.source.creditUrl ? (
+            <a href={scene.source.creditUrl} target="_blank" rel="noopener noreferrer">{scene.source.credit}</a>
+          ) : (
+            scene.source.credit
+          )}
+        </p>
+      )}
       {!mapImage && (
         <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
           Tip: a landscape image around 16:10 (for example 2400×1500 px) fills the default view with no

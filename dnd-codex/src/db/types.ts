@@ -854,6 +854,20 @@ export interface Scene extends BaseRecord {
   fog?: SceneFog
   /** Placed area templates; absent/undefined = none. */
   templates?: SceneTemplate[]
+  /** Set when the scene was copied from the battle map library. A plain local
+   *  copy: the library can change or vanish without affecting this scene. */
+  source?: SceneSource
+}
+
+/** Where a library-copied scene came from, plus its credit line. */
+export interface SceneSource {
+  libraryId: Id
+  /** The template version that was copied. */
+  version: number
+  title: string
+  /** Credit line to show for third-party art (empty when the owner made it). */
+  credit: string
+  creditUrl?: string | null
 }
 
 /** Discriminated union used by generic helpers and the export payload. */
