@@ -70,7 +70,7 @@ test.describe('campaign Overview (desktop)', () => {
     const content = await page.locator('.content.content-overview').boundingBox()
     expect(content!.width).toBeGreaterThan(1000)
 
-    const main = await page.locator('.ov-main').boundingBox()
+    const main = await page.locator('.ov-world').boundingBox()
     const side = await page.locator('.ov-side').boundingBox()
     expect(side!.x).toBeGreaterThan(main!.x + main!.width - 1)
     // Main takes about two thirds (8 of 12 columns), side about one third.
@@ -79,7 +79,8 @@ test.describe('campaign Overview (desktop)', () => {
     // World overview and Recent sessions are in the main column; Links and Voice
     // are in the right column. The old Linked campaigns panel is gone.
     for (const t of ['World overview', 'Recent sessions']) {
-      await expect(page.locator('.ov-main').getByRole('heading', { name: t })).toBeVisible()
+      const h = (await page.getByRole('heading', { name: t }).boundingBox())!
+      expect(h.x + h.width).toBeLessThan(side!.x)
     }
     for (const t of ['Links', 'Voice']) {
       await expect(page.locator('.ov-side').getByRole('heading', { name: t })).toBeVisible()
@@ -149,10 +150,11 @@ test.describe('campaign Overview (phone, 375px)', () => {
 
   test('is one stack with collapsible panels and no sideways scroll', async ({ page }) => {
     await createCampaign(page)
-    const main = await page.locator('.ov-main').boundingBox()
+    // On a phone the right column drops below the World overview in a single stack.
+    const world = await page.locator('.ov-world').boundingBox()
     const side = await page.locator('.ov-side').boundingBox()
-    expect(side!.x).toBeLessThanOrEqual(main!.x + 1)
-    expect(side!.y).toBeGreaterThan(main!.y)
+    expect(side!.x).toBeLessThanOrEqual(world!.x + 1)
+    expect(side!.y).toBeGreaterThan(world!.y)
 
     const toggle = (name: string) => page.getByRole('button', { name, exact: true })
     // World overview stays open; the side panels start closed.

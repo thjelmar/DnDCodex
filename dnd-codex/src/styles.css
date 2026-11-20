@@ -4479,34 +4479,30 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 
 .ov-next { margin-bottom: 14px; }
 
-.ov-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
-.ov-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 12px 14px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  transition: border-color 0.12s;
-}
-.ov-stat:hover { border-color: var(--accent); text-decoration: none; }
-.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--link); }
-.ov-stat-l { font-size: 12.5px; color: var(--text-dim); }
-
 .ov-bento {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
 }
-.ov-bento > .ov-next,
-.ov-bento > .ov-stats { grid-column: 1 / -1; margin: 0; }
-.ov-bento > .ov-main { grid-column: span 8; }
-.ov-bento > .ov-side { grid-column: span 4; }
-.ov-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* One column by default (phone): every block spans the full width, in DOM order. The
+   DOM order is the reading order for the width (OverviewPage renders the keyed blocks
+   in a different order on a wide screen), so nothing here reorders them. */
+.ov-bento > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
 .ov-side { display: flex; flex-direction: column; gap: 14px; }
+/* Wide: place the blocks explicitly, so the layout does not depend on source order.
+   Next session and the hub cards span the top; World overview, Recent sessions and
+   the prep checklist and feed stack in the left 8 columns; Links and Voice sit in the
+   right 4 columns beside them. */
+@media (min-width: 961px) {
+  .ov-bento > .ov-next { grid-row: 1; }
+  .ov-bento > .ov-hub { grid-row: 2; }
+  .ov-bento > .ov-world { grid-column: 1 / span 8; grid-row: 3; }
+  .ov-bento > .ov-recent { grid-column: 1 / span 8; grid-row: 4; }
+  .ov-bento > .ov-extras { grid-column: 1 / span 8; grid-row: 5; }
+  .ov-bento > .ov-side { grid-column: 9 / span 4; grid-row: 3 / span 3; }
+}
+
 .ov-panel {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -4532,15 +4528,7 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-panel-body { margin-top: 10px; }
 .ov-panel-body[hidden] { display: none; }
 
-@media (max-width: 960px) {
-  .ov-bento > .ov-main, .ov-bento > .ov-side { grid-column: 1 / -1; }
-  .ov-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
 @media (max-width: 520px) {
-  .ov-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .ov-stat { padding: 9px 10px; }
-  .ov-stat-n { font-size: 22px; }
-  .ov-stat-l { font-size: 12px; }
   .ov-hero { padding: 18px 16px; min-height: 150px; }
   .ov-hero.has-cover { min-height: 200px; }
   .ov-hero-title h1 { font-size: 26px; }
@@ -4580,3 +4568,96 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ov-feed-meta { font-size: 12.5px; color: var(--text-faint); }
 .ov-feed-when { flex: 0 0 auto; font-size: 12.5px; color: var(--text-faint); }
+
+/* Overview hub cards (T-74): four summaries (Prep, Run, World & Lore, Reference) in a
+   2 by 2 grid. Each card is a CollapsePanel; the mini tiles are links. Tokens only. */
+.ov-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+@media (max-width: 960px) {
+  .ov-hub { grid-template-columns: minmax(0, 1fr); }
+}
+.ov-hubcard .ov-panel-body { display: flex; flex-direction: column; gap: 12px; }
+.ov-hubcard .ov-panel-body[hidden] { display: none; }
+.ov-hub-cta { align-self: flex-start; }
+.ov-hub-line, .ov-hub-empty { margin: 0; font-size: 13.5px; color: var(--text-dim); }
+.ov-hub-empty { padding: 10px 12px; border: 1px dashed var(--border); border-radius: var(--radius-sm); }
+.ov-hub-more { align-self: flex-start; font-size: 13.5px; }
+.ov-hubcard a:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.ov-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.ov-pill.ok::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+}
+
+.ov-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.ov-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 11px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  min-width: 0;
+}
+a.ov-tile:hover { border-color: var(--accent); text-decoration: none; }
+a.ov-tile:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: -2px; }
+.ov-tile-label { font-size: 12.5px; color: var(--text-dim); }
+.ov-tile-value { font-family: var(--serif); font-size: 22px; line-height: 1.15; color: var(--link); }
+.ov-tile-sub { font-size: 12px; color: var(--text-faint); }
+
+.ov-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+a.ov-recap:hover { border-color: var(--accent); text-decoration: none; }
+.ov-recap-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.ov-recap-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.ov-recap-text {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ov-chips { display: flex; flex-direction: column; gap: 6px; }
+.ov-chip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.ov-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 13.5px;
+}
+a.ov-chip:hover { border-color: var(--accent); text-decoration: none; }
+.ov-chip-rarity { font-size: 12px; color: var(--text-faint); }

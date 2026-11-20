@@ -14,6 +14,7 @@ export function CollapsePanel({
   defaultOpenWide = true,
   defaultOpenPhone = false,
   actions,
+  className,
   children,
 }: {
   title: string
@@ -21,6 +22,8 @@ export function CollapsePanel({
   defaultOpenPhone?: boolean
   /** Controls that sit beside the heading (for example an Edit button). */
   actions?: ReactNode
+  /** Extra class on the panel, for layout hooks. */
+  className?: string
   children: ReactNode
 }) {
   const [open, setOpen] = useState(() => {
@@ -32,7 +35,7 @@ export function CollapsePanel({
   })
   const bodyId = useId()
   return (
-    <section className="ov-panel">
+    <section className={`ov-panel${className ? ` ${className}` : ''}`}>
       <div className="ov-panel-head">
         <h3 className="mb-0">
           <button

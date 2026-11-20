@@ -12,12 +12,14 @@ import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
 import { CampaignPrep } from '../components/CampaignPrep'
+import { HubCards } from '../components/HubCards'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
-import { useCampaignCounts } from '../lib/useCampaignCounts'
+import { useOverviewData } from '../lib/useOverviewData'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -67,8 +69,9 @@ export function OverviewPage() {
     }
   }
 
-  // Counts and recent sessions for the dashboard.
-  const stats = useCampaignCounts(campaign.id)
+  // One local read shared by the hub cards, the prep checklist and the feed.
+  const data = useOverviewData(campaign.id)
+  const wide = useMediaQuery('(min-width: 961px)')
 
   const recentSessions = useLiveQuery(
     () =>
@@ -86,94 +89,85 @@ export function OverviewPage() {
     navigate('/')
   }
 
-  const statCards: Array<[string, number | undefined, string]> = [
-    ['Sessions', stats?.sessions, 'sessions'],
-    ['World notes', stats?.notes, 'notes'],
-    ['NPCs', stats?.npcs, 'npcs'],
-    ['Locations', stats?.locations, 'locations'],
-    ['Items', stats?.items, 'items'],
-    ['Roll tables', stats?.tables, 'tables'],
-  ]
+  // The same blocks, in reading order for the width. On a phone the World overview
+  // comes first and the hub cards follow; on a wide screen the hub cards sit above
+  // the two columns (the grid places them, see .ov-bento in styles.css). Rendering the
+  // keyed blocks in a different order per width keeps the DOM order, and so the Tab
+  // order, equal to the visual order at both widths. React moves keyed siblings
+  // without remounting them, so panel state and the editor survive a resize.
+  const next = (
+    <div key="next" className="ov-next">
+      <NextSessionCard campaign={campaign} />
+    </div>
+  )
+  const hub = <HubCards key="hub" campaign={campaign} data={data} />
+  const world = (
+    <CollapsePanel
+      key="world"
+      title="World overview"
+      className="ov-world"
+      defaultOpenPhone
+      actions={
+        <button className="btn small" onClick={() => setEditing(true)}>
+          <Icon name="pencil" size={13} /> Edit
+        </button>
+      }
+    >
+      {campaign.description?.trim() ? (
+        <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
+      ) : (
+        <p className="faint" style={{ margin: 0 }}>Nothing here yet.</p>
+      )}
+    </CollapsePanel>
+  )
+  const recent = (
+    <section key="recent" className="ov-panel ov-recent">
+      <div className="ov-panel-head">
+        <h3 className="mb-0">Recent sessions</h3>
+        <Link to="sessions" className="btn ghost small">
+          View all →
+        </Link>
+      </div>
+      <div className="ov-panel-body">
+        {recentSessions && recentSessions.length > 0 ? (
+          recentSessions.map((s) => (
+            <Link
+              key={s.id}
+              to="sessions"
+              className="list-row"
+              style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
+            >
+              <div>
+                <div className="title">{s.title}</div>
+                <div className="sub">{formatDate(s.date)}</div>
+              </div>
+            </Link>
+          ))
+        ) : (
+          <p className="faint" style={{ margin: 0 }}>No sessions logged yet.</p>
+        )}
+      </div>
+    </section>
+  )
+  const prep = <CampaignPrep key="prep" campaign={campaign} data={data} />
+  const side = (
+    <aside key="side" className="ov-side">
+      <CollapsePanel title="Links">
+        <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
+      </CollapsePanel>
+
+      <CollapsePanel title="Voice">
+        <DiscordVoiceSettings campaign={campaign} />
+      </CollapsePanel>
+    </aside>
+  )
+  const blocks = wide ? [next, hub, world, recent, prep, side] : [next, world, hub, recent, prep, side]
 
   return (
     <div>
       <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className="ov-bento">
-        <div className="ov-next">
-          <NextSessionCard campaign={campaign} />
-        </div>
-
-        <div className="ov-stats" role="list">
-          {statCards.map(([label, count, path]) => (
-            <Link key={label} to={path} className="ov-stat" role="listitem">
-              <span className="ov-stat-n">{count ?? '—'}</span>
-              <span className="ov-stat-l">{label}</span>
-            </Link>
-          ))}
-        </div>
-
-        <div className="ov-main">
-          <CollapsePanel
-            title="World overview"
-            defaultOpenPhone
-            actions={
-              <button className="btn small" onClick={() => setEditing(true)}>
-                <Icon name="pencil" size={13} /> Edit
-              </button>
-            }
-          >
-            {campaign.description?.trim() ? (
-              <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
-            ) : (
-              <p className="faint" style={{ margin: 0 }}>Nothing here yet.</p>
-            )}
-          </CollapsePanel>
-
-          <section className="ov-panel">
-            <div className="ov-panel-head">
-              <h3 className="mb-0">Recent sessions</h3>
-              <Link to="sessions" className="btn ghost small">
-                View all →
-              </Link>
-            </div>
-            <div className="ov-panel-body">
-              {recentSessions && recentSessions.length > 0 ? (
-                recentSessions.map((s) => (
-                  <Link
-                    key={s.id}
-                    to="sessions"
-                    className="list-row"
-                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
-                  >
-                    <div>
-                      <div className="title">{s.title}</div>
-                      <div className="sub">{formatDate(s.date)}</div>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <p className="faint" style={{ margin: 0 }}>No sessions logged yet.</p>
-              )}
-            </div>
-          </section>
-
-          {/* Prep checklist and Recently edited sit under Recent sessions: the world
-              overview stays first in the main column (and first on a phone), and the
-              wide main column has room for the checklist rows. */}
-          <CampaignPrep campaign={campaign} />
-        </div>
-
-        <aside className="ov-side">
-          <CollapsePanel title="Links">
-            <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
-          </CollapsePanel>
-
-          <CollapsePanel title="Voice">
-            <DiscordVoiceSettings campaign={campaign} />
-          </CollapsePanel>
-        </aside>
-      </div>
+      <div className="ov-bento">{blocks}</div>
 
       {settingsOpen && (
         <CampaignSettingsModal
