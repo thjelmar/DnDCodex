@@ -25,7 +25,6 @@ export interface HubInput {
   mappedLocationIds: string[]
   timelineCount: number
   familyCount: number
-  handoutCount: number
 }
 
 export interface HubCards {
@@ -35,7 +34,6 @@ export interface HubCards {
     sessions: number
     timeline: number
     tables: number
-    handouts: number
   }
   run: {
     scenes: number
@@ -43,7 +41,6 @@ export interface HubCards {
     latestScene: { id: string; name: string } | null
     /** Grid size of that scene as columns by rows, or null when unknown. */
     grid: { cols: number; rows: number } | null
-    handouts: number
     /** True when there is a session to run and a scene to show. */
     ready: boolean
   }
@@ -131,13 +128,11 @@ export function deriveHubCards(input: HubInput): HubCards {
       sessions: input.sessions.length,
       timeline: input.timelineCount,
       tables: input.tables.length,
-      handouts: input.handoutCount,
     },
     run: {
       scenes: input.scenes.length,
       latestScene: latestScene ? { id: latestScene.id, name: latestScene.name } : null,
       grid: latestScene ? gridSize(latestScene) : null,
-      handouts: input.handoutCount,
       ready: input.sessions.length > 0 && input.scenes.length > 0,
     },
     world: { ...world, empty: world.npcs + world.locations + world.notes + world.families === 0 },

@@ -39,7 +39,6 @@ const empty: HubInput = {
   mappedLocationIds: [],
   timelineCount: 0,
   familyCount: 0,
-  handoutCount: 0,
 }
 
 test.describe('hub card logic', () => {
@@ -90,11 +89,10 @@ test.describe('hub card logic', () => {
       { id: 's1', name: 'Old', width: 100, height: 100, cellPx: 50, updatedAt: '2026-01-01T00:00:00Z' },
       { id: 's2', name: 'Vault', width: 1200, height: 900, cellPx: 50, updatedAt: '2026-02-01T00:00:00Z' },
     ]
-    const h = deriveHubCards({ ...empty, scenes, handoutCount: 4 })
+    const h = deriveHubCards({ ...empty, scenes })
     expect(h.run.latestScene).toEqual({ id: 's2', name: 'Vault' })
     expect(h.run.grid).toEqual({ cols: 24, rows: 18 })
     expect(h.run.scenes).toBe(2)
-    expect(h.run.handouts).toBe(4)
     expect(h.run.ready).toBe(false)
     const ready = deriveHubCards({ ...empty, scenes, sessions: [{ id: 'a', title: 'S', date: '2026-01-01', notes: '' }] })
     expect(ready.run.ready).toBe(true)
@@ -182,9 +180,14 @@ test.describe('hub cards, populated (demo)', () => {
     const world = (await card(page, 'World & Lore').boundingBox())!
     expect(run.x).toBeGreaterThan(prep.x + prep.width - 1) // two columns
     expect(world.y).toBeGreaterThan(prep.y + prep.height - 1) // second row
-    const main = (await page.locator('.ov-main').boundingBox())!
     const ref = (await card(page, 'Reference').boundingBox())!
-    expect(main.y).toBeGreaterThan(Math.max(world.y + world.height, ref.y + ref.height) - 1)
+    const cardsBottom = Math.max(world.y + world.height, ref.y + ref.height)
+    // The cards sit above both columns: the World overview column and the side column.
+    const left = (await page.locator('.ov-world').boundingBox())!
+    const side = (await page.locator('.ov-side').boundingBox())!
+    expect(left.y).toBeGreaterThan(cardsBottom - 1)
+    expect(side.y).toBeGreaterThan(cardsBottom - 1)
+    expect(side.x).toBeGreaterThan(left.x + left.width - 1)
   })
 
   test('tiles are keyboard reachable with a visible focus outline that is not clipped', async ({ page }) => {
@@ -340,5 +343,104 @@ test.describe('hub cards, light theme', () => {
       expect(contrast(c.fg, c.bg), `${sel} contrast (${c.fg} on ${c.bg})`).toBeGreaterThanOrEqual(4.5)
     }
     expect((await read('.ov-tile')).border).toBe('1px')
+  })
+})
+
+// ---- review fixes: group role, reading order, focus ring ------------------
+
+const ZONES = ['next', 'world', 'hub', 'recent', 'prep', 'side'] as const
+
+/** Press Tab through the page and return the order in which the Overview's blocks
+ *  first receive focus. */
+async function focusOrder(page: Page): Promise<string[]> {
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  const seen: string[] = []
+  for (let i = 0; i < 160; i++) {
+    await page.keyboard.press('Tab')
+    const zone = await page.evaluate(() => {
+      const el = document.activeElement
+      if (!el) return 'none'
+      if (el.closest('.ov-hubcard')) return 'hub'
+      if (el.closest('.ov-world')) return 'world'
+      if (el.closest('.ov-recent')) return 'recent'
+      if (el.closest('.ov-extras')) return 'prep'
+      if (el.closest('.ov-side')) return 'side'
+      if (el.closest('.ov-next')) return 'next'
+      return 'other'
+    })
+    if ((ZONES as readonly string[]).includes(zone) && !seen.includes(zone)) seen.push(zone)
+    if (seen.length === ZONES.length) break
+  }
+  return seen
+}
+
+test.describe('hub cards, reading order and accessibility (desktop)', () => {
+  test.use({ viewport: { width: 1440, height: 1000 } })
+
+  test('the card wrapper is a labelled group', async ({ page }) => {
+    await openDemo(page)
+    const group = page.getByRole('group', { name: 'Campaign areas' })
+    await expect(group).toBeVisible()
+    await expect(group.locator('.ov-hubcard')).toHaveCount(4)
+  })
+
+  test('Tab order matches the visual order: cards, then the left column, then the side column', async ({ page }) => {
+    await openDemo(page)
+    expect(await focusOrder(page)).toEqual(['next', 'hub', 'world', 'recent', 'prep', 'side'])
+    // And the page really shows them in that order: cards above, columns below.
+    const hubBottom = (await page.locator('.ov-hub').boundingBox())!
+    const world = (await page.locator('.ov-world').boundingBox())!
+    expect(world.y).toBeGreaterThan(hubBottom.y + hubBottom.height - 1)
+  })
+
+  for (const theme of ['dark', 'light'] as const) {
+    test(`focus ring shows and each element keeps its own corner radius (${theme})`, async ({ page }) => {
+      await page.addInitScript((t) => localStorage.setItem('codex.theme', t), theme)
+      await openDemo(page)
+      for (const sel of ['.ov-hubcard .ov-tile', '.ov-hubcard .ov-recap', '.ov-hubcard .ov-chip']) {
+        const el = page.locator(sel).first()
+        await expect(el).toBeVisible()
+        const before = await el.evaluate((e) => getComputedStyle(e).borderTopLeftRadius)
+        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+        for (let i = 0; i < 160; i++) {
+          await page.keyboard.press('Tab')
+          if (await page.evaluate((s) => document.activeElement?.matches(s) === true, sel)) break
+        }
+        const after = await el.evaluate((e) => {
+          const cs = getComputedStyle(e)
+          return { radius: cs.borderTopLeftRadius, width: cs.outlineWidth, style: cs.outlineStyle, color: cs.outlineColor }
+        })
+        expect(after.style, `${sel} outline style`).toBe('solid')
+        expect(after.width, `${sel} outline width`).toBe('2px')
+        expect(after.color, `${sel} outline colour`).not.toBe('rgba(0, 0, 0, 0)')
+        expect(after.radius, `${sel} keeps its radius on focus`).toBe(before)
+      }
+    })
+  }
+
+  test('resizing across the breakpoint reorders the blocks without resetting panel state', async ({ page }) => {
+    await openDemo(page)
+    const worldToggle = page.getByRole('button', { name: 'World overview', exact: true })
+    await worldToggle.click()
+    await expect(worldToggle).toHaveAttribute('aria-expanded', 'false')
+
+    await page.setViewportSize({ width: 375, height: 812 })
+    const y = async (name: string) =>
+      (await page.locator('.ov-bento').getByRole('heading', { name, exact: true }).first().boundingBox())!.y
+    await expect.poll(async () => (await y('World overview')) < (await y('Prep'))).toBe(true)
+    // The panel was moved, not remounted: it is still closed (a fresh phone mount would open it).
+    await expect(worldToggle).toHaveAttribute('aria-expanded', 'false')
+
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await expect.poll(async () => (await y('Prep')) < (await y('World overview'))).toBe(true)
+  })
+})
+
+test.describe('hub cards, reading order (375px)', () => {
+  test.use({ viewport: { width: 375, height: 812 } })
+
+  test('Tab order reaches the World overview before the cards, then Recent sessions, the checklist and Links', async ({ page }) => {
+    await openDemo(page)
+    expect(await focusOrder(page)).toEqual(['next', 'world', 'hub', 'recent', 'prep', 'side'])
   })
 })

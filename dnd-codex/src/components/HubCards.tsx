@@ -36,16 +36,7 @@ function Pill({ ok, children }: { ok?: boolean; children: string }) {
 
 const rarityLabel = (r: string) => r.charAt(0).toUpperCase() + r.slice(1)
 
-export function HubCards({
-  campaign,
-  data,
-  handoutCount,
-}: {
-  campaign: Campaign
-  data: OverviewData | undefined
-  /** Null while the handout count is still loading. */
-  handoutCount: number | null
-}) {
+export function HubCards({ campaign, data }: { campaign: Campaign; data: OverviewData | undefined }) {
   if (!data) return null
 
   const pending = derivePrepChecklist({
@@ -68,13 +59,11 @@ export function HubCards({
     mappedLocationIds: data.mappedLocationIds,
     timelineCount: data.timelineCount,
     familyCount: data.familyCount,
-    handoutCount: handoutCount ?? 0,
   })
-  const handouts = handoutCount === null ? '—' : handoutCount
   const { prep, run, world, reference } = hub
 
   return (
-    <div className="ov-hub" aria-label="Campaign areas">
+    <div className="ov-hub" role="group" aria-label="Campaign areas">
       <CollapsePanel
         title="Prep"
         className="ov-hubcard"
@@ -103,7 +92,6 @@ export function HubCards({
           <Tile to="sessions" label="Sessions" value={prep.sessions} />
           <Tile to="timeline" label="Timeline events" value={prep.timeline} />
           <Tile to="tables" label="Roll tables" value={prep.tables} />
-          <Tile to="handouts" label="Handouts" value={handouts} />
         </div>
         <Link to="sessions" className="ov-hub-more">
           Open prep <span aria-hidden>→</span>
@@ -131,7 +119,6 @@ export function HubCards({
         <div className="ov-tiles">
           <Tile to="battlemap" label="Battle maps" value={run.scenes} />
           <Tile label="Grid" value={run.grid ? `${run.grid.cols} × ${run.grid.rows}` : '—'} sub="latest map" />
-          <Tile to="handouts" label="Handouts" value={handouts} />
         </div>
         <Link to="battlemap" className="ov-hub-more">
           Open battle map <span aria-hidden>→</span>

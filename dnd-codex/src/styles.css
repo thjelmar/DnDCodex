@@ -4485,12 +4485,24 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   gap: 14px;
   align-items: start;
 }
-.ov-bento > .ov-next,
-.ov-bento > .ov-hub { grid-column: 1 / -1; margin: 0; }
-.ov-bento > .ov-main { grid-column: span 8; }
-.ov-bento > .ov-side { grid-column: span 4; }
-.ov-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* One column by default (phone): every block spans the full width, in DOM order. The
+   DOM order is the reading order for the width (OverviewPage renders the keyed blocks
+   in a different order on a wide screen), so nothing here reorders them. */
+.ov-bento > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
 .ov-side { display: flex; flex-direction: column; gap: 14px; }
+/* Wide: place the blocks explicitly, so the layout does not depend on source order.
+   Next session and the hub cards span the top; World overview, Recent sessions and
+   the prep checklist and feed stack in the left 8 columns; Links and Voice sit in the
+   right 4 columns beside them. */
+@media (min-width: 961px) {
+  .ov-bento > .ov-next { grid-row: 1; }
+  .ov-bento > .ov-hub { grid-row: 2; }
+  .ov-bento > .ov-world { grid-column: 1 / span 8; grid-row: 3; }
+  .ov-bento > .ov-recent { grid-column: 1 / span 8; grid-row: 4; }
+  .ov-bento > .ov-extras { grid-column: 1 / span 8; grid-row: 5; }
+  .ov-bento > .ov-side { grid-column: 9 / span 4; grid-row: 3 / span 3; }
+}
+
 .ov-panel {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -4516,20 +4528,6 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-panel-body { margin-top: 10px; }
 .ov-panel-body[hidden] { display: none; }
 
-@media (max-width: 960px) {
-  .ov-bento > .ov-side { grid-column: 1 / -1; }
-  /* One column. .ov-main dissolves so its panels can be ordered with the others:
-     hero, next session, World overview, the hub cards, Recent sessions, the prep
-     checklist and feed, then Links and Voice. (Desktop: hub cards above the main
-     and side columns.) */
-  .ov-bento > .ov-main { display: contents; }
-  .ov-bento > .ov-main > * { grid-column: 1 / -1; }
-  .ov-bento > .ov-main > .ov-world { order: 1; }
-  .ov-bento > .ov-hub { order: 2; }
-  .ov-bento > .ov-main > .ov-recent { order: 3; }
-  .ov-bento > .ov-main > .ov-extras { order: 4; }
-  .ov-bento > .ov-side { order: 5; }
-}
 @media (max-width: 520px) {
   .ov-hero { padding: 18px 16px; min-height: 150px; }
   .ov-hero.has-cover { min-height: 200px; }
@@ -4586,7 +4584,6 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-hubcard a:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
-  border-radius: 4px;
 }
 
 .ov-pill {

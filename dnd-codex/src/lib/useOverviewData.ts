@@ -8,9 +8,17 @@ import type { SceneSummary } from './hubCards'
 // table is read once per change instead of once per panel. Everything is
 // Dexie only (no cloud call), so it works offline and in the demo.
 //
-// Scenes and world maps are reduced to the few fields the cards need (a scene row
-// carries tokens, fog and templates; a world map carries every pin). Images are
-// never read here: they hold the large data URLs.
+// Scene and world-map rows are loaded in full (the stores have no index that
+// would read less: `scenes` is indexed by id, campaignId, name and updatedAt
+// separately, so there is no way to read one campaign's newest scene alone), but only
+// five scene fields and the pin location ids are kept. Both are small next to
+// images. The `images` table is never read here, because it holds the large data
+// URLs; the cover image is a single get by id in CampaignHero.
+//
+// There is deliberately no handouts count: `images` is indexed by campaignId only
+// (a boolean can't be an IndexedDB key), so counting handouts means reading every
+// image record. It can come back later behind an indexed numeric flag, which
+// needs its own Dexie version (see T-75).
 
 export interface OverviewData {
   sessions: Session[]
@@ -66,17 +74,4 @@ export function useOverviewData(campaignId: string): OverviewData | undefined {
       familyCount,
     }
   }, [campaignId])
-}
-
-/**
- * How many handouts the campaign has. `images` is indexed by campaignId only (a
- * boolean cannot be an IndexedDB key), so this reads the campaign's image records
- * once. It is its own query on purpose: it re-runs only when images change, not
- * on every session or NPC edit.
- */
-export function useHandoutCount(campaignId: string): number | undefined {
-  return useLiveQuery(
-    () => db.images.where('campaignId').equals(campaignId).filter((i) => i.isHandout === true).count(),
-    [campaignId],
-  )
 }
