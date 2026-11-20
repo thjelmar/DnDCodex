@@ -1,15 +1,18 @@
-import { NavLink, useMatch } from 'react-router-dom'
+import { useEffect } from 'react'
+import { NavLink, useLocation, useMatch } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { Icon } from './Icon'
-import { CAMPAIGN_NAV_GROUPS, type CampaignNavGroup } from '../lib/campaignNav'
+import { CAMPAIGN_NAV_GROUPS, campaignGroupKey, type CampaignNavGroup } from '../lib/campaignNav'
 import { useCampaignCounts, type CampaignCounts } from '../lib/useCampaignCounts'
 import { useNavCollapsed } from '../lib/useNavCollapsed'
 
 // The active campaign's pages as a tree in the sidebar (and so in the phone
 // drawer): the campaign name links to its Overview, then four collapsible groups.
 // It only renders on /campaign/:id routes, so other screens keep the plain
-// sidebar. Collapsed/open state is remembered per group.
+// sidebar. Groups start collapsed, animate open and closed, and remember their
+// state per group, except the group holding the current page, which opens by
+// itself and is marked in accent.
 
 export function CampaignTree() {
   const match = useMatch('/campaign/:campaignId/*')
@@ -46,13 +49,27 @@ function TreeGroup({
   base: string
   counts: CampaignCounts | undefined
 }) {
-  const [open, toggle] = useNavCollapsed(`ctree.${group.key}`, true)
+  // Collapsed by default (T-68), remembered per browser. The group that holds the
+  // current page is the exception: it opens on first render and whenever the route
+  // moves into it (a reload, a deep link, a search result or a backlink), so the
+  // current link is never hidden. That open is transient, so it doesn't overwrite
+  // a stored choice; closing it by hand sticks until the route changes again.
+  const { pathname } = useLocation()
+  const sub = pathname.startsWith(`${base}/`) ? pathname.slice(base.length + 1) : ''
+  const hasActive = campaignGroupKey(sub) === group.key
+  const [open, toggle, openNow] = useNavCollapsed(`ctree.${group.key}`, false, hasActive)
+  useEffect(() => {
+    if (hasActive) openNow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, hasActive])
+  const panelId = `ctree-panel-${group.key}`
   return (
     <>
       <button
-        className="sidebar-heading sidebar-heading-btn ctree-group"
+        className={`sidebar-heading sidebar-heading-btn ctree-group${hasActive ? ' has-active' : ''}`}
         onClick={toggle}
         aria-expanded={open}
+        aria-controls={panelId}
       >
         <span>{group.label}</span>
         <Icon
@@ -62,16 +79,22 @@ function TreeGroup({
           className={`sidebar-caret${open ? ' open' : ''}`}
         />
       </button>
-      {open &&
-        group.items.map((i) => {
-          const n = i.count && counts ? counts[i.count] : undefined
-          return (
-            <NavLink key={i.to} to={`${base}/${i.to}`} className="nav-link ctree-link">
-              <span>{i.label}</span>
-              {n !== undefined && n > 0 && <span className="ctree-count">{n}</span>}
-            </NavLink>
-          )
-        })}
+      {/* Always mounted so the height can animate (grid rows 0fr to 1fr); while
+          closed it's visibility:hidden, which also drops the links from the tab
+          order and the accessibility tree once the close finishes. */}
+      <div id={panelId} className="ctree-panel" data-open={open} role="group" aria-label={group.label}>
+        <div className="ctree-panel-inner">
+          {group.items.map((i) => {
+            const n = i.count && counts ? counts[i.count] : undefined
+            return (
+              <NavLink key={i.to} to={`${base}/${i.to}`} className="nav-link ctree-link">
+                <span>{i.label}</span>
+                {n !== undefined && n > 0 && <span className="ctree-count">{n}</span>}
+              </NavLink>
+            )
+          })}
+        </div>
+      </div>
     </>
   )
 }

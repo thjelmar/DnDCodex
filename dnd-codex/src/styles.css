@@ -4349,6 +4349,42 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ctree-head { font-family: var(--serif); font-weight: 600; color: var(--text); }
 .ctree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .ctree-group { margin: 10px 8px 2px; }
+/* The group holding the current page is marked even while collapsed. --link
+   (not --accent) so it keeps contrast on the white light-theme surface. */
+.ctree-group.has-active { color: var(--link); }
+.ctree-group.has-active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--link);
+  flex: 0 0 auto;
+}
+.ctree-group.has-active > span { margin-right: auto; }
+/* Open/close: animate the row height 0fr to 1fr over the same short timing the
+   dialogs use. visibility flips after the close so closed links leave the tab
+   order. Reduced motion switches instantly. */
+.ctree-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--dialog-out-duration) var(--dialog-ease-in),
+    visibility 0s linear var(--dialog-out-duration);
+}
+.ctree-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition:
+    grid-template-rows var(--dialog-in-duration) var(--dialog-ease-out),
+    visibility 0s;
+}
+.ctree-panel-inner { min-height: 0; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .ctree-panel, .ctree-panel[data-open='true'] { transition: none; }
+  .sidebar-caret { transition: none; }
+}
 .ctree-link {
   padding: 6px 10px 6px 22px;
   font-size: 13.5px;
