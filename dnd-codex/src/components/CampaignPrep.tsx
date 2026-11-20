@@ -11,7 +11,7 @@ import type { Campaign } from '../db/types'
 // shared local read in useOverviewData, so they work offline and in the demo, and
 // neither writes anything.
 
-export function CampaignPrep({ campaign, data }: { campaign: Campaign; data: OverviewData | undefined }) {
+export function PrepChecklistCard({ campaign, data }: { campaign: Campaign; data: OverviewData | undefined }) {
   if (!data) return null
 
   const checklist = derivePrepChecklist({
@@ -22,17 +22,7 @@ export function CampaignPrep({ campaign, data }: { campaign: Campaign; data: Ove
     today: todayISODate(),
   })
   const doneCount = checklist.filter((i) => i.done).length
-  const activity = deriveRecentActivity({
-    session: data.sessions.map((s) => ({ ...s, name: s.title })),
-    npc: data.npcs,
-    location: data.locations,
-    item: data.items,
-    note: data.notes.map((n) => ({ ...n, name: n.title })),
-    rolltable: data.tables,
-  })
-
   return (
-    <div className="ov-extras">
       <section className="ov-panel" aria-label="Prep checklist">
         <div className="ov-panel-head">
           <h3 className="mb-0">Prep checklist</h3>
@@ -59,7 +49,22 @@ export function CampaignPrep({ campaign, data }: { campaign: Campaign; data: Ove
           ))}
         </ul>
       </section>
+  )
+}
 
+export function RecentlyEditedCard({ data }: { data: OverviewData | undefined }) {
+  if (!data) return null
+
+  const activity = deriveRecentActivity({
+    session: data.sessions.map((s) => ({ ...s, name: s.title })),
+    npc: data.npcs,
+    location: data.locations,
+    item: data.items,
+    note: data.notes.map((n) => ({ ...n, name: n.title })),
+    rolltable: data.tables,
+  })
+
+  return (
       <section className="ov-panel" aria-label="Recently edited">
         <div className="ov-panel-head">
           <h3 className="mb-0">Recently edited</h3>
@@ -86,6 +91,5 @@ export function CampaignPrep({ campaign, data }: { campaign: Campaign; data: Ove
           </ul>
         )}
       </section>
-    </div>
   )
 }
