@@ -6,8 +6,7 @@ import { db } from '../db/db'
 import { updateCampaign, deleteCampaign } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
-import { CampaignLinks } from '../components/CampaignLinks'
-import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
+import { LinksVoiceCard } from '../components/LinksVoiceCard'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
@@ -152,13 +151,7 @@ export function OverviewPage() {
   const prep = <CampaignPrep key="prep" campaign={campaign} data={data} />
   const side = (
     <aside key="side" className="ov-side">
-      <CollapsePanel title="Links">
-        <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
-      </CollapsePanel>
-
-      <CollapsePanel title="Voice">
-        <DiscordVoiceSettings campaign={campaign} />
-      </CollapsePanel>
+      <LinksVoiceCard campaign={campaign} />
     </aside>
   )
   const blocks = wide ? [next, hub, world, recent, prep, side] : [next, world, hub, recent, prep, side]

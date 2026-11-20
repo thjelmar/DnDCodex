@@ -4528,6 +4528,15 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-panel-body { margin-top: 10px; }
 .ov-panel-body[hidden] { display: none; }
 
+/* Links + Voice share one card. The line sits on the second section, and each
+   section's spacing is its own, so a closed body (display: none) leaves no gap and
+   the card ends right under the last heading. */
+.ov-duo-section + .ov-duo-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
 @media (max-width: 520px) {
   .ov-hero { padding: 18px 16px; min-height: 150px; }
   .ov-hero.has-cover { min-height: 200px; }
