@@ -27,22 +27,24 @@ export interface CardDef {
   minSpan: Span
   /** True for a card that starts in the tray instead of on the page. */
   defaultHidden?: boolean
+  /** One line for the tray of hidden cards. */
+  blurb: string
   /** Legacy class on the card's cell, kept so existing styles and tests find it. */
   cellClass?: string
 }
 
 /** The catalogue, in the default reading order. */
 export const CARDS: CardDef[] = [
-  { id: 'world', title: 'World overview', defaultSpan: 12, minSpan: 6 },
-  { id: 'next', title: 'Next session', defaultSpan: 12, minSpan: 6 },
-  { id: 'prep', title: 'Prep', defaultSpan: 6, minSpan: 4 },
-  { id: 'run', title: 'Run', defaultSpan: 6, minSpan: 4 },
-  { id: 'lore', title: 'World & Lore', defaultSpan: 6, minSpan: 4 },
-  { id: 'reference', title: 'Reference', defaultSpan: 6, minSpan: 4 },
-  { id: 'recent-sessions', title: 'Recent sessions', defaultSpan: 8, minSpan: 4 },
-  { id: 'links-voice', title: 'Links and Voice', defaultSpan: 4, minSpan: 4, cellClass: 'ov-side' },
-  { id: 'prep-checklist', title: 'Prep checklist', defaultSpan: 6, minSpan: 4, cellClass: 'ov-extras' },
-  { id: 'recently-edited', title: 'Recently edited', defaultSpan: 6, minSpan: 4, cellClass: 'ov-extras' },
+  { id: 'world', title: 'World overview', blurb: 'The campaign world description.', defaultSpan: 12, minSpan: 6 },
+  { id: 'next', title: 'Next session', blurb: "The next session's date, time and RSVP summary.", defaultSpan: 12, minSpan: 6 },
+  { id: 'prep', title: 'Prep', blurb: 'Last session recap, planning, and prep counts.', defaultSpan: 6, minSpan: 4 },
+  { id: 'run', title: 'Run', blurb: 'Start Run Mode and see the latest battle map.', defaultSpan: 6, minSpan: 4 },
+  { id: 'lore', title: 'World & Lore', blurb: 'NPCs, locations, world notes and families.', defaultSpan: 6, minSpan: 4 },
+  { id: 'reference', title: 'Reference', blurb: 'Newest items, roll tables and tags.', defaultSpan: 6, minSpan: 4 },
+  { id: 'recent-sessions', title: 'Recent sessions', blurb: 'The last few sessions you logged.', defaultSpan: 8, minSpan: 4 },
+  { id: 'links-voice', title: 'Links and Voice', blurb: 'Your external links and the Discord voice channel.', defaultSpan: 4, minSpan: 4, cellClass: 'ov-side' },
+  { id: 'prep-checklist', title: 'Prep checklist', blurb: 'A checklist that ticks itself as you prepare.', defaultSpan: 6, minSpan: 4, cellClass: 'ov-extras' },
+  { id: 'recently-edited', title: 'Recently edited', blurb: 'The latest changes across the campaign.', defaultSpan: 6, minSpan: 4, cellClass: 'ov-extras' },
 ]
 
 const BY_ID = new Map<string, CardDef>(CARDS.map((c) => [c.id, c]))
@@ -134,4 +136,14 @@ export function reconcile(saved: SavedLayout | null | undefined): ResolvedLayout
     cards.splice(at, 0, { id: def.id, span: def.defaultSpan })
   })
   return { cards, hidden }
+}
+
+/** True when two layouts show the same cards, in the same order, at the same widths. */
+export function sameLayout(a: ResolvedLayout, b: ResolvedLayout): boolean {
+  return (
+    a.cards.length === b.cards.length &&
+    a.hidden.length === b.hidden.length &&
+    a.cards.every((c, i) => c.id === b.cards[i].id && c.span === b.cards[i].span) &&
+    a.hidden.every((h, i) => h === b.hidden[i])
+  )
 }

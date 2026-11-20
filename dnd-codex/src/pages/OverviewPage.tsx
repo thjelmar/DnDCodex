@@ -1,10 +1,10 @@
 import { Icon } from '../components/Icon'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { updateCampaign, deleteCampaign } from '../db/repo'
+import { updateCampaign, deleteCampaign, saveOverviewLayout, resetOverviewLayout } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { LinksVoiceCard } from '../components/LinksVoiceCard'
@@ -19,8 +19,16 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
 import { useOverviewData } from '../lib/useOverviewData'
-import { cardDef, type CardId } from '../lib/overviewCards'
+import { DEFAULT_LAYOUT, cardDef, sameLayout, type CardId, type ResolvedLayout } from '../lib/overviewCards'
+import { isDemo } from '../lib/demo'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { useOverviewLayout } from '../lib/useOverviewLayout'
+
+// Edit mode (T-89) lives in its own chunk, so normal use never loads it.
+const EditBar = lazy(() => import('../components/overview-edit/EditChrome').then((m) => ({ default: m.EditBar })))
+const CardToolbar = lazy(() =>
+  import('../components/overview-edit/EditChrome').then((m) => ({ default: m.CardToolbar })),
+)
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -95,7 +103,33 @@ export function OverviewPage() {
   // places them with plain row-major flow (see .ov-bento in styles.css): no explicit rows
   // and no reordering. Each card sits in a keyed cell, so panel state and the editor
   // survive a reorder or a resize. The layout is the user's saved one, or the default.
-  const layout = useOverviewLayout()
+  const saved = useOverviewLayout()
+  const wide = useMediaQuery('(min-width: 961px)')
+  const [editLayout, setEditLayout] = useState(false)
+  // The layout being shown while edits are in flight (and for good in the demo, where a
+  // save is a silent no-op, so a demo layout lasts until the page reloads). In a real
+  // account it clears itself once the saved layout catches up.
+  const [local, setLocal] = useState<ResolvedLayout | null>(null)
+  const demo = isDemo()
+  const layout = local ?? saved
+  useEffect(() => {
+    if (!demo && local && saved && sameLayout(local, saved)) setLocal(null)
+  }, [demo, local, saved])
+  const changeLayout = useCallback((next: ResolvedLayout) => {
+    setLocal(next)
+    void saveOverviewLayout(next)
+  }, [])
+  const resetLayout = useCallback(() => {
+    setLocal({ cards: [...DEFAULT_LAYOUT.cards], hidden: [...DEFAULT_LAYOUT.hidden] })
+    void resetOverviewLayout()
+  }, [])
+  const toggleEdit = () => {
+    if (editLayout) {
+      setEditLayout(false)
+      // Put focus back on the button that opened edit mode.
+      setTimeout(() => document.querySelector<HTMLElement>('[data-edit-focus="hero:edit-layout"]')?.focus(), 0)
+    } else setEditLayout(true)
+  }
   const nodes: Record<CardId, ReactNode> = {
     world: (
       <CollapsePanel
@@ -160,9 +194,34 @@ export function OverviewPage() {
 
   return (
     <div>
-      <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
+      <CampaignHero
+        campaign={campaign}
+        onOpenSettings={() => setSettingsOpen(true)}
+        editingLayout={editLayout}
+        onToggleEditLayout={toggleEdit}
+      />
 
-      <div className="ov-bento">
+      {editLayout && layout && (
+        <Suspense fallback={null}>
+          <EditBar layout={layout} wide={wide} onChange={changeLayout} onReset={resetLayout} onDone={toggleEdit} />
+        </Suspense>
+      )}
+
+      {!editLayout && layout && layout.cards.length === 0 && (
+        <section className="ov-panel ov-empty-layout" aria-label="All cards hidden">
+          <p style={{ margin: 0 }}>Every card on this page is hidden.</p>
+          <div className="ov-empty-layout-actions">
+            <button className="btn small" onClick={toggleEdit}>
+              <Icon name="pencil" size={13} /> Edit layout
+            </button>
+            <button className="btn small" onClick={resetLayout}>
+              Reset layout
+            </button>
+          </div>
+        </section>
+      )}
+
+      <div className={`ov-bento${editLayout ? ' is-editing' : ''}`}>
         {layout?.cards.map((c) => {
           // Cards that read the local data render nothing until it loads; skip their cell
           // so an empty cell does not add a grid gap.
@@ -174,7 +233,16 @@ export function OverviewPage() {
               className={`ov-cell${cardDef(c.id)?.cellClass ? ` ${cardDef(c.id)!.cellClass}` : ''}`}
               style={{ '--span': c.span } as CSSProperties}
             >
-              {nodes[c.id]}
+              {editLayout ? (
+                <Suspense fallback={null}>
+                  <CardToolbar id={c.id} layout={layout!} wide={wide} onChange={changeLayout} />
+                </Suspense>
+              ) : null}
+              {/* Display: contents, so the card is still the cell's flex child. While editing
+                  the card is inert: nothing inside it can be focused or clicked. */}
+              <div className="ov-card-body" {...(editLayout ? ({ inert: '' } as object) : {})}>
+                {nodes[c.id]}
+              </div>
             </div>
           )
         })}

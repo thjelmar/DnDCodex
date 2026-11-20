@@ -4490,13 +4490,17 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
    no reordering, no `dense`, so the Tab order equals the visual order at every width.
    Each card sits in a cell that carries its width as --span (12-column units). */
 .ov-cell { grid-column: 1 / -1; margin: 0; min-width: 0; display: flex; flex-direction: column; }
-.ov-cell > * { margin: 0; }
+.ov-cell > *, .ov-card-body > * { margin: 0; }
 /* The card fills its cell, so the stretched height shows as the card's own box. */
-.ov-cell > .ov-panel { flex: 1 1 auto; }
-/* A cell with any collapsed toggle sizes to its content instead: a collapsed card is only
+/* The body wrapper adds no box (display: contents), so the card is still the cell's flex
+   child. Its `inert` attribute is what makes the card inoperable in edit mode. */
+.ov-card-body { display: contents; }
+.ov-cell > .ov-card-body > .ov-panel { flex: 1 1 auto; }
+/* A cell with a collapsed heading toggle (not any aria-expanded, so the edit controls
+   do not count) sizes to its content instead: a collapsed card is only
    its title bar beside an open neighbour (T-84), and Links and Voice closes up as soon as
    one of its two sections is closed. Where :has() is missing the card just stays stretched. */
-.ov-cell:has([aria-expanded='false']) { align-self: start; }
+.ov-cell:has(.ov-panel-toggle[aria-expanded='false']) { align-self: start; }
 @media (min-width: 961px) {
   .ov-cell { grid-column: span var(--span, 12); }
 }
@@ -4770,3 +4774,61 @@ a.ov-chip:hover { border-color: var(--accent); text-decoration: none; }
 .library-manage-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .library-status { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); width: fit-content; color: var(--text-dim); }
 .library-status.published { color: var(--good); border-color: var(--good); }
+
+/* ---- Overview edit mode (T-89) ---------------------------------------------------- */
+.ov-edit-bar {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent-strong);
+  border-radius: var(--radius);
+}
+.ov-edit-bar-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ov-edit-title { margin: 0; font-size: 16px; outline: none; }
+.ov-edit-title:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 3px; border-radius: 4px; }
+.ov-edit-help { display: block; margin: 2px 0 0; font-size: 13px; color: var(--text-dim); }
+.ov-edit-bar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ov-edit-undo { margin: 10px 0 0; font-size: 13.5px; color: var(--text-dim); }
+.ov-edit-tray { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.ov-edit-tray[hidden] { display: none; }
+.ov-edit-empty { margin: 0 0 10px; font-weight: 600; }
+.ov-edit-tray-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ov-edit-tray-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 10px; border: 1px dashed var(--border); border-radius: var(--radius-sm);
+}
+.ov-empty-layout { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.ov-empty-layout-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.ov-bento.is-editing .ov-cell {
+  outline: 2px dashed var(--accent-strong);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+.ov-bento.is-editing .ov-card-body { opacity: 0.72; }
+.ov-edit-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px; padding: 6px 8px;
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.ov-edit-toolbar-name { font-weight: 600; font-size: 13.5px; min-width: 0; }
+.ov-edit-toolbar-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.ov-edit-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 32px; padding: 4px 10px;
+  background: var(--bg-elev); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.ov-edit-btn:hover { background: var(--bg-elev-2); }
+/* The global .btn:hover colour is a fixed dark grey, unreadable on the light theme. */
+.ov-edit-bar .btn:not(.primary):hover, .ov-empty-layout .btn:hover { background: var(--bg-elev-2); }
+.ov-edit-btn[aria-disabled='true'] { opacity: 0.45; cursor: default; }
+.ov-edit-btn:focus-visible, .ov-edit-bar .btn:focus-visible {
+  outline: 2px solid var(--accent-strong); outline-offset: 2px;
+}
+@media (max-width: 960px) {
+  /* A phone: 44px touch targets, and the card name gets its own line. */
+  .ov-edit-btn { min-height: 44px; min-width: 44px; justify-content: center; }
+  .ov-edit-toolbar-name { flex: 1 0 100%; }
+}

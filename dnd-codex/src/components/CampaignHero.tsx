@@ -15,9 +15,14 @@ import type { Campaign } from '../db/types'
 export function CampaignHero({
   campaign,
   onOpenSettings,
+  editingLayout,
+  onToggleEditLayout,
 }: {
   campaign: Campaign
   onOpenSettings: () => void
+  /** True while the Overview is in edit mode (T-89). */
+  editingLayout?: boolean
+  onToggleEditLayout?: () => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -90,6 +95,16 @@ export function CampaignHero({
         {cover && (
           <button className="btn small danger" onClick={removeCover}>
             Remove
+          </button>
+        )}
+        {onToggleEditLayout && (
+          <button
+            className="btn small"
+            data-edit-focus="hero:edit-layout"
+            aria-pressed={!!editingLayout}
+            onClick={onToggleEditLayout}
+          >
+            <Icon name="pencil" size={13} /> Edit layout
           </button>
         )}
         <button className="btn small" onClick={onOpenSettings}>
