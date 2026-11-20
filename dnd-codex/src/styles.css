@@ -4477,30 +4477,20 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-hero-actions .btn { background: var(--bg-elev); }
 .ov-hero-actions .btn:hover { background: var(--bg-elev-2); }
 
-.ov-next { margin-bottom: 14px; }
-
 .ov-bento {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
   align-items: start;
 }
-/* One column by default (phone): every block spans the full width, in DOM order. The
-   DOM order is the reading order at every width (OverviewPage), so nothing here
-   reorders the blocks. */
-.ov-bento > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
-.ov-side { display: flex; flex-direction: column; gap: 14px; }
-/* Wide: place the blocks explicitly, so the layout does not depend on source order.
-   The World overview, the next-session strip and the hub cards span the top, in that
-   order; Recent sessions and the prep checklist and feed stack in the left 8 columns;
-   Links and Voice sit in the right 4 columns beside them. */
+/* One column by default (phone): every card spans the full width, in DOM order. The DOM
+   order is the layout order (OverviewPage), and the grid only flows it: no explicit rows,
+   no reordering, no `dense`, so the Tab order equals the visual order at every width.
+   Each card sits in a cell that carries its width as --span (12-column units). */
+.ov-cell { grid-column: 1 / -1; margin: 0; min-width: 0; }
+.ov-cell > * { margin: 0; }
 @media (min-width: 961px) {
-  .ov-bento > .ov-world { grid-row: 1; }
-  .ov-bento > .ov-next { grid-row: 2; }
-  .ov-bento > .ov-hub { grid-row: 3; }
-  .ov-bento > .ov-recent { grid-column: 1 / span 8; grid-row: 4; }
-  .ov-bento > .ov-extras { grid-column: 1 / span 8; grid-row: 5; }
-  .ov-bento > .ov-side { grid-column: 9 / span 4; grid-row: 4 / span 2; }
+  .ov-cell { grid-column: span var(--span, 12); }
 }
 
 .ov-panel {
@@ -4546,7 +4536,6 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 
 /* Overview: prep checklist and recently edited feed (T-70). Two panels stacked at the
    bottom of the main column, under Recent sessions. */
-.ov-extras { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .ov-prep-count { font-size: 12.5px; color: var(--text-faint); white-space: nowrap; }
 .ov-prep-list, .ov-feed { list-style: none; margin: 10px 0 0; padding: 0; }
 .ov-prep-row, .ov-feed-row {
@@ -4578,14 +4567,10 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-feed-meta { font-size: 12.5px; color: var(--text-faint); }
 .ov-feed-when { flex: 0 0 auto; font-size: 12.5px; color: var(--text-faint); }
 
-/* Overview hub cards (T-74): four summaries (Prep, Run, World & Lore, Reference) in a
-   2 by 2 grid. Each card is a CollapsePanel; the mini tiles are links. Tokens only.
-   Cards size to their own content (align-items: start, not stretch): a collapsed card
+/* Overview hub cards (T-74): four summaries (Prep, Run, World & Lore, Reference), each its
+   own grid cell (two across by default). Each card is a CollapsePanel; the mini tiles are links. Tokens only.
+   Cards size to their own content (the grid uses align-items: start, not stretch): a collapsed card
    is just its title bar even beside an open neighbour (T-84). */
-.ov-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
-@media (max-width: 960px) {
-  .ov-hub { grid-template-columns: minmax(0, 1fr); }
-}
 .ov-hubcard .ov-panel-body { display: flex; flex-direction: column; gap: 12px; }
 .ov-hubcard .ov-panel-body[hidden] { display: none; }
 .ov-hub-cta { align-self: flex-start; }

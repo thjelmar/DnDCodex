@@ -229,7 +229,7 @@ test.describe('hub cards, empty campaign', () => {
     await expect(card(page, 'Reference')).toContainText('No items yet')
     await expect(card(page, 'Reference').locator('.ov-chip')).toHaveCount(0)
 
-    const text = await page.locator('.ov-hub').innerText()
+    const text = (await page.locator('.ov-hubcard').allInnerTexts()).join('\n')
     expect(text).not.toMatch(/NaN|undefined|null/)
   })
 
@@ -255,13 +255,13 @@ test.describe('hub cards at 375px', () => {
     const world = page.getByRole('heading', { name: 'World overview' })
     const recent = page.getByRole('heading', { name: 'Recent sessions' })
     const links = page.getByRole('heading', { name: 'Links' })
-    const prep = page.locator('.ov-hub').getByRole('heading', { name: 'Prep', exact: true })
+    const prep = page.locator('.ov-bento').getByRole('heading', { name: 'Prep', exact: true })
 
     // World overview, then the hub cards, then Recent sessions, then Links and Voice.
     const order = [await y(world), await y(prep), await y(recent), await y(links)]
     expect(order).toEqual([...order].sort((a, b) => a - b))
 
-    const toggle = (name: string) => page.locator('.ov-hub').getByRole('button', { name, exact: true })
+    const toggle = (name: string) => page.locator('.ov-bento').getByRole('button', { name, exact: true })
     await expect(toggle('Prep')).toHaveAttribute('aria-expanded', 'true')
     await expect(toggle('Run')).toHaveAttribute('aria-expanded', 'true')
     await expect(toggle('World & Lore')).toHaveAttribute('aria-expanded', 'false')
@@ -377,29 +377,22 @@ async function focusOrder(page: Page): Promise<string[]> {
 test.describe('hub cards, reading order and accessibility (desktop)', () => {
   test.use({ viewport: { width: 1440, height: 1000 } })
 
-  test('the card wrapper is a labelled group', async ({ page }) => {
+  test('Tab order matches the visual order: World overview, next session, cards, then Recent sessions, Links and Voice, then the checklist', async ({ page }) => {
     await openDemo(page)
-    const group = page.getByRole('group', { name: 'Campaign areas' })
-    await expect(group).toBeVisible()
-    await expect(group.locator('.ov-hubcard')).toHaveCount(4)
-  })
-
-  test('Tab order matches the visual order: World overview, next session, cards, then the left column, then the side column', async ({ page }) => {
-    await openDemo(page)
-    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'prep', 'side'])
+    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'side', 'prep'])
     // And the page really shows them in that order: World overview directly under the
-    // hero, then the next-session strip, then the cards, then the columns.
+    // hero, then the next-session strip, then the cards, then Recent sessions with Links and Voice, then the checklist.
     const box = async (sel: string) => (await page.locator(sel).first().boundingBox())!
     const [hero, world, next, hub, recent, side] = [
       await box('.ov-hero'), await box('.ov-world'), await box('.ov-next'),
-      await box('.ov-hub'), await box('.ov-recent'), await box('.ov-side'),
+      await box('.ov-hubcard'), await box('.ov-recent'), await box('.ov-side'),
     ]
     expect(world.y).toBeGreaterThanOrEqual(hero.y + hero.height - 1)
     expect(next.y).toBeGreaterThanOrEqual(world.y + world.height - 1)
     expect(hub.y).toBeGreaterThanOrEqual(next.y + next.height - 1)
     expect(recent.y).toBeGreaterThanOrEqual(hub.y + hub.height - 1)
     // World overview spans the full width; Links and Voice sit beside Recent sessions.
-    expect(world.width).toBeGreaterThan(hub.width - 2)
+    expect(world.width).toBeGreaterThan(hub.width * 2)
     expect(side.x).toBeGreaterThan(recent.x + recent.width - 1)
   })
 
@@ -450,8 +443,8 @@ test.describe('hub cards, reading order and accessibility (desktop)', () => {
 test.describe('hub cards, reading order (375px)', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('Tab order reaches the World overview, the next session, the cards, then Recent sessions, the checklist and Links', async ({ page }) => {
+  test('Tab order reaches the World overview, the next session, the cards, then Recent sessions, Links and the checklist', async ({ page }) => {
     await openDemo(page)
-    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'prep', 'side'])
+    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'side', 'prep'])
   })
 })

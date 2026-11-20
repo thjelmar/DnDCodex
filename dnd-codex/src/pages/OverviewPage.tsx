@@ -1,5 +1,6 @@
 import { Icon } from '../components/Icon'
 import { useEffect, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -10,14 +11,15 @@ import { LinksVoiceCard } from '../components/LinksVoiceCard'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
-import { CampaignPrep } from '../components/CampaignPrep'
-import { HubCards } from '../components/HubCards'
+import { PrepChecklistCard, RecentlyEditedCard } from '../components/CampaignPrep'
+import { PrepCard, RunCard, WorldLoreCard, ReferenceCard } from '../components/HubCards'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
 import { useOverviewData } from '../lib/useOverviewData'
+import { DEFAULT_LAYOUT, cardDef, type CardId } from '../lib/overviewCards'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -86,78 +88,97 @@ export function OverviewPage() {
     navigate('/')
   }
 
-  // The blocks, in reading order: the World overview sits directly under the hero,
-  // then the next-session strip and the hub cards. The order is the same at every width,
-  // so the DOM order, and so the Tab order, equals the visual order everywhere. On a wide
-  // screen the grid places the blocks (see .ov-bento in styles.css) without reordering
-  // them. The blocks stay keyed siblings, so panel state and the editor survive a resize.
-  const next = (
-    <div key="next" className="ov-next">
-      <NextSessionCard campaign={campaign} />
-    </div>
-  )
-  const hub = <HubCards key="hub" campaign={campaign} data={data} />
-  const world = (
-    <CollapsePanel
-      key="world"
-      title="World overview"
-      className="ov-world"
-      defaultOpenPhone
-      actions={
-        <button className="btn small" onClick={() => setEditing(true)}>
-          <Icon name="pencil" size={13} /> Edit
-        </button>
-      }
-    >
-      {campaign.description?.trim() ? (
-        <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
-      ) : (
-        <p className="faint" style={{ margin: 0 }}>Nothing here yet.</p>
-      )}
-    </CollapsePanel>
-  )
-  const recent = (
-    <section key="recent" className="ov-panel ov-recent">
-      <div className="ov-panel-head">
-        <h3 className="mb-0">Recent sessions</h3>
-        <Link to="sessions" className="btn ghost small">
-          View all →
-        </Link>
-      </div>
-      <div className="ov-panel-body">
-        {recentSessions && recentSessions.length > 0 ? (
-          recentSessions.map((s) => (
-            <Link
-              key={s.id}
-              to="sessions"
-              className="list-row"
-              style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
-            >
-              <div>
-                <div className="title">{s.title}</div>
-                <div className="sub">{formatDate(s.date)}</div>
-              </div>
-            </Link>
-          ))
+  // Every block is a card with a stable id (lib/overviewCards.ts). The layout is an
+  // ordered list of cards with a width each, and the cards render in that order, so the
+  // DOM order, and so the Tab order, equals the visual order at every width. The grid
+  // places them with plain row-major flow (see .ov-bento in styles.css): no explicit rows
+  // and no reordering. Each card sits in a keyed cell, so panel state and the editor
+  // survive a reorder or a resize. Phase A renders the default layout; saving a custom
+  // one comes later.
+  const layout = DEFAULT_LAYOUT
+  const nodes: Record<CardId, ReactNode> = {
+    world: (
+      <CollapsePanel
+        title="World overview"
+        className="ov-world"
+        defaultOpenPhone
+        actions={
+          <button className="btn small" onClick={() => setEditing(true)}>
+            <Icon name="pencil" size={13} /> Edit
+          </button>
+        }
+      >
+        {campaign.description?.trim() ? (
+          <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
         ) : (
-          <p className="faint" style={{ margin: 0 }}>No sessions logged yet.</p>
+          <p className="faint" style={{ margin: 0 }}>Nothing here yet.</p>
         )}
+      </CollapsePanel>
+    ),
+    next: (
+      <div className="ov-next">
+        <NextSessionCard campaign={campaign} />
       </div>
-    </section>
-  )
-  const prep = <CampaignPrep key="prep" campaign={campaign} data={data} />
-  const side = (
-    <aside key="side" className="ov-side">
-      <LinksVoiceCard campaign={campaign} />
-    </aside>
-  )
-  const blocks = [world, next, hub, recent, prep, side]
+    ),
+    prep: <PrepCard campaign={campaign} data={data} />,
+    run: <RunCard campaign={campaign} data={data} />,
+    lore: <WorldLoreCard campaign={campaign} data={data} />,
+    reference: <ReferenceCard campaign={campaign} data={data} />,
+    'recent-sessions': (
+      <section className="ov-panel ov-recent">
+        <div className="ov-panel-head">
+          <h3 className="mb-0">Recent sessions</h3>
+          <Link to="sessions" className="btn ghost small">
+            View all →
+          </Link>
+        </div>
+        <div className="ov-panel-body">
+          {recentSessions && recentSessions.length > 0 ? (
+            recentSessions.map((s) => (
+              <Link
+                key={s.id}
+                to="sessions"
+                className="list-row"
+                style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
+              >
+                <div>
+                  <div className="title">{s.title}</div>
+                  <div className="sub">{formatDate(s.date)}</div>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <p className="faint" style={{ margin: 0 }}>No sessions logged yet.</p>
+          )}
+        </div>
+      </section>
+    ),
+    'prep-checklist': <PrepChecklistCard campaign={campaign} data={data} />,
+    'recently-edited': <RecentlyEditedCard data={data} />,
+    'links-voice': <LinksVoiceCard campaign={campaign} />,
+  }
 
   return (
     <div>
       <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className="ov-bento">{blocks}</div>
+      <div className="ov-bento">
+        {layout.cards.map((c) => {
+          // Cards that read the local data render nothing until it loads; skip their cell
+          // so an empty cell does not add a grid gap.
+          const waiting = !data && ['prep', 'run', 'lore', 'reference', 'prep-checklist', 'recently-edited'].includes(c.id)
+          if (waiting) return null
+          return (
+            <div
+              key={c.id}
+              className={`ov-cell${cardDef(c.id)?.cellClass ? ` ${cardDef(c.id)!.cellClass}` : ''}`}
+              style={{ '--span': c.span } as CSSProperties}
+            >
+              {nodes[c.id]}
+            </div>
+          )
+        })}
+      </div>
 
       {settingsOpen && (
         <CampaignSettingsModal

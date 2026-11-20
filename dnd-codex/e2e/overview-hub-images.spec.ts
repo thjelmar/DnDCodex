@@ -74,7 +74,7 @@ async function expectCards(page: Page): Promise<void> {
   // The pictures load when their card scrolls into view. The World overview now sits
   // above the cards (T-86), so on a wide screen bring the cards on screen first.
   const width = page.viewportSize()?.width ?? 0
-  if (width >= 961) await page.locator('.ov-hub').evaluate((el) => el.scrollIntoView({ block: 'start' }))
+  if (width >= 961) await page.locator('.ov-hubcard').first().evaluate((el) => el.scrollIntoView({ block: 'start' }))
 }
 
 async function openDemo(page: Page, theme?: 'light' | 'dark'): Promise<void> {
@@ -162,7 +162,7 @@ async function injectImages(page: Page) {
 const card = (page: Page, name: string) => page.locator('.ov-hubcard', { has: page.getByRole('heading', { name }) })
 const noBrokenImages = (page: Page) =>
   page.evaluate(() =>
-    Array.from(document.querySelectorAll('.ov-hub img'))
+    Array.from(document.querySelectorAll('.ov-hubcard img'))
       .filter((i) => (i as HTMLElement).offsetParent !== null)
       .filter((i) => !(i as HTMLImageElement).complete || (i as HTMLImageElement).naturalWidth === 0)
       .map((i) => (i as HTMLImageElement).alt),
@@ -436,7 +436,7 @@ test.describe('hub card pictures at 375px', () => {
     await expect(card(page, 'Run').locator('.ov-battle img')).toBeVisible()
     expect(await readLog(page).then((l) => l.gets)).toContain('inj-bigmap')
 
-    await page.locator('.ov-hub').getByRole('button', { name: 'World & Lore', exact: true }).click()
+    await page.locator('.ov-bento').getByRole('button', { name: 'World & Lore', exact: true }).click()
     await expect(card(page, 'World & Lore').locator('.ov-npc', { hasText: 'Bram' }).locator('img')).toBeVisible()
     const after = await readLog(page)
     expect(after.gets).toContain('inj-portrait')
@@ -445,7 +445,7 @@ test.describe('hub card pictures at 375px', () => {
 
   test('the picture boxes keep a fixed aspect ratio and the page does not scroll sideways', async ({ page }) => {
     await openDemo(page)
-    await page.locator('.ov-hub').getByRole('button', { name: 'World & Lore', exact: true }).click()
+    await page.locator('.ov-bento').getByRole('button', { name: 'World & Lore', exact: true }).click()
     const ratio = async (sel: string) => {
       const b = (await page.locator(sel).first().boundingBox())!
       return b.width / b.height
@@ -470,11 +470,11 @@ test.describe('hub card pictures, empty campaign', () => {
       await page.getByPlaceholder('Curse of the Shattered Crown').fill(`E2E Pics ${Date.now()}`)
       await page.getByRole('button', { name: 'Create', exact: true }).click()
       await expectCards(page)
-      if (size.width < 500) await page.locator('.ov-hub').getByRole('button', { name: 'World & Lore', exact: true }).click()
+      if (size.width < 500) await page.locator('.ov-bento').getByRole('button', { name: 'World & Lore', exact: true }).click()
 
       await expect(card(page, 'World & Lore')).toContainText('No world map yet')
       await expect(card(page, 'Run')).toContainText('No battle map yet')
-      await expect(page.locator('.ov-hub img')).toHaveCount(0)
+      await expect(page.locator('.ov-hubcard img')).toHaveCount(0)
       await expect(page.locator('.ov-npc')).toHaveCount(0)
       const log = await readLog(page)
       expect(log.gets).toEqual([])
@@ -492,7 +492,7 @@ test.describe('hub card pictures, light theme', () => {
     await expect(card(page, 'World & Lore').getByRole('img', { name: /World map/ })).toBeVisible()
     // Map and battle boxes carry their own 1px border; avatar faces sit inside an avatar
     // circle that carries it (1px for NPCs).
-    const boxes = await page.locator('.ov-hub .ov-media:not(.ov-media-fill)').evaluateAll((els) =>
+    const boxes = await page.locator('.ov-hubcard .ov-media:not(.ov-media-fill)').evaluateAll((els) =>
       els.filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => getComputedStyle(e).borderTopWidth),
     )
     expect(boxes.length).toBeGreaterThan(0)
@@ -728,7 +728,7 @@ test.describe('avatar fallbacks and the icon chunk (desktop)', () => {
     await expect(card(page, 'Run').locator('.ov-token img')).toHaveCount(4)
     await page.waitForTimeout(800)
     expect(requested.filter((u) => /tokenIconPaths/.test(u))).toEqual([])
-    await expect(page.locator('.ov-hub .ov-avatar-face svg')).toHaveCount(0)
+    await expect(page.locator('.ov-hubcard .ov-avatar-face svg')).toHaveCount(0)
   })
 
   test('an avatar whose image fails shows its glyph; one with no image id shows its glyph too', async ({ page }) => {
