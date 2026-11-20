@@ -175,7 +175,7 @@ test.describe('campaign page tree (phone drawer)', () => {
   test('Overview does not scroll sideways at 375px', async ({ page }) => {
     await createCampaign(page)
     await expect(page.locator('.ov-hero')).toBeVisible()
-    await expect(page.locator('.ov-stats .ov-stat')).toHaveCount(6)
+    await expect(page.locator('.ov-hubcard')).toHaveCount(4)
     const overflow = await page.evaluate(() => {
       const main = document.querySelector('.main') as HTMLElement
       return main.scrollWidth - main.clientWidth

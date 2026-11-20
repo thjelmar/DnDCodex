@@ -1,30 +1,17 @@
 import { Link } from 'react-router-dom'
-import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '../db/db'
 import { Icon } from './Icon'
 import { derivePrepChecklist } from '../lib/prepChecklist'
 import { ACTIVITY_LABEL, deriveRecentActivity } from '../lib/recentActivity'
 import { relativeTime, todayISODate } from '../lib/format'
+import type { OverviewData } from '../lib/useOverviewData'
 import type { Campaign } from '../db/types'
 
 // Two Overview panels built only from the campaign's local records: a prep
-// checklist that ticks itself, and a recently edited feed. Both read Dexie, so
-// they work offline and in the demo, and neither writes anything.
+// checklist that ticks itself, and a recently edited feed. Both come from the
+// shared local read in useOverviewData, so they work offline and in the demo, and
+// neither writes anything.
 
-export function CampaignPrep({ campaign }: { campaign: Campaign }) {
-  const data = useLiveQuery(async () => {
-    const id = campaign.id
-    const [sessions, npcs, locations, items, notes, tables] = await Promise.all([
-      db.sessions.where('campaignId').equals(id).toArray(),
-      db.npcs.where('campaignId').equals(id).toArray(),
-      db.locations.where('campaignId').equals(id).toArray(),
-      db.items.where('campaignId').equals(id).toArray(),
-      db.notes.where('campaignId').equals(id).toArray(),
-      db.rollTables.where('campaignId').equals(id).toArray(),
-    ])
-    return { sessions, npcs, locations, items, notes, tables }
-  }, [campaign.id])
-
+export function CampaignPrep({ campaign, data }: { campaign: Campaign; data: OverviewData | undefined }) {
   if (!data) return null
 
   const checklist = derivePrepChecklist({

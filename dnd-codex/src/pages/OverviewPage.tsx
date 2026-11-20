@@ -12,12 +12,13 @@ import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
 import { CampaignPrep } from '../components/CampaignPrep'
+import { HubCards } from '../components/HubCards'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
-import { useCampaignCounts } from '../lib/useCampaignCounts'
+import { useHandoutCount, useOverviewData } from '../lib/useOverviewData'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -67,8 +68,9 @@ export function OverviewPage() {
     }
   }
 
-  // Counts and recent sessions for the dashboard.
-  const stats = useCampaignCounts(campaign.id)
+  // One local read shared by the hub cards, the prep checklist and the feed.
+  const data = useOverviewData(campaign.id)
+  const handoutCount = useHandoutCount(campaign.id)
 
   const recentSessions = useLiveQuery(
     () =>
@@ -86,15 +88,6 @@ export function OverviewPage() {
     navigate('/')
   }
 
-  const statCards: Array<[string, number | undefined, string]> = [
-    ['Sessions', stats?.sessions, 'sessions'],
-    ['World notes', stats?.notes, 'notes'],
-    ['NPCs', stats?.npcs, 'npcs'],
-    ['Locations', stats?.locations, 'locations'],
-    ['Items', stats?.items, 'items'],
-    ['Roll tables', stats?.tables, 'tables'],
-  ]
-
   return (
     <div>
       <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
@@ -104,18 +97,12 @@ export function OverviewPage() {
           <NextSessionCard campaign={campaign} />
         </div>
 
-        <div className="ov-stats" role="list">
-          {statCards.map(([label, count, path]) => (
-            <Link key={label} to={path} className="ov-stat" role="listitem">
-              <span className="ov-stat-n">{count ?? '—'}</span>
-              <span className="ov-stat-l">{label}</span>
-            </Link>
-          ))}
-        </div>
+        <HubCards campaign={campaign} data={data} handoutCount={handoutCount ?? null} />
 
         <div className="ov-main">
           <CollapsePanel
             title="World overview"
+            className="ov-world"
             defaultOpenPhone
             actions={
               <button className="btn small" onClick={() => setEditing(true)}>
@@ -130,7 +117,7 @@ export function OverviewPage() {
             )}
           </CollapsePanel>
 
-          <section className="ov-panel">
+          <section className="ov-panel ov-recent">
             <div className="ov-panel-head">
               <h3 className="mb-0">Recent sessions</h3>
               <Link to="sessions" className="btn ghost small">
@@ -161,7 +148,7 @@ export function OverviewPage() {
           {/* Prep checklist and Recently edited sit under Recent sessions: the world
               overview stays first in the main column (and first on a phone), and the
               wide main column has room for the checklist rows. */}
-          <CampaignPrep campaign={campaign} />
+          <CampaignPrep campaign={campaign} data={data} />
         </div>
 
         <aside className="ov-side">

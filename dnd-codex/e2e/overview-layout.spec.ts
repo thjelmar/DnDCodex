@@ -149,10 +149,12 @@ test.describe('campaign Overview (phone, 375px)', () => {
 
   test('is one stack with collapsible panels and no sideways scroll', async ({ page }) => {
     await createCampaign(page)
-    const main = await page.locator('.ov-main').boundingBox()
+    // On a phone .ov-main dissolves (display: contents) so its panels interleave with
+    // the hub cards; compare the first panel with the right column instead.
+    const world = await page.locator('.ov-world').boundingBox()
     const side = await page.locator('.ov-side').boundingBox()
-    expect(side!.x).toBeLessThanOrEqual(main!.x + 1)
-    expect(side!.y).toBeGreaterThan(main!.y)
+    expect(side!.x).toBeLessThanOrEqual(world!.x + 1)
+    expect(side!.y).toBeGreaterThan(world!.y)
 
     const toggle = (name: string) => page.getByRole('button', { name, exact: true })
     // World overview stays open; the side panels start closed.
