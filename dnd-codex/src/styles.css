@@ -4333,3 +4333,150 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 @media (prefers-reduced-motion: reduce) {
   .duel *, .duel *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------------------------------------------------------------------------
+   Campaign shell: sidebar tree + slim header + Overview layout.
+   Navigation for a campaign lives in the sidebar (components/CampaignTree.tsx);
+   the old tab bar only returns when the desktop sidebar is collapsed. All colors
+   come from the theme tokens, so the per-user accent and light theme apply.
+   --------------------------------------------------------------------------- */
+.ctree {
+  margin: 8px 0 6px;
+  padding: 6px 0 8px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.ctree-head { font-family: var(--serif); font-weight: 600; color: var(--text); }
+.ctree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ctree-group { margin: 10px 8px 2px; }
+.ctree-link {
+  padding: 6px 10px 6px 22px;
+  font-size: 13.5px;
+  justify-content: space-between;
+}
+.ctree-count {
+  font-size: 11.5px;
+  line-height: 18px;
+  color: var(--text-faint);
+  background: var(--bg-elev-2);
+  border-radius: 9px;
+  padding: 0 7px;
+}
+
+.camp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.camp-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+.camp-crumb-link { color: var(--text-dim); display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.camp-crumb-link:hover { color: var(--text); text-decoration: none; }
+.camp-crumb-name { overflow: hidden; text-overflow: ellipsis; max-width: 30ch; color: var(--text); font-weight: 500; }
+.camp-crumb-page { color: var(--text); font-weight: 600; white-space: nowrap; }
+.camp-crumb-sep { color: var(--text-faint); }
+.camp-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+.camp-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.camp-tabbar-fallback { display: none; }
+@media (min-width: 821px) {
+  .app[data-collapsed='true'] .camp-tabbar-fallback { display: block; }
+}
+
+/* Overview is a wider dashboard column than the reading-width pages. */
+.content.content-overview { max-width: 1180px; }
+
+.ov-hero {
+  position: relative;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--hero-color, var(--accent)) 30%, var(--bg-elev)), var(--bg-elev) 70%);
+  background-size: cover;
+  background-position: center;
+}
+.ov-hero.has-cover { min-height: 230px; color: #fff; }
+.ov-hero.has-cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 8, 16, 0.82), rgba(10, 8, 16, 0.15) 70%);
+}
+.ov-hero-body, .ov-hero-actions { position: relative; }
+.ov-hero-title { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.ov-hero-title h1 { font-size: 32px; overflow-wrap: anywhere; }
+.ov-hero.has-cover h1, .ov-hero.has-cover .ov-hero-summary { color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5); }
+.ov-hero-input { font-family: var(--serif); font-size: 26px; font-weight: 600; padding: 2px 8px; max-width: 460px; }
+.ov-hero-summary { margin: 4px 0 0; color: var(--text-dim); max-width: 70ch; }
+.ov-hero-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; }
+
+.ov-next { margin-bottom: 14px; }
+
+.ov-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.ov-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  transition: border-color 0.12s;
+}
+.ov-stat:hover { border-color: var(--accent); text-decoration: none; }
+.ov-stat-n { font-family: var(--serif); font-size: 26px; line-height: 1.1; color: var(--accent); }
+.ov-stat-l { font-size: 12.5px; color: var(--text-dim); }
+
+.ov-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-top: 26px;
+  align-items: start;
+}
+.ov-side { display: flex; flex-direction: column; gap: 14px; }
+.ov-panel {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  min-width: 0;
+}
+
+.ov-settings { margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); }
+.ov-settings summary { cursor: pointer; color: var(--text-dim); font-size: 13.5px; }
+.ov-settings summary:hover { color: var(--text); }
+
+@media (max-width: 960px) {
+  .ov-grid { grid-template-columns: minmax(0, 1fr); }
+  .ov-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .ov-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ov-stat { padding: 9px 10px; }
+  .ov-stat-n { font-size: 22px; }
+  .ov-stat-l { font-size: 12px; }
+  .ov-hero { padding: 18px 16px; min-height: 150px; }
+  .ov-hero.has-cover { min-height: 200px; }
+  .ov-hero-title h1 { font-size: 26px; }
+  .ov-hero-actions { top: 8px; right: 8px; }
+  .camp-crumb-name { max-width: 16ch; }
+}

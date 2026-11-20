@@ -9,6 +9,8 @@ import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
 import { AccountArea, TopbarSignIn } from './auth/AccountArea'
 import { Icon } from './components/Icon'
+import { CampaignTree } from './components/CampaignTree'
+import { useNavCollapsed } from './lib/useNavCollapsed'
 import { NotificationBell } from './components/NotificationBell'
 import { JoinCampaignModal } from './auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
@@ -137,30 +139,6 @@ const ellipsis: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-/** Remember a sidebar section's open/closed state per browser. */
-function useNavCollapsed(key: string, defaultOpen: boolean) {
-  const storageKey = `codex.nav.${key}`
-  const [open, setOpen] = useState(() => {
-    try {
-      const v = localStorage.getItem(storageKey)
-      return v == null ? defaultOpen : v === '1'
-    } catch {
-      return defaultOpen
-    }
-  })
-  const toggle = () =>
-    setOpen((o) => {
-      const next = !o
-      try {
-        localStorage.setItem(storageKey, next ? '1' : '0')
-      } catch {
-        /* private mode / blocked storage — state just won't persist */
-      }
-      return next
-    })
-  return [open, toggle] as const
-}
-
 /** A collapsible sidebar section with a heading toggle and a rotating caret. */
 function SidebarSection({
   label,
@@ -285,6 +263,10 @@ function Sidebar({
           <span className="ico"><Icon name="swords" /></span> Daily Duel
         </NavLink>
       )}
+
+      {/* The open campaign's pages (Prep / Run / World / Reference); renders
+          only on /campaign/:id routes. */}
+      <CampaignTree />
 
       {/* DM: campaign creation & management */}
       <SidebarSection label="DM" sectionKey="dm">

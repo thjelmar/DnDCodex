@@ -1,14 +1,13 @@
-import { useState } from 'react'
 import { useParams, Outlet, useOutletContext, useLocation, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { updateCampaign } from '../db/repo'
 import { SyncToggle } from '../auth/SyncToggle'
 import { InvitePlayers } from '../auth/InvitePlayers'
 import { PushChangesPanel } from '../components/PushChangesPanel'
 import { CampaignNav } from '../components/CampaignNav'
 import { Icon } from '../components/Icon'
 import { LiveSceneKeeper } from './LiveSceneKeeper'
+import { campaignPageLabel } from '../lib/campaignNav'
 import type { Campaign } from '../db/types'
 
 interface CampaignContext {
@@ -31,9 +30,6 @@ export function CampaignLayout() {
     async () => (campaignId ? ((await db.campaigns.get(campaignId)) ?? null) : null),
     [campaignId],
   )
-  const [renaming, setRenaming] = useState(false)
-  const [nameDraft, setNameDraft] = useState('')
-
   if (campaign === undefined) {
     return <div className="content faint">Loading…</div>
   }
@@ -51,84 +47,46 @@ export function CampaignLayout() {
     )
   }
 
-  const startRename = () => {
-    setNameDraft(campaign.name)
-    setRenaming(true)
-  }
-  const commitRename = async () => {
-    const next = nameDraft.trim()
-    setRenaming(false)
-    if (next && next !== campaign.name) await updateCampaign(campaign.id, { name: next })
-  }
+  const base = `/campaign/${campaign.id}`
+  const sub = path.startsWith(base) ? path.slice(base.length).replace(/^\/+/, '') : ''
+  const pageLabel = sub === '' ? null : campaignPageLabel(sub)
 
   return (
-    <div className={`content${wideTab ? ' content-wide' : ''}`}>
-      <div className="row between" style={{ marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
-        <div className="row" style={{ gap: 12, alignItems: 'center', minWidth: 0 }}>
-          <span
-            aria-hidden
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: '50%',
-              background: campaign.color,
-              display: 'inline-block',
-              flexShrink: 0,
-            }}
-          />
-          {renaming ? (
-            <input
-              className="input"
-              autoFocus
-              value={nameDraft}
-              onChange={(e) => setNameDraft(e.target.value)}
-              onBlur={commitRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitRename()
-                else if (e.key === 'Escape') setRenaming(false)
-              }}
-              style={{
-                fontFamily: 'var(--serif)',
-                fontSize: 26,
-                fontWeight: 600,
-                padding: '2px 8px',
-                maxWidth: 460,
-              }}
-            />
-          ) : (
+    <div className={`content${wideTab ? ' content-wide' : ''}${sub === '' ? ' content-overview' : ''}`}>
+      <div className="camp-head">
+        {/* Breadcrumb: where you are. The page's own navigation is the sidebar
+            tree (components/CampaignTree.tsx); the Overview shows the big title. */}
+        <nav className="camp-crumb" aria-label="Breadcrumb">
+          <Link to="/" className="camp-crumb-link">
+            <Icon name="arrow-left" size={13} /> All campaigns
+          </Link>
+          <span className="camp-crumb-sep" aria-hidden>/</span>
+          <span aria-hidden className="camp-dot" style={{ background: campaign.color }} />
+          <Link to={base} className="camp-crumb-link camp-crumb-name">
+            {campaign.name}
+          </Link>
+          {pageLabel && (
             <>
-              <h1 className="mb-0">{campaign.name}</h1>
-              <button
-                className="btn ghost small"
-                title="Rename campaign"
-                aria-label="Rename campaign"
-                onClick={startRename}
-                style={{ flexShrink: 0 }}
-              >
-                <Icon name="pencil" size={14} />
-              </button>
+              <span className="camp-crumb-sep" aria-hidden>/</span>
+              <span className="camp-crumb-page" aria-current="page">{pageLabel}</span>
             </>
           )}
-        </div>
-        <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        </nav>
+        <div className="camp-actions">
           <Link to={`/run/${campaign.id}`} className="btn primary small" title="At-the-table screen: session notes, what's in play, combat and dice">
             <Icon name="play" size={12} color="inherit" /> Run session
           </Link>
           <PushChangesPanel campaignId={campaign.id} />
           <InvitePlayers campaign={{ id: campaign.id, name: campaign.name }} />
           <SyncToggle campaign={{ id: campaign.id, name: campaign.name }} />
-          <Link to="/" className="btn ghost small">
-            <Icon name="arrow-left" size={13} /> All campaigns
-          </Link>
         </div>
       </div>
-      {campaign.summary && (
-        <div className="subtitle" style={{ marginBottom: 16 }}>
-          {campaign.summary}
-        </div>
-      )}
 
-      <CampaignNav />
+      {/* The tab bar only returns when the desktop sidebar is collapsed (the
+          tree is hidden then); CSS decides, see .camp-tabbar-fallback. */}
+      <div className="camp-tabbar-fallback">
+        <CampaignNav />
+      </div>
 
       <Outlet context={{ campaign } satisfies CampaignContext} />
       {/* Keeps a live battle map in sync when its editor isn't open. */}

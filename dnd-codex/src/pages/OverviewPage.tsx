@@ -1,9 +1,9 @@
 import { Icon } from '../components/Icon'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createCampaign, updateCampaign, deleteCampaign, createImage, deleteImage } from '../db/repo'
+import { createCampaign, updateCampaign, deleteCampaign } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { AddLinkButton } from '../components/AddLinkButton'
@@ -11,11 +11,11 @@ import { CampaignLinks } from '../components/CampaignLinks'
 import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
+import { CampaignHero } from '../components/CampaignHero'
 import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
-import { processImageFile } from '../lib/image'
-import type { Campaign } from '../db/types'
+import { useCampaignCounts } from '../lib/useCampaignCounts'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -54,17 +54,7 @@ export function OverviewPage() {
   }
 
   // Counts and recent sessions for the dashboard.
-  const stats = useLiveQuery(async () => {
-    const [sessions, npcs, locations, items, notes, tables] = await Promise.all([
-      db.sessions.where('campaignId').equals(campaign.id).count(),
-      db.npcs.where('campaignId').equals(campaign.id).count(),
-      db.locations.where('campaignId').equals(campaign.id).count(),
-      db.items.where('campaignId').equals(campaign.id).count(),
-      db.notes.where('campaignId').equals(campaign.id).count(),
-      db.rollTables.where('campaignId').equals(campaign.id).count(),
-    ])
-    return { sessions, npcs, locations, items, notes, tables }
-  }, [campaign.id])
+  const stats = useCampaignCounts(campaign.id)
 
   const recentSessions = useLiveQuery(
     () =>
@@ -89,111 +79,115 @@ export function OverviewPage() {
 
   const statCards: Array<[string, number | undefined, string]> = [
     ['Sessions', stats?.sessions, 'sessions'],
-    ['World Notes', stats?.notes, 'notes'],
+    ['World notes', stats?.notes, 'notes'],
     ['NPCs', stats?.npcs, 'npcs'],
     ['Locations', stats?.locations, 'locations'],
     ['Items', stats?.items, 'items'],
-    ['Roll Tables', stats?.tables, 'tables'],
+    ['Roll tables', stats?.tables, 'tables'],
   ]
 
   return (
     <div>
-      <CampaignCover campaign={campaign} />
+      <CampaignHero campaign={campaign} />
 
-      <div style={{ marginBottom: 20 }}>
+      <div className="ov-next">
         <NextSessionCard campaign={campaign} />
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>
-        <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Voice</div>
-        <DiscordVoiceSettings campaign={campaign} />
-      </div>
-
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', marginBottom: 24 }}>
+      <div className="ov-stats" role="list">
         {statCards.map(([label, count, path]) => (
-          <Link
-            key={label}
-            to={path}
-            className="card"
-            style={{ textDecoration: 'none' }}
-          >
-            <div style={{ fontSize: 30, fontFamily: 'var(--serif)' }}>
-              {count ?? '—'}
+          <Link key={label} to={path} className="ov-stat" role="listitem">
+            <span className="ov-stat-n">{count ?? '—'}</span>
+            <span className="ov-stat-l">{label}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="ov-grid">
+        <section className="ov-main">
+          <div className="row between">
+            <h2 className="mb-0">World overview</h2>
+            <button className="btn small" onClick={() => setEditing(true)}>
+              <Icon name="pencil" size={13} /> Edit
+            </button>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            {campaign.description?.trim() ? (
+              <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
+            ) : (
+              <p className="faint">Nothing here yet.</p>
+            )}
+          </div>
+        </section>
+
+        <aside className="ov-side">
+          <section className="ov-panel">
+            <div className="row between">
+              <h3 className="mb-0">Recent sessions</h3>
+              <Link to="sessions" className="btn ghost small">
+                View all →
+              </Link>
             </div>
-            <div className="muted">{label}</div>
-          </Link>
-        ))}
+            <div style={{ marginTop: 10 }}>
+              {recentSessions && recentSessions.length > 0 ? (
+                recentSessions.map((s) => (
+                  <Link
+                    key={s.id}
+                    to="sessions"
+                    className="list-row"
+                    style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
+                  >
+                    <div>
+                      <div className="title">{s.title}</div>
+                      <div className="sub">{formatDate(s.date)}</div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <p className="faint">No sessions logged yet.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="ov-panel">
+            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>
+            <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
+          </section>
+
+          <section className="ov-panel">
+            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Voice</div>
+            <DiscordVoiceSettings campaign={campaign} />
+          </section>
+
+          <section className="ov-panel">
+            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Linked campaigns</div>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Reference shared worlds or previous campaigns.
+            </p>
+            <div className="row wrap" style={{ marginBottom: 8 }}>
+              {related.map((c) => (
+                <Link key={c.id} to={`/campaign/${c.id}`} className="tag" style={{ textDecoration: 'none' }}>
+                  ● {c.name}
+                </Link>
+              ))}
+              {related.length === 0 && <span className="faint">None linked.</span>}
+            </div>
+            <RelatedCampaignPicker campaignId={campaign.id} current={campaign.relatedCampaignIds} allCampaigns={allCampaigns ?? []} />
+          </section>
+        </aside>
       </div>
 
-      <div className="row between">
-        <h2 className="mb-0">World Overview</h2>
-        <button className="btn small" onClick={() => setEditing(true)}>
-          <Icon name="pencil" size={13} /> Edit
-        </button>
-      </div>
-      <div style={{ marginTop: 12, marginBottom: 28 }}>
-        {campaign.description?.trim() ? (
-          <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
-        ) : (
-          <p className="faint">Nothing here yet.</p>
-        )}
-      </div>
-
-      <div className="row between">
-        <h2 className="mb-0">Recent Sessions</h2>
-        <Link to="sessions" className="btn ghost small">
-          View all →
-        </Link>
-      </div>
-      <div style={{ marginTop: 12, marginBottom: 28 }}>
-        {recentSessions && recentSessions.length > 0 ? (
-          recentSessions.map((s) => (
-            <Link
-              key={s.id}
-              to="sessions"
-              className="list-row"
-              style={{ textDecoration: 'none', color: 'inherit', display: 'flex' }}
-            >
-              <div>
-                <div className="title">{s.title}</div>
-                <div className="sub">{formatDate(s.date)}</div>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <p className="faint">No sessions logged yet.</p>
-        )}
-      </div>
-
-      <h2>Linked Campaigns</h2>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Reference shared worlds or previous campaigns.
-      </p>
-      <div className="row wrap" style={{ marginBottom: 8 }}>
-        {related.map((c) => (
-          <Link key={c.id} to={`/campaign/${c.id}`} className="tag" style={{ textDecoration: 'none' }}>
-            ● {c.name}
-          </Link>
-        ))}
-        {related.length === 0 && <span className="faint">None linked.</span>}
-      </div>
-      <RelatedCampaignPicker campaignId={campaign.id} current={campaign.relatedCampaignIds} allCampaigns={allCampaigns ?? []} />
-
-      <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '32px 0' }} />
-
-      <div className="row wrap" style={{ gap: 10 }}>
-        <button className="btn" onClick={toggleArchive}>
-          {campaign.archived ? 'Unarchive' : 'Archive'} campaign
-        </button>
-        <button className="btn danger" onClick={() => setConfirmDelete(true)}>
-          Delete campaign
-        </button>
-      </div>
+      <details className="ov-settings">
+        <summary>Campaign settings</summary>
+        <div className="row wrap" style={{ gap: 10, marginTop: 12 }}>
+          <button className="btn" onClick={toggleArchive}>
+            {campaign.archived ? 'Unarchive' : 'Archive'} campaign
+          </button>
+          <button className="btn danger" onClick={() => setConfirmDelete(true)}>
+            Delete campaign
+          </button>
+        </div>
+      </details>
 
       {editing && (
         <EditCampaignModal
@@ -338,94 +332,5 @@ function EditCampaignModal({
         minHeight={220}
       />
     </Modal>
-  )
-}
-
-/**
- * The campaign cover banner plus its upload / change / remove controls. The
- * cover is a StoredImage referenced by campaign.coverImageId.
- */
-function CampaignCover({ campaign }: { campaign: Campaign }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [busy, setBusy] = useState(false)
-
-  const cover = useLiveQuery(
-    () => (campaign.coverImageId ? db.images.get(campaign.coverImageId) : undefined),
-    [campaign.coverImageId],
-  )
-
-  async function handleFiles(files: FileList | null) {
-    const file = files?.[0]
-    if (!file) return
-    setBusy(true)
-    try {
-      const processed = await processImageFile(file)
-      const image = await createImage(campaign.id, {
-        name: file.name,
-        mime: processed.mime,
-        dataUrl: processed.dataUrl,
-        width: processed.width,
-        height: processed.height,
-        bytes: processed.bytes,
-      })
-      // Replace any previous cover, cleaning up the old image.
-      const previous = campaign.coverImageId
-      await updateCampaign(campaign.id, { coverImageId: image.id })
-      if (previous) await deleteImage(previous)
-    } finally {
-      setBusy(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
-  }
-
-  async function removeCover() {
-    const previous = campaign.coverImageId
-    await updateCampaign(campaign.id, { coverImageId: null })
-    if (previous) await deleteImage(previous)
-  }
-
-  return (
-    <div style={{ marginBottom: 22 }}>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => handleFiles(e.target.files)}
-      />
-      {cover ? (
-        <div style={{ position: 'relative' }}>
-          <img
-            src={cover.dataUrl}
-            alt={`${campaign.name} cover`}
-            style={{
-              width: '100%',
-              maxHeight: 260,
-              objectFit: 'cover',
-              borderRadius: 'var(--radius)',
-              border: '1px solid var(--border)',
-              display: 'block',
-            }}
-          />
-          <div className="row" style={{ position: 'absolute', top: 10, right: 10, gap: 6 }}>
-            <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
-              {busy ? '…' : 'Change'}
-            </button>
-            <button className="btn small danger" onClick={removeCover}>
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          className="btn"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-          style={{ width: '100%', padding: '18px', borderStyle: 'dashed' }}
-        >
-          {busy ? 'Uploading…' : <><Icon name="image" size={15} /> Add a cover image</>}
-        </button>
-      )}
-    </div>
   )
 }
