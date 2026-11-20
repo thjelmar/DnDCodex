@@ -15,9 +15,10 @@ const TABLE_TO_KIND: Record<GlobalSyncTable, string> = {
   overviewLayout: 'overviewLayout',
 }
 
-// Each table's Dexie primary-key field. It becomes the record's `id` in the
-// cloud `user_records` row, so a record's identity is stable across devices
-// (templates keep their uuid; a generator table is keyed by its fixed slot).
+// Each table's Dexie primary-key field. The record body carries it, so the pull
+// side finds the local key there. The cloud `id` is that key when it is a uuid
+// (templates) or a deterministic uuid derived from it (a generator table's slot,
+// a duel's day); see globalSyncId.ts (T-93).
 export const GLOBAL_TABLE_KEY: Record<GlobalSyncTable, string> = {
   templates: 'id',
   genTables: 'slot',

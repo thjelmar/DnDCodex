@@ -1,6 +1,8 @@
 import { db, now } from '../db/db'
 import { supabase } from './supabase'
 import { GLOBAL_SYNC_TABLES, GLOBAL_TABLE_KEY, kindForGlobalTable, tableForGlobalKind } from './globalSyncKinds'
+import { cloudIdFor } from './globalSyncId'
+import { logSyncError } from './errorLog'
 import { setGlobalSyncOwner, onGlobalChange } from './globalSyncQueue'
 import type { GlobalSyncTable } from '../db/types'
 
@@ -45,7 +47,27 @@ onGlobalChange(requestGlobalSync)
 
 // ---- push -----------------------------------------------------------------
 
-/** Drains the global outbox, upserting records + tombstones to user_records. */
+type CloudWrite = { owner_id: string; kind: string; id: string; data: unknown; deleted: boolean }
+
+/** A readable message from an Error or from a Supabase PostgrestError (a plain object). */
+function errorText(e: unknown): string {
+  if (e instanceof Error) return e.message
+  if (e && typeof e === 'object') {
+    const o = e as { code?: unknown; message?: unknown }
+    if (typeof o.message === 'string') return o.code ? `${String(o.code)}: ${o.message}` : o.message
+  }
+  return String(e)
+}
+
+/**
+ * Drains the global outbox, upserting records + tombstones to user_records.
+ *
+ * Rows go up as one batch. If the batch is rejected for a reason that belongs to
+ * the data (the server answered with an error code), each row is retried on its
+ * own so one bad row can never block the rest (T-93). A row that still fails is
+ * logged and stays in the outbox; the others are flushed. A network failure (no
+ * error code) aborts the push, as before, because every row would fail the same way.
+ */
 async function pushGlobal(ownerId: string): Promise<void> {
   if (!supabase) return
   const pend = await db.pendingGlobal.toArray()
@@ -56,27 +78,54 @@ async function pushGlobal(ownerId: string): Promise<void> {
   for (const p of pend) latest.set(`${p.table}|${p.recordId}`, p)
 
   const nowIso = now()
-  const rows: { owner_id: string; kind: string; id: string; data: unknown; deleted: boolean }[] = []
+  const entries: { write: CloudWrite; key: string; outboxIds: number[] }[] = []
   for (const c of latest.values()) {
     const kind = kindForGlobalTable(c.table)
+    const keyField = GLOBAL_TABLE_KEY[c.table]
+    const id = await cloudIdFor(kind, c.recordId)
+    const tombstone = { id: c.recordId, [keyField]: c.recordId, updatedAt: nowIso }
+    let write: CloudWrite
     if (c.op === 'del') {
-      rows.push({ owner_id: ownerId, kind, id: c.recordId, data: { id: c.recordId, updatedAt: nowIso }, deleted: true })
-      continue
-    }
-    const rec = (await db.table(c.table).get(c.recordId)) as { updatedAt?: string } | undefined
-    if (!rec) {
-      rows.push({ owner_id: ownerId, kind, id: c.recordId, data: { id: c.recordId, updatedAt: nowIso }, deleted: true })
+      write = { owner_id: ownerId, kind, id, data: tombstone, deleted: true }
     } else {
-      rows.push({ owner_id: ownerId, kind, id: c.recordId, data: rec, deleted: false })
+      const rec = (await db.table(c.table).get(c.recordId)) as { updatedAt?: string } | undefined
+      write = rec
+        ? { owner_id: ownerId, kind, id, data: rec, deleted: false }
+        : { owner_id: ownerId, kind, id, data: tombstone, deleted: true }
+    }
+    const outboxIds = pend.filter((p) => p.table === c.table && p.recordId === c.recordId).map((p) => p.id!)
+    entries.push({ write, key: `${c.table}|${c.recordId}`, outboxIds })
+  }
+
+  const upsert = (rows: CloudWrite[]) => supabase!.from('user_records').upsert(rows, { onConflict: 'owner_id,kind,id' })
+  const flushed: number[] = []
+  const failed: string[] = []
+
+  const batch = await upsert(entries.map((e) => e.write))
+  if (!batch.error) {
+    for (const e of entries) flushed.push(...e.outboxIds)
+  } else if (!batch.error.code || entries.length === 1) {
+    // No code means the request never got an answer (offline). One row means there is nothing to isolate.
+    if (entries.length === 1 && batch.error.code) logSyncError(`global sync: ${entries[0].key} rejected: ${errorText(batch.error)}`)
+    throw batch.error
+  } else {
+    for (const e of entries) {
+      const one = await upsert([e.write])
+      if (!one.error) {
+        flushed.push(...e.outboxIds)
+      } else if (!one.error.code) {
+        throw one.error // went offline mid-way: keep the rest queued
+      } else {
+        failed.push(e.key)
+        logSyncError(`global sync: ${e.key} rejected: ${errorText(one.error)}`)
+      }
     }
   }
 
-  const { error } = await supabase.from('user_records').upsert(rows, { onConflict: 'owner_id,kind,id' })
-  if (error) throw error
-
   // We deliberately do NOT advance the cursor past our own writes; the next pull
   // re-fetches them, but applyGlobalRows is idempotent, so there's no echo.
-  await db.pendingGlobal.bulkDelete(pend.map((p) => p.id!).filter((id) => id != null))
+  if (flushed.length) await db.pendingGlobal.bulkDelete(flushed)
+  if (failed.length) throw new Error(`global sync: ${failed.length} record(s) rejected (${failed.join(', ')})`)
 }
 
 // ---- pull -----------------------------------------------------------------
@@ -113,6 +162,18 @@ async function pullGlobal(ownerId: string): Promise<void> {
   }
 }
 
+/**
+ * The Dexie primary key for a pulled row. Read from the record body (`slot`,
+ * `day`, or `id`), never decoded from the cloud id, because the cloud id of a
+ * slot or day is a hash. Null when the body carries no usable key (skip the row).
+ */
+function localKeyOf(table: GlobalSyncTable, row: CloudRow): string | null {
+  const v = row.data?.[GLOBAL_TABLE_KEY[table]]
+  if (typeof v === 'string' && v) return v
+  if (GLOBAL_TABLE_KEY[table] === 'id' && row.id) return row.id // uuid-keyed tables: the cloud id is the key
+  return null
+}
+
 /** Applies pulled rows to Dexie via RAW writes (never through the outbox). */
 async function applyGlobalRows(rows: CloudRow[]): Promise<void> {
   const pendingDeletes = new Set(
@@ -121,12 +182,14 @@ async function applyGlobalRows(rows: CloudRow[]): Promise<void> {
   for (const row of rows) {
     const table = tableForGlobalKind(row.kind)
     if (!table) continue // unknown/future kind — ignore
+    const key = localKeyOf(table, row)
+    if (key == null) continue // no key in the body (a tombstone from before T-93): nothing to map to
     const remoteAt = row.data?.updatedAt ?? row.updated_at
-    const local = (await db.table(table).get(row.id)) as { updatedAt?: string } | undefined
+    const local = (await db.table(table).get(key)) as { updatedAt?: string } | undefined
     const localAt = local?.updatedAt ?? ''
     if (row.deleted) {
-      if (local && localAt <= remoteAt) await db.table(table).delete(row.id)
-    } else if (pendingDeletes.has(`${table}|${row.id}`)) {
+      if (local && localAt <= remoteAt) await db.table(table).delete(key)
+    } else if (pendingDeletes.has(`${table}|${key}`)) {
       continue // a local delete is pending for this id — don't resurrect it
     } else if (!local || localAt <= remoteAt) {
       await db.table(table).put(row.data)
@@ -177,7 +240,7 @@ export async function syncGlobal(ownerId: string): Promise<void> {
     await pushGlobal(ownerId)
     await db.globalSyncState.update(ownerId, { lastSyncedAt: now(), lastError: null })
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
+    const msg = errorText(e)
     await db.globalSyncState.update(ownerId, { lastError: msg }).catch(() => {})
     throw e
   }
