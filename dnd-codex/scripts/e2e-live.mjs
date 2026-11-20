@@ -38,7 +38,9 @@ if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) {
   process.exit(1)
 }
 
-const res = spawnSync('npx', ['playwright', 'test', 'e2e/sync-repair.spec.ts', 'e2e/daily-duel-tally.spec.ts', 'e2e/battle-library.spec.ts', ...process.argv.slice(2)], {
+// One worker: the library specs compare the shared bucket's folder list before and
+// after a rollback, and the live suite is small, so parallel files only add races.
+const res = spawnSync('npx', ['playwright', 'test', 'e2e/sync-repair.spec.ts', 'e2e/daily-duel-tally.spec.ts', 'e2e/battle-library.spec.ts', 'e2e/battle-library-publish.spec.ts', '--workers=1', ...process.argv.slice(2)], {
   stdio: 'inherit',
   env: {
     ...process.env,

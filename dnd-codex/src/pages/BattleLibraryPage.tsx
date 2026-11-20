@@ -1,7 +1,10 @@
+import { Link } from 'react-router-dom'
 import { BattleLibrary } from '../components/BattleLibrary'
+import { usePublisher } from '../lib/libraryPublish'
 
 /** Tools → Battle map library: browse published maps and copy one into a campaign. */
 export function BattleLibraryPage() {
+  const publisher = usePublisher()
   return (
     <div className="content">
       <div className="page-header">
@@ -12,6 +15,7 @@ export function BattleLibraryPage() {
             campaign, so it keeps working offline even if the library changes.
           </div>
         </div>
+        {publisher && <Link className="btn" to="/tools/battlemaps/manage">Manage</Link>}
       </div>
       <BattleLibrary />
     </div>

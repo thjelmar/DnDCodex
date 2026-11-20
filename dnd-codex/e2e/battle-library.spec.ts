@@ -7,6 +7,11 @@ import {
   seedLibraryTemplate,
   removeLibraryTemplate,
   restAs,
+  addPublisher,
+  libraryObjects,
+  libraryPublicUrl,
+  storageUpload,
+  TINY_PNG,
   type TestUser,
 } from './live'
 
@@ -172,6 +177,58 @@ test.describe('battle map library (live backend)', () => {
       headers: { apikey: process.env.E2E_SUPABASE_SERVICE_KEY!, Authorization: `Bearer ${process.env.E2E_SUPABASE_SERVICE_KEY}` },
     })
     expect(await still.json()).toEqual([{ title: 'Draft' }])
+  })
+})
+
+test.describe('library bucket access (live backend, migration 0043)', () => {
+  test.skip(!LIVE, 'Needs a local Supabase stack. Run `npm run e2e:live`. See e2e/README.md.')
+
+  let publisher: TestUser | undefined
+  let other: TestUser | undefined
+  const ids: string[] = []
+  test.afterEach(async () => {
+    for (const id of ids.splice(0)) await removeLibraryTemplate(id, [1])
+    if (publisher) await deleteTestUser(publisher)
+    if (other) await deleteTestUser(other)
+    publisher = other = undefined
+  })
+
+  const list = async (who: 'anon' | TestUser, prefix: string): Promise<string[]> => {
+    const r = await restAs(who, '/storage/v1/object/list/battlemap-library', {
+      method: 'POST',
+      body: JSON.stringify({ prefix, limit: 100 }),
+    })
+    return r.ok ? ((await r.json()) as { name: string }[]).map((x) => x.name) : []
+  }
+  const remove = (who: 'anon' | TestUser, paths: string[]) =>
+    restAs(who, '/storage/v1/object/battlemap-library', { method: 'DELETE', body: JSON.stringify({ prefixes: paths }) })
+
+  test('only publishers can list or remove library files; draft files still load by direct URL', async () => {
+    publisher = await createTestUser()
+    other = await createTestUser()
+    await addPublisher(publisher.id)
+    const id = await seedLibraryTemplate({ title: `Bucket ${Date.now()}`, status: 'draft' })
+    ids.push(id)
+    const map = `${id}/v1/map.png`
+
+    // A draft's file loads by direct URL (public bucket), with no session at all.
+    expect((await fetch(libraryPublicUrl(map))).ok).toBe(true)
+
+    // Anon and a non-publisher cannot list it, and cannot remove it.
+    for (const who of ['anon', other] as const) {
+      expect(await list(who, id + '/v1'), 'listing is blocked').toEqual([])
+      expect(await list(who, ''), 'root listing is blocked').toEqual([])
+      await remove(who, [map])
+      expect(await libraryObjects(id + '/v1'), 'the file is still there').toContain('map.png')
+    }
+    expect((await fetch(libraryPublicUrl(map))).ok).toBe(true)
+
+    // A publisher can list it and remove it.
+    expect(await list(publisher, id + '/v1')).toEqual(expect.arrayContaining(['map.png', 'thumb.png']))
+    await storageUpload('battlemap-library', `${id}/v1/extra.png`, TINY_PNG)
+    const res = await remove(publisher, [`${id}/v1/extra.png`])
+    expect(res.ok).toBe(true)
+    expect(await libraryObjects(id + '/v1')).not.toContain('extra.png')
   })
 })
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
 import { createImage, createScene, deleteImage, deleteScene, updateScene } from '../db/repo'
@@ -12,6 +12,8 @@ import { TokenStatusCard, hasFloatingStatus } from '../components/TokenStatusCar
 import { SidePanel } from '../components/SidePanel'
 import { BattleLibrary } from '../components/BattleLibrary'
 import { libraryAvailable } from '../lib/battleLibrary'
+import { usePublisher } from '../lib/libraryPublish'
+import { PublishToLibraryModal } from '../components/LibraryPublish'
 import { EntityImage } from '../components/EntityImage'
 import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -96,6 +98,9 @@ export function BattleMapPage() {
   // Map library panel (hidden in the demo and when there is no backend).
   const [libOpen, setLibOpen] = useState(false)
   const canBrowse = libraryAvailable()
+  const publisher = usePublisher()
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [publishedNote, setPublishedNote] = useState<string | null>(null)
 
   return (
     // While a map is open the list collapses into a switcher in the editor
@@ -130,6 +135,7 @@ export function BattleMapPage() {
       )}
 
       <div style={{ minWidth: 0 }}>
+        {publishNote(publishedNote, () => setPublishedNote(null))}
         {selected ? (
           <SceneEditor
             key={selected.id}
@@ -140,6 +146,7 @@ export function BattleMapPage() {
             onSelectScene={setSelectedId}
             onNewScene={add}
             onBrowseLibrary={canBrowse ? () => setLibOpen(true) : undefined}
+            onPublishToLibrary={publisher && selected?.imageId ? () => setPublishOpen(true) : undefined}
           />
         ) : (
           <div className="empty">
@@ -148,6 +155,16 @@ export function BattleMapPage() {
           </div>
         )}
       </div>
+      {publishOpen && selected && (
+        <PublishToLibraryModal
+          scene={selected}
+          onClose={() => setPublishOpen(false)}
+          onDone={(t, newVersion) => {
+            setPublishOpen(false)
+            setPublishedNote(`${newVersion ? `Saved v${t.version} of` : 'Saved a draft of'} “${t.title}”.`)
+          }}
+        />
+      )}
       {libOpen && (
         <SidePanel title="Battle map library" onClose={() => setLibOpen(false)}>
           <BattleLibrary
@@ -177,6 +194,7 @@ export function SceneEditor({
   onSelectScene,
   onNewScene,
   onBrowseLibrary,
+  onPublishToLibrary,
 }: {
   campaign: Campaign
   scene: Scene
@@ -192,6 +210,8 @@ export function SceneEditor({
   onNewScene?: () => void
   /** Opens the map library panel (omitted when the library is unavailable). */
   onBrowseLibrary?: () => void
+  /** Opens the publish form (publishers only). */
+  onPublishToLibrary?: () => void
 }) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -737,6 +757,11 @@ export function SceneEditor({
           {onNewScene && (
             <button className="btn small" onClick={onNewScene} title="New battle map">
               <Icon name="plus" size={14} /> {tight ? null : 'New'}
+            </button>
+          )}
+          {onPublishToLibrary && (
+            <button className="btn small" onClick={onPublishToLibrary} title="Publish this map to the battle map library">
+              <Icon name="upload" size={14} /> {tight ? null : 'Publish to library'}
             </button>
           )}
           {onBrowseLibrary && (
@@ -1380,5 +1405,16 @@ function TokenCombatControl({
         </label>
       )}
     </div>
+  )
+}
+
+/** Confirmation strip after a publish; links to the Manage list. */
+function publishNote(note: string | null, dismiss: () => void) {
+  if (!note) return null
+  return (
+    <p className="faint" role="status" style={{ fontSize: 13, margin: '8px 0' }} data-testid="publish-note">
+      {note} <Link to="/tools/battlemaps/manage">Open Manage</Link> to preview and publish it.{' '}
+      <button className="btn ghost small" onClick={dismiss}>Dismiss</button>
+    </p>
   )
 }

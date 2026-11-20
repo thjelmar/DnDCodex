@@ -35,6 +35,7 @@ const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then((m) => ({ 
 const BackupPage = lazy(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
 const BattleLibraryPage = lazy(() => import('./pages/BattleLibraryPage').then((m) => ({ default: m.BattleLibraryPage })))
+const BattleLibraryManagePage = lazy(() => import('./pages/BattleLibraryManagePage').then((m) => ({ default: m.BattleLibraryManagePage })))
 const CreditsPage = lazy(() => import('./pages/CreditsPage').then((m) => ({ default: m.CreditsPage })))
 const ChangelogPage = lazy(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
 const CampaignLayout = lazy(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
@@ -619,6 +620,7 @@ export function App() {
             <Route path="/tools/generators" element={<GeneratorTablesPage />} />
             <Route path="/tools/templates" element={<TemplatesPage />} />
             <Route path="/tools/battlemaps" element={<BattleLibraryPage />} />
+            <Route path="/tools/battlemaps/manage" element={<BattleLibraryManagePage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />

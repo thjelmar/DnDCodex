@@ -167,12 +167,15 @@ export async function seedLibraryTemplate(t: SeedTemplate): Promise<string> {
 }
 
 /** Removes a template row and its objects. */
-export async function removeLibraryTemplate(id: string): Promise<void> {
+export async function removeLibraryTemplate(id: string, versions: number[] = [1]): Promise<void> {
   await fetch(`${URL_}/rest/v1/battle_map_templates?id=eq.${id}`, { method: 'DELETE', headers: svc() })
+  const prefixes = versions.flatMap((v) =>
+    ['map.png', 'thumb.png', 'map.webp', 'thumb.webp'].map((f) => `${id}/v${v}/${f}`),
+  )
   await fetch(`${URL_}/storage/v1/object/battlemap-library`, {
     method: 'DELETE',
     headers: { ...svc(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prefixes: [`${id}/v1/map.png`, `${id}/v1/thumb.png`] }),
+    body: JSON.stringify({ prefixes }),
   })
 }
 
@@ -194,3 +197,24 @@ export function restAs(who: 'anon' | TestUser, path: string, init: RequestInit =
     headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers ?? {}) },
   })
 }
+
+/** Lists object names under a prefix in the library bucket (service key). */
+export async function libraryObjects(prefix: string): Promise<string[]> {
+  const r = await fetch(`${URL_}/storage/v1/object/list/battlemap-library`, {
+    method: 'POST',
+    headers: { ...svc(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefix, limit: 100 }),
+  })
+  const rows = (await r.json()) as { name: string }[]
+  return rows.map((x) => x.name)
+}
+
+/** Template rows straight from the database (service key), optionally one id. */
+export async function libraryRows(id?: string): Promise<Record<string, unknown>[]> {
+  const q = id ? `?id=eq.${id}` : '?order=created_at.desc'
+  const r = await fetch(`${URL_}/rest/v1/battle_map_templates${q}`, { headers: svc() })
+  return (await r.json()) as Record<string, unknown>[]
+}
+
+/** Public URL of a library object, as a signed-out visitor would fetch it. */
+export const libraryPublicUrl = (path: string) => `${URL_}/storage/v1/object/public/battlemap-library/${path}`
