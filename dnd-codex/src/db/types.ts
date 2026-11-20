@@ -692,8 +692,26 @@ export interface SyncOptOutRow {
 // campaigns (templates today). Also LOCAL-ONLY; backed by `user_records`.
 // ---------------------------------------------------------------------------
 
+/** The user's saved campaign Overview layout (T-88): one record per account, shared by
+ *  every campaign. Its key is the fixed UUID OVERVIEW_LAYOUT_ID, because the cloud
+ *  `user_records.id` column is a uuid. The card ids and widths are
+ *  validated by lib/overviewCards.reconcile on every read, so this stores them loosely.
+ *  Rides the global `user_records` channel, last write wins on `updatedAt`. */
+export interface OverviewLayoutRecord {
+  id: string
+  /** Schema version of `cards`; a newer version than the app knows is ignored. */
+  version: number
+  /** Visible cards in display order, each with a width in 12-column units. */
+  cards: { id: string; span: number }[]
+  /** Card ids the user removed from the page. */
+  hidden: string[]
+  /** Every card id that existed when the layout was last saved. */
+  knownIds: string[]
+  updatedAt: ISODate
+}
+
 /** Dexie tables synced through the per-user `user_records` channel. */
-export type GlobalSyncTable = 'templates' | 'genTables' | 'duelHistory'
+export type GlobalSyncTable = 'templates' | 'genTables' | 'duelHistory' | 'overviewLayout'
 
 /** One queued local mutation of global data waiting to be pushed. */
 export interface PendingGlobalChange {

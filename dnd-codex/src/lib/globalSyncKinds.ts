@@ -6,12 +6,13 @@ import type { GlobalSyncTable } from '../db/types'
 // for the campaign channel.
 
 /** Every Dexie table that participates in the per-user global sync. */
-export const GLOBAL_SYNC_TABLES: GlobalSyncTable[] = ['templates', 'genTables', 'duelHistory']
+export const GLOBAL_SYNC_TABLES: GlobalSyncTable[] = ['templates', 'genTables', 'duelHistory', 'overviewLayout']
 
 const TABLE_TO_KIND: Record<GlobalSyncTable, string> = {
   templates: 'template',
   genTables: 'genTable',
   duelHistory: 'duelRecord',
+  overviewLayout: 'overviewLayout',
 }
 
 // Each table's Dexie primary-key field. It becomes the record's `id` in the
@@ -21,6 +22,7 @@ export const GLOBAL_TABLE_KEY: Record<GlobalSyncTable, string> = {
   templates: 'id',
   genTables: 'slot',
   duelHistory: 'day',
+  overviewLayout: 'id',
 }
 
 const KIND_TO_TABLE: Record<string, GlobalSyncTable> = Object.fromEntries(
