@@ -17,6 +17,22 @@ test('a new campaign shows an unticked checklist and an empty feed, then the fee
   await expect(prep.getByRole('link', { name: /Log your first session/ })).toBeVisible()
   await expect(prep.getByRole('link', { name: /Write the world overview/ })).toBeVisible()
 
+  // Placement: both panels sit in the main column under Recent sessions, and the
+  // World overview stays first.
+  const top = async (name: string) =>
+    (await page.locator('.ov-main').getByRole('heading', { name }).boundingBox())!.y
+  const ys = [await top('World overview'), await top('Recent sessions'), await top('Prep checklist'), await top('Recently edited')]
+  expect(ys).toEqual([...ys].sort((a, b) => a - b))
+  await expect(page.locator('.ov-main').getByRole('region', { name: 'Prep checklist' })).toBeVisible()
+  await expect(page.locator('.ov-main').getByRole('region', { name: 'Recently edited' })).toBeVisible()
+
+  // The world overview item opens the Edit campaign dialog.
+  await prep.getByRole('link', { name: /Write the world overview/ }).click()
+  await expect(page.getByRole('dialog', { name: 'Edit Campaign' })).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByRole('dialog', { name: 'Edit Campaign' })).toBeHidden()
+  await expect(page).toHaveURL(/#\/campaign\/[^/?]+$/)
+
   const feed = page.getByRole('region', { name: 'Recently edited' })
   await expect(feed).toContainText('Nothing yet')
 

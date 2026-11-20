@@ -27,9 +27,12 @@ export interface PrepItem {
   to: string
 }
 
-/** True when an HTML or Markdown string has any visible text. */
+/** True when an HTML or Markdown string has visible content: text, or an embedded
+ *  image, video or iframe (a description that is only a picture is not blank). */
 export function hasText(s: string | null | undefined): boolean {
-  return !!s && s.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim() !== ''
+  if (!s) return false
+  if (/<(img|video|iframe)\b/i.test(s)) return true
+  return s.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').trim() !== ''
 }
 
 function names(list: string[], max = 3): string {
@@ -92,7 +95,8 @@ export function derivePrepChecklist(input: PrepInput): PrepItem[] {
     key: 'overview',
     label: 'Write the world overview',
     done: hasText(campaign.description),
-    to: '',
+    // Opens the Edit campaign dialog (OverviewPage reads ?edit=1, like ?planner=1).
+    to: '?edit=1',
   })
 
   return items

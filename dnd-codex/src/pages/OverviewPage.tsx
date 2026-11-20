@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon'
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createCampaign, updateCampaign, deleteCampaign } from '../db/repo'
@@ -28,6 +28,17 @@ export function OverviewPage() {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // The prep checklist links here with ?edit=1 to open the Edit campaign dialog;
+  // strip the param so closing the dialog doesn't reopen it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('edit') !== '1') return
+    setEditing(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('edit')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // Archiving ends the campaign: it also clears the next-session schedule so the
   // shared calendar feed empties and players stop seeing sessions on their

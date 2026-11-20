@@ -76,11 +76,26 @@ test.describe('prep checklist logic', () => {
     expect(item.to).toBe('locations')
   })
 
+  test('the world overview item opens the edit dialog, and an image-only overview counts as written', () => {
+    const open = derivePrepChecklist(base).find((i) => i.key === 'overview')!
+    expect(open.to).toBe('?edit=1')
+    const pic = derivePrepChecklist({
+      ...base,
+      campaign: { nextSessionDate: null, description: '<p><img src="data:image/png;base64,AAAA"></p>' },
+    }).find((i) => i.key === 'overview')!
+    expect(pic.done).toBe(true)
+  })
+
   test('hasText ignores markup and blank space', () => {
     expect(hasText('<p>&nbsp; </p>')).toBe(false)
     expect(hasText('  ')).toBe(false)
     expect(hasText('<p>Hi</p>')).toBe(true)
     expect(hasText(undefined)).toBe(false)
+    // A description that is only a picture or an embed is not blank.
+    expect(hasText('<p><img src="data:image/png;base64,AAAA"></p>')).toBe(true)
+    expect(hasText('<iframe src="https://example.com"></iframe>')).toBe(true)
+    expect(hasText('<video src="a.mp4"></video>')).toBe(true)
+    expect(hasText('<p><span> </span></p>')).toBe(false)
   })
 })
 
