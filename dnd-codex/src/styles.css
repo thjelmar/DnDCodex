@@ -4486,21 +4486,21 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   align-items: start;
 }
 /* One column by default (phone): every block spans the full width, in DOM order. The
-   DOM order is the reading order for the width (OverviewPage renders the keyed blocks
-   in a different order on a wide screen), so nothing here reorders them. */
+   DOM order is the reading order at every width (OverviewPage), so nothing here
+   reorders the blocks. */
 .ov-bento > * { grid-column: 1 / -1; margin: 0; min-width: 0; }
 .ov-side { display: flex; flex-direction: column; gap: 14px; }
 /* Wide: place the blocks explicitly, so the layout does not depend on source order.
-   Next session and the hub cards span the top; World overview, Recent sessions and
-   the prep checklist and feed stack in the left 8 columns; Links and Voice sit in the
-   right 4 columns beside them. */
+   The World overview, the next-session strip and the hub cards span the top, in that
+   order; Recent sessions and the prep checklist and feed stack in the left 8 columns;
+   Links and Voice sit in the right 4 columns beside them. */
 @media (min-width: 961px) {
-  .ov-bento > .ov-next { grid-row: 1; }
-  .ov-bento > .ov-hub { grid-row: 2; }
-  .ov-bento > .ov-world { grid-column: 1 / span 8; grid-row: 3; }
+  .ov-bento > .ov-world { grid-row: 1; }
+  .ov-bento > .ov-next { grid-row: 2; }
+  .ov-bento > .ov-hub { grid-row: 3; }
   .ov-bento > .ov-recent { grid-column: 1 / span 8; grid-row: 4; }
   .ov-bento > .ov-extras { grid-column: 1 / span 8; grid-row: 5; }
-  .ov-bento > .ov-side { grid-column: 9 / span 4; grid-row: 3 / span 3; }
+  .ov-bento > .ov-side { grid-column: 9 / span 4; grid-row: 4 / span 2; }
 }
 
 .ov-panel {
