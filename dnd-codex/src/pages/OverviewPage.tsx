@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon'
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createCampaign, updateCampaign, deleteCampaign } from '../db/repo'
@@ -12,6 +12,7 @@ import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
+import { CampaignPrep } from '../components/CampaignPrep'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -27,6 +28,17 @@ export function OverviewPage() {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // The prep checklist links here with ?edit=1 to open the Edit campaign dialog;
+  // strip the param so closing the dialog doesn't reopen it.
+  const [searchParams, setSearchParams] = useSearchParams()
+  useEffect(() => {
+    if (searchParams.get('edit') !== '1') return
+    setEditing(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('edit')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
 
   // Archiving ends the campaign: it also clears the next-session schedule so the
   // shared calendar feed empties and players stop seeing sessions on their
@@ -151,6 +163,11 @@ export function OverviewPage() {
               )}
             </div>
           </section>
+
+          {/* Prep checklist and Recently edited sit under Recent sessions: the world
+              overview stays first in the main column (and first on a phone), and the
+              wide main column has room for the checklist rows. */}
+          <CampaignPrep campaign={campaign} />
         </div>
 
         <aside className="ov-side">
