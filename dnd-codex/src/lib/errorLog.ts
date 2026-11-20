@@ -51,6 +51,11 @@ export function logBoundaryError(err: unknown, componentStack?: string | null) {
   push({ at: new Date().toISOString(), kind: 'error', message: message.slice(0, 500), source })
 }
 
+/** Record a handled sync failure so a bug report shows it (the sync swallows these). */
+export function logSyncError(message: string) {
+  push({ at: new Date().toISOString(), kind: 'error', message: message.slice(0, 500), source: 'sync' })
+}
+
 /** A snapshot of the recent errors (most recent last). */
 export function getRecentErrors(): LoggedError[] {
   return buffer.slice()
