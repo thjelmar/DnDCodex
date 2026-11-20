@@ -3,10 +3,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { createCampaign, updateCampaign, deleteCampaign } from '../db/repo'
+import { updateCampaign, deleteCampaign } from '../db/repo'
 import { useCampaign } from './CampaignLayout'
 import { RichTextEditor } from '../components/RichTextEditor'
-import { AddLinkButton } from '../components/AddLinkButton'
 import { CampaignLinks } from '../components/CampaignLinks'
 import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
@@ -80,11 +79,6 @@ export function OverviewPage() {
         .sortBy('date')
         .then((s) => s.slice(0, 4)),
     [campaign.id],
-  )
-
-  const allCampaigns = useLiveQuery(() => db.campaigns.toArray(), [])
-  const related = (allCampaigns ?? []).filter((c) =>
-    campaign.relatedCampaignIds.includes(c.id),
   )
 
   async function handleDelete() {
@@ -178,21 +172,6 @@ export function OverviewPage() {
           <CollapsePanel title="Voice">
             <DiscordVoiceSettings campaign={campaign} />
           </CollapsePanel>
-
-          <CollapsePanel title="Linked campaigns">
-            <p className="muted" style={{ marginTop: 0 }}>
-              Reference shared worlds or previous campaigns.
-            </p>
-            <div className="row wrap" style={{ marginBottom: 8 }}>
-              {related.map((c) => (
-                <Link key={c.id} to={`/campaign/${c.id}`} className="tag" style={{ textDecoration: 'none' }}>
-                  ● {c.name}
-                </Link>
-              ))}
-              {related.length === 0 && <span className="faint">None linked.</span>}
-            </div>
-            <RelatedCampaignPicker campaignId={campaign.id} current={campaign.relatedCampaignIds} allCampaigns={allCampaigns ?? []} />
-          </CollapsePanel>
         </aside>
       </div>
 
@@ -247,56 +226,6 @@ export function OverviewPage() {
         </Modal>
       )}
     </div>
-  )
-}
-
-function RelatedCampaignPicker({
-  campaignId,
-  current,
-  allCampaigns,
-}: {
-  campaignId: string
-  current: string[]
-  allCampaigns: { id: string; name: string }[]
-}) {
-  const navigate = useNavigate()
-  const options = allCampaigns.filter(
-    (c) => c.id !== campaignId && !current.includes(c.id),
-  )
-  const noOtherCampaigns = allCampaigns.filter((c) => c.id !== campaignId).length === 0
-  if (noOtherCampaigns) {
-    return (
-      <AddLinkButton
-        label="campaign"
-        onAdd={async () => {
-          const created = await createCampaign()
-          await updateCampaign(campaignId, { relatedCampaignIds: [...current, created.id] })
-          navigate(`/campaign/${created.id}`)
-        }}
-      />
-    )
-  }
-  if (options.length === 0) return null
-  return (
-    <select
-      className="select"
-      style={{ maxWidth: 280 }}
-      value=""
-      onChange={(e) => {
-        if (e.target.value) {
-          updateCampaign(campaignId, {
-            relatedCampaignIds: [...current, e.target.value],
-          })
-        }
-      }}
-    >
-      <option value="">+ Link a campaign…</option>
-      {options.map((c) => (
-        <option key={c.id} value={c.id}>
-          {c.name}
-        </option>
-      ))}
-    </select>
   )
 }
 
