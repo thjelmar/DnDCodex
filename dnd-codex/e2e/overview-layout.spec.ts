@@ -76,14 +76,16 @@ test.describe('campaign Overview (desktop)', () => {
     // Main takes about two thirds (8 of 12 columns), side about one third.
     expect(main!.width).toBeGreaterThan(side!.width * 1.6)
 
-    // World overview and Recent sessions are in the main column; Links, Voice and
-    // Linked campaigns are in the right column.
+    // World overview and Recent sessions are in the main column; Links and Voice
+    // are in the right column. The old Linked campaigns panel is gone.
     for (const t of ['World overview', 'Recent sessions']) {
       await expect(page.locator('.ov-main').getByRole('heading', { name: t })).toBeVisible()
     }
-    for (const t of ['Links', 'Voice', 'Linked campaigns']) {
+    for (const t of ['Links', 'Voice']) {
       await expect(page.locator('.ov-side').getByRole('heading', { name: t })).toBeVisible()
     }
+    await expect(page.getByRole('heading', { name: 'Linked campaigns' })).toHaveCount(0)
+    await expect(page.getByText('Link a campaign')).toHaveCount(0)
     // Wide screens show every panel open.
     await expect(page.locator('.ov-side').getByRole('button', { name: 'Links' })).toHaveAttribute(
       'aria-expanded',
@@ -155,7 +157,7 @@ test.describe('campaign Overview (phone, 375px)', () => {
     const toggle = (name: string) => page.getByRole('button', { name, exact: true })
     // World overview stays open; the side panels start closed.
     await expect(toggle('World overview')).toHaveAttribute('aria-expanded', 'true')
-    for (const name of ['Links', 'Voice', 'Linked campaigns']) {
+    for (const name of ['Links', 'Voice']) {
       await expect(toggle(name)).toHaveAttribute('aria-expanded', 'false')
     }
     await toggle('Links').click()
