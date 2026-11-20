@@ -16,6 +16,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-20',
+    title: 'A new campaign home, edit mode, and a battle map library',
+    changes: [
+      { kind: 'new', text: 'The sidebar now lists every page of your campaign under Prep, Run, World, and Reference, with counts. The groups open and close with a short animation, and the group holding the page you are on opens by itself.' },
+      { kind: 'new', text: 'The campaign home is rebuilt as cards. Your World overview sits right under the title, followed by the next session and four summary cards: Prep, Run, World & Lore, and Reference. They show your last session recap, your latest battle map with token avatars, NPC portraits, a world map preview, and your newest items.' },
+      { kind: 'new', text: 'A prep checklist and a recently edited list now sit on the campaign home, so you can see what still needs doing before the next session.' },
+      { kind: 'new', text: 'Use Edit layout on the campaign home to move cards, make them wider or narrower, hide them, and add them back. Your layout is saved to your account and follows you to your other devices. On a phone you can reorder and hide cards.' },
+      { kind: 'new', text: 'A shared battle map library. Browse maps shared with everyone under Tools, or with Browse library on the battle map page, and add one to your campaign in one click. Its grid comes already set. The library is not available in the demo.' },
+      { kind: 'improved', text: 'Links and Voice now share one card with two sections that collapse on their own. A collapsed card shrinks to just its title, and cards in the same row match in height.' },
+      { kind: 'improved', text: 'Archive and delete for a campaign now live behind a Campaign settings button on the title card.' },
+      { kind: 'fixed', text: 'The campaign home no longer crashes now and then when you refresh it in Safari.' },
+      { kind: 'fixed', text: 'Daily Duel history and your generator tables now sync to your account. A bug had been stopping them from syncing, along with anything queued behind them.' },
+    ],
+  },
+  {
     date: '2026-11-16',
     title: 'Daily Duel: a roomier layout',
     changes: [
