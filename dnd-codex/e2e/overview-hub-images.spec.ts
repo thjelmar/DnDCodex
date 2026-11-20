@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
-import { thumbSize, REUSE_BELOW_CHARS } from '../src/lib/thumbnail'
+import { thumbSize, REUSE_BELOW_CHARS, previewSource, ThumbCache } from '../src/lib/thumbnailCore'
 import { pickPortraitNpcs } from '../src/lib/hubCards'
 
 // The pictures on the Overview hub cards (T-75): NPC portraits and a world map
@@ -48,6 +48,31 @@ const resetLog = (page: Page) =>
     l.scans.length = 0
   })
 
+/**
+ * Wait for the four hub cards. The Overview has an intermittent first-load crash in the
+ * World overview editor (T-71: "Cannot read properties of null (reading 'cached')"), which
+ * replaces the page with "Something went wrong loading this page." If that shows, reload
+ * (up to twice, and say so in the output) rather than fail a test that is about pictures.
+ * Remove this when T-71 is fixed.
+ */
+async function expectCards(page: Page): Promise<void> {
+  const cards = page.locator('.ov-hubcard')
+  const crashed = page.getByText('Something went wrong loading this page.')
+  const wait = (loc: ReturnType<Page['locator']>, state: 'attached' | 'visible', tag: string) =>
+    loc.first().waitFor({ state, timeout: 20_000 }).then(() => tag).catch(() => 'none')
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const outcome = await Promise.race([wait(cards, 'attached', 'cards'), wait(crashed, 'visible', 'crash')])
+    if (outcome === 'cards') break
+    if (outcome === 'crash' && attempt < 2) {
+      console.warn('T-71: the Overview crashed on load; reloading')
+      await page.reload()
+      continue
+    }
+    break
+  }
+  await expect(cards).toHaveCount(4)
+}
+
 async function openDemo(page: Page, theme?: 'light' | 'dark'): Promise<void> {
   await page.addInitScript(INSTRUMENT)
   await page.addInitScript((t) => {
@@ -55,7 +80,7 @@ async function openDemo(page: Page, theme?: 'light' | 'dark'): Promise<void> {
     if (t) localStorage.setItem('codex.theme', t)
   }, theme ?? null)
   await page.goto(DEMO_PATH)
-  await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+  await expectCards(page)
 }
 
 /** Put real image records into the demo database (raw IndexedDB, then reload). The
@@ -126,7 +151,7 @@ async function injectImages(page: Page) {
     return { storedBigMap: bigMap.dataUrl.length, others: unrelated.map((u) => u.id) }
   }, CID)
   await page.reload()
-  await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+  await expectCards(page)
   return ids
 }
 
@@ -165,6 +190,93 @@ test.describe('thumbnail and portrait logic', () => {
     expect(picked.map((x) => x.id)).toEqual(['c', 'b', 'a', 'd', 'e'])
     expect(pickPortraitNpcs([])).toEqual([])
     expect(pickPortraitNpcs([n('z', null, '2026-01-01')], 5)).toHaveLength(1)
+  })
+})
+
+test.describe('thumbnail cache and preview source (logic)', () => {
+  const big = (n: number) => 'x'.repeat(n)
+
+  test('the cache is bounded by entry count, least recently used first', () => {
+    const c = new ThumbCache(3, 1_000_000, 1_000_000)
+    for (const k of ['a|1', 'b|1', 'c|1']) c.set(k, big(10))
+    c.get('a|1') // touch: now b is the oldest
+    c.set('d|1', big(10))
+    expect(c.size).toBe(3)
+    expect(c.get('b|1')).toBeUndefined()
+    expect(c.get('a|1')).toBeDefined()
+  })
+
+  test('the cache is bounded by total characters, and skips one oversize entry', () => {
+    const c = new ThumbCache(100, 100, 60)
+    c.set('a|1', big(50))
+    c.set('b|1', big(50))
+    expect(c.chars).toBe(100)
+    c.set('c|1', big(50)) // over the total: the oldest goes
+    expect(c.get('a|1')).toBeUndefined()
+    expect(c.chars).toBeLessThanOrEqual(100)
+    c.set('huge|1', big(61)) // over the per-entry limit: not kept at all
+    expect(c.get('huge|1')).toBeUndefined()
+    expect(c.chars).toBeLessThanOrEqual(100)
+  })
+
+  test('dropImage removes every size of one image and leaves the others', () => {
+    const c = new ThumbCache()
+    c.set('img-1|96', 'a')
+    c.set('img-1|640', 'bb')
+    c.set('img-10|96', 'ccc')
+    c.set('img-2|96', 'dddd')
+    c.dropImage('img-1')
+    expect(c.get('img-1|96')).toBeUndefined()
+    expect(c.get('img-1|640')).toBeUndefined()
+    expect(c.get('img-10|96')).toBe('ccc') // a different id that merely starts the same
+    expect(c.get('img-2|96')).toBe('dddd')
+    expect(c.chars).toBe('ccc'.length + 'dddd'.length)
+  })
+
+  test('replacing a key updates the running total instead of double counting', () => {
+    const c = new ThumbCache()
+    c.set('a|1', big(10))
+    c.set('a|1', big(4))
+    expect(c.size).toBe(1)
+    expect(c.chars).toBe(4)
+  })
+
+  const png = (chars: number) => ({ dataUrl: 'data:image/png;base64,' + big(chars), mime: 'image/png', width: 1600, height: 900 })
+
+  test('previewSource shows small images, SVG and already-small images as they are, without shrinking', async () => {
+    let calls = 0
+    const spy = async () => {
+      calls++
+      return 'data:image/webp;base64,small'
+    }
+    const small = { ...png(1000) }
+    expect(await previewSource(small, 640, spy)).toBe(small.dataUrl)
+    const tiny = { ...png(REUSE_BELOW_CHARS + 10_000), width: 300, height: 200 } // large text, but already small in pixels
+    expect(await previewSource(tiny, 640, spy)).toBe(tiny.dataUrl)
+    expect(calls).toBe(0)
+  })
+
+  test('a large SVG (URL-encoded or base64, with or without a mime) is shown as it is and never shrunk', async () => {
+    let calls = 0
+    const spy = async () => {
+      calls++
+      throw new Error('should not be called')
+    }
+    const svgText = '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600">' + '<rect width="10" height="10"/>'.repeat(1500) + '</svg>'
+    const encoded = { dataUrl: 'data:image/svg+xml;utf8,' + encodeURIComponent(svgText), mime: 'image/svg+xml', width: 1200, height: 600 }
+    const b64 = { dataUrl: 'data:image/svg+xml;base64,' + btoa(svgText), width: 1200, height: 600 } // no mime field
+    expect(encoded.dataUrl.length).toBeGreaterThan(REUSE_BELOW_CHARS)
+    expect(b64.dataUrl.length).toBeGreaterThan(REUSE_BELOW_CHARS)
+    expect(await previewSource(encoded, 640, spy)).toBe(encoded.dataUrl)
+    expect(await previewSource(b64, 640, spy)).toBe(b64.dataUrl)
+    expect(calls).toBe(0)
+  })
+
+  test('when shrinking fails, or is not smaller, the original is shown', async () => {
+    const rec = png(REUSE_BELOW_CHARS + 20_000)
+    expect(await previewSource(rec, 640, async () => { throw new Error('cannot decode') })).toBe(rec.dataUrl)
+    expect(await previewSource(rec, 640, async () => big(rec.dataUrl.length + 5))).toBe(rec.dataUrl)
+    expect(await previewSource(rec, 640, async () => 'data:image/webp;base64,tiny')).toBe('data:image/webp;base64,tiny')
   })
 })
 
@@ -225,7 +337,7 @@ test.describe('hub card pictures, real and broken images (desktop)', () => {
     const { storedBigMap } = await injectImages(page)
     await resetLog(page)
     await page.reload()
-    await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+    await expectCards(page)
 
     const world = card(page, 'World & Lore')
     // The small portrait is shown as it is.
@@ -281,7 +393,7 @@ test.describe('hub card pictures, real and broken images (desktop)', () => {
     const { others } = await injectImages(page) // 20 unrelated handout images are in the table too
     await resetLog(page)
     await page.reload()
-    await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+    await expectCards(page)
     await expect(card(page, 'Run').locator('.ov-battle img')).toBeVisible()
     await expect(card(page, 'World & Lore').locator('.ov-npc', { hasText: 'Bram' }).locator('img')).toBeVisible()
 
@@ -305,7 +417,7 @@ test.describe('hub card pictures at 375px', () => {
     await injectImages(page)
     await resetLog(page)
     await page.reload()
-    await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+    await expectCards(page)
 
     // World & Lore starts collapsed on a phone: none of its pictures are read, however
     // long we wait. (The open Run card loads its map once it is scrolled near the screen.)
@@ -353,7 +465,7 @@ test.describe('hub card pictures, empty campaign', () => {
       await page.getByRole('button', { name: 'Start a campaign' }).click()
       await page.getByPlaceholder('Curse of the Shattered Crown').fill(`E2E Pics ${Date.now()}`)
       await page.getByRole('button', { name: 'Create', exact: true }).click()
-      await expect(page.locator('.ov-hubcard')).toHaveCount(4)
+      await expectCards(page)
       if (size.width < 500) await page.locator('.ov-hub').getByRole('button', { name: 'World & Lore', exact: true }).click()
 
       await expect(card(page, 'World & Lore')).toContainText('No world map yet')
@@ -407,5 +519,223 @@ test.describe('hub card pictures, light theme', () => {
       bg: getComputedStyle(e.closest('.ov-panel') as Element).backgroundColor,
     }))
     expect(contrast(npc.fg, npc.bg)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+
+// ---- review fixes: images that change, SVG, and the icon chunk ------------------
+
+/** A small solid-colour PNG as a data URL, drawn in the page. */
+const makePng = (page: Page, color: string, size = 40) =>
+  page.evaluate(
+    ([c, n]) => {
+      const cv = document.createElement('canvas')
+      cv.width = n as number
+      cv.height = n as number
+      const x = cv.getContext('2d')!
+      x.fillStyle = c as string
+      x.fillRect(0, 0, n as number, n as number)
+      return cv.toDataURL('image/png')
+    },
+    [color, size],
+  )
+
+/** Write rows into the demo database with raw IndexedDB (no Dexie hooks fire), then reload. */
+async function putRows(
+  page: Page,
+  rows: { images?: object[]; npcs?: Record<string, string | null>; sceneImageId?: string | null; tokenImageId?: string | null },
+) {
+  await page.evaluate(async (r) => {
+    const db: IDBDatabase = await new Promise((res, rej) => {
+      const q = indexedDB.open('dnd-codex-demo')
+      q.onsuccess = () => res(q.result)
+      q.onerror = () => rej(q.error)
+    })
+    const tx = db.transaction(['images', 'npcs', 'scenes'], 'readwrite')
+    for (const row of r.images ?? []) tx.objectStore('images').put(row)
+    const patch = (store: string, key: string, fn: (v: Record<string, unknown>) => Record<string, unknown>) => {
+      const os = tx.objectStore(store)
+      const g = os.get(key)
+      g.onsuccess = () => os.put(fn(g.result))
+    }
+    for (const [id, imageId] of Object.entries(r.npcs ?? {})) patch('npcs', id, (v) => ({ ...v, imageId }))
+    if (r.sceneImageId !== undefined || r.tokenImageId !== undefined) {
+      patch('scenes', 'demo-scene-stag', (v) => ({
+        ...v,
+        ...(r.sceneImageId !== undefined ? { imageId: r.sceneImageId } : {}),
+        ...(r.tokenImageId !== undefined
+          ? { tokens: (v.tokens as Array<Record<string, unknown>>).map((t) => ({ ...t, imageId: r.tokenImageId })) }
+          : {}),
+      }))
+    }
+    await new Promise<void>((res) => (tx.oncomplete = () => res()))
+    db.close()
+  }, rows)
+  await page.reload()
+  await expectCards(page)
+}
+
+const imgRow = (id: string, dataUrl: string, w = 40, h = 40, extra: object = {}) => ({
+  id,
+  campaignId: CID,
+  name: `${id}.png`,
+  mime: dataUrl.startsWith('data:image/svg') ? 'image/svg+xml' : 'image/png',
+  dataUrl,
+  width: w,
+  height: h,
+  bytes: Math.round(dataUrl.length * 0.75),
+  createdAt: '2026-02-01T00:00:00.000Z',
+  updatedAt: '2026-02-01T00:00:00.000Z',
+  ...extra,
+})
+
+/** Run code against the app's own Dexie instance (the same module the page uses), so its
+ *  hooks and live queries fire exactly as they would for a real edit. */
+const withAppDb = <T,>(page: Page, body: string): Promise<T> =>
+  page.evaluate(async (code) => {
+    const { db } = await (0, eval)("import('/src/db/db.ts')")
+    return await new Function('db', `return (async () => { ${code} })()`)(db)
+  }, body)
+
+const goAwayAndBack = async (page: Page) => {
+  await page.evaluate((cid) => (location.hash = `#/campaign/${cid}/npcs`), CID)
+  await expect(page).toHaveURL(/\/npcs$/)
+  // The NPCs page is a lazy chunk: the Overview stays on screen until it has loaded. Wait
+  // until the Overview is really gone (unmounted), so coming back remounts the cards.
+  await expect(page.locator('.ov-hubcard')).toHaveCount(0)
+  await page.evaluate((cid) => (location.hash = `#/campaign/${cid}`), CID)
+  await expectCards(page)
+}
+
+const battleImg = (page: Page) => card(page, 'Run').locator('.ov-battle img')
+const battleSrc = (page: Page) => battleImg(page).evaluate((i: HTMLImageElement) => i.src)
+
+test.describe('images that change while the page is open (desktop)', () => {
+  test.use({ viewport: { width: 1440, height: 1000 } })
+
+  test('a cloud-only map shows the placeholder, then the image once it is in the local record', async ({ page }) => {
+    await openDemo(page)
+    await putRows(page, { images: [imgRow('late-1', '', 800, 600, { storagePath: 'battlemaps/late.png' })], sceneImageId: 'late-1' })
+    await expect(card(page, 'Run').locator('.ov-battle')).toContainText('Map image not available on this device')
+    await expect(battleImg(page)).toHaveCount(0)
+
+    // The Battle Map page downloads the file into the same record (a Dexie write).
+    const png = await makePng(page, '#3366cc')
+    await withAppDb(page, `await db.images.update('late-1', { dataUrl: ${JSON.stringify(png)} })`)
+    await goAwayAndBack(page) // the card remounts; the earlier "missing" was not remembered
+    await expect(battleImg(page)).toBeVisible()
+    await expect(card(page, 'Run').locator('.ov-battle')).not.toContainText('not available')
+    expect(await battleSrc(page)).toBe(png)
+  })
+
+  test('an image replaced in place under the same id is shown after the card remounts', async ({ page }) => {
+    await openDemo(page)
+    const red = await makePng(page, '#cc2233')
+    const green = await makePng(page, '#22aa44')
+    await putRows(page, { images: [imgRow('same-1', red)], sceneImageId: 'same-1' })
+    await expect(battleImg(page)).toBeVisible()
+    expect(await battleSrc(page)).toBe(red) // now cached
+
+    await withAppDb(page, `await db.images.update('same-1', { dataUrl: ${JSON.stringify(green)} })`)
+    await goAwayAndBack(page)
+    await expect(battleImg(page)).toBeVisible()
+    expect(await battleSrc(page)).toBe(green) // the update dropped the cached preview
+  })
+
+  test('changing the scene to another image swaps the preview; the old picture never shows for the new id', async ({ page }) => {
+    await openDemo(page)
+    const red = await makePng(page, '#cc2233')
+    // A large noisy image takes a moment to decode and shrink: the window in which a stale
+    // picture would stay on screen if the old one were kept while the new one loads.
+    const bigBlue = await page.evaluate(() => {
+      const cv = document.createElement('canvas')
+      cv.width = 1800
+      cv.height = 1000
+      const x = cv.getContext('2d')!
+      x.fillStyle = '#2244cc'
+      x.fillRect(0, 0, 1800, 1000)
+      for (let i = 0; i < 1800; i++) {
+        x.fillStyle = `rgb(${(Math.random() * 255) | 0},${(Math.random() * 255) | 0},${(Math.random() * 255) | 0})`
+        x.fillRect(Math.random() * 1800, Math.random() * 1000, 30, 30)
+      }
+      return cv.toDataURL('image/png')
+    })
+    await putRows(page, { images: [imgRow('swap-a', red), imgRow('swap-b', bigBlue, 1800, 1000)], sceneImageId: 'swap-a' })
+    await expect(battleImg(page)).toBeVisible()
+    expect(await battleSrc(page)).toBe(red)
+
+    // Sample every frame after the change: no frame may show the old picture under the new id.
+    const stale = await page.evaluate(async (oldSrc) => {
+      const { db } = await (0, eval)("import('/src/db/db.ts')")
+      await db.scenes.update('demo-scene-stag', { imageId: 'swap-b' })
+      const frames: string[] = []
+      const t0 = performance.now()
+      while (performance.now() - t0 < 2500) {
+        await new Promise((r) => requestAnimationFrame(r))
+        const box = document.querySelector('.ov-media-battle') as HTMLElement | null
+        const img = box?.querySelector('img') as HTMLImageElement | null
+        if (box?.dataset.imageId === 'swap-b' && img && img.src === oldSrc) frames.push('stale')
+        if (box?.dataset.imageId === 'swap-b' && img && img.src !== oldSrc && img.complete) break
+      }
+      return frames.length
+    }, red)
+    expect(stale, 'frames that showed the old picture for the new image id').toBe(0)
+    await expect.poll(async () => (await battleSrc(page)) !== red).toBe(true)
+    expect((await battleImg(page).evaluate((i: HTMLImageElement) => i.naturalWidth))).toBeLessThanOrEqual(640)
+
+    // To an id with no record: the picture is gone at once and the placeholder shows.
+    await withAppDb(page, `await db.scenes.update('demo-scene-stag', { imageId: 'swap-nope' })`)
+    await expect(battleImg(page)).toHaveCount(0)
+    await expect(card(page, 'Run').locator('.ov-battle')).toContainText('Map image not available on this device')
+  })
+
+  test('a large SVG is shown as it is (not shrunk, not a placeholder)', async ({ page }) => {
+    await openDemo(page)
+    const svg =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600"><rect width="1200" height="600" fill="#445"/>' +
+      '<circle cx="30" cy="30" r="8" fill="#fc0"/>'.repeat(1200) +
+      '</svg>'
+    const dataUrl = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg)
+    expect(dataUrl.length).toBeGreaterThan(REUSE_BELOW_CHARS)
+    await putRows(page, { images: [imgRow('svg-1', dataUrl, 1200, 600)], sceneImageId: 'svg-1' })
+    await expect(battleImg(page)).toBeVisible()
+    await expect.poll(() => battleImg(page).evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true)
+    expect(await battleSrc(page)).toBe(dataUrl)
+  })
+})
+
+test.describe('avatar fallbacks and the icon chunk (desktop)', () => {
+  test.use({ viewport: { width: 1440, height: 1000 } })
+
+  test('when every NPC and token has a portrait, the icon chunk is never downloaded', async ({ page }) => {
+    const requested: string[] = []
+    page.on('request', (r) => requested.push(r.url()))
+    await openDemo(page)
+    const png = await makePng(page, '#7744cc')
+    await putRows(page, {
+      images: [imgRow('all-portrait', png)],
+      npcs: { 'demo-npc-king': 'all-portrait', 'demo-npc-rogue': 'all-portrait', 'demo-npc-villain': 'all-portrait', 'demo-npc-innkeep': 'all-portrait' },
+      tokenImageId: 'all-portrait',
+    })
+    requested.length = 0
+    await page.reload()
+    await expect(card(page, 'World & Lore').locator('.ov-npc img')).toHaveCount(4)
+    await expect(card(page, 'Run').locator('.ov-token img')).toHaveCount(4)
+    await page.waitForTimeout(800)
+    expect(requested.filter((u) => /tokenIconPaths/.test(u))).toEqual([])
+    await expect(page.locator('.ov-hub .ov-avatar-face svg')).toHaveCount(0)
+  })
+
+  test('an avatar whose image fails shows its glyph; one with no image id shows its glyph too', async ({ page }) => {
+    await openDemo(page)
+    const png = await makePng(page, '#7744cc')
+    await putRows(page, {
+      images: [imgRow('ok-1', png), imgRow('bad-1', 'data:image/png;base64,AAAA')],
+      npcs: { 'demo-npc-innkeep': 'ok-1', 'demo-npc-rogue': 'bad-1' },
+    })
+    const world = card(page, 'World & Lore')
+    await expect(world.locator('.ov-npc', { hasText: 'Bram' }).locator('img')).toBeVisible()
+    await expect(world.locator('.ov-npc', { hasText: 'Sable' }).locator('svg')).toBeVisible() // failed: glyph
+    await expect(world.locator('.ov-npc', { hasText: 'Mordrek' }).locator('svg')).toBeVisible() // no image id: glyph
   })
 })

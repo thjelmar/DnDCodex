@@ -36,26 +36,46 @@ export type ThumbStatus = 'idle' | 'loading' | 'ready' | 'missing' | 'failed'
  */
 export function useLazyThumb(imageId: string | null | undefined, maxEdge: number) {
   const [ref, inView] = useInView()
-  const [state, setState] = useState<{ status: ThumbStatus; src: string | null }>(() => {
+  // The state remembers which image it belongs to. When the id changes, whatever was
+  // loaded for the old id is ignored at once (in the very next render, not after an
+  // effect), so an old picture never stays on screen while a new one loads or is missing.
+  const [state, setState] = useState<{ forId: string | null; status: ThumbStatus; src: string | null }>(() => {
     const hit = imageId ? peekThumbnail(imageId, maxEdge) : undefined
-    return hit?.status === 'ready' ? { status: 'ready', src: hit.src } : { status: 'idle', src: null }
+    return hit?.status === 'ready'
+      ? { forId: imageId ?? null, status: 'ready', src: hit.src }
+      : { forId: imageId ?? null, status: 'idle', src: null }
   })
 
   useEffect(() => {
-    if (!imageId) {
-      setState({ status: 'idle', src: null })
+    const id = imageId ?? null
+    if (!id) {
+      setState({ forId: null, status: 'idle', src: null })
       return
     }
-    if (!inView) return
+    // A preview already made for this exact image and size is used straight away.
+    const hit = peekThumbnail(id, maxEdge)
+    if (hit?.status === 'ready') {
+      setState({ forId: id, status: 'ready', src: hit.src })
+      return
+    }
+    if (!inView) {
+      setState({ forId: id, status: 'idle', src: null })
+      return
+    }
     let live = true
-    setState((s) => (s.status === 'ready' ? s : { status: 'loading', src: null }))
-    getThumbnail(imageId, maxEdge)
-      .then((r) => live && setState(r.status === 'ready' ? { status: 'ready', src: r.src } : { status: 'missing', src: null }))
-      .catch(() => live && setState({ status: 'failed', src: null }))
+    setState({ forId: id, status: 'loading', src: null })
+    getThumbnail(id, maxEdge)
+      .then((r) => live && setState(r.status === 'ready' ? { forId: id, status: 'ready', src: r.src } : { forId: id, status: 'missing', src: null }))
+      .catch(() => live && setState({ forId: id, status: 'failed', src: null }))
     return () => {
       live = false
     }
   }, [imageId, maxEdge, inView])
 
-  return { ref, ...state }
+  const current = state.forId === (imageId ?? null)
+  return {
+    ref,
+    status: (current ? state.status : 'idle') as ThumbStatus,
+    src: current ? state.src : null,
+  }
 }

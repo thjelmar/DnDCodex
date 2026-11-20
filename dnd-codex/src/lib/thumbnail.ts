@@ -1,4 +1,8 @@
 import { db } from '../db/db'
+import { ThumbCache, previewSource } from './thumbnailCore'
+import type { StoredPreviewSource, ThumbSize } from './thumbnailCore'
+
+export { thumbSize, REUSE_BELOW_CHARS } from './thumbnailCore'
 
 // Small preview images for the Overview hub cards (T-75).
 //
@@ -10,57 +14,76 @@ import { db } from '../db/db'
 // built) and the small result is kept in memory, so a card that re-renders or
 // remounts does not read or decode the record again. There is no new store.
 //
+// What is cached, and when it is dropped:
+//  - Only a ready preview is cached. A missing or failed image (for example a
+//    battle map that so far exists only in cloud Storage) is looked up again the next
+//    time, so it appears once the file has been downloaded into the local record.
+//  - When an image record is updated or deleted through Dexie (in this tab, which
+//    includes sync and the Battle Map page saving a downloaded file), its previews
+//    are dropped. A load that was already running for that image does not cache.
+//  - The cache is bounded by count and by total size (see ThumbCache).
+//
 // Nothing here touches the network. A battle-map image that exists only in cloud
 // Storage (a `storagePath` with no local data URL) is reported as missing.
 
-export interface ThumbSize {
-  width: number
-  height: number
-}
-
-/** The size that fits `maxEdge` on the long side, never larger than the source. */
-export function thumbSize(width: number, height: number, maxEdge: number): ThumbSize | null {
-  if (!(width > 0) || !(height > 0) || !(maxEdge > 0)) return null
-  const scale = Math.min(1, maxEdge / Math.max(width, height))
-  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
-}
-
-/** A stored data URL this short is shown as it is: re-encoding would save nothing. */
-export const REUSE_BELOW_CHARS = 24_000
-
-/** How many small previews are kept in memory. */
-const MAX_CACHED = 60
-
 export type ThumbResult = { status: 'ready'; src: string } | { status: 'missing' }
 
-const cache = new Map<string, ThumbResult>()
+const cache = new ThumbCache()
 const inflight = new Map<string, Promise<ThumbResult>>()
+/** Bumped when an image changes, so a load that started earlier does not cache stale data. */
+const versions = new Map<string, number>()
 
 const keyOf = (imageId: string, maxEdge: number) => `${imageId}|${maxEdge}`
+const versionOf = (imageId: string) => versions.get(imageId) ?? 0
+
+/** Forget everything held for one image. */
+export function invalidateThumbnails(imageId: string): void {
+  cache.dropImage(imageId)
+  versions.set(imageId, versionOf(imageId) + 1)
+  // A load already in flight for this image would resolve with the old data; drop it
+  // so the next request starts a fresh one.
+  for (const key of Array.from(inflight.keys())) if (key.startsWith(`${imageId}|`)) inflight.delete(key)
+}
+
+// Keep the cache honest when image records change through Dexie.
+if (typeof indexedDB !== 'undefined') {
+  const onUpdating = (_mods: object, primKey: unknown) => {
+    invalidateThumbnails(String(primKey))
+  }
+  const onDeleting = (primKey: unknown) => {
+    invalidateThumbnails(String(primKey))
+  }
+  db.images.hook('updating', onUpdating)
+  db.images.hook('deleting', onDeleting)
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      db.images.hook('updating').unsubscribe(onUpdating)
+      db.images.hook('deleting').unsubscribe(onDeleting)
+    })
+  }
+}
 
 /** The cached preview, if one has already been made. */
 export function peekThumbnail(imageId: string, maxEdge: number): ThumbResult | undefined {
-  return cache.get(keyOf(imageId, maxEdge))
-}
-
-function remember(key: string, result: ThumbResult): ThumbResult {
-  cache.delete(key)
-  cache.set(key, result)
-  while (cache.size > MAX_CACHED) cache.delete(cache.keys().next().value as string)
-  return result
+  const src = cache.get(keyOf(imageId, maxEdge))
+  return src === undefined ? undefined : { status: 'ready', src }
 }
 
 function dataUrlToBlob(dataUrl: string, fallbackMime: string): Blob {
   const comma = dataUrl.indexOf(',')
   const head = dataUrl.slice(0, comma)
   const mime = /^data:([^;,]+)/.exec(head)?.[1] ?? fallbackMime
-  const binary = atob(dataUrl.slice(comma + 1))
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  return new Blob([bytes], { type: mime })
+  const body = dataUrl.slice(comma + 1)
+  if (/;base64/i.test(head)) {
+    const binary = atob(body)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return new Blob([bytes], { type: mime })
+  }
+  return new Blob([decodeURIComponent(body)], { type: mime }) // URL-encoded text
 }
 
-async function shrink(rec: { dataUrl: string; mime?: string }, size: ThumbSize): Promise<string> {
+async function shrink(rec: StoredPreviewSource, size: ThumbSize): Promise<string> {
   const blob = dataUrlToBlob(rec.dataUrl, rec.mime ?? 'image/webp')
   let bitmap: ImageBitmap
   try {
@@ -86,25 +109,28 @@ async function shrink(rec: { dataUrl: string; mime?: string }, size: ThumbSize):
 async function load(imageId: string, maxEdge: number): Promise<ThumbResult> {
   const rec = await db.images.get(imageId) // one record by primary key, never the table
   if (!rec || !rec.dataUrl) return { status: 'missing' }
-  if (rec.dataUrl.length <= REUSE_BELOW_CHARS) return { status: 'ready', src: rec.dataUrl }
-  const size = thumbSize(rec.width, rec.height, maxEdge)
-  // Already no bigger than the preview: nothing to shrink.
-  if (!size || (size.width >= rec.width && size.height >= rec.height)) return { status: 'ready', src: rec.dataUrl }
-  const small = await shrink(rec, size)
-  return { status: 'ready', src: small.length < rec.dataUrl.length ? small : rec.dataUrl }
+  return { status: 'ready', src: await previewSource(rec, maxEdge, shrink) }
 }
 
-/** Fetch (and shrink if needed) one image for a card. Rejects when it cannot be decoded. */
+/** Fetch (and shrink if needed) one image for a card. Rejects only on a database error. */
 export function getThumbnail(imageId: string, maxEdge: number): Promise<ThumbResult> {
   const key = keyOf(imageId, maxEdge)
   const hit = cache.get(key)
-  if (hit) return Promise.resolve(remember(key, hit))
+  if (hit !== undefined) return Promise.resolve({ status: 'ready', src: hit })
   let pending = inflight.get(key)
   if (!pending) {
-    pending = load(imageId, maxEdge)
-      .then((r) => remember(key, r))
-      .finally(() => inflight.delete(key))
-    inflight.set(key, pending)
+    const version = versionOf(imageId)
+    const started: Promise<ThumbResult> = load(imageId, maxEdge)
+      .then((r) => {
+        // Cache a ready preview only, and only if the image did not change meanwhile.
+        if (r.status === 'ready' && versionOf(imageId) === version) cache.set(key, r.src)
+        return r
+      })
+      .finally(() => {
+        if (inflight.get(key) === started) inflight.delete(key)
+      })
+    pending = started
+    inflight.set(key, started)
   }
   return pending
 }

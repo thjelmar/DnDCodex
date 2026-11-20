@@ -44,7 +44,7 @@ function ThumbImage({
   const showImage = !!src && !broken
   const shown: ThumbStatus = broken ? 'failed' : status
   return (
-    <span ref={ref} className={`ov-media ${className}`} data-state={showImage ? 'ready' : shown}>
+    <span ref={ref} className={`ov-media ${className}`} data-state={showImage ? 'ready' : shown} data-image-id={imageId ?? ''}>
       {showImage ? (
         <img src={src} alt={alt} loading="lazy" decoding="async" draggable={false} onError={() => setBroken(true)} />
       ) : typeof fallback === 'function' ? (
@@ -73,6 +73,27 @@ function Glyph({ id, label }: { id: string; label: string }) {
   return paths?.[id] ? <TokenIcon id={id} size={22} /> : <>{initials(label)}</>
 }
 
+/** What an avatar shows when its picture is not on screen. While a picture is still on
+ *  the way (it has an image id and the preview is idle or loading) show plain initials,
+ *  so the icon chunk is not downloaded and no glyph flashes before the portrait. Show the
+ *  glyph only when there is no image id, or the image turned out missing or failed. */
+function AvatarFallback({
+  hasImage,
+  status,
+  glyph,
+  emoji,
+  label,
+}: {
+  hasImage: boolean
+  status: ThumbStatus
+  glyph: string | null
+  emoji?: string | null
+  label: string
+}) {
+  const waiting = hasImage && (status === 'idle' || status === 'loading')
+  return waiting ? <span className="ov-avatar-face">{initials(label)}</span> : <GlyphOrInitials glyph={glyph} emoji={emoji} label={label} />
+}
+
 function NpcAvatar({ npc }: { npc: NPC }) {
   return (
     <Link to={`npcs?sel=${npc.id}`} className="ov-npc">
@@ -82,7 +103,14 @@ function NpcAvatar({ npc }: { npc: NPC }) {
           maxEdge={96}
           alt=""
           className="ov-media-fill"
-          fallback={<GlyphOrInitials glyph={npcTokenIcon(npc)} label={npc.name || 'NPC'} />}
+          fallback={(status) => (
+            <AvatarFallback
+              hasImage={!!npc.imageId}
+              status={status}
+              glyph={npcTokenIcon(npc)}
+              label={npc.name || 'NPC'}
+            />
+          )}
         />
       </span>
       <span className="ov-npc-name">{npc.name || 'Unnamed'}</span>
@@ -134,7 +162,15 @@ function TokenAvatar({ token }: { token: SceneTokenSummary }) {
         maxEdge={64}
         alt=""
         className="ov-media-fill"
-        fallback={<GlyphOrInitials glyph={glyph} emoji={glyph ? null : token.icon} label={token.label || 'Token'} />}
+        fallback={(status) => (
+          <AvatarFallback
+            hasImage={!!token.imageId}
+            status={status}
+            glyph={glyph}
+            emoji={glyph ? null : token.icon}
+            label={token.label || 'Token'}
+          />
+        )}
       />
     </li>
   )
