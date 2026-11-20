@@ -24,6 +24,7 @@ function surfaces(id: string): { name: string; hash: string }[] {
     { name: 'roadmap', hash: '#/roadmap' },
     { name: 'generators', hash: '#/tools/generators' },
     { name: 'battle map library', hash: '#/tools/battlemaps' },
+    { name: 'battle map library manage', hash: '#/tools/battlemaps/manage' },
   ]
 }
 
