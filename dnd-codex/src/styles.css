@@ -4570,8 +4570,10 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 .ov-feed-when { flex: 0 0 auto; font-size: 12.5px; color: var(--text-faint); }
 
 /* Overview hub cards (T-74): four summaries (Prep, Run, World & Lore, Reference) in a
-   2 by 2 grid. Each card is a CollapsePanel; the mini tiles are links. Tokens only. */
-.ov-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+   2 by 2 grid. Each card is a CollapsePanel; the mini tiles are links. Tokens only.
+   Cards size to their own content (align-items: start, not stretch): a collapsed card
+   is just its title bar even beside an open neighbour (T-84). */
+.ov-hub { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 @media (max-width: 960px) {
   .ov-hub { grid-template-columns: minmax(0, 1fr); }
 }
