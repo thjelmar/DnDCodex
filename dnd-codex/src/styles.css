@@ -4481,14 +4481,22 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 14px;
-  align-items: start;
+  /* Cells stretch to the row height, so open cards that share a row are the same height
+     (T-92). A collapsed card opts out below. */
+  align-items: stretch;
 }
 /* One column by default (phone): every card spans the full width, in DOM order. The DOM
    order is the layout order (OverviewPage), and the grid only flows it: no explicit rows,
    no reordering, no `dense`, so the Tab order equals the visual order at every width.
    Each card sits in a cell that carries its width as --span (12-column units). */
-.ov-cell { grid-column: 1 / -1; margin: 0; min-width: 0; }
+.ov-cell { grid-column: 1 / -1; margin: 0; min-width: 0; display: flex; flex-direction: column; }
 .ov-cell > * { margin: 0; }
+/* The card fills its cell, so the stretched height shows as the card's own box. */
+.ov-cell > .ov-panel { flex: 1 1 auto; }
+/* A cell with any collapsed toggle sizes to its content instead: a collapsed card is only
+   its title bar beside an open neighbour (T-84), and Links and Voice closes up as soon as
+   one of its two sections is closed. Where :has() is missing the card just stays stretched. */
+.ov-cell:has([aria-expanded='false']) { align-self: start; }
 @media (min-width: 961px) {
   .ov-cell { grid-column: span var(--span, 12); }
 }
