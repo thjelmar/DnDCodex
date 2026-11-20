@@ -70,15 +70,15 @@ test.describe('campaign Overview (desktop)', () => {
     const content = await page.locator('.content.content-overview').boundingBox()
     expect(content!.width).toBeGreaterThan(1000)
 
-    const main = await page.locator('.ov-world').boundingBox()
+    const main = await page.locator('.ov-recent').boundingBox()
     const side = await page.locator('.ov-side').boundingBox()
     expect(side!.x).toBeGreaterThan(main!.x + main!.width - 1)
     // Main takes about two thirds (8 of 12 columns), side about one third.
     expect(main!.width).toBeGreaterThan(side!.width * 1.6)
-
-    // World overview and Recent sessions are in the main column; Links and Voice
+    // The old Linked campaigns panel is gone.
+    // Recent sessions is in the main column; Links and Voice are in the right column.
     // are in the right column. The old Linked campaigns panel is gone.
-    for (const t of ['World overview', 'Recent sessions']) {
+    for (const t of ['Recent sessions']) {
       const h = (await page.getByRole('heading', { name: t }).boundingBox())!
       expect(h.x + h.width).toBeLessThan(side!.x)
     }

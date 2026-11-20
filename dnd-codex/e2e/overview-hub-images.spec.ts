@@ -71,6 +71,10 @@ async function expectCards(page: Page): Promise<void> {
     break
   }
   await expect(cards).toHaveCount(4)
+  // The pictures load when their card scrolls into view. The World overview now sits
+  // above the cards (T-86), so on a wide screen bring the cards on screen first.
+  const width = page.viewportSize()?.width ?? 0
+  if (width >= 961) await page.locator('.ov-hub').evaluate((el) => el.scrollIntoView({ block: 'start' }))
 }
 
 async function openDemo(page: Page, theme?: 'light' | 'dark'): Promise<void> {
@@ -719,6 +723,7 @@ test.describe('avatar fallbacks and the icon chunk (desktop)', () => {
     })
     requested.length = 0
     await page.reload()
+    await expectCards(page)
     await expect(card(page, 'World & Lore').locator('.ov-npc img')).toHaveCount(4)
     await expect(card(page, 'Run').locator('.ov-token img')).toHaveCount(4)
     await page.waitForTimeout(800)

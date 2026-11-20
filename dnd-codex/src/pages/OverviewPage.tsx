@@ -19,7 +19,6 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
 import { useOverviewData } from '../lib/useOverviewData'
-import { useMediaQuery } from '../lib/useMediaQuery'
 
 export function OverviewPage() {
   const campaign = useCampaign()
@@ -71,7 +70,6 @@ export function OverviewPage() {
 
   // One local read shared by the hub cards, the prep checklist and the feed.
   const data = useOverviewData(campaign.id)
-  const wide = useMediaQuery('(min-width: 961px)')
 
   const recentSessions = useLiveQuery(
     () =>
@@ -89,12 +87,11 @@ export function OverviewPage() {
     navigate('/')
   }
 
-  // The same blocks, in reading order for the width. On a phone the World overview
-  // comes first and the hub cards follow; on a wide screen the hub cards sit above
-  // the two columns (the grid places them, see .ov-bento in styles.css). Rendering the
-  // keyed blocks in a different order per width keeps the DOM order, and so the Tab
-  // order, equal to the visual order at both widths. React moves keyed siblings
-  // without remounting them, so panel state and the editor survive a resize.
+  // The blocks, in reading order: the World overview sits directly under the hero,
+  // then the next-session strip and the hub cards. The order is the same at every width,
+  // so the DOM order, and so the Tab order, equals the visual order everywhere. On a wide
+  // screen the grid places the blocks (see .ov-bento in styles.css) without reordering
+  // them. The blocks stay keyed siblings, so panel state and the editor survive a resize.
   const next = (
     <div key="next" className="ov-next">
       <NextSessionCard campaign={campaign} />
@@ -161,7 +158,7 @@ export function OverviewPage() {
       </CollapsePanel>
     </aside>
   )
-  const blocks = wide ? [next, hub, world, recent, prep, side] : [next, world, hub, recent, prep, side]
+  const blocks = [world, next, hub, recent, prep, side]
 
   return (
     <div>

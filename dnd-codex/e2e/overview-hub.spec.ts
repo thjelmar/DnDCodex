@@ -182,8 +182,8 @@ test.describe('hub cards, populated (demo)', () => {
     expect(world.y).toBeGreaterThan(prep.y + prep.height - 1) // second row
     const ref = (await card(page, 'Reference').boundingBox())!
     const cardsBottom = Math.max(world.y + world.height, ref.y + ref.height)
-    // The cards sit above both columns: the World overview column and the side column.
-    const left = (await page.locator('.ov-world').boundingBox())!
+    // The cards sit above both columns: the Recent sessions column and the side column.
+    const left = (await page.locator('.ov-recent').boundingBox())!
     const side = (await page.locator('.ov-side').boundingBox())!
     expect(left.y).toBeGreaterThan(cardsBottom - 1)
     expect(side.y).toBeGreaterThan(cardsBottom - 1)
@@ -384,13 +384,23 @@ test.describe('hub cards, reading order and accessibility (desktop)', () => {
     await expect(group.locator('.ov-hubcard')).toHaveCount(4)
   })
 
-  test('Tab order matches the visual order: cards, then the left column, then the side column', async ({ page }) => {
+  test('Tab order matches the visual order: World overview, next session, cards, then the left column, then the side column', async ({ page }) => {
     await openDemo(page)
-    expect(await focusOrder(page)).toEqual(['next', 'hub', 'world', 'recent', 'prep', 'side'])
-    // And the page really shows them in that order: cards above, columns below.
-    const hubBottom = (await page.locator('.ov-hub').boundingBox())!
-    const world = (await page.locator('.ov-world').boundingBox())!
-    expect(world.y).toBeGreaterThan(hubBottom.y + hubBottom.height - 1)
+    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'prep', 'side'])
+    // And the page really shows them in that order: World overview directly under the
+    // hero, then the next-session strip, then the cards, then the columns.
+    const box = async (sel: string) => (await page.locator(sel).first().boundingBox())!
+    const [hero, world, next, hub, recent, side] = [
+      await box('.ov-hero'), await box('.ov-world'), await box('.ov-next'),
+      await box('.ov-hub'), await box('.ov-recent'), await box('.ov-side'),
+    ]
+    expect(world.y).toBeGreaterThanOrEqual(hero.y + hero.height - 1)
+    expect(next.y).toBeGreaterThanOrEqual(world.y + world.height - 1)
+    expect(hub.y).toBeGreaterThanOrEqual(next.y + next.height - 1)
+    expect(recent.y).toBeGreaterThanOrEqual(hub.y + hub.height - 1)
+    // World overview spans the full width; Links and Voice sit beside Recent sessions.
+    expect(world.width).toBeGreaterThan(hub.width - 2)
+    expect(side.x).toBeGreaterThan(recent.x + recent.width - 1)
   })
 
   for (const theme of ['dark', 'light'] as const) {
@@ -418,7 +428,7 @@ test.describe('hub cards, reading order and accessibility (desktop)', () => {
     })
   }
 
-  test('resizing across the breakpoint reorders the blocks without resetting panel state', async ({ page }) => {
+  test('resizing across the breakpoint keeps the order and the panel state', async ({ page }) => {
     await openDemo(page)
     const worldToggle = page.getByRole('button', { name: 'World overview', exact: true })
     await worldToggle.click()
@@ -428,19 +438,20 @@ test.describe('hub cards, reading order and accessibility (desktop)', () => {
     const y = async (name: string) =>
       (await page.locator('.ov-bento').getByRole('heading', { name, exact: true }).first().boundingBox())!.y
     await expect.poll(async () => (await y('World overview')) < (await y('Prep'))).toBe(true)
-    // The panel was moved, not remounted: it is still closed (a fresh phone mount would open it).
+    // The panel was not remounted: it is still closed (a fresh phone mount would open it).
     await expect(worldToggle).toHaveAttribute('aria-expanded', 'false')
 
     await page.setViewportSize({ width: 1440, height: 1000 })
-    await expect.poll(async () => (await y('Prep')) < (await y('World overview'))).toBe(true)
+    await expect.poll(async () => (await y('World overview')) < (await y('Prep'))).toBe(true)
+    await expect(worldToggle).toHaveAttribute('aria-expanded', 'false')
   })
 })
 
 test.describe('hub cards, reading order (375px)', () => {
   test.use({ viewport: { width: 375, height: 812 } })
 
-  test('Tab order reaches the World overview before the cards, then Recent sessions, the checklist and Links', async ({ page }) => {
+  test('Tab order reaches the World overview, the next session, the cards, then Recent sessions, the checklist and Links', async ({ page }) => {
     await openDemo(page)
-    expect(await focusOrder(page)).toEqual(['next', 'world', 'hub', 'recent', 'prep', 'side'])
+    expect(await focusOrder(page)).toEqual(['world', 'next', 'hub', 'recent', 'prep', 'side'])
   })
 })
