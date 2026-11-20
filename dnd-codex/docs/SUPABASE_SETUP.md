@@ -105,3 +105,26 @@ can touch rows. The security advisor may flag them; that's intentional.
 
 **Dashboard-only setting:** Authentication → Sign In / Providers → Email → enable *Leaked password
 protection*. (Needs Supabase Pro; the app only uses OAuth sign-in, so it has no practical effect here.)
+
+## Battle map library (migration 0042)
+
+The battle map library stores published maps in the public `battlemap-library` bucket and
+their details in `battle_map_templates`. Anyone, signed in or not, can read published rows
+and download the images; only accounts listed in `library_publishers` can write.
+
+To add the publisher after running migration 0042, run this once in the SQL Editor, as its own
+statement, with your sign-in email in place of the placeholder:
+
+```sql
+insert into public.library_publishers (user_id)
+select id from auth.users where lower(email) = lower('<owner email>');
+```
+
+Check usage once a month, because public images count toward the free plan's egress and
+storage allowances:
+
+1. In the Supabase dashboard, open **Settings** > **Usage**.
+2. Compare **Egress** and **Storage size** with the plan limits shown there. The limits
+   change, so use the dashboard's numbers, not a number copied into this file.
+3. If egress passes about 70% before month end, lower the WebP quality for new maps or move
+   the images to a service without egress fees.
