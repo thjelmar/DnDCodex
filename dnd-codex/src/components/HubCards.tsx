@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { CollapsePanel } from './CollapsePanel'
 import { Icon } from './Icon'
+import { BattleMapThumb, NpcPortraits, WorldMapThumb } from './HubImages'
 import { derivePrepChecklist } from '../lib/prepChecklist'
 import { deriveHubCards } from '../lib/hubCards'
 import { formatDate, todayISODate } from '../lib/format'
@@ -107,15 +108,7 @@ export function HubCards({ campaign, data }: { campaign: Campaign; data: Overvie
         <Link to={`/run/${campaign.id}`} className="btn primary small ov-hub-cta">
           <Icon name="play" size={12} color="inherit" /> Start Run Mode
         </Link>
-        {run.latestScene ? (
-          <p className="ov-hub-line">
-            Latest battle map: <Link to="battlemap">{run.latestScene.name || 'Untitled map'}</Link>
-          </p>
-        ) : (
-          <p className="ov-hub-empty">
-            No battle map yet. <Link to="battlemap">Create a battle map</Link>
-          </p>
-        )}
+        <BattleMapThumb scene={run.latestScene} />
         <div className="ov-tiles">
           <Tile to="battlemap" label="Battle maps" value={run.scenes} />
           <Tile label="Grid" value={run.grid ? `${run.grid.cols} × ${run.grid.rows}` : '—'} sub="latest map" />
@@ -136,6 +129,10 @@ export function HubCards({ campaign, data }: { campaign: Campaign; data: Overvie
             <Link to="notes">world note</Link>.
           </p>
         )}
+        <div className="ov-world-media">
+          <NpcPortraits npcs={data.npcs} />
+          <WorldMapThumb map={data.worldMap} />
+        </div>
         <div className="ov-tiles">
           <Tile to="npcs" label="NPCs" value={world.npcs} sub={`${world.hostile} hostile`} />
           <Tile to="locations" label="Locations" value={world.locations} sub={`${world.mapped} on the map`} />

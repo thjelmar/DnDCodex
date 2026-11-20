@@ -4662,6 +4662,82 @@ a.ov-recap:hover { border-color: var(--accent); text-decoration: none; }
 a.ov-chip:hover { border-color: var(--accent); text-decoration: none; }
 .ov-chip-rarity { font-size: 12px; color: var(--text-faint); }
 
+/* Hub card pictures (T-75). Every picture box gets its size from aspect-ratio, so a
+   preview that arrives late does not move the page. Tokens only; each box has a 1px
+   --border so a pale map does not melt into a white card. */
+.ov-media {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.ov-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ov-media-fill { width: 100%; height: 100%; border: 0; border-radius: 0; }
+.ov-media-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+/* A blank grid, for a battle map with no image (or none on this device). */
+.ov-media-grid {
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.ov-media-battle { aspect-ratio: 16 / 7; }
+.ov-media-map { aspect-ratio: 16 / 9; }
+
+.ov-battle, .ov-mapthumb, .ov-npc { color: var(--text); border-radius: var(--radius-sm); }
+.ov-battle { display: flex; flex-direction: column; gap: 6px; }
+.ov-battle:hover, .ov-mapthumb:hover, .ov-npc:hover { text-decoration: none; }
+.ov-battle:hover .ov-media, .ov-mapthumb:hover .ov-media { border-color: var(--accent); }
+.ov-media-cap { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Round avatar: an NPC portrait, a token portrait, a glyph or initials. */
+.ov-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.ov-avatar .ov-media { border-radius: 50%; }
+.ov-avatar-face { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+.ov-world-media { display: flex; gap: 12px; align-items: flex-start; }
+.ov-portraits { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.ov-npc { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; }
+.ov-npc-name { max-width: 100%; font-size: 12px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-mapthumb { flex: 0 0 150px; margin-left: auto; }
+
+/* Token avatars over the battle map thumbnail. The ring is the token's own color; the
+   face stays on theme tokens so initials always read. */
+.ov-avatars { position: absolute; top: 8px; right: 8px; display: flex; margin: 0; padding: 0; list-style: none; }
+.ov-avatars .ov-avatar { width: 28px; height: 28px; font-size: 11px; border-width: 2px; margin-left: -6px; box-shadow: 0 0 0 2px var(--bg-elev); }
+
+@media (max-width: 960px) {
+  .ov-world-media { flex-direction: column; align-items: stretch; }
+  .ov-mapthumb { flex-basis: auto; width: 100%; margin-left: 0; }
+  .ov-media-map { aspect-ratio: 16 / 7; }
+}
+
 /* Battle map library (browse grid, filters, preview). */
 .library-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
 .library-controls .input { flex: 1 1 200px; min-width: 0; }

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { Item, Location, Note, NPC, RollTable, Session } from '../db/types'
-import type { SceneSummary } from './hubCards'
+import type { SceneSummary, WorldMapSummary } from './hubCards'
 
 // One local read for everything the campaign Overview derives from: the prep
 // checklist, the recently edited feed and the hub cards. Sharing it means each
@@ -28,6 +28,8 @@ export interface OverviewData {
   notes: Note[]
   tables: RollTable[]
   scenes: SceneSummary[]
+  /** The campaign's world map (most recently updated), or null. */
+  worldMap: WorldMapSummary | null
   /** Ids of locations that have a pin on a world map. */
   mappedLocationIds: string[]
   timelineCount: number
@@ -68,10 +70,28 @@ export function useOverviewData(campaignId: string): OverviewData | undefined {
         height: s.height,
         cellPx: s.grid?.cellPx ?? 0,
         updatedAt: s.updatedAt,
+        imageId: s.imageId ?? null,
+        tokens: (s.tokens ?? [])
+          .filter((t) => !t.hidden)
+          .slice(0, 4)
+          .map((t) => ({
+            id: t.id,
+            label: t.label,
+            color: t.color,
+            imageId: t.imageId ?? null,
+            icon: t.icon ?? null,
+            tokenIcon: t.tokenIcon ?? null,
+          })),
       })),
+      worldMap: newestWorldMap(worldMaps),
       mappedLocationIds: [...mapped],
       timelineCount,
       familyCount,
     }
   }, [campaignId])
+}
+
+function newestWorldMap(maps: Array<{ id: string; name: string; imageId: string | null; updatedAt: string }>): WorldMapSummary | null {
+  const newest = [...maps].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+  return newest ? { id: newest.id, name: newest.name, imageId: newest.imageId ?? null } : null
 }

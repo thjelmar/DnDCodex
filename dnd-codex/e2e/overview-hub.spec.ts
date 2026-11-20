@@ -86,11 +86,11 @@ test.describe('hub card logic', () => {
 
   test('run: latest scene by updatedAt, grid size from the cell size, ready needs a session and a scene', () => {
     const scenes = [
-      { id: 's1', name: 'Old', width: 100, height: 100, cellPx: 50, updatedAt: '2026-01-01T00:00:00Z' },
-      { id: 's2', name: 'Vault', width: 1200, height: 900, cellPx: 50, updatedAt: '2026-02-01T00:00:00Z' },
+      { id: 's1', name: 'Old', width: 100, height: 100, cellPx: 50, updatedAt: '2026-01-01T00:00:00Z', imageId: null, tokens: [] },
+      { id: 's2', name: 'Vault', width: 1200, height: 900, cellPx: 50, updatedAt: '2026-02-01T00:00:00Z', imageId: 'img-1', tokens: [] },
     ]
     const h = deriveHubCards({ ...empty, scenes })
-    expect(h.run.latestScene).toEqual({ id: 's2', name: 'Vault' })
+    expect(h.run.latestScene).toMatchObject({ id: 's2', name: 'Vault', imageId: 'img-1' })
     expect(h.run.grid).toEqual({ cols: 24, rows: 18 })
     expect(h.run.scenes).toBe(2)
     expect(h.run.ready).toBe(false)
