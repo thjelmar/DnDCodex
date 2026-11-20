@@ -37,7 +37,10 @@ test('a new campaign shows an unticked checklist and an empty feed, then the fee
   await expect(feed).toContainText('Nothing yet')
 
   // Add a session: the checklist now asks for its recap, and the feed lists it.
-  await page.getByRole('link', { name: 'Sessions', exact: true }).first().click()
+  // Navigate by URL: the sidebar's Prep group may be collapsed (#137), so a click on
+  // its Sessions link would depend on which branch this runs on.
+  const campaignId = new URL(page.url()).hash.split('/')[2]
+  await page.goto(`/#/campaign/${campaignId}/sessions`)
   await page.getByRole('button', { name: 'New Session' }).click()
   await expect(page.getByText('Session 1').first()).toBeVisible()
   await page.goBack()
