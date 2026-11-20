@@ -12,6 +12,8 @@ import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
+import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
+import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
 import { clearSessionSchedule } from '../auth/cloud'
 import { formatDate } from '../lib/format'
@@ -24,6 +26,7 @@ export function OverviewPage() {
   const confirm = useConfirm()
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Archiving ends the campaign: it also clears the next-session schedule so the
   // shared calendar feed empties and players stop seeing sessions on their
@@ -88,47 +91,47 @@ export function OverviewPage() {
 
   return (
     <div>
-      <CampaignHero campaign={campaign} />
+      <CampaignHero campaign={campaign} onOpenSettings={() => setSettingsOpen(true)} />
 
-      <div className="ov-next">
-        <NextSessionCard campaign={campaign} />
-      </div>
+      <div className="ov-bento">
+        <div className="ov-next">
+          <NextSessionCard campaign={campaign} />
+        </div>
 
-      <div className="ov-stats" role="list">
-        {statCards.map(([label, count, path]) => (
-          <Link key={label} to={path} className="ov-stat" role="listitem">
-            <span className="ov-stat-n">{count ?? '—'}</span>
-            <span className="ov-stat-l">{label}</span>
-          </Link>
-        ))}
-      </div>
+        <div className="ov-stats" role="list">
+          {statCards.map(([label, count, path]) => (
+            <Link key={label} to={path} className="ov-stat" role="listitem">
+              <span className="ov-stat-n">{count ?? '—'}</span>
+              <span className="ov-stat-l">{label}</span>
+            </Link>
+          ))}
+        </div>
 
-      <div className="ov-grid">
-        <section className="ov-main">
-          <div className="row between">
-            <h2 className="mb-0">World overview</h2>
-            <button className="btn small" onClick={() => setEditing(true)}>
-              <Icon name="pencil" size={13} /> Edit
-            </button>
-          </div>
-          <div style={{ marginTop: 12 }}>
+        <div className="ov-main">
+          <CollapsePanel
+            title="World overview"
+            defaultOpenPhone
+            actions={
+              <button className="btn small" onClick={() => setEditing(true)}>
+                <Icon name="pencil" size={13} /> Edit
+              </button>
+            }
+          >
             {campaign.description?.trim() ? (
               <RichTextEditor campaignId={campaign.id} value={campaign.description} editable={false} />
             ) : (
-              <p className="faint">Nothing here yet.</p>
+              <p className="faint" style={{ margin: 0 }}>Nothing here yet.</p>
             )}
-          </div>
-        </section>
+          </CollapsePanel>
 
-        <aside className="ov-side">
           <section className="ov-panel">
-            <div className="row between">
+            <div className="ov-panel-head">
               <h3 className="mb-0">Recent sessions</h3>
               <Link to="sessions" className="btn ghost small">
                 View all →
               </Link>
             </div>
-            <div style={{ marginTop: 10 }}>
+            <div className="ov-panel-body">
               {recentSessions && recentSessions.length > 0 ? (
                 recentSessions.map((s) => (
                   <Link
@@ -144,23 +147,22 @@ export function OverviewPage() {
                   </Link>
                 ))
               ) : (
-                <p className="faint">No sessions logged yet.</p>
+                <p className="faint" style={{ margin: 0 }}>No sessions logged yet.</p>
               )}
             </div>
           </section>
+        </div>
 
-          <section className="ov-panel">
-            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Links</div>
+        <aside className="ov-side">
+          <CollapsePanel title="Links">
             <CampaignLinks campaignId={campaign.id} links={campaign.externalLinks ?? []} />
-          </section>
+          </CollapsePanel>
 
-          <section className="ov-panel">
-            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Voice</div>
+          <CollapsePanel title="Voice">
             <DiscordVoiceSettings campaign={campaign} />
-          </section>
+          </CollapsePanel>
 
-          <section className="ov-panel">
-            <div className="sidebar-heading" style={{ margin: '0 0 8px' }}>Linked campaigns</div>
+          <CollapsePanel title="Linked campaigns">
             <p className="muted" style={{ marginTop: 0 }}>
               Reference shared worlds or previous campaigns.
             </p>
@@ -173,21 +175,24 @@ export function OverviewPage() {
               {related.length === 0 && <span className="faint">None linked.</span>}
             </div>
             <RelatedCampaignPicker campaignId={campaign.id} current={campaign.relatedCampaignIds} allCampaigns={allCampaigns ?? []} />
-          </section>
+          </CollapsePanel>
         </aside>
       </div>
 
-      <details className="ov-settings">
-        <summary>Campaign settings</summary>
-        <div className="row wrap" style={{ gap: 10, marginTop: 12 }}>
-          <button className="btn" onClick={toggleArchive}>
-            {campaign.archived ? 'Unarchive' : 'Archive'} campaign
-          </button>
-          <button className="btn danger" onClick={() => setConfirmDelete(true)}>
-            Delete campaign
-          </button>
-        </div>
-      </details>
+      {settingsOpen && (
+        <CampaignSettingsModal
+          campaign={campaign}
+          onClose={() => setSettingsOpen(false)}
+          onToggleArchive={async () => {
+            setSettingsOpen(false)
+            await toggleArchive()
+          }}
+          onDelete={() => {
+            setSettingsOpen(false)
+            setConfirmDelete(true)
+          }}
+        />
+      )}
 
       {editing && (
         <EditCampaignModal

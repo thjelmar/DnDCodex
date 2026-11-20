@@ -12,7 +12,13 @@ import type { Campaign } from '../db/types'
 // gradient from the campaign's own color, so the page never opens on an
 // "add an image" prompt. The cover is a StoredImage via campaign.coverImageId.
 
-export function CampaignHero({ campaign }: { campaign: Campaign }) {
+export function CampaignHero({
+  campaign,
+  onOpenSettings,
+}: {
+  campaign: Campaign
+  onOpenSettings: () => void
+}) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -77,6 +83,19 @@ export function CampaignHero({ campaign }: { campaign: Campaign }) {
         style={{ display: 'none' }}
         onChange={(e) => handleFiles(e.target.files)}
       />
+      <div className="ov-hero-actions">
+        <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <Icon name="image" size={13} /> {busy ? '…' : cover ? 'Change cover' : 'Add cover'}
+        </button>
+        {cover && (
+          <button className="btn small danger" onClick={removeCover}>
+            Remove
+          </button>
+        )}
+        <button className="btn small" onClick={onOpenSettings}>
+          <Icon name="settings" size={13} /> Campaign settings
+        </button>
+      </div>
       <div className="ov-hero-body">
         <div className="ov-hero-title">
           {renaming ? (
@@ -106,16 +125,6 @@ export function CampaignHero({ campaign }: { campaign: Campaign }) {
           )}
         </div>
         {campaign.summary && <p className="ov-hero-summary">{campaign.summary}</p>}
-      </div>
-      <div className="ov-hero-actions">
-        <button className="btn small" disabled={busy} onClick={() => fileRef.current?.click()}>
-          <Icon name="image" size={13} /> {busy ? '…' : cover ? 'Change cover' : 'Add cover'}
-        </button>
-        {cover && (
-          <button className="btn small danger" onClick={removeCover}>
-            Remove
-          </button>
-        )}
       </div>
     </div>
   )
