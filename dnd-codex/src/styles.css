@@ -4546,3 +4546,37 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
   .ov-hero-title h1 { font-size: 26px; }
   .camp-crumb-name { max-width: 16ch; }
 }
+
+/* Overview: prep checklist and recently edited feed (T-70). Two panels stacked at the
+   bottom of the main column, under Recent sessions. */
+.ov-extras { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ov-prep-count { font-size: 12.5px; color: var(--text-faint); white-space: nowrap; }
+.ov-prep-list, .ov-feed { list-style: none; margin: 10px 0 0; padding: 0; }
+.ov-prep-row, .ov-feed-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+.ov-prep-row:hover, .ov-feed-row:hover { background: var(--bg-elev-2); text-decoration: none; }
+.ov-prep-box {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 1.5px solid var(--text-faint);
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ov-prep-row.done .ov-prep-box { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.ov-prep-row.done .ov-prep-label { color: var(--text-dim); text-decoration: line-through; }
+.ov-prep-text { display: flex; flex-direction: column; min-width: 0; }
+.ov-prep-detail { font-size: 12.5px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-feed-row { align-items: baseline; justify-content: space-between; }
+.ov-feed-main { display: flex; flex-direction: column; min-width: 0; }
+.ov-feed-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov-feed-meta { font-size: 12.5px; color: var(--text-faint); }
+.ov-feed-when { flex: 0 0 auto; font-size: 12.5px; color: var(--text-faint); }

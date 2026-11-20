@@ -12,6 +12,7 @@ import { DiscordVoiceSettings } from '../components/DiscordVoiceSettings'
 import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
+import { CampaignPrep } from '../components/CampaignPrep'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -151,6 +152,11 @@ export function OverviewPage() {
               )}
             </div>
           </section>
+
+          {/* Prep checklist and Recently edited sit under Recent sessions: the world
+              overview stays first in the main column (and first on a phone), and the
+              wide main column has room for the checklist rows. */}
+          <CampaignPrep campaign={campaign} />
         </div>
 
         <aside className="ov-side">
