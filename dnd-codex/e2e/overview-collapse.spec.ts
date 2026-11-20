@@ -29,6 +29,8 @@ async function setOpen(page: Page, name: string, open: boolean): Promise<void> {
   await expect(t).toHaveAttribute('aria-expanded', String(open))
 }
 
+// Links and Voice are one card with two sections (T-85); e2e/overview-links-voice.spec.ts
+// covers each section collapsing on its own.
 for (const theme of ['dark', 'light'] as const) {
   test.describe(`collapse shrinks the whole card (${theme})`, () => {
     test('desktop: a collapsed hub card is only its title bar and its neighbour keeps its height', async ({ page }) => {
@@ -51,7 +53,7 @@ for (const theme of ['dark', 'light'] as const) {
 
     test('desktop: every collapsible card shrinks to its title bar', async ({ page }) => {
       await openDemo(page, theme, 1400)
-      for (const name of ['Prep', 'Run', 'World & Lore', 'Reference', 'World overview', 'Links', 'Voice']) {
+      for (const name of ['Prep', 'Run', 'World & Lore', 'Reference', 'World overview']) {
         await setOpen(page, name, true)
         const open = await height(page, name)
         await setOpen(page, name, false)
@@ -64,7 +66,7 @@ for (const theme of ['dark', 'light'] as const) {
 
     test('phone: a collapsed card is its title bar and nothing scrolls sideways', async ({ page }) => {
       await openDemo(page, theme, 375)
-      for (const name of ['Prep', 'Run', 'World & Lore', 'Reference', 'World overview', 'Links', 'Voice']) {
+      for (const name of ['Prep', 'Run', 'World & Lore', 'Reference', 'World overview']) {
         await setOpen(page, name, true)
         await setOpen(page, name, false)
         const head = (await panel(page, name).locator('.ov-panel-head').boundingBox())!
