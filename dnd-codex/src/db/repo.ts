@@ -682,7 +682,7 @@ export async function deleteEncounter(id: Id): Promise<void> {
 
 export async function createScene(
   campaignId: Id,
-  input: Partial<Pick<Scene, 'name' | 'imageId' | 'width' | 'height' | 'grid' | 'tokens'>> = {},
+  input: Partial<Pick<Scene, 'name' | 'imageId' | 'width' | 'height' | 'grid' | 'tokens' | 'source'>> = {},
 ): Promise<Scene> {
   const ts = now()
   const scene: Scene = {
@@ -694,6 +694,7 @@ export async function createScene(
     height: input.height ?? 1000,
     grid: input.grid ?? { cellPx: 50, offsetX: 0, offsetY: 0, show: true, color: '#000000' },
     tokens: input.tokens ?? [],
+    ...(input.source ? { source: input.source } : {}),
     createdAt: ts,
     updatedAt: ts,
   }

@@ -106,3 +106,91 @@ export function dropLocal(page: Page, store: string, campaignId: string): Promis
     [store, campaignId],
   )
 }
+
+// --- battle map library helpers (service key; local stack only) -------------
+const svc = () => ({ apikey: SERVICE, Authorization: `Bearer ${SERVICE}` })
+
+/** A valid 1x1 PNG, enough for a map or thumbnail in tests. */
+export const TINY_PNG = Uint8Array.from(
+  atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='),
+  (c) => c.charCodeAt(0),
+)
+
+export async function storageUpload(bucket: string, path: string, bytes: Uint8Array): Promise<void> {
+  const r = await fetch(`${URL_}/storage/v1/object/${bucket}/${path}`, {
+    method: 'POST',
+    headers: { ...svc(), 'Content-Type': 'image/png', 'x-upsert': 'true' },
+    body: bytes as never, // fetch accepts a Uint8Array; the e2e lib typings lag
+  })
+  if (!r.ok) throw new Error(`storage upload failed: ${r.status} ${await r.text()}`)
+}
+
+export interface SeedTemplate {
+  title: string
+  status?: 'draft' | 'published' | 'archived'
+  tags?: string[]
+  credit?: string
+  cols?: number
+  rows?: number
+}
+
+/** Inserts a template row plus its two tiny images. Returns the new id. */
+export async function seedLibraryTemplate(t: SeedTemplate): Promise<string> {
+  const id = crypto.randomUUID()
+  const map_path = `${id}/v1/map.png`
+  const thumb_path = `${id}/v1/thumb.png`
+  await storageUpload('battlemap-library', map_path, TINY_PNG)
+  await storageUpload('battlemap-library', thumb_path, TINY_PNG)
+  const r = await fetch(`${URL_}/rest/v1/battle_map_templates`, {
+    method: 'POST',
+    headers: { ...svc(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      id,
+      title: t.title,
+      description: `Test map ${t.title}`,
+      tags: t.tags ?? ['dungeon'],
+      credit: t.credit ?? '',
+      status: t.status ?? 'published',
+      map_path,
+      thumb_path,
+      width: 1500,
+      height: 1000,
+      bytes: TINY_PNG.length,
+      grid: { cellPx: 50, offsetX: 7, offsetY: 11 },
+      cols: t.cols ?? 30,
+      rows: t.rows ?? 20,
+      published_at: new Date().toISOString(),
+    }),
+  })
+  if (!r.ok) throw new Error(`seed template failed: ${r.status} ${await r.text()}`)
+  return id
+}
+
+/** Removes a template row and its objects. */
+export async function removeLibraryTemplate(id: string): Promise<void> {
+  await fetch(`${URL_}/rest/v1/battle_map_templates?id=eq.${id}`, { method: 'DELETE', headers: svc() })
+  await fetch(`${URL_}/storage/v1/object/battlemap-library`, {
+    method: 'DELETE',
+    headers: { ...svc(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefixes: [`${id}/v1/map.png`, `${id}/v1/thumb.png`] }),
+  })
+}
+
+/** Makes a user a publisher (service key). */
+export async function addPublisher(userId: string): Promise<void> {
+  const r = await fetch(`${URL_}/rest/v1/library_publishers`, {
+    method: 'POST',
+    headers: { ...svc(), 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({ user_id: userId }),
+  })
+  if (!r.ok) throw new Error(`add publisher failed: ${r.status}`)
+}
+
+/** A REST call as a given identity: 'anon' (no session), or a user (their access token). */
+export function restAs(who: 'anon' | TestUser, path: string, init: RequestInit = {}): Promise<Response> {
+  const token = who === 'anon' ? ANON : ((who.session as { access_token: string }).access_token)
+  return fetch(`${URL_}${path}`, {
+    ...init,
+    headers: { apikey: ANON, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(init.headers ?? {}) },
+  })
+}

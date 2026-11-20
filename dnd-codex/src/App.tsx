@@ -21,6 +21,7 @@ import { isChunkLoadError } from './lib/chunkError'
 import { PENDING_JOIN_KEY } from './lib/prefs'
 import { HomePage } from './pages/HomePage'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
+import { libraryAvailable } from './lib/battleLibrary'
 import { isDemo } from './lib/demo'
 import type { Campaign } from './db/types'
 import { useChangelogUnseen } from './lib/useChangelog'
@@ -33,6 +34,7 @@ import { useChangelogUnseen } from './lib/useChangelog'
 const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then((m) => ({ default: m.CampaignsPage })))
 const BackupPage = lazy(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
+const BattleLibraryPage = lazy(() => import('./pages/BattleLibraryPage').then((m) => ({ default: m.BattleLibraryPage })))
 const CreditsPage = lazy(() => import('./pages/CreditsPage').then((m) => ({ default: m.CreditsPage })))
 const ChangelogPage = lazy(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
 const CampaignLayout = lazy(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
@@ -355,6 +357,11 @@ function ToolsMenu({ onOpenDice }: { onOpenDice: () => void }) {
           <NavLink to="/tools/templates" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="copy" size={15} /></span> Templates
           </NavLink>
+          {libraryAvailable() && (
+            <NavLink to="/tools/battlemaps" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
+              <span className="ico"><Icon name="map" size={15} /></span> Battle map library
+            </NavLink>
+          )}
           <NavLink to="/tools/encounters" className="nav-link" style={{ paddingLeft: 22, fontSize: 13.5 }}>
             <span className="ico"><Icon name="tools" size={15} /></span> Encounter Builder
           </NavLink>
@@ -611,6 +618,7 @@ export function App() {
             <Route path="/tools/encounters" element={<EncountersPage />} />
             <Route path="/tools/generators" element={<GeneratorTablesPage />} />
             <Route path="/tools/templates" element={<TemplatesPage />} />
+            <Route path="/tools/battlemaps" element={<BattleLibraryPage />} />
             <Route path="/tools/combat" element={<CombatTrackerPage />} />
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
