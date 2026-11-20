@@ -12,7 +12,13 @@ import type { Campaign } from '../db/types'
 // gradient from the campaign's own color, so the page never opens on an
 // "add an image" prompt. The cover is a StoredImage via campaign.coverImageId.
 
-export function CampaignHero({ campaign }: { campaign: Campaign }) {
+export function CampaignHero({
+  campaign,
+  onOpenSettings,
+}: {
+  campaign: Campaign
+  onOpenSettings: () => void
+}) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -116,6 +122,9 @@ export function CampaignHero({ campaign }: { campaign: Campaign }) {
             Remove
           </button>
         )}
+        <button className="btn small" onClick={onOpenSettings}>
+          <Icon name="settings" size={13} /> Campaign settings
+        </button>
       </div>
     </div>
   )
