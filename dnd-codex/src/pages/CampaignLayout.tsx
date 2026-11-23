@@ -57,8 +57,8 @@ export function CampaignLayout() {
         {/* Breadcrumb: where you are. The page's own navigation is the sidebar
             tree (components/CampaignTree.tsx); the Overview shows the big title. */}
         <nav className="camp-crumb" aria-label="Breadcrumb">
-          <Link to="/" className="camp-crumb-link">
-            <Icon name="arrow-left" size={13} /> All campaigns
+          <Link to="/" className="camp-crumb-link camp-crumb-all" aria-label="All campaigns">
+            <Icon name="arrow-left" size={13} /> <span className="camp-crumb-label">All campaigns</span>
           </Link>
           <span className="camp-crumb-sep" aria-hidden>/</span>
           <span aria-hidden className="camp-dot" style={{ background: campaign.color }} />

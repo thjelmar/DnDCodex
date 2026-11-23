@@ -20,6 +20,7 @@ import { installErrorLog, logBoundaryError } from './lib/errorLog'
 import { isChunkLoadError } from './lib/chunkError'
 import { PENDING_JOIN_KEY } from './lib/prefs'
 import { HomePage } from './pages/HomePage'
+import { useTopbarAutoHide } from './lib/useTopbarAutoHide'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
 import { libraryAvailable } from './lib/battleLibrary'
 import { isDemo } from './lib/demo'
@@ -530,6 +531,11 @@ export function App() {
     return () => document.body.classList.remove('nav-open')
   }, [navOpen])
 
+  // Phone landscape: the top bar hides on scroll down and returns on scroll up.
+  const appRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  useTopbarAutoHide(appRef, mainRef, navOpen)
+
   const [addPlayerOpen, setAddPlayerOpen] = useState(false)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [bugOpen, setBugOpen] = useState(false)
@@ -556,6 +562,7 @@ export function App() {
         {demo && <DemoBanner />}
         {demo && <DemoBlockedToast />}
         <div
+          ref={appRef}
           className="app"
           data-nav-open={navOpen ? 'true' : undefined}
           data-demo={demo ? 'true' : undefined}
@@ -602,7 +609,7 @@ export function App() {
             onNavigate={closeNav}
           />
           <div className="nav-scrim" onClick={closeNav} aria-hidden />
-        <main className="main">
+        <main className="main" ref={mainRef}>
           <RouteBoundary>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
