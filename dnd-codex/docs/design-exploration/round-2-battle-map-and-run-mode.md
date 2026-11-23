@@ -145,6 +145,10 @@ Still to fix:
     slot disappears. The next slot takes the turn if the defeated slot had it.
   - **Ungroup** puts the members back as separate slots in the same position.
     A defeated monster cannot be grouped.
+- **Icons.** Use monochrome line icons (24px grid, 1.8px round stroke, `currentColor`)
+  for every tool and toggle, never emoji. The mockup draws the Measure ruler and
+  the show/hide eye (open eye, slashed eye) this way. The eye hides a token from
+  players and dims it for the DM.
 - **Inspector header.** Header controls (float, window, close) are icon-only with
   tooltips so they fit in the 300px panel.
 
