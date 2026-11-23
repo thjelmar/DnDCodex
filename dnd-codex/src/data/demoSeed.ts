@@ -384,6 +384,23 @@ const timelineEvents: TimelineEvent[] = [
 // so the world map, handouts, and gallery have real content without the demo
 // touching Storage. The world-map background is referenced by the WorldMap below.
 const IMG_WORLDMAP = 'demo-img-worldmap'
+const IMG_TOWNMAP = 'demo-img-townmap'
+
+// A small hand-drawn SVG town (T-94): the detail map the Caldemar pin opens.
+const TOWN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="560" viewBox="0 0 800 560">
+<rect width="800" height="560" fill="#2b3a2c"/>
+<path d="M0 300 C200 260 300 340 520 300 S720 250 800 270 L800 330 C700 310 600 360 520 350 S200 320 0 350Z" fill="#3f6f8f"/>
+<rect x="40" y="40" width="720" height="210" rx="18" fill="#6b5b45"/>
+<rect x="40" y="380" width="720" height="140" rx="18" fill="#6b5b45"/>
+<g fill="#a98d63" stroke="#2a2118" stroke-width="3">
+<rect x="80" y="80" width="110" height="70"/><rect x="220" y="70" width="90" height="90"/><rect x="340" y="90" width="150" height="80"/>
+<rect x="530" y="70" width="90" height="100"/><rect x="650" y="90" width="80" height="70"/><rect x="90" y="180" width="130" height="50"/>
+<rect x="300" y="190" width="120" height="45"/><rect x="460" y="200" width="150" height="40"/>
+<rect x="90" y="410" width="120" height="80"/><rect x="250" y="420" width="140" height="70"/><rect x="440" y="405" width="110" height="90"/><rect x="590" y="420" width="130" height="70"/>
+</g>
+<circle cx="400" cy="300" r="14" fill="#c9b48a" stroke="#2a2118" stroke-width="3"/>
+</svg>`
+const TOWN_IMG = { dataUrl: `data:image/svg+xml;utf8,${encodeURIComponent(TOWN_SVG)}`, width: 800, height: 560, bytes: TOWN_SVG.length }
 
 function image(
   id: string,
@@ -408,6 +425,7 @@ function image(
 
 const images: StoredImage[] = [
   image(IMG_WORLDMAP, 'realm-of-caldemar.webp', DEMO_IMG_WORLDMAP),
+  image(IMG_TOWNMAP, 'caldemar-town.svg', TOWN_IMG, { mime: 'image/svg+xml' }),
   image('demo-img-decree', 'royal-proclamation.webp', DEMO_IMG_DECREE, {
     isHandout: true,
     caption: 'Royal proclamation — posted in Caldemar’s square.',
@@ -463,11 +481,27 @@ const worldMaps: WorldMap[] = [
     width: DEMO_IMG_WORLDMAP.width,
     height: DEMO_IMG_WORLDMAP.height,
     pins: [
-      { id: 'demo-pin-city', x: 0.285, y: 0.42, label: 'Caldemar', color: '#eab308', ref: { kind: 'location', id: LOC_CITY } },
+      { id: 'demo-pin-city', x: 0.285, y: 0.42, label: 'Caldemar', color: '#eab308', ref: { kind: 'location', id: LOC_CITY }, detailMapId: 'demo-worldmap-caldemar' },
       { id: 'demo-pin-stag', x: 0.31, y: 0.49, label: 'The Gilded Stag', color: '#a16207', ref: { kind: 'location', id: LOC_TAVERN } },
       { id: 'demo-pin-forest', x: 0.58, y: 0.69, label: 'The Thornwood', color: '#16a34a', ref: { kind: 'location', id: LOC_FOREST } },
       { id: 'demo-pin-vault', x: 0.875, y: 0.54, label: 'The Sunken Vault', color: '#475569', ref: { kind: 'location', id: LOC_RUIN } },
       { id: 'demo-pin-mordrek', x: 0.82, y: 0.40, label: 'Mordrek’s camp', color: '#dc2626', ref: { kind: 'npc', id: NPC_VILLAIN } },
+    ],
+    createdAt: T,
+    updatedAt: T,
+  },
+  {
+    id: 'demo-worldmap-caldemar',
+    campaignId: CID,
+    name: 'Caldemar',
+    imageId: IMG_TOWNMAP,
+    width: TOWN_IMG.width,
+    height: TOWN_IMG.height,
+    parentMapId: 'demo-worldmap',
+    pins: [
+      { id: 'demo-pin-town-stag', x: 0.52, y: 0.27, label: 'The Gilded Stag', color: '#a16207', ref: { kind: 'location', id: LOC_TAVERN } },
+      { id: 'demo-pin-town-square', x: 0.5, y: 0.54, label: 'Market square', color: '#eab308', ref: { kind: 'location', id: LOC_CITY } },
+      { id: 'demo-pin-town-gate', x: 0.12, y: 0.62, label: 'West gate', color: '#475569', ref: null },
     ],
     createdAt: T,
     updatedAt: T,

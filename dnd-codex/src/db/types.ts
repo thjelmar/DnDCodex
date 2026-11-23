@@ -929,6 +929,8 @@ export interface WorldPin {
   /** The entity this pin points to (click → open its sheet). Null = label only.
    *  A raceGroup pin marks where that people live. */
   ref: { kind: 'location' | 'npc' | 'raceGroup'; id: Id } | null
+  /** The detail map this pin opens (T-94), or undefined for a plain pin. */
+  detailMapId?: Id
 }
 
 /** A reference/prep map of the world or a region, with pins linked to entities.
@@ -944,6 +946,9 @@ export interface WorldMap extends BaseRecord {
   pins: WorldPin[]
   /** Live-shared read-only to players. */
   sharedWithPlayers?: boolean
+  /** Set on a detail map (T-94): the map it belongs to. Absent on the campaign's
+   *  root map. A detail map can exist with no pin pointing at it. */
+  parentMapId?: Id | null
 }
 
 // --- Campaign timeline (T-5) -----------------------------------------------
