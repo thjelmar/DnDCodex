@@ -10,7 +10,9 @@ export function DemoBanner() {
   return (
     <div className="demo-banner">
       <span className="demo-banner-text">
-        <span aria-hidden>🎭</span> You're exploring the <strong>demo</strong> — sample data, and changes aren't saved.
+        <span aria-hidden>🎭</span>{' '}
+        <span className="demo-long">You're exploring the <strong>demo</strong> — sample data, and changes aren't saved.</span>
+        <span className="demo-short">Demo: sample data, not saved</span>
       </span>
       <button className="demo-banner-exit" onClick={() => exitDemo()}>
         Exit to the real site <Icon name="chevron-right" size={13} color="currentColor" />
