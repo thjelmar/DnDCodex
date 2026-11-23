@@ -49,6 +49,7 @@ export function Inspector({
   extraTabs,
   foldScene = false,
   noun = 'inspector',
+  footer,
   children,
 }: {
   mode: InspectorMode
@@ -64,6 +65,8 @@ export function Inspector({
   /** Moves the inspector to its own window (omitted where that is not offered). */
   onOpenWindow?: () => void
   onClose: () => void
+  /** Pinned under the scrolling body (the selected-token card). */
+  footer?: ReactNode
   children: ReactNode
 }) {
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
@@ -166,6 +169,7 @@ export function Inspector({
         </button>
       </div>
       <div className="bm-insp-body">{children}</div>
+      {footer}
     </aside>
   )
 }

@@ -813,16 +813,22 @@ export interface SceneToken {
   /** DM-marked ally: players see this token's real HP even though the DM runs
    *  it (e.g. an allied NPC). PCs and player-controlled tokens are allies too. */
   friendly?: boolean
-  /** How the battle map inspector files this token (Heroes, Foes, Objects).
-   *  Unset = inferred from the token's links. DM-only: the live scene payload
-   *  is built field by field (`toLiveTokens`), so this never reaches players. */
-  kind?: TokenKind
+  /** How the battle map inspector files this token (Characters, NPCs, Enemies,
+   *  Props). Unset = inferred from the token's links (`resolveKind`). Scenes saved
+   *  before T-103 can hold the older `hero`, `foe` and `object` values; they read as
+   *  Character, Enemy and Prop. DM-only: the live scene payload is built field by
+   *  field (`toLiveTokens`), so this never reaches players. */
+  kind?: TokenKind | LegacyTokenKind
+  /** Manual walking speed in feet. Overrides the linked stat block's speed. */
+  speedFt?: number | null
   /** The monster group (`Scene.groups`) this token belongs to. DM-only prep data:
    *  like `kind`, it never reaches the live scene payload. */
   groupId?: Id | null
 }
 
-export type TokenKind = 'hero' | 'foe' | 'object'
+export type TokenKind = 'character' | 'npc' | 'enemy' | 'prop'
+/** Values written by T-95. Read as `character`, `enemy` and `prop`. */
+export type LegacyTokenKind = 'hero' | 'foe' | 'object'
 
 /** Combat info overlaid on a battle-map token. Privacy-filtered by whoever
  *  builds it: the DM board gets full hp/maxHp; players get hp/maxHp only for
