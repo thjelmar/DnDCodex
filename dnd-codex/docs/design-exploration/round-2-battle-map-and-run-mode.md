@@ -125,6 +125,22 @@ Still to fix:
   (owner decision, not a separate pill over the map): the strip reads "Round 2",
   the current name, a Next button (key `N`), then the combatant chips. Next advances the pulse and adds
   1 to the round after the last combatant.
+- **Group monsters into one initiative.** DMs often have a group of monsters act
+  on the same turn. In the inspector's Foes list, the DM ticks two or more foes
+  and chooses **Group as one initiative**. The group becomes one slot in the turn
+  order:
+  - The lineup shows one chip with stacked mini avatars and a label such as
+    "Thugs ×3". The round strip reads "Thugs ×3 act together" on that turn.
+  - When the group's turn comes, every token in the group pulses on the map.
+    Grouped tokens carry a dashed ring all the time, so the DM can see which
+    ones belong together.
+  - The inspector lists each group with an **Ungroup** button, which puts the
+    members back as separate slots in the same position.
+  - Grouping keeps the current turn on the same combatant. A grouped foe cannot
+    be ticked into a second group.
+  - Build questions for the owner: roll one initiative for the group or let the
+    DM type it; whether HP stays per monster (the mockup assumes yes); and
+    whether a defeated member leaves the group automatically (recommended).
 - **Inspector header.** Header controls (float, window, close) are icon-only with
   tooltips so they fit in the 300px panel.
 

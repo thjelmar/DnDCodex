@@ -57,6 +57,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 .tok.turn i,.init b.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
 .tok.turn span{background:var(--accent-strong)}
 @media (prefers-reduced-motion:reduce){.tok.turn i,.init b.turn{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 60%,transparent)}}
+/* Grouped monsters: one initiative entry, several tokens. */
+.init .gchip{display:flex;align-items:center;gap:6px;border-radius:999px;padding:2px 8px 2px 2px;background:var(--bg-elev-2);border:1px solid var(--border);font-size:11px;font-weight:600}
+.init .gchip .st{display:flex}.init .gchip .st b{margin-left:-8px;border:2px solid var(--bg-elev-2)}.init .gchip .st b:first-child{margin-left:0}
+.init .gchip.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
+.tok.grouped i{outline:2px dashed #fffb;outline-offset:2px}
+.gline{display:flex;align-items:center;gap:8px;font-size:13px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;margin-bottom:4px}
+.gline .btn{margin-left:auto;padding:1px 8px;font-size:12px}
+.row input[type=checkbox]{width:auto;margin:0}
+@media (prefers-reduced-motion:reduce){.init .gchip.turn{animation:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 60%,transparent)}}
 /* Scene inspector: docked, floating (pop-out), or hidden (overlay in full screen). */
 .insp{background:var(--bg-elev);border-left:1px solid var(--border);width:300px;flex:none;display:flex;flex-direction:column;z-index:4}
 .insp.hidden{display:none}
@@ -118,18 +127,20 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       </div>
 
       <div class="map" id="map">
-        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, tick two or more foes and choose <b>Group</b> to roll them into one initiative, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
 
         <div class="tok hero" data-id="br" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
         <div class="tok hero" data-id="sa" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
         <div class="tok hero" data-id="va" style="left:30%;top:66%"><i>Va</i><span>Vara</span></div>
         <div class="tok hero" data-id="pi" style="left:40%;top:78%"><i>Pi</i><span>Pip</span></div>
-        <div class="tok foe" data-id="th" style="left:56%;top:62%"><i>Th</i><span>Thug</span></div>
+        <div class="tok foe" data-id="t1" style="left:54%;top:58%"><i>T1</i><span>Thug 1</span></div>
+        <div class="tok foe" data-id="t2" style="left:61%;top:50%"><i>T2</i><span>Thug 2</span></div>
+        <div class="tok foe" data-id="t3" style="left:50%;top:70%"><i>T3</i><span>Thug 3</span></div>
         <div class="tok foe sel" data-id="mo" style="left:70%;top:72%"><i>Mo</i><span>Mordrek</span></div>
         <div class="sel-bar" style="left:70%;top:calc(72% - 38px)"><button>Duplicate</button><button>Condition</button><button>Delete</button></div>
         <div class="tok obj" style="left:46%;top:46%"><i>▣</i><span>Crate</span></div>
 
-        <div class="init"><div class="rd"><strong>Round <span id="roundN">2</span></strong><small id="turnName">Sable's turn</small></div><button class="btn primary" id="btnNext" title="Next turn (N)">Next ▸</button><span class="sep"></span><b data-id="sa" style="background:#16a34a">Sa</b><b data-id="mo" style="background:#dc2626">Mo</b><b data-id="br" style="background:#16a34a">Br</b><b data-id="va" style="background:#16a34a">Va</b><b data-id="th" style="background:#dc2626">Th</b><b data-id="pi" style="background:#16a34a">Pi</b></div>
+        <div class="init"><div class="rd"><strong>Round <span id="roundN">2</span></strong><small id="turnName">Sable's turn</small></div><button class="btn primary" id="btnNext" title="Next turn (N)">Next ▸</button><span class="sep"></span><div id="chips" style="display:flex;gap:6px;align-items:center"></div></div>
         <div class="chip" style="left:50%;top:12px;transform:translateX(-50%)">Drag tokens to move. Arrow keys nudge.</div>
         <div class="zoom"><button>−</button><span style="padding:3px 6px">100%</span><button>+</button><button>Fit</button></div>
 
@@ -158,8 +169,12 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
           <div class="row"><span class="dot" style="background:#16a34a"></span>Vara<span class="pill">30/30</span>👁</div>
           <div class="row"><span class="dot" style="background:#16a34a"></span>Pip<span class="pill">18/22</span>👁</div>
           <div class="grp">Foes</div>
-          <div class="row"><span class="dot" style="background:#dc2626"></span>Mordrek<span class="pill">54/65</span>👁</div>
-          <div class="row"><span class="dot" style="background:#dc2626"></span>Thug<span class="pill">16/22</span>👁</div>
+          <div id="foeGroups"></div>
+          <label class="row"><input type="checkbox" class="fchk" data-id="mo"><span class="dot" style="background:#dc2626"></span>Mordrek<span class="pill">54/65</span></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t1"><span class="dot" style="background:#dc2626"></span>Thug 1<span class="pill">22/22</span></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t2"><span class="dot" style="background:#dc2626"></span>Thug 2<span class="pill">16/22</span></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t3"><span class="dot" style="background:#dc2626"></span>Thug 3<span class="pill">22/22</span></label>
+          <button class="btn primary hidden-btn" id="btnGroup" style="width:100%;margin-top:6px;display:none">Group as one initiative</button>
           <div class="grp">Objects</div>
           <div class="row"><span class="dot" style="background:#92591f"></span>Crate<span class="pill">—</span>👁</div>
         </div>
@@ -261,17 +276,72 @@ async function openWindow() {
 document.getElementById('btnWin').onclick = openWindow;
 document.getElementById('btnBack').onclick = () => { if (extWin) extWin.close(); };
 
-// Turn order and round counter. The current-turn token pulses on the map and in the lineup.
-const order = ['sa','mo','br','va','th','pi'], names = {sa:'Sable',mo:'Mordrek',br:'Bram',va:'Vara',th:'Thug',pi:'Pip'};
+// Turn order. An entry is one initiative slot: one combatant, or a group of monsters that act together.
+const info = {sa:['Sable','#16a34a','Sa'],mo:['Mordrek','#dc2626','Mo'],br:['Bram','#16a34a','Br'],va:['Vara','#16a34a','Va'],
+  t1:['Thug 1','#dc2626','T1'],t2:['Thug 2','#dc2626','T2'],t3:['Thug 3','#dc2626','T3'],pi:['Pip','#16a34a','Pi']};
+let entries = ['sa','mo','br','va','t1','t2','t3','pi'].map(id => ({ ids: [id] }));
 let turn = 0, round = 2;
-function showTurn() {
-  document.querySelectorAll('[data-id]').forEach(el => el.classList.toggle('turn', el.dataset.id === order[turn]));
-  document.getElementById('roundN').textContent = round;
-  document.getElementById('turnName').textContent = names[order[turn]] + "'s turn";
+const chips = document.getElementById('chips');
+const isGroup = e => e.ids.length > 1;
+const groupName = e => info[e.ids[0]][0].replace(/\s*\d+$/, '') + 's';
+
+function renderLineup() {
+  chips.innerHTML = entries.map((e, i) => isGroup(e)
+    ? `<span class="gchip" data-entry="${i}" title="${groupName(e)} act together"><span class="st">${e.ids.map(id => `<b style="background:${info[id][1]}">${info[id][2]}</b>`).join('')}</span>${groupName(e)} ×${e.ids.length}</span>`
+    : `<b data-entry="${i}" title="${info[e.ids[0]][0]}" style="background:${info[e.ids[0]][1]}">${info[e.ids[0]][2]}</b>`).join('');
+  document.querySelectorAll('.tok[data-id]').forEach(t => t.classList.toggle('grouped', entries.some(e => isGroup(e) && e.ids.includes(t.dataset.id))));
+  // Inspector: list the groups with an Ungroup button.
+  document.getElementById('foeGroups').innerHTML = entries.filter(isGroup).map(e =>
+    `<div class="gline"><span>${groupName(e)} ×${e.ids.length} · one initiative</span><button class="btn" data-ungroup="${e.ids[0]}">Ungroup</button></div>`).join('');
+  document.querySelectorAll('.fchk').forEach(c => { c.disabled = entries.some(e => isGroup(e) && e.ids.includes(c.dataset.id)); if (c.disabled) c.checked = false; });
+  updateGroupBtn();
+  showTurn();
 }
-const nextTurn = () => { turn = (turn + 1) % order.length; if (turn === 0) round++; showTurn(); };
+function showTurn() {
+  const cur = entries[turn];
+  document.querySelectorAll('.tok[data-id]').forEach(el => el.classList.toggle('turn', cur.ids.includes(el.dataset.id)));
+  chips.querySelectorAll('[data-entry]').forEach(el => el.classList.toggle('turn', +el.dataset.entry === turn));
+  document.getElementById('roundN').textContent = round;
+  document.getElementById('turnName').textContent = isGroup(cur) ? groupName(cur) + ' ×' + cur.ids.length + ' act together' : info[cur.ids[0]][0] + "'s turn";
+}
+const nextTurn = () => { turn = (turn + 1) % entries.length; if (turn === 0) round++; showTurn(); };
 document.getElementById('btnNext').onclick = nextTurn;
-showTurn();
+
+// Keep the same combatant on turn while entries change.
+function mutate(fn) {
+  const cur = entries[turn];
+  fn();
+  const i = entries.findIndex(e => e.ids.some(id => cur.ids.includes(id)));
+  turn = i < 0 ? 0 : i;
+  renderLineup();
+}
+const checked = () => [...document.querySelectorAll('.fchk:checked')].map(c => c.dataset.id);
+function updateGroupBtn() {
+  const n = checked().length, b = document.getElementById('btnGroup');
+  b.style.display = n >= 2 ? 'block' : 'none';
+  b.textContent = 'Group ' + n + ' as one initiative';
+}
+document.querySelectorAll('.fchk').forEach(c => c.addEventListener('change', updateGroupBtn));
+document.getElementById('btnGroup').onclick = () => {
+  const ids = checked();
+  mutate(() => {
+    const first = entries.findIndex(e => e.ids.some(id => ids.includes(id)));
+    const rest = entries.filter(e => !e.ids.some(id => ids.includes(id)));
+    rest.splice(Math.min(first, rest.length), 0, { ids: ids.slice() });
+    entries = rest;
+  });
+  document.querySelectorAll('.fchk').forEach(c => c.checked = false);
+  updateGroupBtn();
+};
+document.getElementById('inspBody').addEventListener('click', e => {
+  const id = e.target.dataset && e.target.dataset.ungroup;
+  if (!id) return;
+  mutate(() => {
+    const i = entries.findIndex(x => isGroup(x) && x.ids.includes(id));
+    entries.splice(i, 1, ...entries[i].ids.map(x => ({ ids: [x] })));
+  });
+});
+renderLineup();
 apply();
 </script>
 </body>
