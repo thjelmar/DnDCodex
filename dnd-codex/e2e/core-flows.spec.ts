@@ -28,16 +28,14 @@ test.describe('core flows (local, signed out)', () => {
 
     // A battle map is the live scene the DM shows to players. Create one from Run mode.
     await page.goto(`/#/run/${campaignId}`)
-    await page.getByRole('tab', { name: /Battle Map/ }).click()
     await page.getByRole('button', { name: 'New battle map' }).click()
-    await expect(page.getByRole('textbox', { name: 'Battle map name' })).toHaveValue('Battle Map 1')
+    await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
 
     // Everything persists in IndexedDB across a reload.
     await page.reload()
     await page.goto(`/#/campaign/${campaignId}/sessions`)
     await expect(page.getByText('Session 1').first()).toBeVisible()
     await page.goto(`/#/run/${campaignId}`)
-    await page.getByRole('tab', { name: /Battle Map/ }).click()
-    await expect(page.getByRole('textbox', { name: 'Battle map name' })).toHaveValue('Battle Map 1')
+    await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
   })
 })

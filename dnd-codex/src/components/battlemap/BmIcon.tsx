@@ -32,6 +32,12 @@ export type BmIconName =
   | 'upload'
   | 'library'
   | 'window'
+  | 'back'
+  | 'pin'
+  | 'swords'
+  | 'image'
+  | 'dice'
+  | 'sliders'
 
 const PATHS: Record<BmIconName, ReactNode> = {
   select: <path d="M5 3l14 7.5-6.2 1.9L10.5 19 5 3z" />,
@@ -131,6 +137,23 @@ const PATHS: Record<BmIconName, ReactNode> = {
   ),
   map: <path d="M9 4 3 6.5v14L9 18l6 2.5 6-2.5v-14L15 6.5 9 4zM9 4v14M15 6.5v14" />,
   upload: <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />,
+  back: <path d="m15 18-6-6 6-6" />,
+  pin: <path d="M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z" />,
+  swords: <path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M14.5 6.5 18 3h3v3l-3.5 3.5M5 14l4 4M7 17l-3 3M3 19l2 2" />,
+  image: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <circle cx="9" cy="10" r="1.5" />
+      <path d="m20 16-5-5-9 8" />
+    </>
+  ),
+  dice: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M9 9h.01M15 15h.01M12 12h.01" />
+    </>
+  ),
+  sliders: <path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" />,
   library: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16.5 5.2l3.8-1 3 15.4-3.8 1z" />,
 }
 

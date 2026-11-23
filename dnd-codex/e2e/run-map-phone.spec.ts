@@ -118,15 +118,11 @@ test('with a notch, the Run map controls stay inside the safe areas', async ({ p
   expect(r.zoom!.right).toBeLessThanOrEqual(r.vw - 47)
 })
 
-test('a tablet keeps the classic Run layout, and Show panel opens the panel over the board', async ({ page }) => {
-  await openRunMap(page, { width: 1024, height: 768 })
-  await expect(page.locator('.bm-studio')).toHaveCount(0)
-  await page.locator('.battlemap-more summary').click()
-  await page.getByRole('button', { name: 'Show panel' }).click()
-  const side = page.locator('.battlemap-side')
-  await expect(side).toBeVisible()
-  const [s, v] = await Promise.all([side.boundingBox(), page.locator('.tabletop-view').boundingBox()])
-  // The panel sits inside the board's own rectangle, so it is visible wherever the board is.
-  expect(s!.y).toBeGreaterThanOrEqual(v!.y - 1)
-  expect(s!.x + s!.width).toBeLessThanOrEqual(v!.x + v!.width + 1)
+test('a tablet gets the desktop Run layout: a full-width map and a drawer panel (T-98)', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.addInitScript(() => sessionStorage.setItem('codex-demo', '1'))
+  await page.goto(`/#/run/${CAMPAIGN}`)
+  await expect(page.locator('.run-studio .bm-studio')).toBeVisible()
+  await expect(page.locator('.bm-studio.expanded')).toHaveCount(0)
+  await expect(page.locator('.run-grid')).toHaveCount(0)
 })

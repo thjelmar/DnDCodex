@@ -21,7 +21,7 @@ test.describe('run mode, signed out', () => {
     supabaseRequests.length = 0
 
     await page.goto(`/#/run/${campaignId}`)
-    await expect(page.getByRole('tab', { name: /Battle Map/ })).toBeVisible()
+    await expect(page.getByTestId('run-top')).toBeVisible()
     // The live-session read starts on mount. Give it time to fire before checking.
     await page.waitForTimeout(1000)
 

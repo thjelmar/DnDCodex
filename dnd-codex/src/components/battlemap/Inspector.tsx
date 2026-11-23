@@ -1,16 +1,21 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { BmIcon } from './BmIcon'
+import { BmIcon, type BmIconName } from './BmIcon'
 
 export type InspectorTab = 'tokens' | 'grid' | 'map'
 /** A section a host page adds before the scene tabs (Run mode's combat, notes and dice). */
 export interface ExtraInspectorTab {
   id: string
   label: string
+  /** When set, the tab shows this icon, and only the active tab also shows its label. */
+  icon?: BmIconName
 }
 /** `docked` sits beside the map, `float` hovers over it, `drawer` is the
  *  on-demand overlay used in full screen and on a phone, and `window` fills a
  *  separate browser window. */
 export type InspectorMode = 'docked' | 'float' | 'drawer' | 'window'
+
+/** Desktop Run mode folds the three scene tabs into one (the sub-tabs live in its body). */
+const FOLDED_TABS: ExtraInspectorTab[] = [{ id: 'scene', label: 'Scene', icon: 'sliders' }]
 
 const TABS: { id: InspectorTab; label: string }[] = [
   { id: 'tokens', label: 'Tokens' },
@@ -32,6 +37,7 @@ export function Inspector({
   onOpenWindow,
   onClose,
   extraTabs,
+  foldScene = false,
   children,
 }: {
   mode: InspectorMode
@@ -39,6 +45,8 @@ export function Inspector({
   tab: string
   onTab: (t: string) => void
   extraTabs?: ExtraInspectorTab[]
+  /** Show one Scene tab in place of Tokens, Grid and Map. */
+  foldScene?: boolean
   onToggleFloat: () => void
   /** Moves the inspector to its own window (omitted where that is not offered). */
   onOpenWindow?: () => void
@@ -93,18 +101,24 @@ export function Inspector({
         onPointerDown={onPointerDown}
       >
         <div className="bm-tabs" role="tablist" aria-label="Inspector sections">
-          {[...(extraTabs ?? []), ...TABS].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className={tab === t.id ? 'on' : ''}
-              onClick={() => onTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+          {[...(extraTabs ?? []), ...(foldScene ? FOLDED_TABS : TABS)].map((t) => {
+            const icon = (t as ExtraInspectorTab).icon
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-label={t.label}
+                title={t.label}
+                className={`${tab === t.id ? 'on' : ''}${icon ? ' has-icon' : ''}`}
+                onClick={() => onTab(t.id)}
+              >
+                {icon && <BmIcon name={icon} size={16} />}
+                <span className="bm-tab-label">{t.label}</span>
+              </button>
+            )
+          })}
         </div>
         {onOpenWindow && mode !== 'window' && (
           <button

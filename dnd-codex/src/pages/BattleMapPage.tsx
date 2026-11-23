@@ -45,6 +45,7 @@ import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { isIphoneSafari, isStandalone } from '../lib/standalone'
 import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
@@ -252,6 +253,15 @@ export function SceneEditor({
     tabs: (ExtraInspectorTab & { content: ReactNode })[]
     /** Leaves the map for Run mode's Notes page. */
     onBack: () => void
+    /** Desktop and tablet: the panel docks beside the map (a drawer at 1050px and narrower),
+     *  the three scene tabs fold into one Scene tab, and the studio shows Run mode's own top bar. */
+    docked?: boolean
+    /** Docked only: the start of the top bar (exit, campaign, session switcher). */
+    topStart?: ReactNode
+    /** Docked only: the end of the top bar (live session control). */
+    topEnd?: ReactNode
+    /** Docked only: the In play rail button and flyout. */
+    play?: { count: number; content: ReactNode }
   }
 }) {
   const confirm = useConfirm()
@@ -423,9 +433,10 @@ export function SceneEditor({
     () => peekOpen.current || drawerOpenRef.current,
     studio && isStandalone() && typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_QUERY).matches,
   )
-  const expanded = fs.expanded || !!runKit
+  const runDocked = !!runKit?.docked
+  const expanded = fs.expanded || (!!runKit && !runDocked)
   const enterFullscreen = fs.enter
-  const exitFullscreen = runKit ? runKit.onBack : fs.exit
+  const exitFullscreen = runKit && !runDocked ? runKit.onBack : fs.exit
   const [panelOpen, setPanelOpen] = useState(!compact)
   // Full screen only: session notes beside the map.
   const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
@@ -437,9 +448,13 @@ export function SceneEditor({
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [inspFloat, setInspFloat] = useState(false)
   const [inspTab, setInspTab] = useState<string>(runKit?.tabs[0]?.id ?? 'tokens')
+  // Docked Run mode folds Tokens, Grid and Map into one Scene tab with sub-tabs.
+  const [sceneSub, setSceneSub] = useState<'tokens' | 'grid' | 'map'>('tokens')
+  const [playOpen, setPlayOpen] = useState(false)
   const [tokenFilter, setTokenFilter] = useState('')
   const [hintOn, setHintOn] = useState(true)
-  const asDrawer = expanded || isPhone
+  const narrowDock = useMediaQuery('(max-width: 1050px)')
+  const asDrawer = expanded || isPhone || (runDocked && narrowDock)
   const inspVisible = asDrawer ? drawerOpen : dockOpen
   drawerOpenRef.current = studio && asDrawer && drawerOpen
   const iw = useInspectorWindow()
@@ -1246,7 +1261,7 @@ export function SceneEditor({
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
   // (Hooks above run in every layout; this effect only acts in the studio.)
-  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {} })
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {} })
   const preview0 = preview
   function selectTool() {
     setFogTool(null)
@@ -1265,7 +1280,8 @@ export function SceneEditor({
     fullscreen: () => (expanded ? exitFullscreen() : enterFullscreen()),
     select: selectTool,
     measure: () => !preview0 && toggleMeasure(),
-    closeDrawer: () => setDrawerOpen(false),
+    closeDrawer: () => { setDrawerOpen(false); setPlayOpen(false) },
+    togglePlay: () => runKit?.play && setPlayOpen((o) => !o),
     next: () => combat.state.active && combat.step(1),
   }
   useEffect(() => {
@@ -1281,6 +1297,7 @@ export function SceneEditor({
       else if (k === 'v') a.select()
       else if (k === 'm') a.measure()
       else if (k === 'n') a.next()
+      else if (k === '[') a.togglePlay()
       else if (k === 'escape') a.closeDrawer()
     }
     window.addEventListener('keydown', onKey)
@@ -1346,13 +1363,20 @@ export function SceneEditor({
     )
     const toggleFog = () => (fogTool ? exitFog() : enterFog())
 
+    // Which scene section the body shows: the folded Scene tab uses its sub-tab.
+    const foldScene = runDocked
+    const tabId = foldScene
+      ? ['tokens', 'grid', 'map'].includes(inspTab) ? 'scene' : inspTab
+      : inspTab === 'scene' ? 'tokens' : inspTab
+    const sceneView = foldScene ? (tabId === 'scene' ? sceneSub : null) : tabId
     const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
     const inspectorEl = (
       <Inspector
         mode={inspMode}
-        tab={inspTab}
+        tab={tabId}
         onTab={setInspTab}
         extraTabs={runKit?.tabs}
+        foldScene={foldScene}
         onToggleFloat={() => setInspFloat((f) => !f)}
         onOpenWindow={isPhone ? undefined : iw.open}
         onClose={() => {
@@ -1361,8 +1385,17 @@ export function SceneEditor({
           else setDockOpen(false)
         }}
       >
-        {runKit?.tabs.map((t) => inspTab === t.id && <div key={t.id}>{t.content}</div>)}
-        {inspTab === 'tokens' && (
+        {runKit?.tabs.map((t) => tabId === t.id && <div key={t.id}>{t.content}</div>)}
+        {foldScene && tabId === 'scene' && (
+          <div className="bm-seg bm-scene-sub" role="group" aria-label="Scene section">
+            {(['tokens', 'grid', 'map'] as const).map((id) => (
+              <button key={id} type="button" className={sceneSub === id ? 'on' : ''} aria-pressed={sceneSub === id} onClick={() => setSceneSub(id)}>
+                {id === 'tokens' ? 'Tokens' : id === 'grid' ? 'Grid' : 'Map'}
+              </button>
+            ))}
+          </div>
+        )}
+        {sceneView === 'tokens' && (
           <>
             <input
               className="bm-filter"
@@ -1476,8 +1509,8 @@ export function SceneEditor({
             )}
           </>
         )}
-        {inspTab === 'grid' && gridSection}
-        {inspTab === 'map' && (
+        {sceneView === 'grid' && gridSection}
+        {sceneView === 'map' && (
           <section>
             <h4>Map</h4>
             {mapImage ? (
@@ -1530,6 +1563,105 @@ export function SceneEditor({
 
     const flyoutBar = preview ? null : fogTool ? fogBar : measuring ? measureBar : templatesOpen ? templateBar : null
     const campBase = `/campaign/${campaign.id}`
+    const liveEl = live.available &&
+    (live.isShowing ? (
+      <button
+        type="button"
+        className="bm-btn bm-live-on"
+        disabled={live.busy}
+        onClick={live.stop}
+        title="Players can see this map live. Click to take it down."
+      >
+        <span className="battlemap-live-dot" aria-hidden />
+        <span className="bm-lbl">{live.busy ? 'Working…' : 'Live · Stop'}</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        className="bm-btn"
+        disabled={live.busy || !live.sessionLive}
+        onClick={live.show}
+        aria-label={live.otherShowing ? 'Show this map instead' : 'Show to players'}
+        title={
+          !live.sessionLive
+            ? 'Players see battle maps during a live session. Start one from Run mode.'
+            : live.otherShowing
+              ? `Players are seeing “${live.otherName}”. This swaps it for this map.`
+              : 'Show this map in your players’ live session'
+        }
+      >
+        <BmIcon name="broadcast" />
+        <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
+      </button>
+    ))
+
+
+    // Docked Run mode: its own top bar. One bar, one of each control.
+    const runHeader = runDocked ? (
+      <header className="bm-top bm-top-run" data-testid="run-top">
+        {runKit?.topStart}
+        {scenes && onSelectScene && (
+          <BmMenu
+            label="Switch battle map"
+            trigger={
+              <>
+                <BmIcon name="map" />
+                <span className="run-mapname">{scene.name || 'Untitled map'}</span>
+                <BmIcon name="chevron-down" size={14} />
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                {scenes.map((sc) => (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={sc.id === scene.id}
+                    className={`bm-item${sc.id === scene.id ? ' on' : ''}`}
+                    onClick={() => { onSelectScene(sc.id); close() }}
+                  >
+                    {sc.name || 'Untitled map'}
+                  </button>
+                ))}
+                <div className="bm-menu-sep" />
+                {onNewScene && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onNewScene() }}>
+                    <BmIcon name="plus" size={16} /> New map
+                  </button>
+                )}
+                <Link to={`${campBase}/battlemap`} role="menuitem" className="bm-item" onClick={close}>
+                  <BmIcon name="map" size={16} /> Edit this map
+                </Link>
+              </>
+            )}
+          </BmMenu>
+        )}
+        <span className="bm-spacer" />
+        {runKit?.topEnd}
+        {liveEl}
+        <button
+          type="button"
+          className="bm-btn bm-sq"
+          aria-label={expanded ? 'Exit full screen' : 'Full screen'}
+          title={expanded ? 'Exit full screen (F)' : 'Full screen (F)'}
+          onClick={expanded ? exitFullscreen : enterFullscreen}
+        >
+          <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
+        </button>
+        <button
+          type="button"
+          className={`bm-btn bm-sq${inspVisible ? ' on' : ''}`}
+          aria-pressed={inspVisible}
+          aria-label="Run panel"
+          title="Show or hide the run panel (I)"
+          onClick={toggleInspector}
+        >
+          <BmIcon name="inspector" />
+        </button>
+      </header>
+    ) : null
 
     return (
       <div
@@ -1541,6 +1673,8 @@ export function SceneEditor({
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => uploadMap(e.target.files?.[0])} />
         <input ref={tokenImageRef} type="file" accept="image/*" hidden onChange={(e) => addTokenFromImage(e.target.files)} />
 
+        {runHeader}
+        {!runDocked && (
         <header className="bm-top">
           <nav className="bm-crumb" aria-label="Breadcrumb">
             <Link to={campBase}>{campaign.name}</Link>
@@ -1640,37 +1774,7 @@ export function SceneEditor({
             <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
           </button>
           )}
-          {!isPhone && live.available &&
-            (live.isShowing ? (
-              <button
-                type="button"
-                className="bm-btn bm-live-on"
-                disabled={live.busy}
-                onClick={live.stop}
-                title="Players can see this map live. Click to take it down."
-              >
-                <span className="battlemap-live-dot" aria-hidden />
-                <span className="bm-lbl">{live.busy ? 'Working…' : 'Live · Stop'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="bm-btn"
-                disabled={live.busy || !live.sessionLive}
-                onClick={live.show}
-                aria-label={live.otherShowing ? 'Show this map instead' : 'Show to players'}
-                title={
-                  !live.sessionLive
-                    ? 'Players see battle maps during a live session. Start one from Run mode.'
-                    : live.otherShowing
-                      ? `Players are seeing “${live.otherName}”. This swaps it for this map.`
-                      : 'Show this map in your players’ live session'
-                }
-              >
-                <BmIcon name="broadcast" />
-                <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
-              </button>
-            ))}
+          {!isPhone && liveEl}
           {!runKit && (
           <Link to={`/run/${campaign.id}`} className="bm-btn primary" title="At-the-table screen: session notes, what's in play, combat and dice">
             <BmIcon name="play" size={16} />
@@ -1768,6 +1872,7 @@ export function SceneEditor({
             )}
           </BmMenu>
         </header>
+        )}
 
         <div className="bm-work">
           <div className="bm-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
@@ -1851,7 +1956,38 @@ export function SceneEditor({
                 </div>
               )}
             </BmMenu>
+            {runDocked && runKit?.play && (
+              <>
+                <span className="bm-rail-grow" />
+                <hr />
+                <button
+                  type="button"
+                  className={`bm-tool bm-play-btn${playOpen ? ' on' : ''}`}
+                  aria-pressed={playOpen}
+                  aria-expanded={playOpen}
+                  aria-label="In play"
+                  title="In play ([)"
+                  data-testid="tool-inplay"
+                  onClick={() => setPlayOpen((o) => !o)}
+                >
+                  <BmIcon name="pin" size={20} />
+                  {runKit.play.count > 0 && <span className="bm-badge">{runKit.play.count}</span>}
+                </button>
+              </>
+            )}
           </div>
+
+          {runDocked && runKit?.play && playOpen && (
+            <aside className="bm-play" aria-label="In play" data-testid="run-inplay">
+              <div className="bm-play-hd">
+                <strong>In play</strong>
+                <button type="button" className="bm-icon-btn" aria-label="Close In play" title="Close (Esc)" onClick={() => setPlayOpen(false)}>
+                  <BmIcon name="close" size={16} />
+                </button>
+              </div>
+              <div className="bm-play-body">{runKit.play.content}</div>
+            </aside>
+          )}
 
           {expanded && !runKit && notesOpen && (
             <div className={`bm-notes${isPhone ? ' bm-notes-drawer' : ''}`}>

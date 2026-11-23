@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { useIsPhone } from '../lib/usePhone'
 import type { ExtraInspectorTab } from '../components/battlemap/Inspector'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
@@ -12,6 +12,8 @@ import { SidePanel } from '../components/SidePanel'
 import { StatBlockView } from '../components/StatBlockEditor'
 import { DicePanel } from '../components/DiceRoller'
 import { Icon } from '../components/Icon'
+import { BmIcon } from '../components/battlemap/BmIcon'
+import { BmMenu } from '../components/battlemap/BmMenu'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { RunHandouts } from '../components/RunHandouts'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
@@ -65,6 +67,7 @@ export function RunPage() {
   const { campaignId = '' } = useParams()
   const [params, setParams] = useSearchParams()
   const combat = useCombat()
+  const isPhone = useIsPhone()
 
   // `?? null` so a missing campaign reads as "not found", not "still loading".
   const campaign = useLiveQuery(async () => (await db.campaigns.get(campaignId)) ?? null, [campaignId])
@@ -184,9 +187,8 @@ export function RunPage() {
   const peekEntity = peek ? index.byKey.get(pinKey(peek.kind, peek.id)) : undefined
 
   // The "In play" pins and rows: the left column, and a tab in the phone map drawer.
-  const inPlayEl = (
+  const inPlayBody = (
     <>
-      <div className="run-col-heading">In play</div>
       <PinPicker index={index.byKey} pinned={pins} onPin={togglePin} />
       {inPlay.length === 0 ? (
         <p className="faint run-hint">
@@ -228,6 +230,131 @@ export function RunPage() {
       )}
     </>
   )
+  const inPlayEl = (
+    <>
+      <div className="run-col-heading">In play</div>
+      {inPlayBody}
+    </>
+  )
+
+  // Desktop and tablet: the same sections as tabs in the studio's docked panel (or its drawer).
+  const deskTabs = [
+    { id: 'run-combat', label: 'Combat', icon: 'swords' as const, content: <RunCombat combat={combat} /> },
+    {
+      id: 'run-notes',
+      label: 'Notes',
+      icon: 'notes' as const,
+      content: session ? (
+        <RunSessionNotes key={session.id} session={session} onWikiLink={peekByName} />
+      ) : (
+        <div className="empty">
+          <p>No sessions yet in this campaign.</p>
+          <button className="btn primary" onClick={newSession}>Start a session</button>
+        </div>
+      ),
+    },
+    { id: 'run-handouts', label: 'Handouts', icon: 'image' as const, content: <RunHandouts campaignId={campaignId} /> },
+    { id: 'run-dice', label: 'Dice', icon: 'dice' as const, content: <DicePanel compact /> },
+  ]
+  const deskKit = {
+    tabs: deskTabs,
+    play: { count: inPlay.length, content: inPlayBody },
+    topStart: (
+      <>
+        <Link to={`/campaign/${campaign.id}`} className="bm-btn bm-sq" aria-label="Exit run mode" title="Exit run mode">
+          <BmIcon name="back" />
+        </Link>
+        <span aria-hidden className="run-dot" style={{ background: campaign.color }} />
+        <h1 className="mb-0 run-title">{campaign.name}</h1>
+        <BmMenu
+          label="Switch session"
+          trigger={
+            <>
+              <span className="run-session-name">{session ? `${session.title} — ${formatDate(session.date)}` : 'No session'}</span>
+              <BmIcon name="chevron-down" size={14} />
+            </>
+          }
+        >
+          {(close) => (
+            <>
+              {sessions.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={x.id === session?.id}
+                  className={`bm-item${x.id === session?.id ? ' on' : ''}`}
+                  onClick={() => { setParams({ session: x.id }, { replace: true }); close() }}
+                >
+                  {x.title} — {formatDate(x.date)}
+                </button>
+              ))}
+              {sessions.length > 0 && <div className="bm-menu-sep" />}
+              <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); newSession() }}>
+                <BmIcon name="plus" size={16} /> New session
+              </button>
+            </>
+          )}
+        </BmMenu>
+      </>
+    ),
+    topEnd: (
+      <>
+        <JoinVoiceButton channel={campaignVoiceRef(campaign)} />
+        <LiveSessionControl
+          campaign={campaign}
+          session={session}
+          onShowMap={(sceneId) => {
+            setRequestedMap(sceneId)
+            setCenter('map')
+          }}
+        />
+      </>
+    ),
+  }
+
+  const peekPanel = peek && peekEntity && world && (
+    <SidePanel
+      title={<>{KIND_ICON[peekEntity.kind]} {peekEntity.name || '(untitled)'}</>}
+      onClose={() => setPeek(null)}
+      footer={
+        <>
+          <button className="btn ghost" style={{ marginRight: 'auto' }} onClick={() => togglePin(peekEntity.kind, peekEntity.id)}>
+            <Icon name="pin" size={14} /> {pins.includes(pinKey(peekEntity.kind, peekEntity.id)) ? 'Unpin' : 'Pin'}
+          </button>
+          {peekEntity.npc && (
+            <button className="btn" onClick={() => addToCombat(peekEntity.npc!)}>
+              <Icon name="swords" size={14} /> Add to combat
+            </button>
+          )}
+          <Link className="btn" to={`/campaign/${campaignId}/${KIND_SECTION[peekEntity.kind]}?sel=${peekEntity.id}`}>
+            <Icon name="external" size={14} /> Open page
+          </Link>
+        </>
+      }
+    >
+      <Peek kind={peekEntity.kind} id={peekEntity.id} world={world} campaignId={campaignId} onWikiLink={peekByName} />
+    </SidePanel>
+  )
+
+  // Desktop and tablet: the map is the page. One top bar, the map, one tabbed panel.
+  if (!isPhone) {
+    return (
+      <div className="run-page run-studio">
+        <LiveSceneKeeper campaign={campaign} />
+        <VoiceRoster channelId={campaign.discordVoiceChannelId} />
+        <RunBattleMap
+          campaign={campaign}
+          sessionId={session?.id ?? null}
+          requestedSceneId={requestedMap}
+          runTabs={deskTabs}
+          onBack={() => setCenter('notes')}
+          desktop={deskKit}
+        />
+        {peekPanel}
+      </div>
+    )
+  }
 
   // Phone map: everything the DM runs the table with, as tabs in the map's one right drawer.
   const runTabs = [
@@ -329,29 +456,7 @@ export function RunPage() {
         </aside>
       </div>
 
-      {peek && peekEntity && world && (
-        <SidePanel
-          title={<>{KIND_ICON[peekEntity.kind]} {peekEntity.name || '(untitled)'}</>}
-          onClose={() => setPeek(null)}
-          footer={
-            <>
-              <button className="btn ghost" style={{ marginRight: 'auto' }} onClick={() => togglePin(peekEntity.kind, peekEntity.id)}>
-                <Icon name="pin" size={14} /> {pins.includes(pinKey(peekEntity.kind, peekEntity.id)) ? 'Unpin' : 'Pin'}
-              </button>
-              {peekEntity.npc && (
-                <button className="btn" onClick={() => addToCombat(peekEntity.npc!)}>
-                  <Icon name="swords" size={14} /> Add to combat
-                </button>
-              )}
-              <Link className="btn" to={`/campaign/${campaignId}/${KIND_SECTION[peekEntity.kind]}?sel=${peekEntity.id}`}>
-                <Icon name="external" size={14} /> Open page
-              </Link>
-            </>
-          }
-        >
-          <Peek kind={peekEntity.kind} id={peekEntity.id} world={world} campaignId={campaignId} onWikiLink={peekByName} />
-        </SidePanel>
-      )}
+      {peekPanel}
     </div>
   )
 }
@@ -366,6 +471,7 @@ function RunBattleMap({
   requestedSceneId,
   runTabs,
   onBack,
+  desktop,
 }: {
   campaign: Campaign
   sessionId: Id | null
@@ -374,8 +480,11 @@ function RunBattleMap({
   /** The phone map's drawer sections, and the way back to the Notes page. */
   runTabs: (ExtraInspectorTab & { content: ReactNode })[]
   onBack: () => void
+  /** Desktop and tablet: the docked-panel kit (top bar parts, In play flyout, tabs with icons). */
+  desktop?: Omit<NonNullable<ComponentProps<typeof SceneEditor>['runKit']>, 'onBack' | 'docked'>
 }) {
   const isPhone = useIsPhone()
+  const [emptyTab, setEmptyTab] = useState(0)
   const scenes = useLiveQuery(
     () => db.scenes.where('campaignId').equals(campaign.id).reverse().sortBy('updatedAt'),
     [campaign.id],
@@ -395,6 +504,42 @@ function RunBattleMap({
   if (!scenes) return null
   const scene = scenes.find((s) => s.id === picked) ?? scenes[0] ?? null
 
+  const newScene = async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` })).id)
+
+  // Desktop with no map yet: keep the top bar and the tabs, and offer a new map in the middle.
+  if (!scene && desktop) {
+    return (
+      <div className="run-empty-studio">
+        <header className="bm-top bm-top-run" data-testid="run-top">
+          {desktop.topStart}
+          <span className="bm-spacer" />
+          {desktop.topEnd}
+        </header>
+        <div className="run-empty-body">
+          <div className="empty">
+            <p>No battle maps in this campaign yet.</p>
+            <button className="btn primary" onClick={newScene}>
+              <Icon name="plus" size={15} color="inherit" /> New battle map
+            </button>
+          </div>
+          <aside className="bm-insp bm-insp-docked" aria-label="Run panel">
+            <div className="bm-insp-hd">
+              <div className="bm-tabs" role="tablist" aria-label="Run sections">
+                {desktop.tabs.map((t, i) => (
+                  <button key={t.id} type="button" role="tab" aria-selected={emptyTab === i} aria-label={t.label} title={t.label} className={`${emptyTab === i ? 'on' : ''} has-icon`} onClick={() => setEmptyTab(i)}>
+                    {t.icon && <BmIcon name={t.icon} size={16} />}
+                    <span className="bm-tab-label">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="bm-insp-body">{desktop.tabs[emptyTab]?.content}</div>
+          </aside>
+        </div>
+      </div>
+    )
+  }
+
   if (!scene) {
     return (
       <div className="empty">
@@ -412,7 +557,7 @@ function RunBattleMap({
 
   return (
     <>
-      {!isPhone && scenes.length > 1 && (
+      {!isPhone && !desktop && scenes.length > 1 && (
         <select
           className="select run-map-pick"
           value={scene.id}
@@ -430,8 +575,17 @@ function RunBattleMap({
         scene={scene}
         onDeleted={() => setPicked(null)}
         notesSessionId={sessionId}
-        compact
-        {...(isPhone
+        compact={!desktop}
+        {...(desktop
+          ? {
+              // Desktop and tablet: the studio with its panel docked (a drawer on a tablet).
+              studio: true,
+              runKit: { ...desktop, onBack, docked: true },
+              scenes,
+              onSelectScene: setPicked,
+              onNewScene: newScene,
+            }
+          : isPhone
           ? {
               // A phone gets the full screen studio, with Run mode's sections in its drawer.
               studio: true,
