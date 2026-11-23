@@ -16,6 +16,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-23',
+    title: 'Edit mode: drag, resize, and a Counts card',
+    changes: [
+      { kind: 'new', text: 'In Edit layout on the campaign home, drag a card to move it, and drag its right edge to make it narrower or wider. It snaps to the grid, and Escape cancels a drag.' },
+      { kind: 'new', text: 'A new Counts card shows how many sessions, NPCs, locations and more your campaign has. It starts hidden, so add it from the tray in Edit layout.' },
+      { kind: 'new', text: 'Preferences has a new Campaign home section with a button to reset your layout. You can undo the reset right after.' },
+    ],
+  },
+  {
     date: '2026-11-20',
     title: 'A new campaign home, edit mode, and a battle map library',
     changes: [
