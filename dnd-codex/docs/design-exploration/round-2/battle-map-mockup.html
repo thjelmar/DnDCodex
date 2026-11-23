@@ -49,15 +49,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .zoom{position:absolute;right:14px;bottom:14px;display:flex;gap:2px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--rs);padding:3px}
 .zoom button{background:transparent;border:0;padding:3px 9px}
 .init{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;align-items:center;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:5px 8px}
+.init .rd{display:grid;line-height:1.15;padding:0 4px 0 6px}.init .rd strong{font-family:Georgia,serif;font-size:15px}.init .rd small{color:var(--text-dim);font-size:11px}
+.init .btn{border-radius:999px;padding:3px 10px;font-size:12px}.init .sep{width:1px;height:22px;background:var(--border)}
 .init b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;color:#fff}
 /* Turn pulse: one animation, driven by the accent token. Calm: 1.8s, no movement, only a halo. */
 @keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 70%,transparent)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
 .tok.turn i,.init b.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
 .tok.turn span{background:var(--accent-strong)}
 @media (prefers-reduced-motion:reduce){.tok.turn i,.init b.turn{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 60%,transparent)}}
-.round{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:4px 6px 4px 16px;z-index:2}
-.round h2{font-size:17px}.round small{color:var(--text-dim);font-size:12px}
-.round .btn{border-radius:999px;padding:4px 12px;font-size:13px}
 /* Scene inspector: docked, floating (pop-out), or hidden (overlay in full screen). */
 .insp{background:var(--bg-elev);border-left:1px solid var(--border);width:300px;flex:none;display:flex;flex-direction:column;z-index:4}
 .insp.hidden{display:none}
@@ -119,9 +118,8 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       </div>
 
       <div class="map" id="map">
-        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
 
-        <div class="round"><h2>Round <span id="roundN">2</span></h2><small id="turnName">Sable's turn</small><button class="btn primary" id="btnNext">Next turn ▸</button></div>
         <div class="tok hero" data-id="br" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
         <div class="tok hero" data-id="sa" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
         <div class="tok hero" data-id="va" style="left:30%;top:66%"><i>Va</i><span>Vara</span></div>
@@ -131,7 +129,7 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
         <div class="sel-bar" style="left:70%;top:calc(72% - 38px)"><button>Duplicate</button><button>Condition</button><button>Delete</button></div>
         <div class="tok obj" style="left:46%;top:46%"><i>▣</i><span>Crate</span></div>
 
-        <div class="init"><b data-id="sa" style="background:#16a34a">Sa</b><b data-id="mo" style="background:#dc2626">Mo</b><b data-id="br" style="background:#16a34a">Br</b><b data-id="va" style="background:#16a34a">Va</b><b data-id="th" style="background:#dc2626">Th</b><b data-id="pi" style="background:#16a34a">Pi</b></div>
+        <div class="init"><div class="rd"><strong>Round <span id="roundN">2</span></strong><small id="turnName">Sable's turn</small></div><button class="btn primary" id="btnNext" title="Next turn (N)">Next ▸</button><span class="sep"></span><b data-id="sa" style="background:#16a34a">Sa</b><b data-id="mo" style="background:#dc2626">Mo</b><b data-id="br" style="background:#16a34a">Br</b><b data-id="va" style="background:#16a34a">Va</b><b data-id="th" style="background:#dc2626">Th</b><b data-id="pi" style="background:#16a34a">Pi</b></div>
         <div class="chip" style="left:50%;bottom:14px;transform:translateX(-50%)">Drag tokens to move. Arrow keys nudge.</div>
         <div class="zoom"><button>−</button><span style="padding:3px 6px">100%</span><button>+</button><button>Fit</button></div>
 
@@ -210,6 +208,7 @@ addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if (k === 'i') toggleInspector();
+  else if (k === 'n') nextTurn();
   else if (k === 'f') toggleFs();
   else if (k === 'escape' && fs && mode !== 'hidden') { mode = 'hidden'; apply(); }
 });
@@ -270,7 +269,8 @@ function showTurn() {
   document.getElementById('roundN').textContent = round;
   document.getElementById('turnName').textContent = names[order[turn]] + "'s turn";
 }
-document.getElementById('btnNext').onclick = () => { turn = (turn + 1) % order.length; if (turn === 0) round++; showTurn(); };
+const nextTurn = () => { turn = (turn + 1) % order.length; if (turn === 0) round++; showTurn(); };
+document.getElementById('btnNext').onclick = nextTurn;
 showTurn();
 apply();
 </script>
