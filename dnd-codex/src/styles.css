@@ -5298,3 +5298,38 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
   .player-live-board.phone-fs.notes-open .player-live-bar { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
   .player-live-board.phone-fs .battlemap-body { padding-left: var(--sal); }
 }
+
+/* Run mode's drawer has more tabs than the studio's three: the row scrolls sideways inside the drawer. */
+.bm-studio.phone .bm-tabs { overflow-x: auto; scrollbar-width: none; }
+.bm-studio.phone .bm-tabs::-webkit-scrollbar { display: none; }
+.bm-studio.phone .bm-tabs button { flex: none; white-space: nowrap; min-height: 38px; }
+.bm-studio.drawer-open .bm-hint { display: none; }
+
+/* Classic battle map editor in a narrow pane (Run mode below 1051px wide, and not a phone): the grid and
+   token panel opens over the board, not below the fold where Show panel seemed to do nothing. */
+@media (max-width: 1050px) {
+  .battlemap-editor.tight .battlemap-body { position: relative; }
+  .battlemap-editor.tight .battlemap-side:not([hidden]) {
+    position: absolute; z-index: 6; top: 0; right: 0; bottom: 0; width: min(320px, 90%); overflow: auto; box-sizing: border-box;
+    padding: 10px; background: var(--bg-elev); border-left: 1px solid var(--border); box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Installed app (standalone): the status bar overlaps the top (black-translucent), so full screen
+   views clear --sat too. The install card tells iPhone Safari users how to get the same. */
+.bm-studio.expanded .bm-top { height: calc(48px + var(--sat)); padding-top: var(--sat); }
+.bm-studio.expanded .bm-rail { padding-top: calc(8px + var(--sat)); }
+.bm-studio.expanded .bm-insp-drawer, .bm-notes-drawer { padding-top: var(--sat); }
+.bm-studio.expanded.land .bm-top { top: calc(8px + var(--sat)); height: auto; padding-top: 4px; }
+.bm-studio.expanded.land .bm-rail { padding-top: calc(6px + var(--sat)); }
+.bm-hint, .bm-banner { top: calc(12px + var(--sat)); }
+.bm-studio.land .bm-hint { top: auto; }
+.player-live-board.phone-fs .player-live-bar { top: calc(8px + var(--sat)); }
+.bm-install {
+  position: absolute; z-index: 9; top: calc(12px + var(--sat)); left: 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 6px;
+  align-items: start; max-width: min(320px, calc(100% - 24px)); padding: 8px 6px 8px 12px; background: var(--bg-elev);
+  border: 1px solid var(--accent); border-radius: var(--radius); font-size: 12px; color: var(--text-dim);
+}
+.bm-install strong { color: var(--text); font-size: 13px; }
+.bm-install span { grid-column: 1; }
+.bm-install .bm-icon-btn { grid-column: 2; grid-row: 1 / span 2; }

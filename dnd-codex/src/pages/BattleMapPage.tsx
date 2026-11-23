@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -21,7 +21,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
-import { Inspector, TokenRow, type InspectorTab } from '../components/battlemap/Inspector'
+import { Inspector, TokenRow, type ExtraInspectorTab } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
 import { TurnStrip } from '../components/battlemap/TurnStrip'
 import { GroupBox } from '../components/battlemap/GroupBox'
@@ -45,6 +45,7 @@ import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
+import { isIphoneSafari, isStandalone } from '../lib/standalone'
 import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
 import { activeIds, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
@@ -69,6 +70,8 @@ import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplat
  *  emoji-faced token; squares read better for built things (boats, doors). */
 /** localStorage flag: the "Rotate for more room" chip shows once per device. */
 const ROTATE_HINT_KEY = 'codex-bm-rotate-hint'
+/** localStorage flag: the "Install for full screen" card shows once per device (iPhone Safari only). */
+const INSTALL_HINT_KEY = 'codex-install-hint'
 
 const TOKEN_PRESETS: { label: string; icon: string; shape: TokenShape }[] = [
   { label: 'Horse', icon: '🐴', shape: 'circle' },
@@ -222,6 +225,7 @@ export function SceneEditor({
   onBrowseLibrary,
   onPublishToLibrary,
   studio = false,
+  runKit,
 }: {
   campaign: Campaign
   scene: Scene
@@ -242,6 +246,13 @@ export function SceneEditor({
   /** The round 2 layout: one top bar, a tool rail, an edge-to-edge board and a
    *  tabbed inspector. Run mode keeps the compact classic layout (false). */
   studio?: boolean
+  /** Run mode on a phone: the board is always full screen (no toggle), and the inspector
+   *  drawer also holds Run mode's own sections (combat, notes, dice and so on). */
+  runKit?: {
+    tabs: (ExtraInspectorTab & { content: ReactNode })[]
+    /** Leaves the map for Run mode's Notes page. */
+    onBack: () => void
+  }
 }) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -407,10 +418,14 @@ export function SceneEditor({
   peekOpen.current = peek != null
   // In full screen, Esc closes the inspector drawer before it leaves full screen.
   const drawerOpenRef = useRef(false)
-  const fs = useFullscreen(() => peekOpen.current || drawerOpenRef.current)
-  const { expanded } = fs
+  // An installed app on a phone has no browser bars, so the studio starts in full screen (Exit still works).
+  const fs = useFullscreen(
+    () => peekOpen.current || drawerOpenRef.current,
+    studio && isStandalone() && typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_QUERY).matches,
+  )
+  const expanded = fs.expanded || !!runKit
   const enterFullscreen = fs.enter
-  const exitFullscreen = fs.exit
+  const exitFullscreen = runKit ? runKit.onBack : fs.exit
   const [panelOpen, setPanelOpen] = useState(!compact)
   // Full screen only: session notes beside the map.
   const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
@@ -421,7 +436,7 @@ export function SceneEditor({
   const [dockOpen, setDockOpen] = useState(!compact)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [inspFloat, setInspFloat] = useState(false)
-  const [inspTab, setInspTab] = useState<InspectorTab>('tokens')
+  const [inspTab, setInspTab] = useState<string>(runKit?.tabs[0]?.id ?? 'tokens')
   const [tokenFilter, setTokenFilter] = useState('')
   const [hintOn, setHintOn] = useState(true)
   const asDrawer = expanded || isPhone
@@ -453,6 +468,24 @@ export function SceneEditor({
     }
   }, [phoneFull])
   // Portrait phone in full screen: suggest turning the phone, once per device.
+  // iPhone Safari cannot hide its own toolbar; the installed app can. Suggest it once.
+  const [installHint, setInstallHint] = useState(false)
+  useEffect(() => {
+    if (!phoneFull || isStandalone() || !isIphoneSafari()) return
+    let seen = false
+    try {
+      seen = localStorage.getItem(INSTALL_HINT_KEY) === '1'
+    } catch {
+      /* storage blocked: show it each time */
+    }
+    if (seen) return
+    try {
+      localStorage.setItem(INSTALL_HINT_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+    setInstallHint(true)
+  }, [phoneFull])
   const [rotateHint, setRotateHint] = useState(false)
   useEffect(() => {
     if (!phoneFull || isLand) {
@@ -1319,6 +1352,7 @@ export function SceneEditor({
         mode={inspMode}
         tab={inspTab}
         onTab={setInspTab}
+        extraTabs={runKit?.tabs}
         onToggleFloat={() => setInspFloat((f) => !f)}
         onOpenWindow={isPhone ? undefined : iw.open}
         onClose={() => {
@@ -1327,6 +1361,7 @@ export function SceneEditor({
           else setDockOpen(false)
         }}
       >
+        {runKit?.tabs.map((t) => inspTab === t.id && <div key={t.id}>{t.content}</div>)}
         {inspTab === 'tokens' && (
           <>
             <input
@@ -1499,7 +1534,7 @@ export function SceneEditor({
     return (
       <div
         className={`bm-studio${expanded ? ' expanded' : ''}${isPhone ? ' phone' : ''}${isLand ? ' land' : ''}${
-          (asDrawer && drawerOpen && inspMode !== 'window') || (isPhone && expanded && notesOpen) ? ' drawer-open' : ''
+          (asDrawer && drawerOpen && inspMode !== 'window') || (isPhone && expanded && !runKit && notesOpen) ? ' drawer-open' : ''
         }`}
         data-testid="bm-studio"
       >
@@ -1582,7 +1617,7 @@ export function SceneEditor({
           >
             <BmIcon name="inspector" />
           </button>
-          {expanded && (
+          {expanded && !runKit && (
             <button
               type="button"
               className={`bm-btn bm-sq${notesOpen ? ' on' : ''}`}
@@ -1636,10 +1671,12 @@ export function SceneEditor({
                 <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
               </button>
             ))}
+          {!runKit && (
           <Link to={`/run/${campaign.id}`} className="bm-btn primary" title="At-the-table screen: session notes, what's in play, combat and dice">
             <BmIcon name="play" size={16} />
             <span className="bm-lbl">Run session</span>
           </Link>
+          )}
           <BmMenu label="More actions" panelClassName="bm-menu-right" trigger={<BmIcon name="more" />}>
             {(close) => (
               <>
@@ -1663,9 +1700,11 @@ export function SceneEditor({
                         <BmIcon name="plus" size={16} /> New map
                       </button>
                     )}
-                    <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); expanded ? exitFullscreen() : enterFullscreen() }}>
-                      <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} size={16} /> {expanded ? 'Exit full screen' : 'Full screen'}
-                    </button>
+                    {!runKit && (
+                      <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); expanded ? exitFullscreen() : enterFullscreen() }}>
+                        <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} size={16} /> {expanded ? 'Exit full screen' : 'Full screen'}
+                      </button>
+                    )}
                     {live.available && (
                       <button
                         type="button"
@@ -1734,7 +1773,16 @@ export function SceneEditor({
           <div className="bm-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
             {phoneFull && (
               <>
-                {railBtn('exit-fs', 'fullscreen-exit', 'Exit full screen', false, exitFullscreen)}
+                <button
+                  type="button"
+                  className="bm-tool"
+                  aria-label={runKit ? 'Back to session notes' : 'Exit full screen'}
+                  title={runKit ? 'Back to session notes' : 'Exit full screen'}
+                  data-testid="tool-exit-fs"
+                  onClick={exitFullscreen}
+                >
+                  <BmIcon name={runKit ? 'notes' : 'fullscreen-exit'} size={20} />
+                </button>
                 <hr />
               </>
             )}
@@ -1805,7 +1853,7 @@ export function SceneEditor({
             </BmMenu>
           </div>
 
-          {expanded && notesOpen && (
+          {expanded && !runKit && notesOpen && (
             <div className={`bm-notes${isPhone ? ' bm-notes-drawer' : ''}`}>
               <SessionNotesPanel campaignId={campaign.id} initialSessionId={notesSessionId} onWikiLink={peekByName} />
             </div>
@@ -1828,6 +1876,15 @@ export function SceneEditor({
               onNext={() => combat.step(1)}
             />
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
+            {installHint && !rotateHint && (
+              <div className="bm-install" role="status">
+                <strong>Install for full screen</strong>
+                <span>In Safari, tap Share, then Add to Home Screen. The installed app has no browser bars.</span>
+                <button type="button" className="bm-icon-btn" aria-label="Dismiss" onClick={() => setInstallHint(false)}>
+                  <BmIcon name="close" size={14} />
+                </button>
+              </div>
+            )}
             {rotateHint && (
               <div className="bm-hint bm-rotate" role="status">
                 Rotate for more room
@@ -1869,7 +1926,7 @@ export function SceneEditor({
   }
 
   return (
-    <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
+    <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}${tight ? ' tight' : ''}`}>
       <input
         ref={fileRef}
         type="file"

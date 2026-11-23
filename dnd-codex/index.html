@@ -10,6 +10,15 @@
     <meta name="description" content="A local-first web app for D&D session notes and campaign creation." />
     <!-- Temporary placeholder favicon — replace public/favicon.svg with the real art. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Add to Home Screen opens the app with no browser bars (standalone). iOS reads the apple-* tags;
+         the manifest covers Android and desktop. black-translucent lets the page paint under the status
+         bar, so the CSS pads it with env(safe-area-inset-top). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="D&D Codex" />
     <title>D&D Codex</title>
     <!-- Apply the user's cached theme/accent before first paint to avoid a flash.
          The account value (synced) reconciles once auth loads; see lib/theme.ts. -->
