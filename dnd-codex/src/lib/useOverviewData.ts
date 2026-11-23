@@ -91,7 +91,7 @@ export function useOverviewData(campaignId: string): OverviewData | undefined {
   }, [campaignId])
 }
 
-function newestWorldMap(maps: Array<{ id: string; name: string; imageId: string | null; updatedAt: string }>): WorldMapSummary | null {
-  const newest = [...maps].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+function newestWorldMap(maps: Array<{ id: string; name: string; imageId: string | null; updatedAt: string; parentMapId?: string | null }>): WorldMapSummary | null {
+  const newest = maps.filter((m) => !m.parentMapId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   return newest ? { id: newest.id, name: newest.name, imageId: newest.imageId ?? null } : null
 }
