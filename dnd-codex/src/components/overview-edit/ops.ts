@@ -59,3 +59,13 @@ export function addCard(layout: ResolvedLayout, id: CardId): ResolvedLayout {
     hidden: layout.hidden.filter((h) => h !== id),
   }
 }
+
+/** Sets a card's width to an allowed step (snapping a free value to the nearest allowed one). */
+export function setSpan(layout: ResolvedLayout, id: CardId, span: number): ResolvedLayout {
+  const i = layout.cards.findIndex((c) => c.id === id)
+  if (i < 0) return layout
+  const allowed = spansFor(id)
+  const next = allowed.reduce((a, b) => (Math.abs(b - span) < Math.abs(a - span) ? b : a), allowed[0])
+  if (next === layout.cards[i].span) return layout
+  return { ...layout, cards: layout.cards.map((c, k) => (k === i ? { ...c, span: next } : c)) }
+}
