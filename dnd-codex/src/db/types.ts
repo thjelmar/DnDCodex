@@ -813,7 +813,16 @@ export interface SceneToken {
   /** DM-marked ally: players see this token's real HP even though the DM runs
    *  it (e.g. an allied NPC). PCs and player-controlled tokens are allies too. */
   friendly?: boolean
+  /** How the battle map inspector files this token (Heroes, Foes, Objects).
+   *  Unset = inferred from the token's links. DM-only: the live scene payload
+   *  is built field by field (`toLiveTokens`), so this never reaches players. */
+  kind?: TokenKind
+  /** The monster group (`Scene.groups`) this token belongs to. DM-only prep data:
+   *  like `kind`, it never reaches the live scene payload. */
+  groupId?: Id | null
 }
+
+export type TokenKind = 'hero' | 'foe' | 'object'
 
 /** Combat info overlaid on a battle-map token. Privacy-filtered by whoever
  *  builds it: the DM board gets full hp/maxHp; players get hp/maxHp only for
@@ -872,9 +881,28 @@ export interface Scene extends BaseRecord {
   fog?: SceneFog
   /** Placed area templates; absent/undefined = none. */
   templates?: SceneTemplate[]
+  /** Monster groups built while prepping (DM-only; never sent to players). */
+  groups?: SceneGroup[]
   /** Set when the scene was copied from the battle map library. A plain local
    *  copy: the library can change or vanish without affecting this scene. */
   source?: SceneSource
+}
+
+/**
+ * Two or more monsters the DM runs as one. Grouping is prep only: it adds no one
+ * to initiative. When the group is in initiative it is one turn slot, made of one
+ * combatant per member that share `groupKey === id` (see lib/combat.ts).
+ */
+export interface SceneGroup {
+  id: Id
+  /** Shown under "Round N" on the group's turn ("Thugs"). */
+  name: string
+  /** The one initiative the group rolls; null until set or rolled. */
+  init: number | null
+  /** Starting HP for every member, or null when HP is not tracked. */
+  hp: number | null
+  /** Per-member starting HP, by token id, when the DM edits monsters one by one. */
+  hpBy?: Record<Id, number> | null
 }
 
 /** Where a library-copied scene came from, plus its credit line. */

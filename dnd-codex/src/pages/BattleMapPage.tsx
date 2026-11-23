@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
@@ -18,6 +19,26 @@ import { EntityImage } from '../components/EntityImage'
 import { NumberField } from '../components/NumberField'
 import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
+import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
+import { BmMenu } from '../components/battlemap/BmMenu'
+import { Inspector, TokenRow, type InspectorTab } from '../components/battlemap/Inspector'
+import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
+import { TurnStrip } from '../components/battlemap/TurnStrip'
+import { GroupBox } from '../components/battlemap/GroupBox'
+import {
+  addGroupToInitiative,
+  combatantOf,
+  createGroup,
+  groupInInitiative,
+  memberHp,
+  reconcileGroups,
+  removeGroupFromInitiative,
+  rollGroupInit,
+  setGroupHp,
+  setGroupInit,
+  ungroup,
+  type GroupState,
+} from '../lib/battleGroups'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
@@ -25,7 +46,7 @@ import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
-import { makeCombatant, type Combatant } from '../lib/combat'
+import { activeIds, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
 import { tokenCombat } from '../lib/tokenCombat'
 import {
   MAP_MAX_DIM,
@@ -41,7 +62,7 @@ import {
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenShape } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
  *  emoji-faced token; squares read better for built things (boats, doors). */
@@ -106,7 +127,7 @@ export function BattleMapPage() {
     // While a map is open the list collapses into a switcher in the editor
     // header, so the board gets the whole width instead of a tall, mostly-empty
     // column beside it; the list only shows when nothing is open.
-    <div className={`battlemap-page${selected ? ' editing' : ''}`}>
+    <div className={`battlemap-page${selected ? ' editing bm-page' : ''}`}>
       {!selected && (
         <div className="battlemap-maps">
           <button className="btn primary" style={{ width: '100%', marginBottom: 12 }} onClick={add}>
@@ -135,7 +156,7 @@ export function BattleMapPage() {
       )}
 
       <div style={{ minWidth: 0 }}>
-        {publishNote(publishedNote, () => setPublishedNote(null))}
+        {publishNote(publishedNote, () => setPublishedNote(null), !!selected)}
         {selected ? (
           <SceneEditor
             key={selected.id}
@@ -147,6 +168,7 @@ export function BattleMapPage() {
             onNewScene={add}
             onBrowseLibrary={canBrowse ? () => setLibOpen(true) : undefined}
             onPublishToLibrary={publisher && selected?.imageId ? () => setPublishOpen(true) : undefined}
+            studio
           />
         ) : (
           <div className="empty">
@@ -195,6 +217,7 @@ export function SceneEditor({
   onNewScene,
   onBrowseLibrary,
   onPublishToLibrary,
+  studio = false,
 }: {
   campaign: Campaign
   scene: Scene
@@ -212,6 +235,9 @@ export function SceneEditor({
   onBrowseLibrary?: () => void
   /** Opens the publish form (publishers only). */
   onPublishToLibrary?: () => void
+  /** The round 2 layout: one top bar, a tool rail, an edge-to-edge board and a
+   *  tabbed inspector. Run mode keeps the compact classic layout (false). */
+  studio?: boolean
 }) {
   const confirm = useConfirm()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -225,20 +251,21 @@ export function SceneEditor({
   const [imageId, setImageId] = useState<Id | null>(scene.imageId)
   const [fog, setFog] = useState<SceneFog>(scene.fog ?? { enabled: false, revealed: [] })
   const [templates, setTemplates] = useState<SceneTemplate[]>(scene.templates ?? [])
+  const [groups, setGroups] = useState<SceneGroup[]>(scene.groups ?? [])
   const dirty = useRef(false)
   // The latest unsaved draft, flushed on unmount (e.g. switching Run mode's
   // pane or map inside the 400ms debounce) so the last edit isn't lost.
   const unsaved = useRef<Partial<Scene> | null>(null)
   useEffect(() => {
     if (!dirty.current) return
-    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog, templates }
+    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog, templates, groups }
     unsaved.current = patch
     const t = setTimeout(() => {
       unsaved.current = null
       updateScene(scene.id, patch)
     }, 400)
     return () => clearTimeout(t)
-  }, [name, grid, tokens, imageId, size, fog, templates, scene.id])
+  }, [name, grid, tokens, imageId, size, fog, templates, groups, scene.id])
   useEffect(
     () => () => {
       if (unsaved.current) updateScene(scene.id, unsaved.current)
@@ -374,13 +401,44 @@ export function SceneEditor({
   // Full screen (see useFullscreen); Esc closes the stat-block peek first.
   const peekOpen = useRef(false)
   peekOpen.current = peek != null
-  const fs = useFullscreen(() => peekOpen.current)
+  // In full screen, Esc closes the inspector drawer before it leaves full screen.
+  const drawerOpenRef = useRef(false)
+  const fs = useFullscreen(() => peekOpen.current || drawerOpenRef.current)
   const { expanded } = fs
   const enterFullscreen = fs.enter
   const exitFullscreen = fs.exit
   const [panelOpen, setPanelOpen] = useState(!compact)
   // Full screen only: session notes beside the map.
   const [notesOpen, setNotesOpen] = useState(true)
+  // Studio layout state: inspector (docked, floating, or an on-demand drawer
+  // in full screen and on a phone), its tab, the token filter and the hint chip.
+  const isPhone = useIsPhone()
+  const [dockOpen, setDockOpen] = useState(!compact)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [inspFloat, setInspFloat] = useState(false)
+  const [inspTab, setInspTab] = useState<InspectorTab>('tokens')
+  const [tokenFilter, setTokenFilter] = useState('')
+  const [hintOn, setHintOn] = useState(true)
+  const asDrawer = expanded || isPhone
+  const inspVisible = asDrawer ? drawerOpen : dockOpen
+  drawerOpenRef.current = studio && asDrawer && drawerOpen
+  const iw = useInspectorWindow()
+  function toggleInspector() {
+    if (iw.win) {
+      // The inspector is in its own window: this brings it back to the page.
+      iw.close()
+      setDockOpen(true)
+    } else if (asDrawer) setDrawerOpen((o) => !o)
+    else setDockOpen((o) => !o)
+  }
+  useEffect(() => {
+    if (!studio) return
+    const t = setTimeout(() => setHintOn(false), 12000)
+    return () => clearTimeout(t)
+  }, [studio])
+  useEffect(() => {
+    if (selectedToken) setHintOn(false)
+  }, [selectedToken])
 
   const npcs = useLiveQuery(() => db.npcs.where('campaignId').equals(scene.campaignId).sortBy('name'), [scene.campaignId])
   const world = useLiveQuery(
@@ -452,12 +510,13 @@ export function SceneEditor({
   // The overlay drawn on tokens. In player preview, filter it as players see it.
   const combatByToken = useMemo(() => {
     const st = combat.state
-    const activeId = st.active ? st.combatants[st.turnIndex]?.id ?? null : null
+    // Every member of a group pulses on the group's turn.
+    const acting = activeIds(st)
     const map: Record<string, TokenCombat> = {}
     for (const t of tokens) {
       if (!t.combatantId) continue
       const c = st.combatants.find((x) => x.id === t.combatantId)
-      if (c) map[t.id] = tokenCombat(t, c, activeId, preview)
+      if (c) map[t.id] = tokenCombat(t, c, acting.has(c.id) ? c.id : null, preview)
     }
     return map
   }, [tokens, combat.state, preview])
@@ -719,6 +778,1033 @@ export function SceneEditor({
     return c === t.color ? next : { ...next, color: c }
   })
 
+  const gridSection = (
+          <section>
+            <h4>Grid</h4>
+            <label className="battlemap-check">
+              <input type="checkbox" checked={grid.show} onChange={(e) => setGridField({ show: e.target.checked })} />
+              Show grid
+            </label>
+            <div className="battlemap-fields">
+              <label>
+                Square size (px)
+                <NumberField value={grid.cellPx} min={8} max={1000} step={0.1} decimals={2} onChange={(v) => v != null && setGridField({ cellPx: v })} ariaLabel="Square size in pixels" />
+              </label>
+              <label>
+                Offset X
+                <NumberField value={grid.offsetX} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetX: v })} ariaLabel="Grid offset X" />
+              </label>
+              <label>
+                Offset Y
+                <NumberField value={grid.offsetY} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetY: v })} ariaLabel="Grid offset Y" />
+              </label>
+              <label>
+                Line color
+                <input type="color" value={grid.color} onChange={(e) => setGridField({ color: e.target.value })} />
+              </label>
+            </div>
+            {imageId ? (
+              <>
+                <button
+                  className={`btn small${aligning ? ' primary' : ''}`}
+                  style={{ width: '100%' }}
+                  disabled={aligningBusy}
+                  onClick={() => {
+                    setAlignNote(null)
+                    setFogTool(null)
+                    setAligning((a) => !a)
+                  }}
+                  title="Draw a box around map squares to match the grid to them"
+                >
+                  {aligningBusy ? 'Matching…' : aligning ? 'Cancel align' : 'Align grid to map'}
+                </button>
+                {aligning && (
+                  <div className="battlemap-align-opts">
+                    <label>
+                      Squares across in your box
+                      <NumberField value={alignSquares} min={1} max={50} onChange={(v) => v != null && setAlignSquares(v)} ariaLabel="Squares across in the align box" />
+                    </label>
+                    <label className="battlemap-check" title="Fine-tune your box to the grid lines drawn on the map image">
+                      <input type="checkbox" checked={snapToLines} onChange={(e) => setSnapToLines(e.target.checked)} />
+                      Snap to the map's grid lines
+                    </label>
+                    <p className="faint">
+                      Tip: boxing several squares (say 5 across) is far more accurate than one.
+                    </p>
+                  </div>
+                )}
+                {alignNote && !aligning && (
+                  <p className={`battlemap-align-note${alignNote.ok ? '' : ' warn'}`}>{alignNote.text}</p>
+                )}
+              </>
+            ) : (
+              <div className="battlemap-fields">
+                <label>
+                  Columns
+                  <NumberField value={cols} min={1} max={200} onChange={(v) => v != null && setBlankSize(v, rows)} ariaLabel="Columns" />
+                </label>
+                <label>
+                  Rows
+                  <NumberField value={rows} min={1} max={200} onChange={(v) => v != null && setBlankSize(cols, v)} ariaLabel="Rows" />
+                </label>
+              </div>
+            )}
+          </section>
+  )
+
+  const tokenEditor = current ? (
+    <div className="battlemap-token-edit">
+                <label>
+                  Label
+                  <input className="input" value={current.label} onChange={(e) => patchToken(current.id, { label: e.target.value })} />
+                </label>
+                <label>
+                  Size
+                  <select className="select" value={current.size} onChange={(e) => patchToken(current.id, { size: Number(e.target.value) })}>
+                    {TOKEN_SIZES.map((s) => (
+                      <option key={s.cells} value={s.cells}>{s.label}</option>
+                    ))}
+                  </select>
+                </label>
+                {studio && (
+                  <label>
+                    Type
+                    <select
+                      className="select"
+                      value={current.kind ?? ''}
+                      onChange={(e) => patchToken(current.id, { kind: (e.target.value || undefined) as TokenKind | undefined })}
+                      title="Which inspector list this token appears in"
+                    >
+                      <option value="">Automatic</option>
+                      <option value="hero">Hero</option>
+                      <option value="foe">Foe</option>
+                      <option value="object">Object</option>
+                    </select>
+                  </label>
+                )}
+                <label>
+                  Shape
+                  <div className="seg" role="radiogroup" aria-label="Token shape">
+                    {(['circle', 'square'] as TokenShape[]).map((sh) => (
+                      <button
+                        key={sh}
+                        type="button"
+                        className={`seg-btn${(current.shape ?? 'circle') === sh ? ' on' : ''}`}
+                        role="radio"
+                        aria-checked={(current.shape ?? 'circle') === sh}
+                        onClick={() => patchToken(current.id, { shape: sh })}
+                      >
+                        {sh === 'circle' ? 'Circle' : 'Square'}
+                      </button>
+                    ))}
+                  </div>
+                </label>
+                <TokenIconPicker
+                  value={current.tokenIcon}
+                  autoId={pickTokenIcon({ name: current.label }) ?? GENERIC_TOKEN_ICON}
+                  onChange={(id) => patchToken(current.id, { tokenIcon: id })}
+                />
+                <label>
+                  Emoji
+                  <input
+                    className="input"
+                    value={current.icon ?? ''}
+                    maxLength={4}
+                    placeholder="🐴 (optional)"
+                    onChange={(e) => patchToken(current.id, { icon: e.target.value || null })}
+                  />
+                </label>
+                <div className="field">
+                  <span className="faint" style={{ fontSize: 11 }}>Token image (optional — overrides the emoji)</span>
+                  <EntityImage
+                    campaignId={scene.campaignId}
+                    imageId={current.imageId ?? null}
+                    onChange={(id) => patchToken(current.id, { imageId: id })}
+                    label="token image"
+                  />
+                </div>
+                {live.colorFor(current) !== current.color && (
+                  <span className="faint" style={{ fontSize: 11 }}>
+                    Shown in {live.members.find((m) => m.userId === current.controlledBy)?.displayName ?? 'the player'}’s color while they control it.
+                  </span>
+                )}
+                <div className="battlemap-swatches" role="radiogroup" aria-label="Token color">
+                  {TOKEN_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      className={`battlemap-swatch${current.color === c ? ' on' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => patchToken(current.id, { color: c })}
+                      aria-label={`Color ${c}`}
+                      aria-checked={current.color === c}
+                      role="radio"
+                    />
+                  ))}
+                </div>
+                <label className="battlemap-check" title="Hidden tokens are never sent to players">
+                  <input type="checkbox" checked={current.hidden === true} onChange={(e) => patchToken(current.id, { hidden: e.target.checked })} />
+                  Hidden from players
+                </label>
+                {live.available && (
+                  <label>
+                    Controlled by
+                    <select
+                      className="select"
+                      value={current.controlledBy ?? ''}
+                      onChange={(e) => patchToken(current.id, { controlledBy: e.target.value || null })}
+                      title="The player who can move this token on their screen"
+                    >
+                      <option value="">DM only</option>
+                      {live.members.map((m) => (
+                        <option key={m.userId} value={m.userId}>{m.displayName}</option>
+                      ))}
+                    </select>
+                    {live.members.length === 0 && (
+                      <span className="faint" style={{ fontSize: 11 }}>Players appear here once they join with your invite code.</span>
+                    )}
+                  </label>
+                )}
+                <TokenCombatControl
+                  token={current}
+                  combatant={current.combatantId ? combat.state.combatants.find((c) => c.id === current.combatantId) ?? null : null}
+                  onAdd={() => addTokenToCombat(current)}
+                  onRemove={() => removeTokenFromCombat(current)}
+                  onFriendly={(v) => patchToken(current.id, { friendly: v })}
+                  onDamage={(n) => current.combatantId && combat.adjustHp(current.combatantId, -n)}
+                  onHeal={(n) => current.combatantId && combat.adjustHp(current.combatantId, n)}
+                  onConditions={(conds) => current.combatantId && combat.patch(current.combatantId, { conditions: conds })}
+                />
+                <div className="row" style={{ gap: 6 }}>
+                  {current.npcId && (
+                    <button className="btn small" onClick={() => openToken(current)}>View NPC</button>
+                  )}
+                  <button className="btn danger small" onClick={() => removeToken(current.id)}>
+                    <Icon name="trash" size={13} color="inherit" /> Remove
+                  </button>
+                </div>
+              </div>
+  ) : null
+
+  const fogBar = (
+        <div className="battlemap-fogbar">
+          <span className="battlemap-fogbar-label"><Icon name="cloud" size={14} /> Fog</span>
+          <div className="seg-filter" role="group" aria-label="Fog brush">
+            <button className={fogTool === 'reveal' ? 'active' : ''} onClick={() => setFogTool('reveal')}>Reveal</button>
+            <button className={fogTool === 'hide' ? 'active' : ''} onClick={() => setFogTool('hide')}>Cover</button>
+          </div>
+          <div className="battlemap-fogbrush" title="Brush size (squares painted per stroke)">
+            <span className="faint">Brush</span>
+            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.max(0, b - 1))} disabled={fogBrush === 0} aria-label="Smaller brush">−</button>
+            <span className="battlemap-fogbrush-val" aria-live="polite">{2 * fogBrush + 1}×{2 * fogBrush + 1}</span>
+            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.min(FOG_BRUSH_MAX, b + 1))} disabled={fogBrush === FOG_BRUSH_MAX} aria-label="Larger brush">+</button>
+          </div>
+          <span className="faint">Drag across the map to {fogTool === 'reveal' ? 'reveal' : 'cover'} squares.</span>
+          <div className="battlemap-fogbar-actions">
+            <button className="btn ghost small" onClick={revealAllFog}>Reveal all</button>
+            <button className="btn ghost small" onClick={coverAllFog}>Cover all</button>
+            <button className="btn ghost small" onClick={disableFog} title="Turn fog off — players see the whole map again">Turn off</button>
+          </div>
+        </div>
+  )
+
+  const measureBar = (
+        <div className="battlemap-fogbar">
+          <span className="battlemap-fogbar-label">📏 Ruler</span>
+          <span className="faint">Drag across the map to measure. Distances use 5-ft squares (diagonals count as 5 ft).</span>
+        </div>
+  )
+
+  const templateBar = (
+        <div className="battlemap-fogbar battlemap-templatebar">
+          <span className="battlemap-fogbar-label"><Icon name="sparkles" size={14} /> Templates</span>
+          <div className="seg-filter" role="group" aria-label="Template shape">
+            {TEMPLATE_SHAPES.map((s) => (
+              <button key={s.shape} className={templateShape === s.shape ? 'active' : ''} onClick={() => armTemplate(s.shape)} title={s.label}>
+                <svg width={16} height={16} viewBox="0 0 16 16" style={{ fill: 'currentColor', verticalAlign: 'middle' }}>{s.glyph}</svg> {s.label}
+              </button>
+            ))}
+          </div>
+          <label className="battlemap-tpl-size" title={templateShape === 'circle' ? 'Radius in feet' : 'Length in feet'}>
+            <span className="faint">{templateShape === 'circle' ? 'Radius' : 'Length'}</span>
+            <NumberField value={templateSizeFt} min={5} max={200} step={5} onChange={(v) => v != null && setTemplateSizeFt(v)} ariaLabel="Template size in feet" />
+            <span className="faint">ft</span>
+          </label>
+          <div className="battlemap-tpl-colors" role="group" aria-label="Template color">
+            {TEMPLATE_COLORS.map((c) => (
+              <button
+                key={c}
+                className={`battlemap-tpl-swatch${templateColor === c ? ' active' : ''}`}
+                style={{ background: c }}
+                onClick={() => setTemplateColor(c)}
+                aria-label={`Color ${c}`}
+                aria-pressed={templateColor === c}
+              />
+            ))}
+          </div>
+          <span className="faint">
+            {templateShape
+              ? templateShape === 'circle'
+                ? 'Click the map to drop the circle.'
+                : `Press at the origin and drag to aim the ${templateShape}.`
+              : 'Pick a shape, then place it on the map.'}
+          </span>
+          {templates.length > 0 && (
+            <div className="battlemap-tpl-list">
+              {templates.map((t) => (
+                <span key={t.id} className="battlemap-tpl-chip" style={{ borderColor: t.color }}>
+                  <span className="battlemap-tpl-dot" style={{ background: t.color }} />
+                  {t.shape} {t.sizeFt}ft
+                  <button className="battlemap-tpl-remove" onClick={() => removeTemplate(t.id)} aria-label="Remove template" title="Remove">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="battlemap-fogbar-actions">
+            <button className="btn ghost small" onClick={clearTemplates} disabled={templates.length === 0}>Clear all</button>
+          </div>
+        </div>
+  )
+
+  const board = (
+        <Tabletop
+          width={size.width}
+          height={size.height}
+          grid={grid}
+          tokens={boardTokens}
+          mapUrl={mapImage?.dataUrl ?? null}
+          portraits={portraits ?? {}}
+          selectedId={selectedToken}
+          onSelect={setSelectedToken}
+          onMoveToken={(id, col, row) => patchToken(id, { col, row })}
+          onResizeToken={(id, size) => patchToken(id, { size })}
+          onDeleteToken={removeToken}
+          onOpenToken={openToken}
+          aligning={aligning}
+          onAlign={applyAlign}
+          centerRef={centerRef}
+          editable={!preview}
+          canMoveToken={preview ? () => false : undefined}
+          fog={fog.enabled ? fog : null}
+          fogTool={preview ? null : fogTool}
+          fogBrush={fogBrush}
+          onPaintFog={paintFog}
+          combat={combatByToken}
+          templates={[...templates, ...playerTemplates.templates]}
+          templateTool={preview ? null : templateTool}
+          onPlaceTemplate={placeTemplate}
+          measureTool={!preview && measuring}
+          showGroups={studio && !preview}
+          renderTokenPanel={(t) =>
+            preview ? (
+              hasFloatingStatus(combatByToken[t.id]) ? <TokenStatusCard token={t} combat={combatByToken[t.id]} /> : null
+            ) : (
+              <div className="tabletop-quickcombat">
+                <div className="tabletop-quickcombat-head">
+                  <div className="tabletop-quickcombat-name" title={t.label}>{t.label}</div>
+                  {studio && (
+                    <>
+                      <button type="button" className="bm-icon-btn" onClick={() => duplicateToken(t)} aria-label={`Duplicate ${t.label}`} title="Duplicate this token">
+                        <BmIcon name="duplicate" size={15} />
+                      </button>
+                      <button type="button" className="bm-icon-btn" onClick={() => removeToken(t.id)} aria-label={`Delete ${t.label}`} title="Delete this token">
+                        <BmIcon name="trash" size={15} />
+                      </button>
+                    </>
+                  )}
+                </div>
+                <TokenCombatControl
+                  token={t}
+                  combatant={t.combatantId ? combat.state.combatants.find((c) => c.id === t.combatantId) ?? null : null}
+                  onAdd={() => addTokenToCombat(t)}
+                  onRemove={() => removeTokenFromCombat(t)}
+                  onFriendly={(v) => patchToken(t.id, { friendly: v })}
+                  onDamage={(n) => t.combatantId && combat.adjustHp(t.combatantId, -n)}
+                  onHeal={(n) => t.combatantId && combat.adjustHp(t.combatantId, n)}
+                  onConditions={(conds) => t.combatantId && combat.patch(t.combatantId, { conditions: conds })}
+                />
+              </div>
+            )
+          }
+        />
+  )
+
+  // ---- Monster groups (phase 4) ----------------------------------------------
+  const [groupSel, setGroupSel] = useState<string[]>([])
+  const makeMember = (t: SceneToken): Combatant => {
+    const npc = t.npcId ? npcs?.find((n) => n.id === t.npcId) : undefined
+    return npc ? combatantFromNpc(npc) : makeCombatant({ name: t.label || 'Combatant' })
+  }
+  function applyGroups(fn: (s: GroupState) => GroupState) {
+    const s = fn({ tokens, groups, combat: combat.state })
+    touch()
+    setTokens(s.tokens)
+    setGroups(s.groups)
+    combat.setState(s.combat)
+  }
+  // A defeated member leaves its group and the turn order; a group of one dissolves.
+  useEffect(() => {
+    if (!studio) return
+    const next = reconcileGroups({ tokens, groups, combat: combat.state })
+    if (!next) return
+    touch()
+    setTokens(next.tokens)
+    setGroups(next.groups)
+    combat.setState(next.combat)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studio, tokens, groups, combat.state])
+  // Single monsters: the + Init toggle adds or removes one slot.
+  function toggleSingleInitiative(t: SceneToken) {
+    const existing = combatantOf(combat.state, t)
+    if (existing) {
+      removeTokenFromCombat(t)
+      return
+    }
+    const c = makeMember(t)
+    const rolled = combat.state.active ? { ...c, initiative: rollInitiative(c.dexMod) } : c
+    touch()
+    combat.setState((s) => resortKeepTurn({ ...s, combatants: [...s.combatants, rolled] }))
+    patchToken(t.id, { combatantId: c.id })
+  }
+
+  // ---- Studio layout (round 2) ----------------------------------------------
+  // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
+  // (Hooks above run in every layout; this effect only acts in the studio.)
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {} })
+  const preview0 = preview
+  function selectTool() {
+    setFogTool(null)
+    setMeasuring(false)
+    setTemplatesOpen(false)
+    setTemplateShape(null)
+    setAligning(false)
+  }
+  function setPreviewMode(on: boolean) {
+    setPreview(on)
+    setSelectedToken(null)
+    selectTool()
+  }
+  keyActions.current = {
+    toggleInspector,
+    fullscreen: () => (expanded ? exitFullscreen() : enterFullscreen()),
+    select: selectTool,
+    measure: () => !preview0 && toggleMeasure(),
+    closeDrawer: () => setDrawerOpen(false),
+    next: () => combat.state.active && combat.step(1),
+  }
+  useEffect(() => {
+    if (!studio) return
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const k = e.key.toLowerCase()
+      const a = keyActions.current
+      if (k === 'i') a.toggleInspector()
+      else if (k === 'f') a.fullscreen()
+      else if (k === 'v') a.select()
+      else if (k === 'm') a.measure()
+      else if (k === 'n') a.next()
+      else if (k === 'escape') a.closeDrawer()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [studio])
+
+  function duplicateToken(t: SceneToken) {
+    const overlaps = (c: number, r: number) =>
+      tokens.some((o) => c < o.col + o.size && o.col < c + t.size && r < o.row + o.size && o.row < r + t.size)
+    let col = t.col + t.size
+    for (let i = 0; i < 50 && overlaps(col, t.row); i++) col += 1
+    const m = /^(.*?)(\d+)$/.exec(t.label.trim())
+    const used = new Set(tokens.map((o) => o.label))
+    let label = `${t.label} copy`
+    if (m) {
+      for (let n = Number(m[2]) + 1; n < 1000; n++) {
+        if (!used.has(`${m[1]}${n}`)) {
+          label = `${m[1]}${n}`
+          break
+        }
+      }
+    }
+    const copy: SceneToken = { ...t, id: newId(), col, label, combatantId: null, controlledBy: null }
+    touch()
+    setTokens((ts) => [...ts, copy])
+    setSelectedToken(copy.id)
+  }
+
+  if (studio) {
+    const kindOf = (t: SceneToken): TokenKind => {
+      if (t.kind) return t.kind
+      const c = combatantOf(combat.state, t)
+      if (t.controlledBy || c?.isPC || t.friendly) return 'hero'
+      if (t.npcId || c) return 'foe'
+      return 'object'
+    }
+    const hpOf = (t: SceneToken) => {
+      const c = combatantOf(combat.state, t)
+      return c && c.hp != null ? `${c.hp}/${c.maxHp ?? c.hp}` : null
+    }
+    const needle = tokenFilter.trim().toLowerCase()
+    const shown = tokens.filter((t) => !needle || t.label.toLowerCase().includes(needle))
+    const tokenGroups: { title: string; list: SceneToken[] }[] = [
+      { title: 'Heroes', list: shown.filter((t) => kindOf(t) === 'hero') },
+      { title: 'Foes', list: shown.filter((t) => kindOf(t) === 'foe') },
+      { title: 'Objects', list: shown.filter((t) => kindOf(t) === 'object') },
+    ]
+    const tool = fogTool ? 'fog' : measuring ? 'measure' : templatesOpen ? 'templates' : 'select'
+    const railBtn = (id: string, icon: BmIconName, label: string, on: boolean, onClick: () => void) => (
+      <button
+        key={id}
+        type="button"
+        className={`bm-tool${on ? ' on' : ''}`}
+        aria-pressed={on}
+        aria-label={label}
+        title={label}
+        data-testid={`tool-${id}`}
+        disabled={preview}
+        onClick={onClick}
+      >
+        <BmIcon name={icon} size={20} />
+      </button>
+    )
+    const toggleFog = () => (fogTool ? exitFog() : enterFog())
+
+    const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
+    const inspectorEl = (
+      <Inspector
+        mode={inspMode}
+        tab={inspTab}
+        onTab={setInspTab}
+        onToggleFloat={() => setInspFloat((f) => !f)}
+        onOpenWindow={isPhone ? undefined : iw.open}
+        onClose={() => {
+          if (iw.win) toggleInspector()
+          else if (asDrawer) setDrawerOpen(false)
+          else setDockOpen(false)
+        }}
+      >
+        {inspTab === 'tokens' && (
+          <>
+            <input
+              className="bm-filter"
+              placeholder="Filter tokens"
+              value={tokenFilter}
+              onChange={(e) => setTokenFilter(e.target.value)}
+              aria-label="Filter tokens"
+            />
+            {tokens.length === 0 && <p className="faint bm-empty">No tokens yet. Use Add token or Add object in the tool rail.</p>}
+            {tokenGroups.map((g) => {
+              const isFoes = g.title === 'Foes'
+              if (g.list.length === 0 && !(isFoes && groups.length > 0)) return null
+              const pickable = g.list.filter((t) => {
+                const c = combatantOf(combat.state, t)
+                return !t.groupId && !(c && c.hp != null && c.hp <= 0)
+              })
+              const picked = groupSel.filter((id) => pickable.some((t) => t.id === id))
+              return (
+                <div key={g.title} className="bm-group">
+                  <div className="bm-group-title">{g.title}</div>
+                  {isFoes &&
+                    groups.map((grp) => {
+                      const mem = tokens.filter((t) => t.groupId === grp.id)
+                      const first = mem[0] ? makeMember(mem[0]) : null
+                      return (
+                        <GroupBox
+                          key={grp.id}
+                          group={grp}
+                          members={mem.map((m) => ({ id: m.id, label: m.label, hp: memberHp(grp, m.id) }))}
+                          inInitiative={groupInInitiative(tokens, grp, combat.state)}
+                          onUngroup={() => applyGroups((s) => ungroup(s, grp.id))}
+                          onInit={(v) => applyGroups((s) => setGroupInit(s, grp.id, v))}
+                          onRoll={() => applyGroups((s) => rollGroupInit(s, grp.id, first?.dexMod ?? 0))}
+                          onToggleInitiative={() =>
+                            applyGroups((s) =>
+                              groupInInitiative(s.tokens, grp, s.combat) ? removeGroupFromInitiative(s, grp.id) : addGroupToInitiative(s, grp.id, makeMember),
+                            )
+                          }
+                          onHp={(v) => applyGroups((s) => setGroupHp(s, grp.id, v))}
+                          onMemberHp={(id, v) => applyGroups((s) => setGroupHp(s, grp.id, v, id))}
+                        />
+                      )
+                    })}
+                  {g.list.map((t) => {
+                    const c = combatantOf(combat.state, t)
+                    const grp = t.groupId ? groups.find((x) => x.id === t.groupId) : undefined
+                    const prepHp = grp ? memberHp(grp, t.id) : null
+                    const pill = hpOf(t) ?? (prepHp != null ? `${prepHp}/${prepHp}` : null)
+                    const down = !!c && c.hp != null && c.hp <= 0
+                    return (
+                      <TokenRow
+                        key={t.id}
+                        label={t.label}
+                        color={live.colorFor(t)}
+                        hp={pill}
+                        hidden={t.hidden === true}
+                        selected={t.id === selectedToken}
+                        dead={down}
+                        lead={
+                          isFoes ? (
+                            <input
+                              type="checkbox"
+                              className="bm-check"
+                              aria-label={`Select ${t.label} for a group`}
+                              checked={groupSel.includes(t.id)}
+                              disabled={!!t.groupId || down}
+                              onChange={(e) => setGroupSel((s) => (e.target.checked ? [...s, t.id] : s.filter((x) => x !== t.id)))}
+                            />
+                          ) : undefined
+                        }
+                        trail={
+                          isFoes && !t.groupId ? (
+                            <button
+                              type="button"
+                              className={`bm-init${c ? ' on' : ''}`}
+                              disabled={down}
+                              aria-pressed={!!c}
+                              aria-label={`${c ? 'Remove' : 'Add'} ${t.label} ${c ? 'from' : 'to'} initiative`}
+                              title="Add to or remove from the turn order"
+                              onClick={() => toggleSingleInitiative(t)}
+                            >
+                              {c ? '✓ Init' : '+ Init'}
+                            </button>
+                          ) : undefined
+                        }
+                        onSelect={() => setSelectedToken(t.id)}
+                        onToggleHidden={() => patchToken(t.id, { hidden: !t.hidden })}
+                      />
+                    )
+                  })}
+                  {isFoes && picked.length >= 2 && (
+                    <button
+                      type="button"
+                      className="bm-btn primary bm-group-btn"
+                      onClick={() => {
+                        applyGroups((s) => createGroup(s, picked, makeMember, (t) => makeMember(t).hp))
+                        setGroupSel([])
+                      }}
+                    >
+                      Group {picked.length} monsters
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+            {tokenEditor && (
+              <div className="bm-detail">
+                <div className="bm-group-title">Selected token</div>
+                {tokenEditor}
+              </div>
+            )}
+          </>
+        )}
+        {inspTab === 'grid' && gridSection}
+        {inspTab === 'map' && (
+          <section>
+            <h4>Map</h4>
+            {mapImage ? (
+              <p className="faint" style={{ fontSize: 12 }}>
+                {mapImage.width}×{mapImage.height}px · {formatBytes(mapImage.bytes)} · {cols}×{rows} squares
+              </p>
+            ) : (
+              <p className="faint" style={{ fontSize: 12 }}>
+                This board is a blank grid ({cols}×{rows} squares). Upload a map image from the overflow menu in the top bar.
+                A landscape image around 16:10 (for example 2400×1500 px) fills the default view. Images over {MAP_MAX_DIM}px on a side are shrunk to fit.
+              </p>
+            )}
+            {scene.source?.credit && (
+              <p className="faint" style={{ fontSize: 12 }}>
+                Map art:{' '}
+                {scene.source.creditUrl ? (
+                  <a href={scene.source.creditUrl} target="_blank" rel="noopener noreferrer">{scene.source.credit}</a>
+                ) : (
+                  scene.source.credit
+                )}
+              </p>
+            )}
+            {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
+          </section>
+        )}
+      </Inspector>
+    )
+    // In its own window the same element renders there through a portal, so the
+    // window reads and writes the page's live state. The page keeps a stub.
+    const inspector = iw.win ? (
+      <>
+        {createPortal(inspectorEl, iw.win.document.body)}
+        {inspVisible && (
+          <aside className={`bm-insp bm-stub ${asDrawer ? 'bm-insp-drawer' : 'bm-insp-docked'}`} data-testid="bm-inspector-stub">
+            <div className="bm-stub-title">Inspector is in its own window</div>
+            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+              {iw.onTop
+                ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+                : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge 116 or later can keep it on top.'}
+            </p>
+            <button type="button" className="bm-btn" onClick={toggleInspector}>
+              Bring it back
+            </button>
+          </aside>
+        )}
+      </>
+    ) : (
+      inspVisible && inspectorEl
+    )
+
+    const flyoutBar = preview ? null : fogTool ? fogBar : measuring ? measureBar : templatesOpen ? templateBar : null
+    const campBase = `/campaign/${campaign.id}`
+
+    return (
+      <div className={`bm-studio${expanded ? ' expanded' : ''}`} data-testid="bm-studio">
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => uploadMap(e.target.files?.[0])} />
+        <input ref={tokenImageRef} type="file" accept="image/*" hidden onChange={(e) => addTokenFromImage(e.target.files)} />
+
+        <header className="bm-top">
+          <nav className="bm-crumb" aria-label="Breadcrumb">
+            <Link to={campBase}>{campaign.name}</Link>
+            <span aria-hidden>/</span>
+            <span aria-current="page">Battle Map</span>
+          </nav>
+          {!isPhone && scenes && onSelectScene && (
+            <BmMenu
+              label="Switch battle map"
+              trigger={
+                <>
+                  <BmIcon name="map" />
+                  <span className="bm-lbl">Maps</span>
+                  <BmIcon name="chevron-down" size={14} />
+                </>
+              }
+            >
+              {(close) =>
+                scenes.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={s.id === scene.id}
+                    className={`bm-item${s.id === scene.id ? ' on' : ''}`}
+                    onClick={() => {
+                      onSelectScene(s.id)
+                      close()
+                    }}
+                  >
+                    {s.name || 'Untitled map'}
+                  </button>
+                ))
+              }
+            </BmMenu>
+          )}
+          {!isPhone && onNewScene && (
+            <button type="button" className="bm-btn" onClick={onNewScene} aria-label="New battle map" title="New battle map">
+              <BmIcon name="plus" />
+              <span className="bm-lbl">New map</span>
+            </button>
+          )}
+          <input
+            className="bm-name"
+            value={name}
+            onChange={(e) => {
+              touch()
+              setName(e.target.value)
+            }}
+            aria-label="Battle map name"
+          />
+          <span className="bm-spacer" />
+          <div className="bm-seg" role="group" aria-label="View">
+            <button type="button" className={!preview ? 'on' : ''} aria-pressed={!preview} onClick={() => setPreviewMode(false)}>
+              Edit
+            </button>
+            <button
+              type="button"
+              className={preview ? 'on' : ''}
+              aria-pressed={preview}
+              onClick={() => setPreviewMode(true)}
+              title="See the map exactly as players will: hidden tokens gone, no DM controls"
+            >
+              Preview<span className="bm-lbl"> as player</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className={`bm-btn bm-sq${inspVisible ? ' on' : ''}`}
+            aria-pressed={inspVisible}
+            aria-label="Inspector"
+            title="Show or hide the scene inspector (I)"
+            onClick={toggleInspector}
+          >
+            <BmIcon name="inspector" />
+          </button>
+          {expanded && (
+            <button
+              type="button"
+              className={`bm-btn bm-sq${notesOpen ? ' on' : ''}`}
+              aria-pressed={notesOpen}
+              aria-label="Session notes"
+              title={notesOpen ? 'Hide session notes' : 'Show session notes beside the map'}
+              onClick={() => setNotesOpen((o) => !o)}
+            >
+              <BmIcon name="notes" />
+            </button>
+          )}
+          {!isPhone && (
+          <button
+            type="button"
+            className="bm-btn bm-sq"
+            aria-label={expanded ? 'Exit full screen' : 'Full screen'}
+            title={expanded ? 'Exit full screen (F)' : 'Full screen (F)'}
+            onClick={expanded ? exitFullscreen : enterFullscreen}
+          >
+            <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
+          </button>
+          )}
+          {!isPhone && live.available &&
+            (live.isShowing ? (
+              <button
+                type="button"
+                className="bm-btn bm-live-on"
+                disabled={live.busy}
+                onClick={live.stop}
+                title="Players can see this map live. Click to take it down."
+              >
+                <span className="battlemap-live-dot" aria-hidden />
+                <span className="bm-lbl">{live.busy ? 'Working…' : 'Live · Stop'}</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="bm-btn"
+                disabled={live.busy || !live.sessionLive}
+                onClick={live.show}
+                aria-label={live.otherShowing ? 'Show this map instead' : 'Show to players'}
+                title={
+                  !live.sessionLive
+                    ? 'Players see battle maps during a live session. Start one from Run mode.'
+                    : live.otherShowing
+                      ? `Players are seeing “${live.otherName}”. This swaps it for this map.`
+                      : 'Show this map in your players’ live session'
+                }
+              >
+                <BmIcon name="broadcast" />
+                <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
+              </button>
+            ))}
+          <Link to={`/run/${campaign.id}`} className="bm-btn primary" title="At-the-table screen: session notes, what's in play, combat and dice">
+            <BmIcon name="play" size={16} />
+            <span className="bm-lbl">Run session</span>
+          </Link>
+          <BmMenu label="More actions" panelClassName="bm-menu-right" trigger={<BmIcon name="more" />}>
+            {(close) => (
+              <>
+                {isPhone && (
+                  <>
+                    <div className="bm-menu-title">Battle maps</div>
+                    {scenes?.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={s.id === scene.id}
+                        className={`bm-item${s.id === scene.id ? ' on' : ''}`}
+                        onClick={() => { close(); onSelectScene?.(s.id) }}
+                      >
+                        {s.name || 'Untitled map'}
+                      </button>
+                    ))}
+                    {onNewScene && (
+                      <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onNewScene() }}>
+                        <BmIcon name="plus" size={16} /> New map
+                      </button>
+                    )}
+                    <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); expanded ? exitFullscreen() : enterFullscreen() }}>
+                      <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} size={16} /> {expanded ? 'Exit full screen' : 'Full screen'}
+                    </button>
+                    {live.available && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="bm-item"
+                        disabled={live.busy || (!live.isShowing && !live.sessionLive)}
+                        onClick={() => { close(); live.isShowing ? live.stop() : live.show() }}
+                      >
+                        <BmIcon name="broadcast" size={16} /> {live.isShowing ? 'Stop showing to players' : live.otherShowing ? 'Show this map instead' : 'Show to players'}
+                      </button>
+                    )}
+                    <div className="bm-menu-sep" />
+                  </>
+                )}
+                <button type="button" role="menuitem" className="bm-item" disabled={uploading} onClick={() => { close(); fileRef.current?.click() }}>
+                  <BmIcon name="upload" size={16} /> {uploading ? 'Processing…' : imageId ? 'Replace map' : 'Upload map'}
+                </button>
+                {imageId && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); removeMap() }}>
+                    <BmIcon name="map" size={16} /> Remove map image
+                  </button>
+                )}
+                {onPublishToLibrary && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onPublishToLibrary() }}>
+                    <BmIcon name="library" size={16} /> Publish to library
+                  </button>
+                )}
+                {onBrowseLibrary && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onBrowseLibrary() }}>
+                    <BmIcon name="library" size={16} /> Browse library
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="bm-item danger"
+                  onClick={async () => {
+                    close()
+                    const ok = await confirm({
+                      title: 'Delete battle map?',
+                      message: (
+                        <>
+                          Delete <strong>{scene.name}</strong> and its map image? This can't be undone.
+                        </>
+                      ),
+                      confirmLabel: 'Delete',
+                      danger: true,
+                    })
+                    if (ok) {
+                      dirty.current = false
+                      unsaved.current = null
+                      if (live.isShowing) await live.stop()
+                      await deleteScene(scene.id)
+                      onDeleted()
+                    }
+                  }}
+                >
+                  <BmIcon name="trash" size={16} /> Delete map
+                </button>
+              </>
+            )}
+          </BmMenu>
+        </header>
+
+        <div className="bm-work">
+          <div className="bm-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
+            {railBtn('select', 'select', 'Select (V)', tool === 'select', selectTool)}
+            {railBtn('measure', 'measure', 'Measure (M)', tool === 'measure', toggleMeasure)}
+            <hr />
+            {railBtn('fog', 'fog', 'Fog of war', tool === 'fog', toggleFog)}
+            {railBtn('templates', 'templates', 'Area templates', tool === 'templates', toggleTemplates)}
+            <hr />
+            <BmMenu
+              label="Add token"
+              className="bm-rail-menu"
+              buttonClassName="bm-tool"
+              panelClassName="bm-menu-side"
+              trigger={<BmIcon name="add-token" size={20} />}
+            >
+              {(close) => (
+                <>
+                  <div className="bm-menu-title">Add from NPC</div>
+                  <div className="bm-menu-scroll">
+                    {npcs?.length ? (
+                      npcs.map((n) => (
+                        <button key={n.id} type="button" role="menuitem" className="bm-item" onClick={() => { addNpcToken(n.id); close() }}>
+                          {n.name}
+                        </button>
+                      ))
+                    ) : (
+                      <p className="faint bm-empty">No NPCs yet.</p>
+                    )}
+                  </div>
+                  <div className="bm-menu-sep" />
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { addToken({ label: `Token ${tokens.length + 1}` }); close() }}>
+                    <BmIcon name="plus" size={16} /> Custom token
+                  </button>
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); tokenImageRef.current?.click() }}>
+                    <BmIcon name="upload" size={16} /> From an image
+                  </button>
+                </>
+              )}
+            </BmMenu>
+            <BmMenu
+              label="Add object"
+              className="bm-rail-menu"
+              buttonClassName="bm-tool"
+              panelClassName="bm-menu-side"
+              trigger={<BmIcon name="add-object" size={20} />}
+            >
+              {(close) => (
+                <div className="bm-presets">
+                  {TOKEN_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      role="menuitem"
+                      className="bm-preset"
+                      title={p.label}
+                      onClick={() => {
+                        addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape, kind: 'object' })
+                        close()
+                      }}
+                    >
+                      <span aria-hidden>{p.icon}</span>
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </BmMenu>
+          </div>
+
+          {expanded && notesOpen && (
+            <div className="bm-notes">
+              <SessionNotesPanel campaignId={campaign.id} initialSessionId={notesSessionId} onWikiLink={peekByName} />
+            </div>
+          )}
+
+          <div className="bm-map">
+            {board}
+            {preview && (
+              <div className="bm-banner" role="status">
+                <BmIcon name="eye" size={15} /> Player preview: this is what players see
+                {tokens.some((t) => t.hidden) ? ` (${tokens.filter((t) => t.hidden).length} hidden)` : ''}
+                {!live.isShowing && live.available && '. Not shown to players yet'}
+              </div>
+            )}
+            <TurnStrip
+              state={combat.state}
+              looks={Object.fromEntries(tokens.filter((t) => t.combatantId).map((t) => [t.combatantId as string, { color: live.colorFor(t) }]))}
+              groupNames={Object.fromEntries(groups.map((g) => [g.id, g.name]))}
+              onStart={combat.start}
+              onNext={() => combat.step(1)}
+            />
+            {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
+            {hintOn && !iw.error && tool === 'select' && !preview && !aligning && (
+              <div className="bm-hint">Drag tokens to move. Arrow keys nudge.</div>
+            )}
+            {(live.error || iw.error) && (
+              <div className="bm-notice" role="status">
+                {live.error && <span style={{ color: 'var(--danger)' }}>{live.error}</span>}
+                {iw.error && (
+                  <span style={{ color: 'var(--danger)' }}>
+                    {iw.error}{' '}
+                    <button type="button" className="bm-link" onClick={iw.clearError}>Dismiss</button>
+                  </span>
+                )}
+              </div>
+            )}
+
+            {asDrawer && drawerOpen && <div className="bm-scrim" onClick={() => setDrawerOpen(false)} aria-hidden />}
+            {inspMode !== 'docked' && inspMode !== 'window' && inspector}
+            {inspMode === 'window' && asDrawer && inspector}
+          </div>
+          {inspMode === 'docked' && inspector}
+          {inspMode === 'window' && !asDrawer && inspector}
+        </div>
+
+        {peek && world && (
+          <SidePanel title={peekName ?? 'Peek'} onClose={() => setPeek(null)}>
+            <Peek kind={peek.kind} id={peek.id} world={world} campaignId={scene.campaignId} onWikiLink={peekByName} />
+          </SidePanel>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={`battlemap-editor${expanded ? ' expanded' : ''}${panelOpen ? '' : ' panel-closed'}`}>
       <input
@@ -889,83 +1975,9 @@ export function SceneEditor({
           {!live.isShowing && live.available && ' This map isn’t shown to players yet.'}
         </div>
       )}
-      {fogTool && (
-        <div className="battlemap-fogbar">
-          <span className="battlemap-fogbar-label"><Icon name="cloud" size={14} /> Fog</span>
-          <div className="seg-filter" role="group" aria-label="Fog brush">
-            <button className={fogTool === 'reveal' ? 'active' : ''} onClick={() => setFogTool('reveal')}>Reveal</button>
-            <button className={fogTool === 'hide' ? 'active' : ''} onClick={() => setFogTool('hide')}>Cover</button>
-          </div>
-          <div className="battlemap-fogbrush" title="Brush size (squares painted per stroke)">
-            <span className="faint">Brush</span>
-            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.max(0, b - 1))} disabled={fogBrush === 0} aria-label="Smaller brush">−</button>
-            <span className="battlemap-fogbrush-val" aria-live="polite">{2 * fogBrush + 1}×{2 * fogBrush + 1}</span>
-            <button className="btn ghost small" onClick={() => setFogBrush((b) => Math.min(FOG_BRUSH_MAX, b + 1))} disabled={fogBrush === FOG_BRUSH_MAX} aria-label="Larger brush">+</button>
-          </div>
-          <span className="faint">Drag across the map to {fogTool === 'reveal' ? 'reveal' : 'cover'} squares.</span>
-          <div className="battlemap-fogbar-actions">
-            <button className="btn ghost small" onClick={revealAllFog}>Reveal all</button>
-            <button className="btn ghost small" onClick={coverAllFog}>Cover all</button>
-            <button className="btn ghost small" onClick={disableFog} title="Turn fog off — players see the whole map again">Turn off</button>
-          </div>
-        </div>
-      )}
-      {measuring && (
-        <div className="battlemap-fogbar">
-          <span className="battlemap-fogbar-label">📏 Ruler</span>
-          <span className="faint">Drag across the map to measure. Distances use 5-ft squares (diagonals count as 5 ft).</span>
-        </div>
-      )}
-      {templatesOpen && (
-        <div className="battlemap-fogbar battlemap-templatebar">
-          <span className="battlemap-fogbar-label"><Icon name="sparkles" size={14} /> Templates</span>
-          <div className="seg-filter" role="group" aria-label="Template shape">
-            {TEMPLATE_SHAPES.map((s) => (
-              <button key={s.shape} className={templateShape === s.shape ? 'active' : ''} onClick={() => armTemplate(s.shape)} title={s.label}>
-                <svg width={16} height={16} viewBox="0 0 16 16" style={{ fill: 'currentColor', verticalAlign: 'middle' }}>{s.glyph}</svg> {s.label}
-              </button>
-            ))}
-          </div>
-          <label className="battlemap-tpl-size" title={templateShape === 'circle' ? 'Radius in feet' : 'Length in feet'}>
-            <span className="faint">{templateShape === 'circle' ? 'Radius' : 'Length'}</span>
-            <NumberField value={templateSizeFt} min={5} max={200} step={5} onChange={(v) => v != null && setTemplateSizeFt(v)} ariaLabel="Template size in feet" />
-            <span className="faint">ft</span>
-          </label>
-          <div className="battlemap-tpl-colors" role="group" aria-label="Template color">
-            {TEMPLATE_COLORS.map((c) => (
-              <button
-                key={c}
-                className={`battlemap-tpl-swatch${templateColor === c ? ' active' : ''}`}
-                style={{ background: c }}
-                onClick={() => setTemplateColor(c)}
-                aria-label={`Color ${c}`}
-                aria-pressed={templateColor === c}
-              />
-            ))}
-          </div>
-          <span className="faint">
-            {templateShape
-              ? templateShape === 'circle'
-                ? 'Click the map to drop the circle.'
-                : `Press at the origin and drag to aim the ${templateShape}.`
-              : 'Pick a shape, then place it on the map.'}
-          </span>
-          {templates.length > 0 && (
-            <div className="battlemap-tpl-list">
-              {templates.map((t) => (
-                <span key={t.id} className="battlemap-tpl-chip" style={{ borderColor: t.color }}>
-                  <span className="battlemap-tpl-dot" style={{ background: t.color }} />
-                  {t.shape} {t.sizeFt}ft
-                  <button className="battlemap-tpl-remove" onClick={() => removeTemplate(t.id)} aria-label="Remove template" title="Remove">×</button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="battlemap-fogbar-actions">
-            <button className="btn ghost small" onClick={clearTemplates} disabled={templates.length === 0}>Clear all</button>
-          </div>
-        </div>
-      )}
+      {fogTool && fogBar}
+      {measuring && measureBar}
+      {templatesOpen && templateBar}
       {mapImage && (
         <p className="faint" style={{ fontSize: 12, margin: '0 0 8px' }}>
           {mapImage.width}×{mapImage.height}px · {formatBytes(mapImage.bytes)} · {cols}×{rows} squares
@@ -976,126 +1988,10 @@ export function SceneEditor({
         {expanded && notesOpen && (
           <SessionNotesPanel campaignId={campaign.id} initialSessionId={notesSessionId} onWikiLink={peekByName} />
         )}
-        <Tabletop
-          width={size.width}
-          height={size.height}
-          grid={grid}
-          tokens={boardTokens}
-          mapUrl={mapImage?.dataUrl ?? null}
-          portraits={portraits ?? {}}
-          selectedId={selectedToken}
-          onSelect={setSelectedToken}
-          onMoveToken={(id, col, row) => patchToken(id, { col, row })}
-          onResizeToken={(id, size) => patchToken(id, { size })}
-          onDeleteToken={removeToken}
-          onOpenToken={openToken}
-          aligning={aligning}
-          onAlign={applyAlign}
-          centerRef={centerRef}
-          editable={!preview}
-          canMoveToken={preview ? () => false : undefined}
-          fog={fog.enabled ? fog : null}
-          fogTool={preview ? null : fogTool}
-          fogBrush={fogBrush}
-          onPaintFog={paintFog}
-          combat={combatByToken}
-          templates={[...templates, ...playerTemplates.templates]}
-          templateTool={preview ? null : templateTool}
-          onPlaceTemplate={placeTemplate}
-          measureTool={!preview && measuring}
-          renderTokenPanel={(t) =>
-            preview ? (
-              hasFloatingStatus(combatByToken[t.id]) ? <TokenStatusCard token={t} combat={combatByToken[t.id]} /> : null
-            ) : (
-              <div className="tabletop-quickcombat">
-                <div className="tabletop-quickcombat-name" title={t.label}>{t.label}</div>
-                <TokenCombatControl
-                  token={t}
-                  combatant={t.combatantId ? combat.state.combatants.find((c) => c.id === t.combatantId) ?? null : null}
-                  onAdd={() => addTokenToCombat(t)}
-                  onRemove={() => removeTokenFromCombat(t)}
-                  onFriendly={(v) => patchToken(t.id, { friendly: v })}
-                  onDamage={(n) => t.combatantId && combat.adjustHp(t.combatantId, -n)}
-                  onHeal={(n) => t.combatantId && combat.adjustHp(t.combatantId, n)}
-                  onConditions={(conds) => t.combatantId && combat.patch(t.combatantId, { conditions: conds })}
-                />
-              </div>
-            )
-          }
-        />
+        {board}
 
         <aside className="battlemap-side" hidden={!panelOpen || preview}>
-          <section>
-            <h4>Grid</h4>
-            <label className="battlemap-check">
-              <input type="checkbox" checked={grid.show} onChange={(e) => setGridField({ show: e.target.checked })} />
-              Show grid
-            </label>
-            <div className="battlemap-fields">
-              <label>
-                Square size (px)
-                <NumberField value={grid.cellPx} min={8} max={1000} step={0.1} decimals={2} onChange={(v) => v != null && setGridField({ cellPx: v })} ariaLabel="Square size in pixels" />
-              </label>
-              <label>
-                Offset X
-                <NumberField value={grid.offsetX} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetX: v })} ariaLabel="Grid offset X" />
-              </label>
-              <label>
-                Offset Y
-                <NumberField value={grid.offsetY} min={-1000} max={1000} step={0.5} decimals={2} onChange={(v) => v != null && setGridField({ offsetY: v })} ariaLabel="Grid offset Y" />
-              </label>
-              <label>
-                Line color
-                <input type="color" value={grid.color} onChange={(e) => setGridField({ color: e.target.value })} />
-              </label>
-            </div>
-            {imageId ? (
-              <>
-                <button
-                  className={`btn small${aligning ? ' primary' : ''}`}
-                  style={{ width: '100%' }}
-                  disabled={aligningBusy}
-                  onClick={() => {
-                    setAlignNote(null)
-                    setFogTool(null)
-                    setAligning((a) => !a)
-                  }}
-                  title="Draw a box around map squares to match the grid to them"
-                >
-                  {aligningBusy ? 'Matching…' : aligning ? 'Cancel align' : 'Align grid to map'}
-                </button>
-                {aligning && (
-                  <div className="battlemap-align-opts">
-                    <label>
-                      Squares across in your box
-                      <NumberField value={alignSquares} min={1} max={50} onChange={(v) => v != null && setAlignSquares(v)} ariaLabel="Squares across in the align box" />
-                    </label>
-                    <label className="battlemap-check" title="Fine-tune your box to the grid lines drawn on the map image">
-                      <input type="checkbox" checked={snapToLines} onChange={(e) => setSnapToLines(e.target.checked)} />
-                      Snap to the map's grid lines
-                    </label>
-                    <p className="faint">
-                      Tip: boxing several squares (say 5 across) is far more accurate than one.
-                    </p>
-                  </div>
-                )}
-                {alignNote && !aligning && (
-                  <p className={`battlemap-align-note${alignNote.ok ? '' : ' warn'}`}>{alignNote.text}</p>
-                )}
-              </>
-            ) : (
-              <div className="battlemap-fields">
-                <label>
-                  Columns
-                  <NumberField value={cols} min={1} max={200} onChange={(v) => v != null && setBlankSize(v, rows)} ariaLabel="Columns" />
-                </label>
-                <label>
-                  Rows
-                  <NumberField value={rows} min={1} max={200} onChange={(v) => v != null && setBlankSize(cols, v)} ariaLabel="Rows" />
-                </label>
-              </div>
-            )}
-          </section>
+          {gridSection}
 
           <section>
             <h4>Tokens</h4>
@@ -1168,126 +2064,11 @@ export function SceneEditor({
               </div>
             )}
 
-            {current ? (
-              <div className="battlemap-token-edit">
-                <label>
-                  Label
-                  <input className="input" value={current.label} onChange={(e) => patchToken(current.id, { label: e.target.value })} />
-                </label>
-                <label>
-                  Size
-                  <select className="select" value={current.size} onChange={(e) => patchToken(current.id, { size: Number(e.target.value) })}>
-                    {TOKEN_SIZES.map((s) => (
-                      <option key={s.cells} value={s.cells}>{s.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Shape
-                  <div className="seg" role="radiogroup" aria-label="Token shape">
-                    {(['circle', 'square'] as TokenShape[]).map((sh) => (
-                      <button
-                        key={sh}
-                        type="button"
-                        className={`seg-btn${(current.shape ?? 'circle') === sh ? ' on' : ''}`}
-                        role="radio"
-                        aria-checked={(current.shape ?? 'circle') === sh}
-                        onClick={() => patchToken(current.id, { shape: sh })}
-                      >
-                        {sh === 'circle' ? 'Circle' : 'Square'}
-                      </button>
-                    ))}
-                  </div>
-                </label>
-                <TokenIconPicker
-                  value={current.tokenIcon}
-                  autoId={pickTokenIcon({ name: current.label }) ?? GENERIC_TOKEN_ICON}
-                  onChange={(id) => patchToken(current.id, { tokenIcon: id })}
-                />
-                <label>
-                  Emoji
-                  <input
-                    className="input"
-                    value={current.icon ?? ''}
-                    maxLength={4}
-                    placeholder="🐴 (optional)"
-                    onChange={(e) => patchToken(current.id, { icon: e.target.value || null })}
-                  />
-                </label>
-                <div className="field">
-                  <span className="faint" style={{ fontSize: 11 }}>Token image (optional — overrides the emoji)</span>
-                  <EntityImage
-                    campaignId={scene.campaignId}
-                    imageId={current.imageId ?? null}
-                    onChange={(id) => patchToken(current.id, { imageId: id })}
-                    label="token image"
-                  />
-                </div>
-                {live.colorFor(current) !== current.color && (
-                  <span className="faint" style={{ fontSize: 11 }}>
-                    Shown in {live.members.find((m) => m.userId === current.controlledBy)?.displayName ?? 'the player'}’s color while they control it.
-                  </span>
-                )}
-                <div className="battlemap-swatches" role="radiogroup" aria-label="Token color">
-                  {TOKEN_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      className={`battlemap-swatch${current.color === c ? ' on' : ''}`}
-                      style={{ background: c }}
-                      onClick={() => patchToken(current.id, { color: c })}
-                      aria-label={`Color ${c}`}
-                      aria-checked={current.color === c}
-                      role="radio"
-                    />
-                  ))}
-                </div>
-                <label className="battlemap-check" title="Hidden tokens are never sent to players">
-                  <input type="checkbox" checked={current.hidden === true} onChange={(e) => patchToken(current.id, { hidden: e.target.checked })} />
-                  Hidden from players
-                </label>
-                {live.available && (
-                  <label>
-                    Controlled by
-                    <select
-                      className="select"
-                      value={current.controlledBy ?? ''}
-                      onChange={(e) => patchToken(current.id, { controlledBy: e.target.value || null })}
-                      title="The player who can move this token on their screen"
-                    >
-                      <option value="">DM only</option>
-                      {live.members.map((m) => (
-                        <option key={m.userId} value={m.userId}>{m.displayName}</option>
-                      ))}
-                    </select>
-                    {live.members.length === 0 && (
-                      <span className="faint" style={{ fontSize: 11 }}>Players appear here once they join with your invite code.</span>
-                    )}
-                  </label>
-                )}
-                <TokenCombatControl
-                  token={current}
-                  combatant={current.combatantId ? combat.state.combatants.find((c) => c.id === current.combatantId) ?? null : null}
-                  onAdd={() => addTokenToCombat(current)}
-                  onRemove={() => removeTokenFromCombat(current)}
-                  onFriendly={(v) => patchToken(current.id, { friendly: v })}
-                  onDamage={(n) => current.combatantId && combat.adjustHp(current.combatantId, -n)}
-                  onHeal={(n) => current.combatantId && combat.adjustHp(current.combatantId, n)}
-                  onConditions={(conds) => current.combatantId && combat.patch(current.combatantId, { conditions: conds })}
-                />
-                <div className="row" style={{ gap: 6 }}>
-                  {current.npcId && (
-                    <button className="btn small" onClick={() => openToken(current)}>View NPC</button>
-                  )}
-                  <button className="btn danger small" onClick={() => removeToken(current.id)}>
-                    <Icon name="trash" size={13} color="inherit" /> Remove
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="faint" style={{ fontSize: 12, marginTop: 10 }}>
-                Drag tokens to move them; they snap to the grid. Click a token to select it, then drag its corner handle (or press + / −) to resize. Arrow keys nudge it, Delete removes it, and double-click an NPC token to see its stat block.
-              </p>
-            )}
+              {tokenEditor ?? (
+                <p className="faint" style={{ fontSize: 12, marginTop: 10 }}>
+                  Drag tokens to move them; they snap to the grid. Click a token to select it, then drag its corner handle (or press + / −) to resize. Arrow keys nudge it, Delete removes it, and double-click an NPC token to see its stat block.
+                </p>
+              )}
 
             {tokens.length > 0 && (
               <ul className="battlemap-token-list">
@@ -1409,12 +2190,25 @@ function TokenCombatControl({
 }
 
 /** Confirmation strip after a publish; links to the Manage list. */
-function publishNote(note: string | null, dismiss: () => void) {
+function publishNote(note: string | null, dismiss: () => void, toast = false) {
   if (!note) return null
   return (
-    <p className="faint" role="status" style={{ fontSize: 13, margin: '8px 0' }} data-testid="publish-note">
+    <p className={toast ? 'bm-toast' : 'faint'} role="status" style={{ fontSize: 13, margin: '8px 0' }} data-testid="publish-note">
       {note} <Link to="/tools/battlemaps/manage">Open Manage</Link> to preview and publish it.{' '}
       <button className="btn ghost small" onClick={dismiss}>Dismiss</button>
     </p>
   )
+}
+
+/** True on a phone-width viewport, where the inspector becomes a drawer. */
+function useIsPhone(): boolean {
+  const q = '(max-width: 820px)'
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(q)
+    const on = () => setPhone(mq.matches)
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+  return phone
 }

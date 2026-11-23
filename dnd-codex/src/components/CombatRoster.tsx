@@ -12,6 +12,9 @@ import {
   rollInitiative,
   rollAllInitiative,
   sortByInitiative,
+  stepTurn,
+  removeCombatants,
+  activeIds,
   parseLeadingInt,
   type Combatant,
   type CombatState,
@@ -72,14 +75,7 @@ export function useCombat() {
   }
 
   function removeCombatant(id: Id) {
-    setState((s) => {
-      const idx = s.combatants.findIndex((c) => c.id === id)
-      const list = s.combatants.filter((c) => c.id !== id)
-      let ti = s.turnIndex
-      if (idx !== -1 && idx < s.turnIndex) ti -= 1
-      if (ti >= list.length) ti = Math.max(0, list.length - 1)
-      return { ...s, combatants: list, turnIndex: ti }
-    })
+    setState((s) => removeCombatants(s, new Set([id])))
   }
 
   function rollAll() {
@@ -104,14 +100,7 @@ export function useCombat() {
   }
 
   function step(dir: 1 | -1) {
-    setState((s) => {
-      if (s.combatants.length === 0) return s
-      let ti = s.turnIndex + dir
-      let round = s.round
-      if (ti >= s.combatants.length) { ti = 0; round += 1 }
-      if (ti < 0) { ti = s.combatants.length - 1; round = Math.max(1, round - 1) }
-      return { ...s, turnIndex: ti, round }
-    })
+    setState((s) => stepTurn(s, dir))
   }
 
   async function end() {
@@ -126,8 +115,10 @@ export function useCombat() {
   }
 
   const activeId = state.active ? state.combatants[state.turnIndex]?.id ?? null : null
+  /** Everyone acting this turn: one combatant, or every member of a group slot. */
+  const activeSet = activeIds(state)
 
-  return { state, setState, activeId, patch, adjustHp, addCombatants, removeCombatant, rollAll, sortNow, start, step, end }
+  return { state, setState, activeId, activeSet, patch, adjustHp, addCombatants, removeCombatant, rollAll, sortNow, start, step, end }
 }
 
 export function CombatantRow({

@@ -55,6 +55,10 @@ export interface Combatant {
   conditions: string[]
   /** Rows sharing a group roll one initiative together (a monster pack). */
   groupKey?: string | null
+  /** Set on a battle map monster group: its members share ONE turn slot (they are
+   *  kept side by side in the order and Next steps over them together). A plain
+   *  `groupKey` pack from the encounter runner keeps one turn per row. */
+  groupTurn?: boolean
   /** Running total damage taken (net of healing, floored at 0). Lets players
    *  see how hurt an enemy is without ever seeing its HP pool. */
   damageTaken?: number
@@ -139,13 +143,102 @@ export function rollInitiative(dexMod: number): number {
  * by DEX modifier then name. Rows without an initiative sink to the bottom.
  */
 export function sortByInitiative(list: Combatant[]): Combatant[] {
-  return [...list].sort((a, b) => {
+  const sorted = [...list].sort((a, b) => {
     const ai = a.initiative ?? Number.NEGATIVE_INFINITY
     const bi = b.initiative ?? Number.NEGATIVE_INFINITY
     if (bi !== ai) return bi - ai
     if (b.dexMod !== a.dexMod) return b.dexMod - a.dexMod
     return a.name.localeCompare(b.name)
   })
+  // Members of a battle map group share one slot, so keep them side by side,
+  // at the place of the first member the sort found.
+  const out: Combatant[] = []
+  const placed = new Set<string>()
+  for (const c of sorted) {
+    if (placed.has(c.id)) continue
+    out.push(c)
+    placed.add(c.id)
+    if (c.groupTurn && c.groupKey) {
+      for (const m of sorted) {
+        if (!placed.has(m.id) && m.groupTurn && m.groupKey === c.groupKey) {
+          out.push(m)
+          placed.add(m.id)
+        }
+      }
+    }
+  }
+  return out
+}
+
+/** True when `b` is in the same turn slot as `a` (same battle map group). */
+function sameSlot(a: Combatant | undefined, b: Combatant | undefined): boolean {
+  return !!a && !!b && !!a.groupTurn && !!b.groupTurn && !!a.groupKey && a.groupKey === b.groupKey
+}
+
+/** The combatants taking the current turn: one, or every member of the current group slot. */
+export function activeIds(state: CombatState): Set<string> {
+  const out = new Set<string>()
+  if (!state.active) return out
+  const cur = state.combatants[state.turnIndex]
+  if (!cur) return out
+  out.add(cur.id)
+  if (cur.groupTurn && cur.groupKey) for (const c of state.combatants) if (sameSlot(cur, c)) out.add(c.id)
+  return out
+}
+
+/** Turn slots in order: a battle map group is one slot of several combatants. */
+export function turnSlots(list: Combatant[]): Combatant[][] {
+  const slots: Combatant[][] = []
+  for (const c of list) {
+    const last = slots[slots.length - 1]
+    if (last && sameSlot(last[0], c)) last.push(c)
+    else slots.push([c])
+  }
+  return slots
+}
+
+/** Move the turn one slot forward or back, counting the round. `turnIndex`
+ *  always lands on the first member of a slot. */
+export function stepTurn(s: CombatState, dir: 1 | -1): CombatState {
+  const list = s.combatants
+  if (list.length === 0) return s
+  let ti = s.turnIndex
+  let round = s.round
+  if (dir === 1) {
+    const cur = list[ti]
+    ti += 1
+    while (ti < list.length && sameSlot(cur, list[ti])) ti += 1
+    if (ti >= list.length) {
+      ti = 0
+      round += 1
+    }
+  } else {
+    ti -= 1
+    if (ti < 0) {
+      ti = list.length - 1
+      round = Math.max(1, round - 1)
+    }
+    while (ti > 0 && sameSlot(list[ti], list[ti - 1])) ti -= 1
+  }
+  return { ...s, turnIndex: ti, round }
+}
+
+/** Remove combatants by id, keeping the turn on the same slot (or the next one). */
+export function removeCombatants(s: CombatState, ids: Set<string>): CombatState {
+  const list = s.combatants.filter((c) => !ids.has(c.id))
+  let ti = s.turnIndex - s.combatants.slice(0, s.turnIndex).filter((c) => ids.has(c.id)).length
+  if (ti >= list.length) ti = Math.max(0, list.length - 1)
+  return { ...s, combatants: list, turnIndex: ti }
+}
+
+/** Re-sort into initiative order while keeping the turn on the same slot. */
+export function resortKeepTurn(s: CombatState): CombatState {
+  const cur = s.combatants[s.turnIndex]
+  const list = sortByInitiative(s.combatants)
+  let ti = cur ? list.findIndex((c) => c.id === cur.id) : 0
+  if (ti < 0) ti = 0
+  while (ti > 0 && sameSlot(list[ti], list[ti - 1])) ti -= 1
+  return { ...s, combatants: list, turnIndex: ti }
 }
 
 /**
@@ -184,6 +277,7 @@ export function makeCombatant(input: {
   hp?: number | null
   ac?: number | null
   groupKey?: string | null
+  groupTurn?: boolean
 }): Combatant {
   const maxHp = input.hp ?? null
   return {
@@ -197,6 +291,7 @@ export function makeCombatant(input: {
     ac: input.ac ?? null,
     conditions: [],
     groupKey: input.groupKey ?? null,
+    ...(input.groupTurn ? { groupTurn: true } : {}),
     damageTaken: 0,
   }
 }
