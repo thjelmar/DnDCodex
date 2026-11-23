@@ -4,6 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { Icon } from '../components/Icon'
 import { useConfirm } from '../components/ConfirmDialog'
+import { PlayerSharingBar } from '../components/PlayerSharing'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { abilityMod } from '../lib/statblock'
 import { emptyCombat, makeCombatant, parseLeadingInt, type Combatant } from '../lib/combat'
@@ -19,9 +20,10 @@ export function CombatTrackerPage() {
   const confirm = useConfirm()
   const navigate = useNavigate()
   const location = useLocation()
+  const combat = useCombat()
   const {
-    state, setState, activeId, patch, adjustHp, addCombatants, removeCombatant, rollAll, sortNow, start, step, end,
-  } = useCombat()
+    state, setState, activeId, patch, adjustHp, addCombatants, setHiddenFromPlayers, removeCombatant, rollAll, sortNow, start, step, end,
+  } = combat
 
   const dmCampaigns = useLiveQuery(
     () => db.campaigns.orderBy('updatedAt').reverse().filter((c) => !c.archived && c.role !== 'player').toArray(),
@@ -115,6 +117,8 @@ export function CombatTrackerPage() {
         )}
       </div>
 
+      <PlayerSharingBar combat={combat} />
+
       {/* Roster */}
       {combatants.length === 0 ? (
         <p className="faint" style={{ marginTop: 24 }}>
@@ -132,6 +136,7 @@ export function CombatTrackerPage() {
               onDamage={(n) => adjustHp(c.id, -n)}
               onHeal={(n) => adjustHp(c.id, n)}
               onRemove={() => removeCombatant(c.id)}
+              onHide={(h) => setHiddenFromPlayers(c.id, h)}
             />
           ))}
         </div>

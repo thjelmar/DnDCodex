@@ -54,6 +54,8 @@ export interface Campaign extends BaseRecord {
   coverImageId: Id | null
   /** dm = you run it; player = you play in it (Player section only). */
   role: CampaignRole
+  /** Health markers players may see on enemies (T-100). Each is an opt-in; all off when absent. */
+  combatMarkers?: { injured?: boolean; bloodied?: boolean; deathsDoor?: boolean }
   /** Quick links to external tools (D&D Beyond, character sheets, VTT…). */
   externalLinks: ExternalLink[]
   /**

@@ -663,3 +663,23 @@ Risks:
   The DM sees the old and new values in a toast, and can edit it back.
 - **Sequencing.** The build touches `combat.ts`, the roster, and
   `BattleMapPage.tsx`. It must wait for PR 162 and T-99, then rebase.
+
+## Build notes (what differs from the design)
+
+- **Preference storage.** The warning reuses the app's `remember` option on the
+  confirm dialog, so the key is `codex.confirmSkip.combat-reveal` (not
+  `codex.prefs.hideRevealWarning`). **Preferences** has a "Warn before NPCs join a
+  combat players can see" checkbox that turns it back on.
+- **DM-only enforcement.** The repo has no ESLint config, so the import rule is an
+  e2e test (`player code never imports the DM reveal guard`) that scans the player
+  files. The DM context lives in `src/lib/revealContext.ts` and is set only by
+  `LiveCombatKeeper` in a `role: 'dm'` campaign.
+- **Where it runs.** `LiveCombatKeeper` mounts in the campaign layout. The global
+  combat tracker (`/tools/combat`) is outside a campaign, so it has no DM context:
+  nothing is shared and no warning appears there.
+- **E2E default.** `e2e/fixtures.ts` presets the skip preference for every spec that
+  uses the shared `test`, because the demo shows the dialog. Specs about the
+  warning set `skipRevealWarning: false`.
+- **Not built.** The player strip's DM-facing "Edit" action on the join notice (the
+  notice offers **Remove** only), and per-player strip placement inside the
+  full-screen board. The strip sits above the session grid.

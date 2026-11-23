@@ -14,6 +14,7 @@ import { DicePanel } from '../components/DiceRoller'
 import { Icon } from '../components/Icon'
 import { BmIcon } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
+import { PlayerSharingBar } from '../components/PlayerSharing'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { InitiativeList } from '../components/InitiativeList'
 import { DiceBar } from '../components/DiceBar'
@@ -877,6 +878,7 @@ function RunCombat({ combat }: { combat: ReturnType<typeof useCombat> }) {
           <button className="btn ghost small danger" onClick={combat.end}>End</button>
         )}
       </div>
+      <PlayerSharingBar combat={combat} />
 
       {n === 0 ? (
         <p className="faint run-hint">No combatants. Use <Icon name="swords" size={12} /> on an NPC in play, or add one below.</p>
@@ -892,6 +894,7 @@ function RunCombat({ combat }: { combat: ReturnType<typeof useCombat> }) {
               onDamage={(amt) => combat.adjustHp(c.id, -amt)}
               onHeal={(amt) => combat.adjustHp(c.id, amt)}
               onRemove={() => combat.removeCombatant(c.id)}
+              onHide={(h) => combat.setHiddenFromPlayers(c.id, h)}
             />
           ))}
         </div>

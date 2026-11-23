@@ -53,7 +53,7 @@ function useIsSceneEditorOpen(sceneId: Id | null): boolean {
 // pushes its own edits, so a DM's changes are never withheld.
 const supportsLocks = typeof navigator !== 'undefined' && 'locks' in navigator
 
-function useIsKeeperLeader(campaignId: Id | null): boolean {
+export function useIsKeeperLeader(campaignId: Id | null, lockPrefix = 'codex.scenePush.'): boolean {
   const [leader, setLeader] = useState(false)
   useEffect(() => {
     if (!campaignId) {
@@ -69,7 +69,7 @@ function useIsKeeperLeader(campaignId: Id | null): boolean {
     let release: (() => void) | null = null
     let done = false
     navigator.locks
-      .request(`codex.scenePush.${campaignId}`, { signal: ac.signal }, () =>
+      .request(`${lockPrefix}${campaignId}`, { signal: ac.signal }, () =>
         // Hold the lock (stay leader) until we release on cleanup.
         new Promise<void>((resolve) => {
           if (done) {

@@ -49,6 +49,8 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { isIphoneSafari, isStandalone } from '../lib/standalone'
 import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
+import { setRevealPreview } from '../lib/revealContext'
+import { useConfirmReveal } from '../lib/revealGuard'
 import { activeIds, getCombat, type CombatState, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
 import { deleteToken, restoreToken } from '../lib/tokenHistory'
 import { tokenCombat } from '../lib/tokenCombat'
@@ -324,8 +326,14 @@ export function SceneEditor({
   const [addTokenOpen, setAddTokenOpen] = useState(false)
   const tokenImageRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState(false)
+  // No NPC warning while the DM previews the map as a player (T-100).
+  useEffect(() => {
+    setRevealPreview(preview)
+    return () => setRevealPreview(false)
+  }, [preview])
   // Shared combat store (tracker/Run panel/board all stay in sync).
   const combat = useCombat()
+  const confirmReveal = useConfirmReveal()
   // Spell areas players dropped — shown read-only on the DM board so the DM sees
   // what they conjured (the DM's own templates live in `templates`).
   const playerTemplates = usePlayerTemplates(scene.campaignId)
@@ -733,8 +741,10 @@ export function SceneEditor({
   // board shows its HP/conditions and highlights it on its turn.
   async function addTokenToCombat(t: SceneToken) {
     const npc = t.npcId ? await db.npcs.get(t.npcId) : undefined
-    const c = npc ? combatantFromNpc(npc) : makeCombatant({ name: t.label || 'Combatant' })
-    combat.addCombatants([c])
+    const base = npc ? combatantFromNpc(npc) : makeCombatant({ name: t.label || 'Combatant' })
+    // A hidden token's combatant stays hidden from players, so adding it needs no warning.
+    const c = t.hidden ? { ...base, hiddenFromPlayers: true } : base
+    if ((await combat.addCombatants([c])) !== 'added') return
     patchToken(t.id, { combatantId: c.id })
   }
   function removeTokenFromCombat(t: SceneToken) {
@@ -1393,13 +1403,16 @@ export function SceneEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studio, tokens, groups, combat.state])
   // Single monsters: the + Init toggle adds or removes one slot.
-  function toggleSingleInitiative(t: SceneToken) {
+  async function toggleSingleInitiative(t: SceneToken) {
     const existing = combatantOf(combat.state, t)
     if (existing) {
       removeTokenFromCombat(t)
       return
     }
-    const c = makeMember(t)
+    const base = makeMember(t)
+    const c = t.hidden ? { ...base, hiddenFromPlayers: true } : base
+    // In a combat players can see, the DM confirms before an NPC appears (T-100).
+    if (!(await confirmReveal([c], combat.state.active))) return
     const rolled = combat.state.active ? { ...c, initiative: rollInitiative(c.dexMod) } : c
     touch()
     combat.setState((s) => resortKeepTurn({ ...s, combatants: [...s.combatants, rolled] }))
@@ -1596,11 +1609,16 @@ export function SceneEditor({
                           onUngroup={() => applyGroups((s) => ungroup(s, grp.id))}
                           onInit={(v) => applyGroups((s) => setGroupInit(s, grp.id, v))}
                           onRoll={() => applyGroups((s) => rollGroupInit(s, grp.id, first?.dexMod ?? 0))}
-                          onToggleInitiative={() =>
+                          onToggleInitiative={async () => {
+                            if (!groupInInitiative(tokens, grp, combat.state)) {
+                              // Adding a group puts every member in the order: confirm once for the group.
+                              const adding = tokens.filter((t) => t.groupId === grp.id).map((t) => ({ ...makeMember(t), name: t.label || 'Combatant', hiddenFromPlayers: !!t.hidden }))
+                              if (!(await confirmReveal(adding, combat.state.active))) return
+                            }
                             applyGroups((s) =>
                               groupInInitiative(s.tokens, grp, s.combat) ? removeGroupFromInitiative(s, grp.id) : addGroupToInitiative(s, grp.id, makeMember),
                             )
-                          }
+                          }}
                           onHp={(v) => applyGroups((s) => setGroupHp(s, grp.id, v))}
                           onMemberHp={(id, v) => applyGroups((s) => setGroupHp(s, grp.id, v, id))}
                         />
