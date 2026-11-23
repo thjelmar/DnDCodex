@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battle map mockup (round 2, demo data only)</title>
+<style>
+/* Tokens copied from stitch-design-language.md. Never hard-code the accent in the built page. */
+:root{--bg:#14121a;--bg-elev:#1c1926;--bg-elev-2:#262233;--border:#352f45;--text:#ece9f1;--text-dim:#a49fb5;--text-faint:#726d82;--accent:#a78bfa;--accent-strong:#7c3aed;--danger:#f87171;--good:#4ade80;--r:10px;--rs:7px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:clip;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2{font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif;font-weight:600;line-height:1.2;margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{white-space:nowrap;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:var(--rs);padding:6px 12px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent-strong);border-color:var(--accent-strong);color:#fff}
+.btn.icon{padding:6px 9px}
+.app{display:grid;grid-template-columns:220px 1fr;height:100%}
+.app.fs{grid-template-columns:0 1fr}
+.side{background:var(--bg-elev);border-right:1px solid var(--border);padding:16px 12px;overflow:hidden}
+.side .brand{font-family:Georgia,serif;font-weight:600;font-size:18px;margin-bottom:14px}
+.side .camp{color:var(--text-dim);font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin:14px 8px 6px}
+.nav a{display:block;padding:7px 10px;border-radius:var(--rs);color:var(--text-dim);text-decoration:none;font-weight:500;font-size:14px}
+.nav a.on{background:var(--bg-elev-2);color:var(--text);box-shadow:inset 3px 0 0 var(--accent)}
+.stage{display:flex;flex-direction:column;min-width:0;height:100%;position:relative}
+.top{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border-bottom:1px solid var(--border);background:var(--bg-elev);flex:none}
+.crumb{color:var(--text-dim);font-size:13px;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.seg button{background:transparent;border:0;padding:5px 12px;font-size:13px;color:var(--text-dim)}
+.seg button.on{background:var(--bg-elev-2);color:var(--text)}
+.spacer{flex:1}
+.work{position:relative;flex:1;min-height:0;display:flex}
+.rail{width:48px;flex:none;background:var(--bg-elev);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;z-index:3}
+.rail .t{width:36px;height:36px;border-radius:var(--rs);border:1px solid transparent;background:transparent;font-size:17px}
+.rail .t:hover{background:var(--bg-elev-2)}
+.rail .t.on{background:var(--accent-strong);color:#fff}
+.rail hr{width:22px;border:0;border-top:1px solid var(--border);margin:6px 0}
+.map{position:relative;flex:1;min-width:0;overflow:hidden;background:#d9d2c0;
+ background-image:linear-gradient(#0002 1px,transparent 1px),linear-gradient(90deg,#0002 1px,transparent 1px);background-size:64px 64px}
+.tok{position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;font-size:11px;font-weight:600;color:#fff}
+.tok i{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:15px;border:3px solid #0004}
+.tok span{background:#000a;border-radius:6px;padding:0 6px}
+.tok.hero i{background:#16a34a}.tok.foe i{background:#dc2626}.tok.obj i{background:#92591f;border-radius:8px}
+.tok.sel i{outline:3px solid var(--accent);outline-offset:3px}
+.sel-bar{position:absolute;display:flex;gap:2px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--rs);padding:3px;transform:translate(-50%,-100%)}
+.sel-bar button{background:transparent;border:0;padding:3px 8px;font-size:12px;border-radius:5px}
+.sel-bar button:hover{background:var(--bg-elev-2)}
+.chip{position:absolute;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:12px;color:var(--text-dim)}
+.zoom{position:absolute;right:14px;bottom:14px;display:flex;gap:2px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--rs);padding:3px}
+.zoom button{background:transparent;border:0;padding:3px 9px}
+.init{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;align-items:center;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:5px 8px}
+.init .rd{display:grid;line-height:1.15;padding:0 4px 0 6px}.init .rd strong{font-family:Georgia,serif;font-size:15px}.init .rd small{color:var(--text-dim);font-size:11px}
+.init .btn{border-radius:999px;padding:3px 10px;font-size:12px}.init .sep{width:1px;height:22px;background:var(--border)}
+.init b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;color:#fff}
+/* Turn pulse: one animation, driven by the accent token. Calm: 1.8s, no movement, only a halo. */
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 70%,transparent)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.tok.turn i,.init b.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
+.tok.turn span{background:var(--accent-strong)}
+@media (prefers-reduced-motion:reduce){.tok.turn i,.init b.turn{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 60%,transparent)}}
+/* Grouped monsters: one initiative entry, several tokens. */
+.init .gchip{display:flex;align-items:center;gap:6px;border-radius:999px;padding:2px 8px 2px 2px;background:var(--bg-elev-2);border:1px solid var(--border);font-size:11px;font-weight:600}
+.init .gchip .st{display:flex}.init .gchip .st b{margin-left:-8px;border:2px solid var(--bg-elev-2)}.init .gchip .st b:first-child{margin-left:0}
+.init .gchip.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
+.tok.grouped i{outline:2px dashed #fffb;outline-offset:2px}
+.gline{display:flex;align-items:center;gap:8px;font-size:13px;background:var(--bg-elev-2);border:1px solid var(--border);border-radius:var(--rs);padding:5px 8px;margin-bottom:4px}
+.gline .btn{margin-left:auto;padding:1px 8px;font-size:12px}
+.row input[type=checkbox]{width:auto;margin:0}
+@media (prefers-reduced-motion:reduce){.init .gchip.turn{animation:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 60%,transparent)}}
+/* Eye toggle: line icon, same stroke style as the tool rail. */
+.eye{background:transparent;border:0;color:var(--text-dim);padding:2px;margin-left:6px;display:inline-grid;place-items:center;border-radius:5px}
+.eye:hover{color:var(--text);background:var(--bg-elev-2)}
+.eye svg{width:16px;height:16px}.eye .off{display:none}
+.eye.hid{color:var(--text-faint)}.eye.hid .on{display:none}.eye.hid .off{display:block}
+.rail .t svg{display:block;margin:auto}
+/* Initiative membership: grouping never adds anyone to the turn order by itself. */
+.ini{font-size:10px;border:1px solid var(--border);border-radius:999px;padding:0 7px;background:transparent;color:var(--text-dim);margin-left:4px;white-space:nowrap}
+.ini:hover{border-color:var(--accent)}.ini.on{color:var(--accent);border-color:var(--accent)}.ini:disabled{display:none}
+.gbox .tag{font-size:11px;font-weight:500;color:var(--text-dim);border:1px solid var(--border);border-radius:999px;padding:0 7px}
+.gbox .tag.on{color:var(--accent);border-color:var(--accent)}
+/* Group panel and defeated state. */
+.init .gchip{padding:2px 4px 2px 2px}
+.x{background:transparent;border:0;color:var(--text-faint);padding:0 4px;font-size:13px;margin-left:2px}.x:hover{color:var(--danger)}
+.row.dead{opacity:.4;text-decoration:line-through}.row.dead .x{display:none}
+.tok.dead{opacity:.25;filter:grayscale(1)}
+.gbox{background:var(--bg-elev-2);border:1px solid var(--border);border-radius:var(--rs);padding:8px;margin-bottom:6px;font-size:13px}
+.gbox .l1{display:flex;align-items:center;gap:8px;font-weight:600}
+.gbox .l1 .btn{margin-left:auto;padding:1px 8px;font-size:12px}
+.gbox .l2{display:flex;align-items:center;gap:8px;margin-top:6px;color:var(--text-dim)}
+.gbox input[type=number]{width:56px;margin:0;padding:3px 6px}
+.gbox .lnk{background:none;border:0;color:var(--accent);padding:0;font-size:12px;margin-left:auto}
+.gbox .each{margin-top:6px;display:grid;gap:4px}
+.gbox .each div{display:flex;align-items:center;gap:8px}.gbox .each span:first-child{flex:1}
+/* Scene inspector: docked, floating (pop-out), or hidden (overlay in full screen). */
+.insp{background:var(--bg-elev);border-left:1px solid var(--border);width:300px;flex:none;display:flex;flex-direction:column;z-index:4}
+.insp.hidden{display:none}
+.insp.float{position:absolute;right:20px;top:20px;bottom:auto;height:420px;width:300px;border:1px solid var(--border);border-radius:var(--r);box-shadow:0 12px 32px #0008;resize:both;overflow:auto}
+.insp.drawer{position:absolute;right:0;top:0;bottom:0;box-shadow:-12px 0 32px #0008}
+.insp .hd{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border);cursor:default}
+.insp.float .hd{cursor:grab}
+.insp .tabs{display:flex;gap:2px;flex:1;min-width:0}
+.insp .tabs button{background:transparent;border:0;padding:4px 8px;border-radius:var(--rs);font-size:13px;color:var(--text-dim)}
+.insp .tabs button.on{background:var(--bg-elev-2);color:var(--text)}
+.insp .body{padding:10px;overflow:auto;flex:1}
+.insp input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px 10px;margin-bottom:8px}
+.grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-faint);margin:10px 0 4px}
+.row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:var(--rs);font-size:14px}
+.row:hover,.row.on{background:var(--bg-elev-2)}
+.dot{width:10px;height:10px;border-radius:50%}
+.pill{margin-left:auto;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:0 8px;color:var(--text-dim)}
+.note{position:absolute;left:12px;top:12px;max-width:280px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text-dim);z-index:2}
+.note b{color:var(--text)}
+kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11px;background:var(--bg-elev-2)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand">D&amp;D Codex</div>
+    <div class="camp">The Hollow Crown</div>
+    <nav class="nav">
+      <a href="#">Home</a><a href="#">Sessions</a><a href="#">Timeline</a>
+      <a href="#" class="on">Battle Map</a><a href="#">Loot</a><a href="#">Gallery</a>
+      <a href="#">NPCs</a><a href="#">Locations</a><a href="#">Items</a>
+    </nav>
+  </aside>
+
+  <div class="stage">
+    <!-- One top bar. One of every control. -->
+    <header class="top">
+      <span class="crumb">The Hollow Crown / Battle Map</span>
+      <button class="btn">The Gilded Stag — Brawl ▾</button>
+      <button class="btn">+ New map</button>
+      <span class="spacer"></span>
+      <div class="seg"><button class="on">Edit</button><button>Preview as player</button></div>
+      <button class="btn icon" id="btnInspector" title="Show or hide the scene inspector (I)">▤ Inspector</button>
+      <button class="btn icon" id="btnFs" title="Full screen (F)">⛶</button>
+      <button class="btn primary">Run session</button>
+      <button class="btn icon" title="Upload map, Delete">⋯</button>
+    </header>
+
+    <div class="work">
+      <div class="rail">
+        <button class="t on" title="Select (V)">➤</button>
+        <button class="t" title="Measure (M)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3M10 8v4.5M13.5 8v3M17 8v4.5"/></svg></button>
+        <hr>
+        <button class="t" title="Fog of war (F)">☁</button>
+        <button class="t" title="Templates (T)">◔</button>
+        <hr>
+        <button class="t" title="Add token">＋</button>
+        <button class="t" title="Add object">▣</button>
+      </div>
+
+      <div class="map" id="map">
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, tick two or more foes and choose <b>Group</b> (prep only: nobody joins the lineup until you add them with <b>+ Init</b>), <b>☠</b> marks a monster defeated, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+
+        <div class="tok hero" data-id="br" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
+        <div class="tok hero" data-id="sa" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
+        <div class="tok hero" data-id="va" style="left:30%;top:66%"><i>Va</i><span>Vara</span></div>
+        <div class="tok hero" data-id="pi" style="left:40%;top:78%"><i>Pi</i><span>Pip</span></div>
+        <div class="tok foe" data-id="t1" style="left:54%;top:58%"><i>T1</i><span>Thug 1</span></div>
+        <div class="tok foe" data-id="t2" style="left:61%;top:50%"><i>T2</i><span>Thug 2</span></div>
+        <div class="tok foe" data-id="t3" style="left:50%;top:70%"><i>T3</i><span>Thug 3</span></div>
+        <div class="tok foe sel" data-id="mo" style="left:70%;top:72%"><i>Mo</i><span>Mordrek</span></div>
+        <div class="sel-bar" style="left:70%;top:calc(72% - 38px)"><button>Duplicate</button><button>Condition</button><button>Delete</button></div>
+        <div class="tok obj" style="left:46%;top:46%"><i>▣</i><span>Crate</span></div>
+
+        <div class="init"><div class="rd"><strong>Round <span id="roundN">2</span></strong><small id="turnName">Sable's turn</small></div><button class="btn primary" id="btnNext" title="Next turn (N)">Next ▸</button><span class="sep"></span><div id="chips" style="display:flex;gap:6px;align-items:center"></div></div>
+        <div class="chip" style="left:50%;top:12px;transform:translateX(-50%)">Drag tokens to move. Arrow keys nudge.</div>
+        <div class="zoom"><button>−</button><span style="padding:3px 6px">100%</span><button>+</button><button>Fit</button></div>
+
+        <!-- Floating mode lives inside the map so it can sit over it. -->
+        <aside class="insp hidden" id="inspFloat"></aside>
+      </div>
+
+      <aside class="insp hidden" id="inspStub" style="padding:14px;gap:10px">
+        <div style="font-weight:600">Inspector is in its own window</div>
+        <div id="stubNote" style="font-size:13px;color:var(--text-dim)"></div>
+        <button class="btn" id="btnBack">Bring it back</button>
+      </aside>
+      <aside class="insp" id="insp">
+        <div class="hd" id="inspHd">
+          <div class="tabs"><button class="on">Tokens</button><button>Grid</button><button>Map</button></div>
+          <button class="btn icon" id="btnPop" title="Float the inspector over the map" aria-label="Float">⇱</button>
+          <button class="btn icon" id="btnWin" title="Open the inspector in its own window, so you can move it off the page" aria-label="Open in window">⧉</button>
+          <button class="btn icon" id="btnClose" title="Hide (I)">✕</button>
+        </div>
+        <div class="body" id="inspBody">
+          <input placeholder="Filter tokens…">
+          <button class="btn" style="width:100%;margin-bottom:6px">Add from NPC ▾</button>
+          <div class="grp">Heroes</div>
+          <div class="row"><span class="dot" style="background:#16a34a"></span>Bram<span class="pill">42/45</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
+          <div class="row on"><span class="dot" style="background:#16a34a"></span>Sable<span class="pill">28/32</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
+          <div class="row"><span class="dot" style="background:#16a34a"></span>Vara<span class="pill">30/30</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
+          <div class="row"><span class="dot" style="background:#16a34a"></span>Pip<span class="pill">18/22</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
+          <div class="grp">Foes</div>
+          <div id="foeGroups"></div>
+          <label class="row"><input type="checkbox" class="fchk" data-id="mo"><span class="dot" style="background:#dc2626"></span>Mordrek<span class="pill" id="hp-mo">54/65</span><button class="ini" data-ini="mo" title="Add to or remove from the turn order"></button><button class="x" data-defeat="mo" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t1"><span class="dot" style="background:#dc2626"></span>Thug 1<span class="pill" id="hp-t1">22/22</span><button class="ini" data-ini="t1" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t1" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t2"><span class="dot" style="background:#dc2626"></span>Thug 2<span class="pill" id="hp-t2">16/22</span><button class="ini" data-ini="t2" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t2" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t3"><span class="dot" style="background:#dc2626"></span>Thug 3<span class="pill" id="hp-t3">22/22</span><button class="ini" data-ini="t3" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t3" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <button class="btn primary hidden-btn" id="btnGroup" style="width:100%;margin-top:6px;display:none">Group</button>
+          <div class="grp">Objects</div>
+          <div class="row"><span class="dot" style="background:#92591f"></span>Crate<span class="pill">—</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<script>
+const app = document.getElementById('app');
+const insp = document.getElementById('insp');
+const work = insp.parentElement;
+const map = document.getElementById('map');
+let mode = 'docked';           // docked | float | hidden | window
+let extWin = null;            // the separate window, when mode === 'window'
+const stub = document.getElementById('inspStub');
+let fs = false;
+
+function apply() {
+  stub.classList.toggle('hidden', mode !== 'window');
+  if (mode === 'window') return;       // the node lives in the other window
+  insp.classList.remove('hidden', 'float', 'drawer');
+  // Move between the dock (work row) and the map (floating or drawer).
+  const overMap = mode === 'float' || (fs && mode !== 'hidden');
+  (overMap ? map : work).appendChild(insp);
+  if (mode === 'hidden') insp.classList.add('hidden');
+  else if (mode === 'float') insp.classList.add('float');
+  else if (fs) insp.classList.add('drawer');
+  const bp = document.getElementById('btnPop'); bp.textContent = mode === 'float' ? '⇲' : '⇱'; bp.title = mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map';
+}
+function toggleInspector() { mode = mode === 'hidden' ? 'docked' : 'hidden'; apply(); }
+
+document.getElementById('btnInspector').onclick = toggleInspector;
+document.getElementById('btnClose').onclick = () => { mode = 'hidden'; apply(); };
+document.getElementById('btnPop').onclick = () => { mode = mode === 'float' ? 'docked' : 'float'; apply(); };
+document.getElementById('btnFs').onclick = toggleFs;
+function toggleFs() {
+  fs = !fs;
+  app.classList.toggle('fs', fs);
+  // In full screen the inspector starts closed and opens on demand as a drawer.
+  if (fs && mode === 'docked') mode = 'hidden';
+  if (!fs && mode === 'hidden') mode = 'docked';
+  apply();
+}
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'i') toggleInspector();
+  else if (k === 'n') nextTurn();
+  else if (k === 'f') toggleFs();
+  else if (k === 'escape' && fs && mode !== 'hidden') { mode = 'hidden'; apply(); }
+});
+
+// Drag the floating inspector by its header.
+const hd = document.getElementById('inspHd');
+let drag = null;
+hd.addEventListener('pointerdown', e => {
+  if (mode !== 'float' || e.target.closest('button')) return;
+  const r = insp.getBoundingClientRect(), m = map.getBoundingClientRect();
+  drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, m };
+  hd.setPointerCapture(e.pointerId);
+});
+hd.addEventListener('pointermove', e => {
+  if (!drag) return;
+  insp.style.left = (e.clientX - drag.dx - drag.m.left) + 'px';
+  insp.style.top = (e.clientY - drag.dy - drag.m.top) + 'px';
+  insp.style.right = 'auto';
+});
+hd.addEventListener('pointerup', () => { drag = null; });
+
+// Open the inspector in its own window. Prefer Document Picture-in-Picture (Chrome and Edge 116+):
+// that window stays on top of other windows. Everywhere else, fall back to a normal popup,
+// which the browser cannot keep on top.
+async function openWindow() {
+  let w, onTop = false;
+  try {
+    if ('documentPictureInPicture' in window) {
+      w = await documentPictureInPicture.requestWindow({ width: 320, height: 560 });
+      onTop = true;
+    }
+  } catch (e) { w = null; }
+  if (!w) w = window.open('', 'inspector', 'popup,width=320,height=560');
+  if (!w) { alert('The browser blocked the new window. Allow pop-ups for this site.'); return; }
+  const st = document.createElement('style');
+  st.textContent = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')
+    + '\nbody{overflow:auto} .insp{width:100%!important;height:100vh;position:static!important;border:0!important;box-shadow:none!important}';
+  w.document.head.appendChild(st);
+  w.document.title = 'Scene inspector';
+  w.document.body.style.margin = '0';
+  w.document.body.appendChild(insp);   // same node, so its behavior keeps working
+  insp.classList.remove('hidden', 'float', 'drawer');
+  extWin = w; mode = 'window'; apply();
+  document.getElementById('stubNote').textContent = onTop
+    ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+    : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge can keep it on top.';
+  const back = () => { if (mode !== 'window') return; extWin = null; mode = fs ? 'hidden' : 'docked'; apply(); };
+  w.addEventListener('pagehide', () => { work.appendChild(insp); back(); });
+}
+document.getElementById('btnWin').onclick = openWindow;
+document.getElementById('btnBack').onclick = () => { if (extWin) extWin.close(); };
+
+// Turn order. `entries` is only who is IN initiative. Foes you prep (and groups you build) stay out of it
+// until the DM adds them, so nothing shows in the lineup early.
+const info = {sa:['Sable','#16a34a','Sa'],mo:['Mordrek','#dc2626','Mo'],br:['Bram','#16a34a','Br'],va:['Vara','#16a34a','Va'],
+  t1:['Thug 1','#dc2626','T1'],t2:['Thug 2','#dc2626','T2'],t3:['Thug 3','#dc2626','T3'],pi:['Pip','#16a34a','Pi']};
+const hp = {mo:[54,65], t1:[22,22], t2:[16,22], t3:[22,22]};   // [current, max]
+const dead = new Set();
+let entries = ['sa','mo','br','va','pi'].map(id => ({ ids: [id] }));   // the thugs are prepped, not in initiative yet
+let groups = [];                                                       // every group, in initiative or not
+let turn = 0, round = 2;
+const chips = document.getElementById('chips');
+const isGroup = e => e.ids.length > 1;
+const groupName = e => info[e.ids[0]][0].replace(/\s*\d+$/, '') + 's';
+const slotOf = id => entries.find(e => e.ids.includes(id));
+const groupOf = id => groups.find(g => g.ids.includes(id));
+
+function renderLineup() {
+  // A group is one chip of stacked avatars, no label. The name shows under "Round X" like a character's does.
+  chips.innerHTML = entries.map((e, i) => isGroup(e)
+    ? `<span class="gchip" data-entry="${i}" title="${groupName(e)}"><span class="st">${e.ids.map(id => `<b style="background:${info[id][1]}">${info[id][2]}</b>`).join('')}</span></span>`
+    : `<b data-entry="${i}" title="${info[e.ids[0]][0]}" style="background:${info[e.ids[0]][1]}">${info[e.ids[0]][2]}</b>`).join('');
+  document.querySelectorAll('.tok[data-id]').forEach(t => {
+    t.classList.toggle('grouped', !!groupOf(t.dataset.id));
+    t.classList.toggle('dead', dead.has(t.dataset.id));
+  });
+  document.getElementById('foeGroups').innerHTML = groups.map(groupBox).join('');
+  document.querySelectorAll('.fchk').forEach(c => { const id = c.dataset.id; c.disabled = dead.has(id) || !!groupOf(id); if (c.disabled) c.checked = false; });
+  document.querySelectorAll('.ini').forEach(b => {
+    const id = b.dataset.ini, inI = !!slotOf(id);
+    b.classList.toggle('on', inI); b.textContent = inI ? '✓ Init' : '+ Init'; b.disabled = !!groupOf(id) || dead.has(id);
+  });
+  Object.keys(hp).forEach(id => {
+    document.getElementById('hp-' + id).textContent = hp[id][0] + '/' + hp[id][1];
+    document.getElementById('hp-' + id).closest('.row').classList.toggle('dead', dead.has(id));
+  });
+  updateGroupBtn();
+  showTurn();
+}
+// The group panel: in or out of initiative, one roll, shared HP by default, optional per-monster edits.
+function groupBox(g) {
+  const k = g.ids[0], inI = entries.includes(g);
+  const each = g.edit ? `<div class="each">${g.ids.map(id => `<div><span>${info[id][0]}</span><span>HP</span><input type="number" min="0" value="${hp[id][0]}" data-mhp="${id}"></div>`).join('')}</div>` : '';
+  return `<div class="gbox">
+    <div class="l1"><span>${groupName(g)} ×${g.ids.length}</span><span class="tag ${inI ? 'on' : ''}">${inI ? 'In initiative' : 'Prep only'}</span><button class="btn" data-ungroup="${k}">Ungroup</button></div>
+    <div class="l2"><span>Initiative</span><input type="number" value="${g.init}" data-ginit="${k}"><button class="btn" style="padding:1px 8px;font-size:12px" data-roll="${k}" title="Roll d20 once for the whole group">Roll</button><button class="btn ${inI ? '' : 'primary'}" style="padding:1px 8px;font-size:12px;margin-left:auto" data-toinit="${k}">${inI ? 'Remove from initiative' : 'Add to initiative'}</button></div>
+    <div class="l2"><span>HP each</span><input type="number" min="1" value="${g.edit ? '' : hp[k][1]}" placeholder="mixed" data-ghp="${k}"><button class="lnk" data-edit="${k}">${g.edit ? 'Use one value' : 'Edit per monster'}</button></div>${each}</div>`;
+}
+function showTurn() {
+  const cur = entries[turn];
+  document.querySelectorAll('.tok[data-id]').forEach(el => el.classList.toggle('turn', !!cur && cur.ids.includes(el.dataset.id)));
+  chips.querySelectorAll('[data-entry]').forEach(el => el.classList.toggle('turn', +el.dataset.entry === turn));
+  document.getElementById('roundN').textContent = round;
+  document.getElementById('turnName').textContent = !cur ? '' : isGroup(cur) ? groupName(cur) + "' turn" : info[cur.ids[0]][0] + "'s turn";
+}
+const nextTurn = () => { if (!entries.length) return; turn = (turn + 1) % entries.length; if (turn === 0) round++; showTurn(); };
+document.getElementById('btnNext').onclick = nextTurn;
+
+// Keep the same slot on turn while entries change. If it vanished, the next slot takes the turn.
+function mutate(fn) {
+  const cur = entries[turn], at = turn;
+  fn();
+  const i = cur ? entries.indexOf(cur) : -1;
+  turn = i >= 0 ? i : Math.max(0, Math.min(at, entries.length - 1));
+  renderLineup();
+}
+const checked = () => [...document.querySelectorAll('.fchk:checked')].map(c => c.dataset.id);
+function updateGroupBtn() {
+  const n = checked().length, b = document.getElementById('btnGroup');
+  b.style.display = n >= 2 ? 'block' : 'none';
+  b.textContent = 'Group ' + n + ' monsters';
+}
+document.querySelectorAll('.fchk').forEach(c => c.addEventListener('change', updateGroupBtn));
+// Grouping only links monsters. A monster already in initiative keeps its place (as part of the group);
+// monsters that are not in initiative stay out, so a prep group shows nothing in the lineup.
+document.getElementById('btnGroup').onclick = () => {
+  const ids = checked(), same = hp[ids[0]][1];
+  ids.forEach(id => { hp[id] = [same, same]; });                 // default: every member gets the same HP
+  const g = { ids: ids.slice(), init: 12, edit: false };          // the group rolls once
+  mutate(() => {
+    groups.push(g);
+    const inSlots = entries.filter(e => e.ids.some(id => ids.includes(id)));
+    if (inSlots.length) {
+      const at = entries.indexOf(inSlots[0]);
+      entries = entries.filter(e => !inSlots.includes(e));
+      entries.splice(Math.min(at, entries.length), 0, g);
+    }
+  });
+  document.querySelectorAll('.fchk').forEach(c => c.checked = false);
+  updateGroupBtn();
+};
+const body = document.getElementById('inspBody');
+const grp = k => groups.find(g => g.ids.includes(k));
+body.addEventListener('click', ev => {
+  const d = (ev.target.closest('[data-ungroup],[data-roll],[data-edit],[data-defeat],[data-ini],[data-toinit]') || {}).dataset || {};
+  if (d.ungroup) mutate(() => {
+    const g = grp(d.ungroup); groups = groups.filter(x => x !== g);
+    const i = entries.indexOf(g);
+    if (i >= 0) entries.splice(i, 1, ...g.ids.map(x => ({ ids: [x] })));
+  });
+  else if (d.roll) { grp(d.roll).init = 1 + Math.floor(Math.random() * 20) + 2; renderLineup(); }
+  else if (d.edit) { const g = grp(d.edit); g.edit = !g.edit; renderLineup(); }
+  else if (d.toinit) mutate(() => { const g = grp(d.toinit); const i = entries.indexOf(g); if (i >= 0) entries.splice(i, 1); else entries.push(g); });
+  else if (d.ini) mutate(() => { const s = slotOf(d.ini); if (s) entries.splice(entries.indexOf(s), 1); else entries.push({ ids: [d.ini] }); });
+  else if (d.defeat) {
+    // A defeated monster leaves the turn order and its group on its own. A group of one becomes a normal slot.
+    dead.add(d.defeat);
+    mutate(() => {
+      groups.forEach(g => { g.ids = g.ids.filter(id => id !== d.defeat); });
+      groups = groups.filter(g => g.ids.length > 1);
+      entries = entries.map(e => e.ids.includes(d.defeat) ? Object.assign(e, { ids: e.ids.filter(id => id !== d.defeat) }) : e).filter(e => e.ids.length);
+    });
+  }
+});
+body.addEventListener('input', ev => {
+  const d = ev.target.dataset || {}, v = +ev.target.value;
+  if (d.ghp && v > 0) { grp(d.ghp).ids.forEach(id => { hp[id] = [v, v]; }); syncPills(); }
+  else if (d.mhp) { hp[d.mhp][0] = v; syncPills(); }
+  else if (d.ginit) grp(d.ginit).init = v;
+});
+function syncPills() { Object.keys(hp).forEach(id => { document.getElementById('hp-' + id).textContent = hp[id][0] + '/' + hp[id][1]; }); }
+renderLineup();
+// Eye toggle: hides a token from players (shown dimmed to the DM on the map).
+document.getElementById('inspBody').addEventListener('click', ev => {
+  const b = ev.target.closest('.eye'); if (!b) return;
+  b.classList.toggle('hid');
+  const name = b.closest('.row').textContent.trim();
+  const id = Object.keys(info).find(k => name.startsWith(info[k][0]) && (k.startsWith('t') ? name.startsWith(info[k][0] + '') : true));
+  document.querySelectorAll('.tok[data-id="' + id + '"]').forEach(t => { t.style.opacity = b.classList.contains('hid') ? .35 : ''; });
+});
+apply();
+</script>
+</body>
+</html>
