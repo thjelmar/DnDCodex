@@ -22,7 +22,8 @@ label.sw{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .stage.dark{background:#1b2a1f}
 .stage.light{background:#e8dcc0}
 .stage svg{position:absolute;inset:0;width:100%;height:100%}
-.hint{position:absolute;left:10px;bottom:8px;font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(20,18,26,.85);color:var(--text);pointer-events:none}
+.hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);white-space:nowrap;font-size:12px;padding:5px 14px;border-radius:99px;background:rgba(28,25,38,.9);backdrop-filter:blur(6px);color:var(--text-dim);pointer-events:none}
+.readout{position:absolute;left:10px;bottom:10px;font:11px ui-monospace,Menlo,monospace;padding:3px 9px;border-radius:8px;background:rgba(28,25,38,.85);color:var(--text-dim);pointer-events:none}
 .tag{font:600 11px system-ui;fill:var(--text)}
 @keyframes ring{0%{r:6;opacity:1}70%{opacity:.9}100%{r:38;opacity:0}}
 @keyframes ring2{0%{r:4;opacity:.8}100%{r:24;opacity:0}}
@@ -93,7 +94,7 @@ stages.forEach(s=>{
   [[150,120,'#dc2626'],[330,250,'#2563eb'],[500,280,'#16a34a']].forEach(([x,y,c])=>mk('circle',{cx:x,cy:y,r:18,fill:c,stroke:'#fff','stroke-width':2},world));
   s._layer=mk('g',{},world);            // PingLayer: inside the transformed group
   s._cursors={};
-  s.insertAdjacentHTML('beforeend','<span class="hint">Right-click: ping  ·  Right-drag: cursor</span>');
+  s.insertAdjacentHTML('beforeend','<span class="hint">Right-click: ping · Right-drag: cursor</span><span class="readout">Pings on · 2 watching</span>');
   s.addEventListener('contextmenu',e=>e.preventDefault()); // map surface only
   let down=null,tick=null;
   const toBoard=(e)=>{const r=s.getBoundingClientRect();return{x:(e.clientX-r.left-ox)/z,y:(e.clientY-r.top-oy)/z}};
@@ -157,7 +158,7 @@ function draw(s,who,type,pt,done,local){
 function label(parent,x,y,text,c){
   const w=text.length*6.6+18;
   const g=mk('g',{transform:`translate(${x} ${y})`},parent);
-  mk('rect',{x:-w/2,y:-11,width:w,height:18,rx:9,fill:'#1c1926',stroke:c,'stroke-width':1.5},g);
+  mk('rect',{x:-w/2,y:-11,width:w,height:18,rx:9,fill:'rgba(28,25,38,.9)',stroke:c,'stroke-width':1.5},g);
   const t=mk('text',{x:0,y:2,'text-anchor':'middle',class:'tag'},g);t.textContent=text;
 }
 
