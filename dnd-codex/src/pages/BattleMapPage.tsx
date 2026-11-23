@@ -24,6 +24,21 @@ import { BmMenu } from '../components/battlemap/BmMenu'
 import { Inspector, TokenRow, type InspectorTab } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
 import { TurnStrip } from '../components/battlemap/TurnStrip'
+import { GroupBox } from '../components/battlemap/GroupBox'
+import {
+  addGroupToInitiative,
+  combatantOf,
+  createGroup,
+  groupInInitiative,
+  memberHp,
+  reconcileGroups,
+  removeGroupFromInitiative,
+  rollGroupInit,
+  setGroupHp,
+  setGroupInit,
+  ungroup,
+  type GroupState,
+} from '../lib/battleGroups'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
@@ -31,7 +46,7 @@ import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
-import { makeCombatant, type Combatant } from '../lib/combat'
+import { activeIds, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
 import { tokenCombat } from '../lib/tokenCombat'
 import {
   MAP_MAX_DIM,
@@ -47,7 +62,7 @@ import {
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
  *  emoji-faced token; squares read better for built things (boats, doors). */
@@ -236,20 +251,21 @@ export function SceneEditor({
   const [imageId, setImageId] = useState<Id | null>(scene.imageId)
   const [fog, setFog] = useState<SceneFog>(scene.fog ?? { enabled: false, revealed: [] })
   const [templates, setTemplates] = useState<SceneTemplate[]>(scene.templates ?? [])
+  const [groups, setGroups] = useState<SceneGroup[]>(scene.groups ?? [])
   const dirty = useRef(false)
   // The latest unsaved draft, flushed on unmount (e.g. switching Run mode's
   // pane or map inside the 400ms debounce) so the last edit isn't lost.
   const unsaved = useRef<Partial<Scene> | null>(null)
   useEffect(() => {
     if (!dirty.current) return
-    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog, templates }
+    const patch = { name, grid, tokens, imageId, width: size.width, height: size.height, fog, templates, groups }
     unsaved.current = patch
     const t = setTimeout(() => {
       unsaved.current = null
       updateScene(scene.id, patch)
     }, 400)
     return () => clearTimeout(t)
-  }, [name, grid, tokens, imageId, size, fog, templates, scene.id])
+  }, [name, grid, tokens, imageId, size, fog, templates, groups, scene.id])
   useEffect(
     () => () => {
       if (unsaved.current) updateScene(scene.id, unsaved.current)
@@ -494,12 +510,13 @@ export function SceneEditor({
   // The overlay drawn on tokens. In player preview, filter it as players see it.
   const combatByToken = useMemo(() => {
     const st = combat.state
-    const activeId = st.active ? st.combatants[st.turnIndex]?.id ?? null : null
+    // Every member of a group pulses on the group's turn.
+    const acting = activeIds(st)
     const map: Record<string, TokenCombat> = {}
     for (const t of tokens) {
       if (!t.combatantId) continue
       const c = st.combatants.find((x) => x.id === t.combatantId)
-      if (c) map[t.id] = tokenCombat(t, c, activeId, preview)
+      if (c) map[t.id] = tokenCombat(t, c, acting.has(c.id) ? c.id : null, preview)
     }
     return map
   }, [tokens, combat.state, preview])
@@ -1076,6 +1093,7 @@ export function SceneEditor({
           templateTool={preview ? null : templateTool}
           onPlaceTemplate={placeTemplate}
           measureTool={!preview && measuring}
+          showGroups={studio && !preview}
           renderTokenPanel={(t) =>
             preview ? (
               hasFloatingStatus(combatByToken[t.id]) ? <TokenStatusCard token={t} combat={combatByToken[t.id]} /> : null
@@ -1109,6 +1127,44 @@ export function SceneEditor({
           }
         />
   )
+
+  // ---- Monster groups (phase 4) ----------------------------------------------
+  const [groupSel, setGroupSel] = useState<string[]>([])
+  const makeMember = (t: SceneToken): Combatant => {
+    const npc = t.npcId ? npcs?.find((n) => n.id === t.npcId) : undefined
+    return npc ? combatantFromNpc(npc) : makeCombatant({ name: t.label || 'Combatant' })
+  }
+  function applyGroups(fn: (s: GroupState) => GroupState) {
+    const s = fn({ tokens, groups, combat: combat.state })
+    touch()
+    setTokens(s.tokens)
+    setGroups(s.groups)
+    combat.setState(s.combat)
+  }
+  // A defeated member leaves its group and the turn order; a group of one dissolves.
+  useEffect(() => {
+    if (!studio) return
+    const next = reconcileGroups({ tokens, groups, combat: combat.state })
+    if (!next) return
+    touch()
+    setTokens(next.tokens)
+    setGroups(next.groups)
+    combat.setState(next.combat)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studio, tokens, groups, combat.state])
+  // Single monsters: the + Init toggle adds or removes one slot.
+  function toggleSingleInitiative(t: SceneToken) {
+    const existing = combatantOf(combat.state, t)
+    if (existing) {
+      removeTokenFromCombat(t)
+      return
+    }
+    const c = makeMember(t)
+    const rolled = combat.state.active ? { ...c, initiative: rollInitiative(c.dexMod) } : c
+    touch()
+    combat.setState((s) => resortKeepTurn({ ...s, combatants: [...s.combatants, rolled] }))
+    patchToken(t.id, { combatantId: c.id })
+  }
 
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
@@ -1177,16 +1233,15 @@ export function SceneEditor({
   }
 
   if (studio) {
-    const combatantOf = (t: SceneToken) => (t.combatantId ? combat.state.combatants.find((c) => c.id === t.combatantId) : undefined)
     const kindOf = (t: SceneToken): TokenKind => {
       if (t.kind) return t.kind
-      const c = combatantOf(t)
+      const c = combatantOf(combat.state, t)
       if (t.controlledBy || c?.isPC || t.friendly) return 'hero'
       if (t.npcId || c) return 'foe'
       return 'object'
     }
     const hpOf = (t: SceneToken) => {
-      const c = combatantOf(t)
+      const c = combatantOf(combat.state, t)
       return c && c.hp != null ? `${c.hp}/${c.maxHp ?? c.hp}` : null
     }
     const needle = tokenFilter.trim().toLowerCase()
@@ -1238,26 +1293,102 @@ export function SceneEditor({
               aria-label="Filter tokens"
             />
             {tokens.length === 0 && <p className="faint bm-empty">No tokens yet. Use Add token or Add object in the tool rail.</p>}
-            {tokenGroups.map(
-              (g) =>
-                g.list.length > 0 && (
-                  <div key={g.title} className="bm-group">
-                    <div className="bm-group-title">{g.title}</div>
-                    {g.list.map((t) => (
+            {tokenGroups.map((g) => {
+              const isFoes = g.title === 'Foes'
+              if (g.list.length === 0 && !(isFoes && groups.length > 0)) return null
+              const pickable = g.list.filter((t) => {
+                const c = combatantOf(combat.state, t)
+                return !t.groupId && !(c && c.hp != null && c.hp <= 0)
+              })
+              const picked = groupSel.filter((id) => pickable.some((t) => t.id === id))
+              return (
+                <div key={g.title} className="bm-group">
+                  <div className="bm-group-title">{g.title}</div>
+                  {isFoes &&
+                    groups.map((grp) => {
+                      const mem = tokens.filter((t) => t.groupId === grp.id)
+                      const first = mem[0] ? makeMember(mem[0]) : null
+                      return (
+                        <GroupBox
+                          key={grp.id}
+                          group={grp}
+                          members={mem.map((m) => ({ id: m.id, label: m.label, hp: memberHp(grp, m.id) }))}
+                          inInitiative={groupInInitiative(tokens, grp, combat.state)}
+                          onUngroup={() => applyGroups((s) => ungroup(s, grp.id))}
+                          onInit={(v) => applyGroups((s) => setGroupInit(s, grp.id, v))}
+                          onRoll={() => applyGroups((s) => rollGroupInit(s, grp.id, first?.dexMod ?? 0))}
+                          onToggleInitiative={() =>
+                            applyGroups((s) =>
+                              groupInInitiative(s.tokens, grp, s.combat) ? removeGroupFromInitiative(s, grp.id) : addGroupToInitiative(s, grp.id, makeMember),
+                            )
+                          }
+                          onHp={(v) => applyGroups((s) => setGroupHp(s, grp.id, v))}
+                          onMemberHp={(id, v) => applyGroups((s) => setGroupHp(s, grp.id, v, id))}
+                        />
+                      )
+                    })}
+                  {g.list.map((t) => {
+                    const c = combatantOf(combat.state, t)
+                    const grp = t.groupId ? groups.find((x) => x.id === t.groupId) : undefined
+                    const prepHp = grp ? memberHp(grp, t.id) : null
+                    const pill = hpOf(t) ?? (prepHp != null ? `${prepHp}/${prepHp}` : null)
+                    const down = !!c && c.hp != null && c.hp <= 0
+                    return (
                       <TokenRow
                         key={t.id}
                         label={t.label}
                         color={live.colorFor(t)}
-                        hp={hpOf(t)}
+                        hp={pill}
                         hidden={t.hidden === true}
                         selected={t.id === selectedToken}
+                        dead={down}
+                        lead={
+                          isFoes ? (
+                            <input
+                              type="checkbox"
+                              className="bm-check"
+                              aria-label={`Select ${t.label} for a group`}
+                              checked={groupSel.includes(t.id)}
+                              disabled={!!t.groupId || down}
+                              onChange={(e) => setGroupSel((s) => (e.target.checked ? [...s, t.id] : s.filter((x) => x !== t.id)))}
+                            />
+                          ) : undefined
+                        }
+                        trail={
+                          isFoes && !t.groupId ? (
+                            <button
+                              type="button"
+                              className={`bm-init${c ? ' on' : ''}`}
+                              disabled={down}
+                              aria-pressed={!!c}
+                              aria-label={`${c ? 'Remove' : 'Add'} ${t.label} ${c ? 'from' : 'to'} initiative`}
+                              title="Add to or remove from the turn order"
+                              onClick={() => toggleSingleInitiative(t)}
+                            >
+                              {c ? '✓ Init' : '+ Init'}
+                            </button>
+                          ) : undefined
+                        }
                         onSelect={() => setSelectedToken(t.id)}
                         onToggleHidden={() => patchToken(t.id, { hidden: !t.hidden })}
                       />
-                    ))}
-                  </div>
-                ),
-            )}
+                    )
+                  })}
+                  {isFoes && picked.length >= 2 && (
+                    <button
+                      type="button"
+                      className="bm-btn primary bm-group-btn"
+                      onClick={() => {
+                        applyGroups((s) => createGroup(s, picked, makeMember, (t) => makeMember(t).hp))
+                        setGroupSel([])
+                      }}
+                    >
+                      Group {picked.length} monsters
+                    </button>
+                  )}
+                </div>
+              )
+            })}
             {tokenEditor && (
               <div className="bm-detail">
                 <div className="bm-group-title">Selected token</div>
@@ -1637,6 +1768,7 @@ export function SceneEditor({
             <TurnStrip
               state={combat.state}
               looks={Object.fromEntries(tokens.filter((t) => t.combatantId).map((t) => [t.combatantId as string, { color: live.colorFor(t) }]))}
+              groupNames={Object.fromEntries(groups.map((g) => [g.id, g.name]))}
               onStart={combat.start}
               onNext={() => combat.step(1)}
             />

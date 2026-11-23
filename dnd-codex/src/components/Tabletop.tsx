@@ -92,6 +92,8 @@ interface Props {
    *  combat info / actions). Returning null shows nothing. The card is hidden
    *  while a board tool is active or the token is being dragged or resized. */
   renderTokenPanel?: (token: SceneToken) => ReactNode
+  /** DM boards: draw a dashed ring on tokens that belong to a monster group. */
+  showGroups?: boolean
 }
 
 /**
@@ -151,6 +153,7 @@ export function Tabletop({
   onPlaceTemplate,
   measureTool = false,
   renderTokenPanel,
+  showGroups = false,
 }: Props) {
   const iconPaths = useTokenIconPaths()
   const clampRef = useRef<(tx: number, ty: number, k: number) => { tx: number; ty: number }>((tx, ty) => ({ tx, ty }))
@@ -871,6 +874,9 @@ export function Tabletop({
 
                     {/* Active-turn ring, then the HP bar / damage number, then the
                         name below it — the stat never overlaps the name. */}
+                    {showGroups && t.groupId && (
+                      <circle r={r + Math.max(2, r * 0.1)} className="tabletop-group-ring" pointerEvents="none" />
+                    )}
                     {cc?.active && (
                       <>
                         <circle r={r + Math.max(4, r * 0.2)} className="tabletop-combat-active" pointerEvents="none" />

@@ -17,7 +17,7 @@ import { makeThumbnail } from '../lib/image'
 import { useLiveSession } from '../lib/useLiveSession'
 import { tokenRevealed } from '../lib/tabletop'
 import { tokenCombat } from '../lib/tokenCombat'
-import { getCombat, type CombatState } from '../lib/combat'
+import { activeIds, getCombat, type CombatState } from '../lib/combat'
 import { isDemo, notifyDemoBlocked } from '../lib/demo'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
@@ -69,7 +69,7 @@ async function toLiveTokens(
   combat: CombatState,
 ): Promise<LiveToken[]> {
   const revealed = fog?.enabled ? new Set(fog.revealed) : null
-  const activeId = combat.active ? combat.combatants[combat.turnIndex]?.id ?? null : null
+  const acting = activeIds(combat)
   return Promise.all(
     tokens
       .filter((t) => !t.hidden && (!revealed || tokenRevealed(t, revealed)))
@@ -86,7 +86,7 @@ async function toLiveTokens(
           icon: t.icon ?? null,
           shape: t.shape ?? null,
           controlledBy: t.controlledBy ?? null,
-          combat: linked ? tokenCombat(t, linked, activeId, true) : null,
+          combat: linked ? tokenCombat(t, linked, acting.has(linked.id) ? linked.id : null, true) : null,
         }
       }),
   )

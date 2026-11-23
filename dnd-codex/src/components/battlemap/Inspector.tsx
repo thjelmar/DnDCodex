@@ -143,6 +143,8 @@ export function TokenRow({
   hidden,
   selected,
   dead,
+  lead,
+  trail,
   onSelect,
   onToggleHidden,
 }: {
@@ -152,16 +154,22 @@ export function TokenRow({
   hidden: boolean
   selected: boolean
   dead?: boolean
+  /** Before the name (a selection checkbox). */
+  lead?: ReactNode
+  /** After the HP pill, before the eye (a + Init toggle). */
+  trail?: ReactNode
   onSelect: () => void
   onToggleHidden: () => void
 }) {
   return (
     <div className={`bm-row${selected ? ' on' : ''}${hidden ? ' is-hidden' : ''}${dead ? ' dead' : ''}`}>
+      {lead}
       <button type="button" className="bm-row-main" onClick={onSelect} aria-pressed={selected}>
         <span className="bm-dot" style={{ background: color }} aria-hidden />
         <span className="bm-row-name">{label}</span>
         {hp && <span className="bm-pill">{hp}</span>}
       </button>
+      {trail}
       <button
         type="button"
         className={`bm-icon-btn bm-eye${hidden ? ' hid' : ''}`}
