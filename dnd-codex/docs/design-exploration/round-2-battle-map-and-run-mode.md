@@ -100,6 +100,24 @@ Still to fix:
   in the top bar. The screen is too crowded: show fewer things at once (tabs and
   collapsible rails, one primary panel at a time).
 
+- **Inspector in its own window (added after the first mockup).** The DM can
+  open the inspector in a separate window and move it off the page, for example
+  to a second monitor. The inspector menu offers three modes: docked, **Float**
+  (over the map) and **Window**. Limits to tell the user:
+  - Chrome and Edge 116 or later can open it as a Document Picture-in-Picture
+    window, which stays on top of other windows. The page needs a user click to
+    open it.
+  - Safari and Firefox get a normal popup. A browser cannot keep a normal popup
+    on top, so it can hide behind other windows. The page shows this limit in a
+    note when it opens the window.
+  - The browser can block the popup. Show a message that asks the user to allow
+    pop-ups.
+  - Build note: the app is local-first, so both windows read and write the same
+    IndexedDB database. Render the inspector in the second window from the same
+    store (live queries) and do not copy state by hand. Closing the window
+    docks the inspector again.
+  - Not tested in a real second window yet, only the code path that opens it.
+
 Our own HTML mockup of the battle map with these changes is
 `round-2/battle-map-mockup.html`. Open it in a browser. It uses the app's real
 color tokens and demo data only.

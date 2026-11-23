@@ -112,7 +112,7 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       </div>
 
       <div class="map" id="map">
-        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <b>Pop out</b> floats it, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <b>Float</b> puts it over the map, <b>Window</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
 
         <div class="tok hero" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
         <div class="tok hero" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
@@ -131,10 +131,16 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
         <aside class="insp hidden" id="inspFloat"></aside>
       </div>
 
+      <aside class="insp hidden" id="inspStub" style="padding:14px;gap:10px">
+        <div style="font-weight:600">Inspector is in its own window</div>
+        <div id="stubNote" style="font-size:13px;color:var(--text-dim)"></div>
+        <button class="btn" id="btnBack">Bring it back</button>
+      </aside>
       <aside class="insp" id="insp">
         <div class="hd" id="inspHd">
           <div class="tabs"><button class="on">Tokens</button><button>Grid</button><button>Map</button></div>
-          <button class="btn icon" id="btnPop" title="Pop out the inspector over the map">⇱ Pop out</button>
+          <button class="btn icon" id="btnPop" title="Float the inspector over the map">⇱ Float</button>
+          <button class="btn icon" id="btnWin" title="Open the inspector in its own window, so you can move it off the page">⧉ Window</button>
           <button class="btn icon" id="btnClose" title="Hide (I)">✕</button>
         </div>
         <div class="body" id="inspBody">
@@ -161,10 +167,14 @@ const app = document.getElementById('app');
 const insp = document.getElementById('insp');
 const work = insp.parentElement;
 const map = document.getElementById('map');
-let mode = 'docked';           // docked | float | hidden
+let mode = 'docked';           // docked | float | hidden | window
+let extWin = null;            // the separate window, when mode === 'window'
+const stub = document.getElementById('inspStub');
 let fs = false;
 
 function apply() {
+  stub.classList.toggle('hidden', mode !== 'window');
+  if (mode === 'window') return;       // the node lives in the other window
   insp.classList.remove('hidden', 'float', 'drawer');
   // Move between the dock (work row) and the map (floating or drawer).
   const overMap = mode === 'float' || (fs && mode !== 'hidden');
@@ -172,7 +182,7 @@ function apply() {
   if (mode === 'hidden') insp.classList.add('hidden');
   else if (mode === 'float') insp.classList.add('float');
   else if (fs) insp.classList.add('drawer');
-  document.getElementById('btnPop').textContent = mode === 'float' ? '⇲ Dock' : '⇱ Pop out';
+  document.getElementById('btnPop').textContent = mode === 'float' ? '⇲ Dock' : '⇱ Float';
 }
 function toggleInspector() { mode = mode === 'hidden' ? 'docked' : 'hidden'; apply(); }
 
@@ -212,6 +222,37 @@ hd.addEventListener('pointermove', e => {
   insp.style.right = 'auto';
 });
 hd.addEventListener('pointerup', () => { drag = null; });
+
+// Open the inspector in its own window. Prefer Document Picture-in-Picture (Chrome and Edge 116+):
+// that window stays on top of other windows. Everywhere else, fall back to a normal popup,
+// which the browser cannot keep on top.
+async function openWindow() {
+  let w, onTop = false;
+  try {
+    if ('documentPictureInPicture' in window) {
+      w = await documentPictureInPicture.requestWindow({ width: 320, height: 560 });
+      onTop = true;
+    }
+  } catch (e) { w = null; }
+  if (!w) w = window.open('', 'inspector', 'popup,width=320,height=560');
+  if (!w) { alert('The browser blocked the new window. Allow pop-ups for this site.'); return; }
+  const st = document.createElement('style');
+  st.textContent = [...document.querySelectorAll('style')].map(x => x.textContent).join('\n')
+    + '\nbody{overflow:auto} .insp{width:100%!important;height:100vh;position:static!important;border:0!important;box-shadow:none!important}';
+  w.document.head.appendChild(st);
+  w.document.title = 'Scene inspector';
+  w.document.body.style.margin = '0';
+  w.document.body.appendChild(insp);   // same node, so its behavior keeps working
+  insp.classList.remove('hidden', 'float', 'drawer');
+  extWin = w; mode = 'window'; apply();
+  document.getElementById('stubNote').textContent = onTop
+    ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+    : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge can keep it on top.';
+  const back = () => { if (mode !== 'window') return; extWin = null; mode = fs ? 'hidden' : 'docked'; apply(); };
+  w.addEventListener('pagehide', () => { work.appendChild(insp); back(); });
+}
+document.getElementById('btnWin').onclick = openWindow;
+document.getElementById('btnBack').onclick = () => { if (extWin) extWin.close(); };
 apply();
 </script>
 </body>
