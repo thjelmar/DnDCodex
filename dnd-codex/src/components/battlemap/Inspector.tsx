@@ -3,8 +3,9 @@ import { BmIcon } from './BmIcon'
 
 export type InspectorTab = 'tokens' | 'grid' | 'map'
 /** `docked` sits beside the map, `float` hovers over it, `drawer` is the
- *  on-demand overlay used in full screen and on a phone. */
-export type InspectorMode = 'docked' | 'float' | 'drawer'
+ *  on-demand overlay used in full screen and on a phone, and `window` fills a
+ *  separate browser window. */
+export type InspectorMode = 'docked' | 'float' | 'drawer' | 'window'
 
 const TABS: { id: InspectorTab; label: string }[] = [
   { id: 'tokens', label: 'Tokens' },
@@ -23,6 +24,7 @@ export function Inspector({
   tab,
   onTab,
   onToggleFloat,
+  onOpenWindow,
   onClose,
   children,
 }: {
@@ -30,6 +32,8 @@ export function Inspector({
   tab: InspectorTab
   onTab: (t: InspectorTab) => void
   onToggleFloat: () => void
+  /** Moves the inspector to its own window (omitted where that is not offered). */
+  onOpenWindow?: () => void
   onClose: () => void
   children: ReactNode
 }) {
@@ -94,7 +98,18 @@ export function Inspector({
             </button>
           ))}
         </div>
-        {mode !== 'drawer' && (
+        {onOpenWindow && mode !== 'window' && (
+          <button
+            type="button"
+            className="bm-icon-btn"
+            onClick={onOpenWindow}
+            title="Open the inspector in its own window, so you can move it off the page"
+            aria-label="Open the inspector in its own window"
+          >
+            <BmIcon name="window" size={16} />
+          </button>
+        )}
+        {mode !== 'drawer' && mode !== 'window' && (
           <button
             type="button"
             className="bm-icon-btn"
@@ -105,7 +120,13 @@ export function Inspector({
             <BmIcon name={mode === 'float' ? 'dock' : 'float'} size={16} />
           </button>
         )}
-        <button type="button" className="bm-icon-btn" onClick={onClose} title="Hide the inspector (I)" aria-label="Hide the inspector">
+        <button
+          type="button"
+          className="bm-icon-btn"
+          onClick={onClose}
+          title={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector (I)'}
+          aria-label={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector'}
+        >
           <BmIcon name="close" size={16} />
         </button>
       </div>

@@ -161,6 +161,77 @@ test.describe('battle map studio', () => {
     }
     await page.keyboard.press('Escape')
     await expect(insp(page)).toHaveCount(0)
+    // Maps and New map move into the overflow menu, so the bar never scrolls sideways.
+    await expect(page.getByRole('button', { name: 'Switch battle map' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'New battle map' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'More actions' }).click()
+    await expect(page.getByRole('menuitem', { name: 'New map' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Full screen' })).toBeVisible()
+    const bar = (await page.locator('.bm-top').evaluate((el) => [el.scrollWidth, el.clientWidth])) as number[]
+    expect(bar[0]).toBeLessThanOrEqual(bar[1])
+  })
+
+  test('Heroes, Foes and Objects follow the token type, and a Type selector changes it', async ({ page }) => {
+    await openStudio(page)
+    const group = (name: string) => insp(page).locator('.bm-group', { has: page.getByText(name, { exact: true }) })
+    await expect(group('Heroes').getByRole('button', { name: 'Vara', exact: true })).toBeVisible()
+    await expect(group('Heroes').getByRole('button', { name: 'Pip', exact: true })).toBeVisible()
+    await expect(group('Foes').getByRole('button', { name: 'Mordrek', exact: true })).toBeVisible()
+    await expect(group('Objects').getByRole('button', { name: 'Crate', exact: true })).toBeVisible()
+    await group('Objects').getByRole('button', { name: 'Crate', exact: true }).click()
+    await insp(page).getByLabel('Type').selectOption('foe')
+    await expect(group('Foes').getByRole('button', { name: 'Crate', exact: true })).toBeVisible()
+    await insp(page).getByLabel('Type').selectOption('')
+    await expect(group('Objects').getByRole('button', { name: 'Crate', exact: true })).toBeVisible()
+  })
+
+  test('the inspector opens in a popup, shares the same state, and docks when the window closes', async ({ page }) => {
+    await page.addInitScript(() => delete (window as unknown as Record<string, unknown>).documentPictureInPicture)
+    await openStudio(page)
+    const popupPromise = page.waitForEvent('popup')
+    await insp(page).getByRole('button', { name: 'Open the inspector in its own window' }).click()
+    const popup = await popupPromise
+    await expect(popup.getByTestId('bm-inspector')).toBeVisible()
+    await expect(popup.getByRole('tab', { name: 'Tokens' })).toBeVisible()
+    // Styled like the page, and the page shows a stub with the limit.
+    expect(await popup.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await expect(page.getByTestId('bm-inspector-stub')).toContainText('cannot keep a separate window on top')
+    await expect(page.getByTestId('bm-inspector')).toHaveCount(0)
+    // Editing in the window changes the page's state.
+    await popup.getByRole('button', { name: /^Hide Bram from players/ }).click()
+    await popup.close()
+    await expect(page.getByTestId('bm-inspector-stub')).toHaveCount(0)
+    await expect(insp(page)).toHaveClass(/bm-insp-docked/)
+    await expect(insp(page).getByRole('button', { name: /^Show Bram to players/ })).toBeVisible()
+  })
+
+  test('Bring it back closes the window; Document Picture-in-Picture says the window stays on top', async ({ page }) => {
+    await page.addInitScript(() => {
+      ;(window as unknown as Record<string, unknown>).documentPictureInPicture = {
+        requestWindow: async () => window.open('', 'pip-test', 'popup,width=320,height=600'),
+      }
+    })
+    await openStudio(page)
+    const popupPromise = page.waitForEvent('popup')
+    await insp(page).getByRole('button', { name: 'Open the inspector in its own window' }).click()
+    const popup = await popupPromise
+    await expect(page.getByTestId('bm-inspector-stub')).toContainText('stays on top of other windows')
+    await page.getByRole('button', { name: 'Bring it back' }).click()
+    await expect.poll(() => popup.isClosed()).toBe(true)
+    await expect(insp(page)).toHaveClass(/bm-insp-docked/)
+  })
+
+  test('a blocked popup shows a message and leaves the inspector docked', async ({ page }) => {
+    await page.addInitScript(() => {
+      delete (window as unknown as Record<string, unknown>).documentPictureInPicture
+      window.open = () => null
+    })
+    await openStudio(page)
+    await insp(page).getByRole('button', { name: 'Open the inspector in its own window' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'blocked the new window' })).toBeVisible()
+    await expect(insp(page)).toHaveClass(/bm-insp-docked/)
+    await page.getByRole('button', { name: 'Dismiss' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'blocked' })).toHaveCount(0)
   })
 
   test('no console errors and no Supabase requests', async ({ page, supabaseRequests }) => {

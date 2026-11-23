@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, newId } from '../db/db'
@@ -21,6 +22,7 @@ import { Icon } from '../components/Icon'
 import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { Inspector, TokenRow, type InspectorTab } from '../components/battlemap/Inspector'
+import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
@@ -44,7 +46,7 @@ import {
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenShape } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
  *  emoji-faced token; squares read better for built things (boats, doors). */
@@ -403,8 +405,13 @@ export function SceneEditor({
   const asDrawer = expanded || isPhone
   const inspVisible = asDrawer ? drawerOpen : dockOpen
   drawerOpenRef.current = studio && asDrawer && drawerOpen
+  const iw = useInspectorWindow()
   function toggleInspector() {
-    if (asDrawer) setDrawerOpen((o) => !o)
+    if (iw.win) {
+      // The inspector is in its own window: this brings it back to the page.
+      iw.close()
+      setDockOpen(true)
+    } else if (asDrawer) setDrawerOpen((o) => !o)
     else setDockOpen((o) => !o)
   }
   useEffect(() => {
@@ -841,6 +848,22 @@ export function SceneEditor({
                     ))}
                   </select>
                 </label>
+                {studio && (
+                  <label>
+                    Type
+                    <select
+                      className="select"
+                      value={current.kind ?? ''}
+                      onChange={(e) => patchToken(current.id, { kind: (e.target.value || undefined) as TokenKind | undefined })}
+                      title="Which inspector list this token appears in"
+                    >
+                      <option value="">Automatic</option>
+                      <option value="hero">Hero</option>
+                      <option value="foe">Foe</option>
+                      <option value="object">Object</option>
+                    </select>
+                  </label>
+                )}
                 <label>
                   Shape
                   <div className="seg" role="radiogroup" aria-label="Token shape">
@@ -1152,7 +1175,8 @@ export function SceneEditor({
 
   if (studio) {
     const combatantOf = (t: SceneToken) => (t.combatantId ? combat.state.combatants.find((c) => c.id === t.combatantId) : undefined)
-    const kindOf = (t: SceneToken): 'hero' | 'foe' | 'object' => {
+    const kindOf = (t: SceneToken): TokenKind => {
+      if (t.kind) return t.kind
       const c = combatantOf(t)
       if (t.controlledBy || c?.isPC || t.friendly) return 'hero'
       if (t.npcId || c) return 'foe'
@@ -1187,14 +1211,19 @@ export function SceneEditor({
     )
     const toggleFog = () => (fogTool ? exitFog() : enterFog())
 
-    const inspMode = asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
-    const inspector = inspVisible && (
+    const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
+    const inspectorEl = (
       <Inspector
         mode={inspMode}
         tab={inspTab}
         onTab={setInspTab}
         onToggleFloat={() => setInspFloat((f) => !f)}
-        onClose={() => (asDrawer ? setDrawerOpen(false) : setDockOpen(false))}
+        onOpenWindow={isPhone ? undefined : iw.open}
+        onClose={() => {
+          if (iw.win) toggleInspector()
+          else if (asDrawer) setDrawerOpen(false)
+          else setDockOpen(false)
+        }}
       >
         {inspTab === 'tokens' && (
           <>
@@ -1263,6 +1292,28 @@ export function SceneEditor({
         )}
       </Inspector>
     )
+    // In its own window the same element renders there through a portal, so the
+    // window reads and writes the page's live state. The page keeps a stub.
+    const inspector = iw.win ? (
+      <>
+        {createPortal(inspectorEl, iw.win.document.body)}
+        {inspVisible && (
+          <aside className={`bm-insp bm-stub ${asDrawer ? 'bm-insp-drawer' : 'bm-insp-docked'}`} data-testid="bm-inspector-stub">
+            <div className="bm-stub-title">Inspector is in its own window</div>
+            <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+              {iw.onTop
+                ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+                : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge 116 or later can keep it on top.'}
+            </p>
+            <button type="button" className="bm-btn" onClick={toggleInspector}>
+              Bring it back
+            </button>
+          </aside>
+        )}
+      </>
+    ) : (
+      inspVisible && inspectorEl
+    )
 
     const flyoutBar = preview ? null : fogTool ? fogBar : measuring ? measureBar : templatesOpen ? templateBar : null
     const campBase = `/campaign/${campaign.id}`
@@ -1278,7 +1329,7 @@ export function SceneEditor({
             <span aria-hidden>/</span>
             <span aria-current="page">Battle Map</span>
           </nav>
-          {scenes && onSelectScene && (
+          {!isPhone && scenes && onSelectScene && (
             <BmMenu
               label="Switch battle map"
               trigger={
@@ -1308,7 +1359,7 @@ export function SceneEditor({
               }
             </BmMenu>
           )}
-          {onNewScene && (
+          {!isPhone && onNewScene && (
             <button type="button" className="bm-btn" onClick={onNewScene} aria-label="New battle map" title="New battle map">
               <BmIcon name="plus" />
               <span className="bm-lbl">New map</span>
@@ -1360,6 +1411,7 @@ export function SceneEditor({
               <BmIcon name="notes" />
             </button>
           )}
+          {!isPhone && (
           <button
             type="button"
             className="bm-btn bm-sq"
@@ -1369,7 +1421,8 @@ export function SceneEditor({
           >
             <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
           </button>
-          {live.available &&
+          )}
+          {!isPhone && live.available &&
             (live.isShowing ? (
               <button
                 type="button"
@@ -1407,6 +1460,43 @@ export function SceneEditor({
           <BmMenu label="More actions" panelClassName="bm-menu-right" trigger={<BmIcon name="more" />}>
             {(close) => (
               <>
+                {isPhone && (
+                  <>
+                    <div className="bm-menu-title">Battle maps</div>
+                    {scenes?.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={s.id === scene.id}
+                        className={`bm-item${s.id === scene.id ? ' on' : ''}`}
+                        onClick={() => { close(); onSelectScene?.(s.id) }}
+                      >
+                        {s.name || 'Untitled map'}
+                      </button>
+                    ))}
+                    {onNewScene && (
+                      <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onNewScene() }}>
+                        <BmIcon name="plus" size={16} /> New map
+                      </button>
+                    )}
+                    <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); expanded ? exitFullscreen() : enterFullscreen() }}>
+                      <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} size={16} /> {expanded ? 'Exit full screen' : 'Full screen'}
+                    </button>
+                    {live.available && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="bm-item"
+                        disabled={live.busy || (!live.isShowing && !live.sessionLive)}
+                        onClick={() => { close(); live.isShowing ? live.stop() : live.show() }}
+                      >
+                        <BmIcon name="broadcast" size={16} /> {live.isShowing ? 'Stop showing to players' : live.otherShowing ? 'Show this map instead' : 'Show to players'}
+                      </button>
+                    )}
+                    <div className="bm-menu-sep" />
+                  </>
+                )}
                 <button type="button" role="menuitem" className="bm-item" disabled={uploading} onClick={() => { close(); fileRef.current?.click() }}>
                   <BmIcon name="upload" size={16} /> {uploading ? 'Processing…' : imageId ? 'Replace map' : 'Upload map'}
                 </button>
@@ -1513,7 +1603,7 @@ export function SceneEditor({
                       className="bm-preset"
                       title={p.label}
                       onClick={() => {
-                        addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape })
+                        addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape, kind: 'object' })
                         close()
                       }}
                     >
@@ -1542,18 +1632,27 @@ export function SceneEditor({
               </div>
             )}
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
-            {hintOn && tool === 'select' && !preview && !aligning && (
+            {hintOn && !iw.error && tool === 'select' && !preview && !aligning && (
               <div className="bm-hint">Drag tokens to move. Arrow keys nudge.</div>
             )}
-            {live.error && (
+            {(live.error || iw.error) && (
               <div className="bm-notice" role="status">
                 {live.error && <span style={{ color: 'var(--danger)' }}>{live.error}</span>}
+                {iw.error && (
+                  <span style={{ color: 'var(--danger)' }}>
+                    {iw.error}{' '}
+                    <button type="button" className="bm-link" onClick={iw.clearError}>Dismiss</button>
+                  </span>
+                )}
               </div>
             )}
+
             {asDrawer && drawerOpen && <div className="bm-scrim" onClick={() => setDrawerOpen(false)} aria-hidden />}
-            {inspMode !== 'docked' && inspector}
+            {inspMode !== 'docked' && inspMode !== 'window' && inspector}
+            {inspMode === 'window' && asDrawer && inspector}
           </div>
           {inspMode === 'docked' && inspector}
+          {inspMode === 'window' && !asDrawer && inspector}
         </div>
 
         {peek && world && (

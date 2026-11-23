@@ -813,7 +813,13 @@ export interface SceneToken {
   /** DM-marked ally: players see this token's real HP even though the DM runs
    *  it (e.g. an allied NPC). PCs and player-controlled tokens are allies too. */
   friendly?: boolean
+  /** How the battle map inspector files this token (Heroes, Foes, Objects).
+   *  Unset = inferred from the token's links. DM-only: the live scene payload
+   *  is built field by field (`toLiveTokens`), so this never reaches players. */
+  kind?: TokenKind
 }
+
+export type TokenKind = 'hero' | 'foe' | 'object'
 
 /** Combat info overlaid on a battle-map token. Privacy-filtered by whoever
  *  builds it: the DM board gets full hp/maxHp; players get hp/maxHp only for
