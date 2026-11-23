@@ -21,7 +21,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
-import { Inspector, TokenRow, type ExtraInspectorTab } from '../components/battlemap/Inspector'
+import { Inspector, TokenRow, type RunTab, type RunStudioCtx } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
 import { TurnStrip } from '../components/battlemap/TurnStrip'
 import { GroupBox } from '../components/battlemap/GroupBox'
@@ -250,7 +250,7 @@ export function SceneEditor({
   /** Run mode on a phone: the board is always full screen (no toggle), and the inspector
    *  drawer also holds Run mode's own sections (combat, notes, dice and so on). */
   runKit?: {
-    tabs: (ExtraInspectorTab & { content: ReactNode })[]
+    tabs: RunTab[]
     /** Leaves the map for Run mode's Notes page. */
     onBack: () => void
     /** Desktop and tablet: the panel docks beside the map (a drawer at 1050px and narrower),
@@ -451,6 +451,8 @@ export function SceneEditor({
   // Docked Run mode folds Tokens, Grid and Map into one Scene tab with sub-tabs.
   const [sceneSub, setSceneSub] = useState<'tokens' | 'grid' | 'map'>('tokens')
   const [playOpen, setPlayOpen] = useState(false)
+  // Pans the board to these tokens when a combatant is picked outside the board (Run mode's list).
+  const [focus, setFocus] = useState<{ ids: string[]; seq: number }>({ ids: [], seq: 0 })
   const [tokenFilter, setTokenFilter] = useState('')
   const [hintOn, setHintOn] = useState(true)
   const narrowDock = useMediaQuery('(max-width: 1050px)')
@@ -1167,6 +1169,7 @@ export function SceneEditor({
           portraits={portraits ?? {}}
           selectedId={selectedToken}
           onSelect={setSelectedToken}
+          focus={focus}
           onMoveToken={(id, col, row) => patchToken(id, { col, row })}
           onResizeToken={(id, size) => patchToken(id, { size })}
           onDeleteToken={removeToken}
@@ -1363,6 +1366,20 @@ export function SceneEditor({
     )
     const toggleFog = () => (fogTool ? exitFog() : enterFog())
 
+    // What Run mode's tab bodies share with the board: the selection, and a pan to a combatant's token.
+    const runCtx: RunStudioCtx = {
+      selectedCombatantId: current ? combatantOf(combat.state, current)?.id ?? null : null,
+      selectCombatants: (ids) => {
+        const found = tokens.filter((t) => t.combatantId && ids.includes(t.combatantId))
+        if (found.length === 0) return
+        setSelectedToken(found[0].id)
+        setFocus((f) => ({ ids: found.map((t) => t.id), seq: f.seq + 1 }))
+      },
+      colorOf: (id) => {
+        const t = tokens.find((x) => x.combatantId === id)
+        return t ? live.colorFor(t) : null
+      },
+    }
     // Which scene section the body shows: the folded Scene tab uses its sub-tab.
     const foldScene = runDocked
     const tabId = foldScene
@@ -1385,7 +1402,7 @@ export function SceneEditor({
           else setDockOpen(false)
         }}
       >
-        {runKit?.tabs.map((t) => tabId === t.id && <div key={t.id}>{t.content}</div>)}
+        {runKit?.tabs.map((t) => tabId === t.id && <div key={t.id}>{typeof t.content === 'function' ? t.content(runCtx) : t.content}</div>)}
         {foldScene && tabId === 'scene' && (
           <div className="bm-seg bm-scene-sub" role="group" aria-label="Scene section">
             {(['tokens', 'grid', 'map'] as const).map((id) => (
@@ -2010,6 +2027,7 @@ export function SceneEditor({
               groupNames={Object.fromEntries(groups.map((g) => [g.id, g.name]))}
               onStart={combat.start}
               onNext={() => combat.step(1)}
+              onSelect={runDocked ? runCtx.selectCombatants : undefined}
             />
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
             {installHint && !rotateHint && (

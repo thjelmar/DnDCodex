@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { useIsPhone } from '../lib/usePhone'
-import type { ExtraInspectorTab } from '../components/battlemap/Inspector'
+import type { RunTab, RunStudioCtx } from '../components/battlemap/Inspector'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -15,6 +15,7 @@ import { Icon } from '../components/Icon'
 import { BmIcon } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
+import { InitiativeList } from '../components/InitiativeList'
 import { RunHandouts } from '../components/RunHandouts'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
 import { VoiceRoster } from '../components/VoiceRoster'
@@ -239,7 +240,14 @@ export function RunPage() {
 
   // Desktop and tablet: the same sections as tabs in the studio's docked panel (or its drawer).
   const deskTabs = [
-    { id: 'run-combat', label: 'Combat', icon: 'swords' as const, content: <RunCombat combat={combat} /> },
+    {
+      id: 'run-combat',
+      label: 'Combat',
+      icon: 'swords' as const,
+      content: (ctx: RunStudioCtx) => (
+        <InitiativeList combat={combat} selectedId={ctx.selectedCombatantId} onSelect={ctx.selectCombatants} colorOf={ctx.colorOf} />
+      ),
+    },
     {
       id: 'run-notes',
       label: 'Notes',
@@ -461,6 +469,12 @@ export function RunPage() {
   )
 }
 
+/** A tab's body; with no map there is no selection, so a list shows nothing selected. */
+function renderTab(t: RunTab | undefined): ReactNode {
+  if (!t) return null
+  return typeof t.content === 'function' ? t.content({ selectedCombatantId: null, selectCombatants: () => {}, colorOf: () => null }) : t.content
+}
+
 /**
  * Run mode's battle map pane: pick a map, then the full DM editor (compact:
  * side panel starts closed). Full screen from here shows this session's notes.
@@ -478,7 +492,7 @@ function RunBattleMap({
   /** Switch to this map when it changes (set by the live-session offer). */
   requestedSceneId?: Id | null
   /** The phone map's drawer sections, and the way back to the Notes page. */
-  runTabs: (ExtraInspectorTab & { content: ReactNode })[]
+  runTabs: RunTab[]
   onBack: () => void
   /** Desktop and tablet: the docked-panel kit (top bar parts, In play flyout, tabs with icons). */
   desktop?: Omit<NonNullable<ComponentProps<typeof SceneEditor>['runKit']>, 'onBack' | 'docked'>
@@ -533,7 +547,7 @@ function RunBattleMap({
                 ))}
               </div>
             </div>
-            <div className="bm-insp-body">{desktop.tabs[emptyTab]?.content}</div>
+            <div className="bm-insp-body">{renderTab(desktop.tabs[emptyTab])}</div>
           </aside>
         </div>
       </div>

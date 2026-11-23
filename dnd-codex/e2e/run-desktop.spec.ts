@@ -44,9 +44,9 @@ test.describe('Run mode desktop 1440x900', () => {
     await openRun(page, { width: 1440, height: 900 })
     const insp = page.locator('.bm-insp-docked')
     await expect(insp.getByRole('tab')).toHaveText(['Combat', 'Notes', 'Handouts', 'Dice', 'Scene'])
-    await expect(insp.getByText('Start combat')).toBeVisible()
+    await expect(insp.getByTestId('initiative-list')).toBeVisible()
     await insp.getByRole('tab', { name: 'Handouts' }).click()
-    await expect(insp.getByText('Start combat')).toHaveCount(0)
+    await expect(insp.getByTestId('initiative-list')).toHaveCount(0)
     await expect(insp.getByRole('button', { name: /Upload/ })).toBeVisible()
     await insp.getByRole('tab', { name: 'Dice' }).click()
     await expect(insp.getByRole('button', { name: 'd20', exact: true })).toBeVisible()
@@ -124,7 +124,7 @@ test.describe('Run mode tablet 1024x768', () => {
   test('combat and the map are on screen together, with no scrolling', async ({ page }) => {
     await openRun(page, { width: 1024, height: 768 })
     await page.getByRole('button', { name: 'Run panel' }).click()
-    await expect(page.locator('.bm-insp-drawer').getByText('Start combat')).toBeVisible()
+    await expect(page.locator('.bm-insp-drawer').getByTestId('initiative-list')).toBeVisible()
     const box = (await page.locator('.tabletop-view').boundingBox())!
     expect(box.y + box.height).toBeLessThanOrEqual(768 + 1)
     await expect(page.locator('.bm-insp-drawer')).toBeInViewport()

@@ -5473,3 +5473,58 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 @media (prefers-reduced-motion: reduce) {
   .topbar { transition: none; }
 }
+
+/* Run mode's initiative list (the Combat tab). Rows are turn slots; a group is one slot. */
+.il-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 8px; font-size: 12px; }
+.il-head strong { font-family: var(--serif); font-size: 15px; font-weight: 600; }
+.il-empty { font-size: 13px; margin: 8px 2px; }
+.il-rows { display: flex; flex-direction: column; gap: 4px; }
+.il-row {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 4px 8px; align-items: center;
+  padding: 7px 8px; border: 1px solid transparent; border-radius: var(--radius);
+}
+.il-row:hover { background: var(--bg-elev-2); }
+.il-row.sel { border-color: var(--border); background: var(--bg-elev-2); }
+.il-row.turn { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-elev-2)); animation: il-pulse 1.8s ease-out infinite; }
+.il-row.down { opacity: 0.45; }
+@keyframes il-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .il-row.turn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+.il-main { display: flex; align-items: center; gap: 10px; min-width: 0; background: none; border: 0; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.il-av { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff; background: var(--text-faint); }
+.il-stack { flex: none; display: flex; }
+.il-stack b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; margin-left: -10px; border: 2px solid var(--bg-elev); font-size: 11px; color: #fff; background: var(--text-faint); }
+.il-stack b:first-child { margin-left: 0; }
+.il-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.il-name small { font-weight: 400; color: var(--text-faint); font-size: 11px; }
+.il-ini {
+  width: 56px; box-sizing: border-box; height: 30px; padding: 0 4px; text-align: right; background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-sm); color: var(--text-dim); font-family: var(--serif); font-size: 18px; -moz-appearance: textfield;
+}
+.il-ini::-webkit-outer-spin-button, .il-ini::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.il-ini:hover, .il-ini:focus { border-color: var(--border); background: var(--bg); outline: none; }
+.il-row.turn .il-ini { color: var(--accent); }
+.il-hp { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+.il-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.il-bar i { display: block; height: 100%; border-radius: 3px; background: var(--good); }
+.il-bar i.mid { background: #fbbf24; }
+.il-bar i.low { background: var(--danger); }
+.il-conds { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.il-cond { font-size: 11px; padding: 0 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); }
+.il-x { position: absolute; top: 4px; right: 66px; width: 24px; height: 24px; opacity: 0; }
+.il-row:hover .il-x, .il-x:focus-visible { opacity: 1; }
+.il-quick { grid-column: 1 / -1; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.il-quick-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.il-amt { width: 60px; box-sizing: border-box; height: 34px; padding: 0 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 14px; }
+.il-members { display: grid; gap: 3px; }
+.il-member { display: flex; justify-content: space-between; padding: 4px 8px; font: inherit; font-size: 12px; color: var(--text-dim); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.il-member.on { color: var(--text); border-color: var(--accent); }
+.il-foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.il-full { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+.il-add { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.il-foot .bm-menu-up, .bm-menu-up { top: auto; bottom: calc(100% + 4px); }

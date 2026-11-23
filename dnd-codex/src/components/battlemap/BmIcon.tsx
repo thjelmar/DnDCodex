@@ -38,6 +38,8 @@ export type BmIconName =
   | 'image'
   | 'dice'
   | 'sliders'
+  | 'drop'
+  | 'heart'
 
 const PATHS: Record<BmIconName, ReactNode> = {
   select: <path d="M5 3l14 7.5-6.2 1.9L10.5 19 5 3z" />,
@@ -153,6 +155,8 @@ const PATHS: Record<BmIconName, ReactNode> = {
       <path d="M9 9h.01M15 15h.01M12 12h.01" />
     </>
   ),
+  drop: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
+  heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
   sliders: <path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1" />,
   library: <path d="M4 4h4v16H4zM10 4h4v16h-4zM16.5 5.2l3.8-1 3 15.4-3.8 1z" />,
 }

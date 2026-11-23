@@ -9,6 +9,16 @@ export interface ExtraInspectorTab {
   /** When set, the tab shows this icon, and only the active tab also shows its label. */
   icon?: BmIconName
 }
+/** What the studio shares with Run mode's tab bodies: the selected combatant, a way to select one
+ *  (which selects its token and pans the map to it), and a token's color. */
+export interface RunStudioCtx {
+  selectedCombatantId: string | null
+  selectCombatants: (ids: string[]) => void
+  colorOf: (combatantId: string) => string | null
+}
+/** A Run mode tab: its body may read the studio context. */
+export type RunTab = ExtraInspectorTab & { content: ReactNode | ((ctx: RunStudioCtx) => ReactNode) }
+
 /** `docked` sits beside the map, `float` hovers over it, `drawer` is the
  *  on-demand overlay used in full screen and on a phone, and `window` fills a
  *  separate browser window. */
