@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map pings and cursors mockup (T-102, demo data only)</title>
+<style>
+:root{--bg:#14121a;--bg-elev:#1c1926;--bg-elev-2:#262233;--border:#352f45;--text:#ece9f1;--text-dim:#a49fb5;--accent:#a78bfa;--accent-strong:#7c3aed;--rs:7px}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+h1{font:600 20px/1.2 "Iowan Old Style","Palatino Linotype",Georgia,serif;margin:0 0 4px}
+p.lead{margin:0 0 12px;color:var(--text-dim)}
+.bar{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:8px 10px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--rs);margin-bottom:10px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--rs);overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--text-dim);padding:4px 11px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--bg-elev-2);color:var(--text)}
+label.sw{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.chip{display:inline-flex;gap:6px;align-items:center;padding:2px 8px;border:1px solid var(--border);border-radius:99px;font-size:12px}
+.chip i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.stage{position:relative;height:440px;border:1px solid var(--border);border-radius:10px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+.stage.dark{background:#1b2a1f}
+.stage.light{background:#e8dcc0}
+.stage svg{position:absolute;inset:0;width:100%;height:100%}
+.hint{position:absolute;left:10px;bottom:8px;font-size:12px;padding:3px 8px;border-radius:99px;background:rgba(20,18,26,.85);color:var(--text);pointer-events:none}
+.tag{font:600 11px system-ui;fill:var(--text)}
+@keyframes ring{0%{r:6;opacity:1}70%{opacity:.9}100%{r:38;opacity:0}}
+@keyframes ring2{0%{r:4;opacity:.8}100%{r:24;opacity:0}}
+.ping-ring{animation:ring 2s ease-out forwards}
+.ping-ring2{animation:ring2 2s .25s ease-out forwards}
+.ping-grp{animation:fade 2s forwards}
+@keyframes fade{0%,70%{opacity:1}100%{opacity:0}}
+.cur{transition:opacity .6s}
+.reduced .ping-ring,.reduced .ping-ring2{animation:none;r:30;opacity:.9}
+.reduced .ping-grp{animation:fade 2s forwards}
+.reduced .cur{transition:none}
+.log{margin-top:10px;color:var(--text-dim);font-size:12px;min-height:18px}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.cap{margin:6px 0 0;font-size:12px;color:var(--text-dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Map pings and colored cursors</h1>
+<p class="lead">Two simulated users share one map. <b>Right-click</b> the left map to ping as Sable. <b>Right-drag</b> to show Sable's cursor. Each map is a different user's screen at a different zoom; the ping lands on the same map point. On touch, a long press is the ping and a long press then drag is the cursor. Demo data only; nothing is sent anywhere.</p>
+
+<div class="bar">
+  <span class="seg" id="bg"><button class="on" data-v="dark">Dark map</button><button data-v="light">Light map</button></span>
+  <label class="sw"><input type="checkbox" id="allow" checked> Allow player pings and cursors</label>
+  <label class="sw"><input type="checkbox" id="mute"> Mute Sable</label>
+  <label class="sw"><input type="checkbox" id="rm"> Reduced motion</label>
+  <span class="chip"><i style="background:#a78bfa"></i>DM (accent)</span>
+  <span class="chip"><i style="background:#56B4E9"></i>Sable</span>
+</div>
+
+<div class="grid">
+  <div>
+    <div class="stage dark" id="s1" data-who="Sable" data-color="#56B4E9" data-zoom="1" data-ox="0" data-oy="0" aria-label="Sable's screen (zoom 1x)"></div>
+    <p class="cap">Sable's phone, zoom 1x. Right-click to ping, right-drag for a cursor.</p>
+  </div>
+  <div>
+    <div class="stage dark" id="s2" data-who="DM" data-color="#a78bfa" data-zoom="1.6" data-ox="-120" data-oy="-70" aria-label="The DM's screen (zoom 1.6x)"></div>
+    <p class="cap">The DM's desktop, zoom 1.6x and panned. Right-click here to ping as the DM.</p>
+  </div>
+</div>
+<div class="log" id="log" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+// Board space is 700 x 440. Each screen maps it with its own zoom and pan.
+const NS='http://www.w3.org/2000/svg';
+const stages=[...document.querySelectorAll('.stage')];
+const state={allow:true,mute:false};
+const lastSent={};
+const log=document.getElementById('log');
+
+function mk(el,attrs,parent){const n=document.createElementNS(NS,el);for(const k in attrs)n.setAttribute(k,attrs[k]);parent&&parent.appendChild(n);return n}
+function halo(c){ // dark halo for light colors, white for dark ones
+  const n=parseInt(c.slice(1),16),r=n>>16,g=(n>>8)&255,b=n&255;
+  return (0.299*r+0.587*g+0.114*b)>150?'#14121a':'#ffffff';
+}
+stages.forEach(s=>{
+  const z=+s.dataset.zoom,ox=+s.dataset.ox,oy=+s.dataset.oy;
+  const svg=mk('svg',{},s);
+  const world=mk('g',{transform:`translate(${ox} ${oy}) scale(${z})`},svg);
+  // demo map: a grid and a few "rooms"
+  for(let x=0;x<=700;x+=50)mk('line',{x1:x,y1:0,x2:x,y2:440,stroke:'rgba(128,128,128,.35)','stroke-width':1},world);
+  for(let y=0;y<=440;y+=50)mk('line',{x1:0,y1:y,x2:700,y2:y,stroke:'rgba(128,128,128,.35)','stroke-width':1},world);
+  mk('rect',{x:80,y:70,width:200,height:150,fill:'rgba(128,128,128,.18)',stroke:'rgba(128,128,128,.6)'},world);
+  mk('rect',{x:400,y:200,width:220,height:160,fill:'rgba(128,128,128,.18)',stroke:'rgba(128,128,128,.6)'},world);
+  [[150,120,'#dc2626'],[330,250,'#2563eb'],[500,280,'#16a34a']].forEach(([x,y,c])=>mk('circle',{cx:x,cy:y,r:18,fill:c,stroke:'#fff','stroke-width':2},world));
+  s._layer=mk('g',{},world);            // PingLayer: inside the transformed group
+  s._cursors={};
+  s.insertAdjacentHTML('beforeend','<span class="hint">Right-click: ping  ·  Right-drag: cursor</span>');
+  s.addEventListener('contextmenu',e=>e.preventDefault()); // map surface only
+  let down=null,tick=null;
+  const toBoard=(e)=>{const r=s.getBoundingClientRect();return{x:(e.clientX-r.left-ox)/z,y:(e.clientY-r.top-oy)/z}};
+  s.addEventListener('pointerdown',e=>{
+    if(e.button!==2)return;
+    s.setPointerCapture(e.pointerId);
+    down={x:e.clientX,y:e.clientY,t:performance.now(),cursor:false};
+  });
+  s.addEventListener('pointermove',e=>{
+    if(!down)return;
+    if(!(e.buttons&2)){down=null;return}
+    if(!down.cursor&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>6)down.cursor=true;
+    if(down.cursor){const now=performance.now();
+      if(now-(lastSent[s.id]||0)>=50){lastSent[s.id]=now;broadcast(s,'c',toBoard(e),false)}}
+  });
+  const end=e=>{
+    if(!down)return;
+    const d=down;down=null;
+    if(d.cursor)broadcast(s,'c',toBoard(e),true);
+    else if(performance.now()-d.t<350){
+      const now=performance.now();
+      if(now-(lastSent[s.id+'p']||0)>=300){lastSent[s.id+'p']=now;broadcast(s,'p',toBoard(e),false)}
+    }
+  };
+  s.addEventListener('pointerup',end);
+  s.addEventListener('pointercancel',e=>{if(down&&down.cursor)broadcast(s,'c',toBoard(e),true);down=null});
+});
+
+// The "channel": the sender draws locally (self:false), the other screen receives.
+function broadcast(from,type,pt,done){
+  draw(from,from.dataset,type,pt,done,true);
+  const to=stages.find(x=>x!==from);
+  if(from.dataset.who==='Sable'&&(!state.allow||state.mute))return; // DM allow toggle and mute
+  if(from.dataset.who==='Sable'||from.dataset.who==='DM')draw(to,from.dataset,type,pt,done,false);
+}
+function draw(s,who,type,pt,done,local){
+  const c=who.color,name=local?who.who+' (you)':who.who;
+  if(type==='p'){
+    const g=mk('g',{class:'ping-grp'},s._layer);
+    const h=halo(c);
+    [['ping-ring',3],['ping-ring2',2]].forEach(([cls,w])=>{
+      mk('circle',{cx:pt.x,cy:pt.y,r:6,fill:'none',stroke:h,'stroke-width':w+2,class:cls},g);
+      mk('circle',{cx:pt.x,cy:pt.y,r:6,fill:'none',stroke:c,'stroke-width':w,class:cls},g);
+    });
+    mk('circle',{cx:pt.x,cy:pt.y,r:4,fill:c,stroke:h,'stroke-width':2},g);
+    label(g,pt.x,pt.y-16,name,c);
+    setTimeout(()=>g.remove(),2100);
+    if(!local){log.textContent=`${who.who} pinged the map`}
+  }else{
+    let cur=s._cursors[who.who];
+    if(!cur){cur={g:mk('g',{class:'cur'},s._layer)};s._cursors[who.who]=cur;
+      const h=halo(c);
+      mk('path',{d:'M0 0 L0 17 L5 13 L9 21 L12 19.5 L8 12 L14 12 Z',fill:c,stroke:h,'stroke-width':1.5,'stroke-linejoin':'round'},cur.g);
+      label(cur.g,18,30,name,c);}
+    cur.g.style.opacity=1;
+    cur.g.setAttribute('transform',`translate(${pt.x} ${pt.y})`);
+    clearTimeout(cur.t);
+    cur.t=setTimeout(()=>{cur.g.style.opacity=0},done?600:1500);
+  }
+}
+function label(parent,x,y,text,c){
+  const w=text.length*6.6+18;
+  const g=mk('g',{transform:`translate(${x} ${y})`},parent);
+  mk('rect',{x:-w/2,y:-11,width:w,height:18,rx:9,fill:'#1c1926',stroke:c,'stroke-width':1.5},g);
+  const t=mk('text',{x:0,y:2,'text-anchor':'middle',class:'tag'},g);t.textContent=text;
+}
+
+document.getElementById('bg').addEventListener('click',e=>{
+  const v=e.target.dataset.v;if(!v)return;
+  document.querySelectorAll('#bg button').forEach(b=>b.classList.toggle('on',b===e.target));
+  stages.forEach(s=>{s.classList.remove('dark','light');s.classList.add(v)});
+});
+allow.onchange=()=>state.allow=allow.checked;
+mute.onchange=()=>state.mute=mute.checked;
+rm.onchange=()=>document.body.classList.toggle('reduced',rm.checked);
+</script>
+</body>
+</html>
