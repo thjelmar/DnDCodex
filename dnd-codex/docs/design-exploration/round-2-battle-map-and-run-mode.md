@@ -128,7 +128,14 @@ Still to fix:
 - **Group monsters into one initiative.** DMs often have a group of monsters act
   on the same turn. In the inspector's Foes list, the DM ticks two or more foes
   and chooses **Group as one initiative**. Owner decisions:
-  - The group is one slot in the turn order. The lineup shows one chip of
+  - **Grouping never adds anyone to initiative.** The DM can build a group
+    while prepping and nothing shows in the lineup, so nothing is spoiled. The
+    group panel is tagged "Prep only" or "In initiative" and has an **Add to
+    initiative** or **Remove from initiative** button. Each monster row has a
+    **+ Init** toggle for single monsters. If a monster is already in
+    initiative when the DM groups it, the group takes its place in the order.
+    Grouping also does not change token visibility on the map.
+  - A group in initiative is one slot in the turn order. The lineup shows one chip of
     stacked avatars with no text label. The group's name shows under "Round X",
     the way a character's name does ("Thugs' turn"). There is no "act together"
     note: that is assumed.

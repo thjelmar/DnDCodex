@@ -72,6 +72,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 .eye svg{width:16px;height:16px}.eye .off{display:none}
 .eye.hid{color:var(--text-faint)}.eye.hid .on{display:none}.eye.hid .off{display:block}
 .rail .t svg{display:block;margin:auto}
+/* Initiative membership: grouping never adds anyone to the turn order by itself. */
+.ini{font-size:10px;border:1px solid var(--border);border-radius:999px;padding:0 7px;background:transparent;color:var(--text-dim);margin-left:4px;white-space:nowrap}
+.ini:hover{border-color:var(--accent)}.ini.on{color:var(--accent);border-color:var(--accent)}.ini:disabled{display:none}
+.gbox .tag{font-size:11px;font-weight:500;color:var(--text-dim);border:1px solid var(--border);border-radius:999px;padding:0 7px}
+.gbox .tag.on{color:var(--accent);border-color:var(--accent)}
 /* Group panel and defeated state. */
 .init .gchip{padding:2px 4px 2px 2px}
 .x{background:transparent;border:0;color:var(--text-faint);padding:0 4px;font-size:13px;margin-left:2px}.x:hover{color:var(--danger)}
@@ -146,7 +151,7 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       </div>
 
       <div class="map" id="map">
-        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, tick two or more foes and choose <b>Group</b> for one shared initiative, <b>☠</b> marks a monster defeated, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <kbd>N</kbd> is next turn, tick two or more foes and choose <b>Group</b> (prep only: nobody joins the lineup until you add them with <b>+ Init</b>), <b>☠</b> marks a monster defeated, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
 
         <div class="tok hero" data-id="br" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
         <div class="tok hero" data-id="sa" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
@@ -189,11 +194,11 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
           <div class="row"><span class="dot" style="background:#16a34a"></span>Pip<span class="pill">18/22</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
           <div class="grp">Foes</div>
           <div id="foeGroups"></div>
-          <label class="row"><input type="checkbox" class="fchk" data-id="mo"><span class="dot" style="background:#dc2626"></span>Mordrek<span class="pill" id="hp-mo">54/65</span><button class="x" data-defeat="mo" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
-          <label class="row"><input type="checkbox" class="fchk" data-id="t1"><span class="dot" style="background:#dc2626"></span>Thug 1<span class="pill" id="hp-t1">22/22</span><button class="x" data-defeat="t1" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
-          <label class="row"><input type="checkbox" class="fchk" data-id="t2"><span class="dot" style="background:#dc2626"></span>Thug 2<span class="pill" id="hp-t2">16/22</span><button class="x" data-defeat="t2" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
-          <label class="row"><input type="checkbox" class="fchk" data-id="t3"><span class="dot" style="background:#dc2626"></span>Thug 3<span class="pill" id="hp-t3">22/22</span><button class="x" data-defeat="t3" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
-          <button class="btn primary hidden-btn" id="btnGroup" style="width:100%;margin-top:6px;display:none">Group as one initiative</button>
+          <label class="row"><input type="checkbox" class="fchk" data-id="mo"><span class="dot" style="background:#dc2626"></span>Mordrek<span class="pill" id="hp-mo">54/65</span><button class="ini" data-ini="mo" title="Add to or remove from the turn order"></button><button class="x" data-defeat="mo" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t1"><span class="dot" style="background:#dc2626"></span>Thug 1<span class="pill" id="hp-t1">22/22</span><button class="ini" data-ini="t1" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t1" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t2"><span class="dot" style="background:#dc2626"></span>Thug 2<span class="pill" id="hp-t2">16/22</span><button class="ini" data-ini="t2" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t2" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <label class="row"><input type="checkbox" class="fchk" data-id="t3"><span class="dot" style="background:#dc2626"></span>Thug 3<span class="pill" id="hp-t3">22/22</span><button class="ini" data-ini="t3" title="Add to or remove from the turn order"></button><button class="x" data-defeat="t3" title="Mark defeated: removes it from the turn order" aria-label="Defeated">☠</button></label>
+          <button class="btn primary hidden-btn" id="btnGroup" style="width:100%;margin-top:6px;display:none">Group</button>
           <div class="grp">Objects</div>
           <div class="row"><span class="dot" style="background:#92591f"></span>Crate<span class="pill">—</span><button class="eye" aria-label="Show or hide on the map" title="Show or hide on the map"><svg class="on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.6 5.6A10 10 0 0 1 12 5.5c6.4 0 10 6.5 10 6.5a17 17 0 0 1-3.2 4M6.7 6.9C3.8 8.7 2 12 2 12s3.6 6.5 10 6.5c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></svg></button></div>
         </div>
@@ -295,28 +300,36 @@ async function openWindow() {
 document.getElementById('btnWin').onclick = openWindow;
 document.getElementById('btnBack').onclick = () => { if (extWin) extWin.close(); };
 
-// Turn order. An entry is one initiative slot: one combatant, or a group of monsters that act together.
+// Turn order. `entries` is only who is IN initiative. Foes you prep (and groups you build) stay out of it
+// until the DM adds them, so nothing shows in the lineup early.
 const info = {sa:['Sable','#16a34a','Sa'],mo:['Mordrek','#dc2626','Mo'],br:['Bram','#16a34a','Br'],va:['Vara','#16a34a','Va'],
   t1:['Thug 1','#dc2626','T1'],t2:['Thug 2','#dc2626','T2'],t3:['Thug 3','#dc2626','T3'],pi:['Pip','#16a34a','Pi']};
 const hp = {mo:[54,65], t1:[22,22], t2:[16,22], t3:[22,22]};   // [current, max]
 const dead = new Set();
-let entries = ['sa','mo','br','va','t1','t2','t3','pi'].map(id => ({ ids: [id] }));
+let entries = ['sa','mo','br','va','pi'].map(id => ({ ids: [id] }));   // the thugs are prepped, not in initiative yet
+let groups = [];                                                       // every group, in initiative or not
 let turn = 0, round = 2;
 const chips = document.getElementById('chips');
 const isGroup = e => e.ids.length > 1;
 const groupName = e => info[e.ids[0]][0].replace(/\s*\d+$/, '') + 's';
+const slotOf = id => entries.find(e => e.ids.includes(id));
+const groupOf = id => groups.find(g => g.ids.includes(id));
 
 function renderLineup() {
-  // A group is one chip of stacked avatars. No label: the name shows under "Round" like a character's does.
+  // A group is one chip of stacked avatars, no label. The name shows under "Round X" like a character's does.
   chips.innerHTML = entries.map((e, i) => isGroup(e)
     ? `<span class="gchip" data-entry="${i}" title="${groupName(e)}"><span class="st">${e.ids.map(id => `<b style="background:${info[id][1]}">${info[id][2]}</b>`).join('')}</span></span>`
     : `<b data-entry="${i}" title="${info[e.ids[0]][0]}" style="background:${info[e.ids[0]][1]}">${info[e.ids[0]][2]}</b>`).join('');
   document.querySelectorAll('.tok[data-id]').forEach(t => {
-    t.classList.toggle('grouped', entries.some(e => isGroup(e) && e.ids.includes(t.dataset.id)));
+    t.classList.toggle('grouped', !!groupOf(t.dataset.id));
     t.classList.toggle('dead', dead.has(t.dataset.id));
   });
-  document.getElementById('foeGroups').innerHTML = entries.filter(isGroup).map(groupBox).join('');
-  document.querySelectorAll('.fchk').forEach(c => { c.disabled = dead.has(c.dataset.id) || entries.some(e => isGroup(e) && e.ids.includes(c.dataset.id)); if (c.disabled) c.checked = false; });
+  document.getElementById('foeGroups').innerHTML = groups.map(groupBox).join('');
+  document.querySelectorAll('.fchk').forEach(c => { const id = c.dataset.id; c.disabled = dead.has(id) || !!groupOf(id); if (c.disabled) c.checked = false; });
+  document.querySelectorAll('.ini').forEach(b => {
+    const id = b.dataset.ini, inI = !!slotOf(id);
+    b.classList.toggle('on', inI); b.textContent = inI ? '✓ Init' : '+ Init'; b.disabled = !!groupOf(id) || dead.has(id);
+  });
   Object.keys(hp).forEach(id => {
     document.getElementById('hp-' + id).textContent = hp[id][0] + '/' + hp[id][1];
     document.getElementById('hp-' + id).closest('.row').classList.toggle('dead', dead.has(id));
@@ -324,65 +337,78 @@ function renderLineup() {
   updateGroupBtn();
   showTurn();
 }
-// The group panel: one initiative roll, shared HP by default, optional per-monster edits.
-function groupBox(e) {
-  const k = e.ids[0];
-  const each = e.edit ? `<div class="each">${e.ids.map(id => `<div><span>${info[id][0]}</span><span>HP</span><input type="number" min="0" value="${hp[id][0]}" data-mhp="${id}"></div>`).join('')}</div>` : '';
-  return `<div class="gbox" data-g="${k}">
-    <div class="l1"><span>${groupName(e)} ×${e.ids.length}</span><button class="btn" data-ungroup="${k}">Ungroup</button></div>
-    <div class="l2"><span>Initiative</span><input type="number" value="${e.init}" data-ginit="${k}"><button class="btn" style="padding:1px 8px;font-size:12px" data-roll="${k}" title="Roll d20 once for the whole group">Roll</button></div>
-    <div class="l2"><span>HP each</span><input type="number" min="1" value="${e.edit ? '' : hp[k][1]}" placeholder="mixed" data-ghp="${k}"><button class="lnk" data-edit="${k}">${e.edit ? 'Use one value' : 'Edit per monster'}</button></div>${each}</div>`;
+// The group panel: in or out of initiative, one roll, shared HP by default, optional per-monster edits.
+function groupBox(g) {
+  const k = g.ids[0], inI = entries.includes(g);
+  const each = g.edit ? `<div class="each">${g.ids.map(id => `<div><span>${info[id][0]}</span><span>HP</span><input type="number" min="0" value="${hp[id][0]}" data-mhp="${id}"></div>`).join('')}</div>` : '';
+  return `<div class="gbox">
+    <div class="l1"><span>${groupName(g)} ×${g.ids.length}</span><span class="tag ${inI ? 'on' : ''}">${inI ? 'In initiative' : 'Prep only'}</span><button class="btn" data-ungroup="${k}">Ungroup</button></div>
+    <div class="l2"><span>Initiative</span><input type="number" value="${g.init}" data-ginit="${k}"><button class="btn" style="padding:1px 8px;font-size:12px" data-roll="${k}" title="Roll d20 once for the whole group">Roll</button><button class="btn ${inI ? '' : 'primary'}" style="padding:1px 8px;font-size:12px;margin-left:auto" data-toinit="${k}">${inI ? 'Remove from initiative' : 'Add to initiative'}</button></div>
+    <div class="l2"><span>HP each</span><input type="number" min="1" value="${g.edit ? '' : hp[k][1]}" placeholder="mixed" data-ghp="${k}"><button class="lnk" data-edit="${k}">${g.edit ? 'Use one value' : 'Edit per monster'}</button></div>${each}</div>`;
 }
 function showTurn() {
   const cur = entries[turn];
-  document.querySelectorAll('.tok[data-id]').forEach(el => el.classList.toggle('turn', cur.ids.includes(el.dataset.id)));
+  document.querySelectorAll('.tok[data-id]').forEach(el => el.classList.toggle('turn', !!cur && cur.ids.includes(el.dataset.id)));
   chips.querySelectorAll('[data-entry]').forEach(el => el.classList.toggle('turn', +el.dataset.entry === turn));
   document.getElementById('roundN').textContent = round;
-  document.getElementById('turnName').textContent = isGroup(cur) ? groupName(cur) + "' turn" : info[cur.ids[0]][0] + "'s turn";
+  document.getElementById('turnName').textContent = !cur ? '' : isGroup(cur) ? groupName(cur) + "' turn" : info[cur.ids[0]][0] + "'s turn";
 }
-const nextTurn = () => { turn = (turn + 1) % entries.length; if (turn === 0) round++; showTurn(); };
+const nextTurn = () => { if (!entries.length) return; turn = (turn + 1) % entries.length; if (turn === 0) round++; showTurn(); };
 document.getElementById('btnNext').onclick = nextTurn;
 
-// Keep the same slot on turn while entries change. If it vanished (defeated), the next slot takes the turn.
+// Keep the same slot on turn while entries change. If it vanished, the next slot takes the turn.
 function mutate(fn) {
   const cur = entries[turn], at = turn;
   fn();
-  const i = entries.findIndex(e => e.ids.some(id => cur.ids.includes(id)));
-  turn = i >= 0 ? i : Math.min(at, entries.length - 1);
+  const i = cur ? entries.indexOf(cur) : -1;
+  turn = i >= 0 ? i : Math.max(0, Math.min(at, entries.length - 1));
   renderLineup();
 }
 const checked = () => [...document.querySelectorAll('.fchk:checked')].map(c => c.dataset.id);
 function updateGroupBtn() {
   const n = checked().length, b = document.getElementById('btnGroup');
   b.style.display = n >= 2 ? 'block' : 'none';
-  b.textContent = 'Group ' + n + ' as one initiative';
+  b.textContent = 'Group ' + n + ' monsters';
 }
 document.querySelectorAll('.fchk').forEach(c => c.addEventListener('change', updateGroupBtn));
+// Grouping only links monsters. A monster already in initiative keeps its place (as part of the group);
+// monsters that are not in initiative stay out, so a prep group shows nothing in the lineup.
 document.getElementById('btnGroup').onclick = () => {
-  const ids = checked();
+  const ids = checked(), same = hp[ids[0]][1];
+  ids.forEach(id => { hp[id] = [same, same]; });                 // default: every member gets the same HP
+  const g = { ids: ids.slice(), init: 12, edit: false };          // the group rolls once
   mutate(() => {
-    const first = entries.findIndex(e => e.ids.some(id => ids.includes(id)));
-    const rest = entries.filter(e => !e.ids.some(id => ids.includes(id)));
-    const same = hp[ids[0]][1];                                  // default: every member gets the same HP
-    ids.forEach(id => { hp[id] = [same, same]; });
-    rest.splice(Math.min(first, rest.length), 0, { ids: ids.slice(), init: 12, edit: false });   // the group rolls once
-    entries = rest;
+    groups.push(g);
+    const inSlots = entries.filter(e => e.ids.some(id => ids.includes(id)));
+    if (inSlots.length) {
+      const at = entries.indexOf(inSlots[0]);
+      entries = entries.filter(e => !inSlots.includes(e));
+      entries.splice(Math.min(at, entries.length), 0, g);
+    }
   });
   document.querySelectorAll('.fchk').forEach(c => c.checked = false);
   updateGroupBtn();
 };
 const body = document.getElementById('inspBody');
-const grp = k => entries.find(e => isGroup(e) && e.ids.includes(k));
+const grp = k => groups.find(g => g.ids.includes(k));
 body.addEventListener('click', ev => {
-  const d = ev.target.dataset || {};
-  if (d.ungroup) mutate(() => { const i = entries.indexOf(grp(d.ungroup)); entries.splice(i, 1, ...entries[i].ids.map(x => ({ ids: [x] }))); });
+  const d = (ev.target.closest('[data-ungroup],[data-roll],[data-edit],[data-defeat],[data-ini],[data-toinit]') || {}).dataset || {};
+  if (d.ungroup) mutate(() => {
+    const g = grp(d.ungroup); groups = groups.filter(x => x !== g);
+    const i = entries.indexOf(g);
+    if (i >= 0) entries.splice(i, 1, ...g.ids.map(x => ({ ids: [x] })));
+  });
   else if (d.roll) { grp(d.roll).init = 1 + Math.floor(Math.random() * 20) + 2; renderLineup(); }
   else if (d.edit) { const g = grp(d.edit); g.edit = !g.edit; renderLineup(); }
+  else if (d.toinit) mutate(() => { const g = grp(d.toinit); const i = entries.indexOf(g); if (i >= 0) entries.splice(i, 1); else entries.push(g); });
+  else if (d.ini) mutate(() => { const s = slotOf(d.ini); if (s) entries.splice(entries.indexOf(s), 1); else entries.push({ ids: [d.ini] }); });
   else if (d.defeat) {
-    // A defeated monster leaves the turn order, and its group, on its own. A group of one becomes a normal slot.
+    // A defeated monster leaves the turn order and its group on its own. A group of one becomes a normal slot.
     dead.add(d.defeat);
     mutate(() => {
-      entries = entries.map(e => ({ ...e, ids: e.ids.filter(id => id !== d.defeat) })).filter(e => e.ids.length);
+      groups.forEach(g => { g.ids = g.ids.filter(id => id !== d.defeat); });
+      groups = groups.filter(g => g.ids.length > 1);
+      entries = entries.map(e => e.ids.includes(d.defeat) ? Object.assign(e, { ids: e.ids.filter(id => id !== d.defeat) }) : e).filter(e => e.ids.length);
     });
   }
 });
