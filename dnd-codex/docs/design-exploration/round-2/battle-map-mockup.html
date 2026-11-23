@@ -50,16 +50,23 @@ button{font:inherit;color:inherit;cursor:pointer}
 .zoom button{background:transparent;border:0;padding:3px 9px}
 .init{position:absolute;left:14px;bottom:14px;display:flex;gap:6px;align-items:center;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:5px 8px}
 .init b{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;color:#fff}
-.init b.cur{outline:2px solid var(--accent);outline-offset:2px}
+/* Turn pulse: one animation, driven by the accent token. Calm: 1.8s, no movement, only a halo. */
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 70%,transparent)}70%{box-shadow:0 0 0 12px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.tok.turn i,.init b.turn{animation:pulse 1.8s ease-out infinite;border-color:var(--accent)}
+.tok.turn span{background:var(--accent-strong)}
+@media (prefers-reduced-motion:reduce){.tok.turn i,.init b.turn{animation:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 60%,transparent)}}
+.round{position:absolute;left:50%;top:12px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:var(--bg-elev);border:1px solid var(--border);border-radius:999px;padding:4px 6px 4px 16px;z-index:2}
+.round h2{font-size:17px}.round small{color:var(--text-dim);font-size:12px}
+.round .btn{border-radius:999px;padding:4px 12px;font-size:13px}
 /* Scene inspector: docked, floating (pop-out), or hidden (overlay in full screen). */
 .insp{background:var(--bg-elev);border-left:1px solid var(--border);width:300px;flex:none;display:flex;flex-direction:column;z-index:4}
 .insp.hidden{display:none}
 .insp.float{position:absolute;right:20px;top:20px;bottom:auto;height:420px;width:300px;border:1px solid var(--border);border-radius:var(--r);box-shadow:0 12px 32px #0008;resize:both;overflow:auto}
 .insp.drawer{position:absolute;right:0;top:0;bottom:0;box-shadow:-12px 0 32px #0008}
-.insp .hd{display:flex;align-items:center;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);cursor:default}
+.insp .hd{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--border);cursor:default}
 .insp.float .hd{cursor:grab}
-.insp .tabs{display:flex;gap:2px;flex:1}
-.insp .tabs button{background:transparent;border:0;padding:4px 10px;border-radius:var(--rs);font-size:13px;color:var(--text-dim)}
+.insp .tabs{display:flex;gap:2px;flex:1;min-width:0}
+.insp .tabs button{background:transparent;border:0;padding:4px 8px;border-radius:var(--rs);font-size:13px;color:var(--text-dim)}
 .insp .tabs button.on{background:var(--bg-elev-2);color:var(--text)}
 .insp .body{padding:10px;overflow:auto;flex:1}
 .insp input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);color:var(--text);padding:6px 10px;margin-bottom:8px}
@@ -68,7 +75,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .row:hover,.row.on{background:var(--bg-elev-2)}
 .dot{width:10px;height:10px;border-radius:50%}
 .pill{margin-left:auto;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:0 8px;color:var(--text-dim)}
-.note{position:absolute;left:62px;top:12px;max-width:340px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text-dim);z-index:2}
+.note{position:absolute;left:12px;top:12px;max-width:280px;background:var(--bg-elev);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text-dim);z-index:2}
 .note b{color:var(--text)}
 kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11px;background:var(--bg-elev-2)}
 </style>
@@ -112,18 +119,19 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       </div>
 
       <div class="map" id="map">
-        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, <b>Float</b> puts it over the map, <b>Window</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
+        <div class="note"><b>Mockup, demo data only.</b> Try: <kbd>I</kbd> toggles the inspector, the <b>⇱</b> icon floats it over the map, <b>⧉</b> moves it to its own window, <kbd>F</kbd> full screen (the inspector becomes an overlay drawer), <kbd>Esc</kbd> closes it.</div>
 
-        <div class="tok hero" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
-        <div class="tok hero" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
-        <div class="tok hero" style="left:30%;top:66%"><i>Va</i><span>Vara</span></div>
-        <div class="tok hero" style="left:40%;top:78%"><i>Pi</i><span>Pip</span></div>
-        <div class="tok foe" style="left:56%;top:62%"><i>Th</i><span>Thug</span></div>
-        <div class="tok foe sel" style="left:70%;top:72%"><i>Mo</i><span>Mordrek</span></div>
+        <div class="round"><h2>Round <span id="roundN">2</span></h2><small id="turnName">Sable's turn</small><button class="btn primary" id="btnNext">Next turn ▸</button></div>
+        <div class="tok hero" data-id="br" style="left:22%;top:30%"><i>Br</i><span>Bram</span></div>
+        <div class="tok hero" data-id="sa" style="left:62%;top:26%"><i>Sa</i><span>Sable</span></div>
+        <div class="tok hero" data-id="va" style="left:30%;top:66%"><i>Va</i><span>Vara</span></div>
+        <div class="tok hero" data-id="pi" style="left:40%;top:78%"><i>Pi</i><span>Pip</span></div>
+        <div class="tok foe" data-id="th" style="left:56%;top:62%"><i>Th</i><span>Thug</span></div>
+        <div class="tok foe sel" data-id="mo" style="left:70%;top:72%"><i>Mo</i><span>Mordrek</span></div>
         <div class="sel-bar" style="left:70%;top:calc(72% - 38px)"><button>Duplicate</button><button>Condition</button><button>Delete</button></div>
         <div class="tok obj" style="left:46%;top:46%"><i>▣</i><span>Crate</span></div>
 
-        <div class="init"><b class="cur" style="background:#16a34a">Sa</b><b style="background:#dc2626">Mo</b><b style="background:#16a34a">Br</b><b style="background:#16a34a">Va</b><b style="background:#dc2626">Th</b><b style="background:#16a34a">Pi</b></div>
+        <div class="init"><b data-id="sa" style="background:#16a34a">Sa</b><b data-id="mo" style="background:#dc2626">Mo</b><b data-id="br" style="background:#16a34a">Br</b><b data-id="va" style="background:#16a34a">Va</b><b data-id="th" style="background:#dc2626">Th</b><b data-id="pi" style="background:#16a34a">Pi</b></div>
         <div class="chip" style="left:50%;bottom:14px;transform:translateX(-50%)">Drag tokens to move. Arrow keys nudge.</div>
         <div class="zoom"><button>−</button><span style="padding:3px 6px">100%</span><button>+</button><button>Fit</button></div>
 
@@ -139,8 +147,8 @@ kbd{border:1px solid var(--border);border-radius:4px;padding:0 5px;font-size:11p
       <aside class="insp" id="insp">
         <div class="hd" id="inspHd">
           <div class="tabs"><button class="on">Tokens</button><button>Grid</button><button>Map</button></div>
-          <button class="btn icon" id="btnPop" title="Float the inspector over the map">⇱ Float</button>
-          <button class="btn icon" id="btnWin" title="Open the inspector in its own window, so you can move it off the page">⧉ Window</button>
+          <button class="btn icon" id="btnPop" title="Float the inspector over the map" aria-label="Float">⇱</button>
+          <button class="btn icon" id="btnWin" title="Open the inspector in its own window, so you can move it off the page" aria-label="Open in window">⧉</button>
           <button class="btn icon" id="btnClose" title="Hide (I)">✕</button>
         </div>
         <div class="body" id="inspBody">
@@ -182,7 +190,7 @@ function apply() {
   if (mode === 'hidden') insp.classList.add('hidden');
   else if (mode === 'float') insp.classList.add('float');
   else if (fs) insp.classList.add('drawer');
-  document.getElementById('btnPop').textContent = mode === 'float' ? '⇲ Dock' : '⇱ Float';
+  const bp = document.getElementById('btnPop'); bp.textContent = mode === 'float' ? '⇲' : '⇱'; bp.title = mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map';
 }
 function toggleInspector() { mode = mode === 'hidden' ? 'docked' : 'hidden'; apply(); }
 
@@ -253,6 +261,17 @@ async function openWindow() {
 }
 document.getElementById('btnWin').onclick = openWindow;
 document.getElementById('btnBack').onclick = () => { if (extWin) extWin.close(); };
+
+// Turn order and round counter. The current-turn token pulses on the map and in the lineup.
+const order = ['sa','mo','br','va','th','pi'], names = {sa:'Sable',mo:'Mordrek',br:'Bram',va:'Vara',th:'Thug',pi:'Pip'};
+let turn = 0, round = 2;
+function showTurn() {
+  document.querySelectorAll('[data-id]').forEach(el => el.classList.toggle('turn', el.dataset.id === order[turn]));
+  document.getElementById('roundN').textContent = round;
+  document.getElementById('turnName').textContent = names[order[turn]] + "'s turn";
+}
+document.getElementById('btnNext').onclick = () => { turn = (turn + 1) % order.length; if (turn === 0) round++; showTurn(); };
+showTurn();
 apply();
 </script>
 </body>
