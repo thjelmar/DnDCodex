@@ -6,6 +6,7 @@ import { OVERVIEW_LAYOUT_ID, reconcile } from '../lib/overviewCards'
 import type { OverviewLayoutRecord } from '../db/types'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
+import { usePingsPref } from '../lib/usePings'
 import { Icon } from './Icon'
 import { CalendarSubscriptionsPref } from './CalendarSubscriptionsPref'
 import { useAuth, type ReminderPrefs } from '../auth/AuthProvider'
@@ -49,6 +50,7 @@ const KIND_LABEL: Record<ShareableKind, string> = {
 export function PreferencesModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const { profile, updateProfile } = useAuth()
+  const [pingsOn, setPingsOn] = usePingsPref()
 
   // Appearance: reflect the current choice (profile when signed in, else the
   // local cache), apply instantly on change, and sync to the account if signed in.
@@ -248,6 +250,19 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
             Saved on this device. Sign in to sync your theme across devices.
           </div>
         )}
+      </div>
+
+      <div className="prefs-section">
+        <div className="prefs-section-title">Battle map</div>
+        <label className="prefs-row" style={{ cursor: 'pointer' }}>
+          <div className="prefs-row-label">Pings and cursors</div>
+          <div className="prefs-row-value">
+            <input type="checkbox" checked={pingsOn} onChange={(e) => setPingsOn(e.target.checked)} aria-label="Show and send map pings and colored cursors" />
+          </div>
+        </label>
+        <div className="faint" style={{ fontSize: 12 }}>
+          Right click the map to ping, or right-drag to show your colored cursor. On a touch screen, press and hold.
+        </div>
       </div>
 
       {profile && (

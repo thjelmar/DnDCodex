@@ -1,6 +1,13 @@
 # Map pings and colored cursors (T-102)
 
-Status: **approved by the owner** (decisions below). No application code changed yet. The build waits for T-99 to land on `dev`.
+Status: **built** (T-102), uncommitted for hub review. Decisions below were approved by the owner.
+
+Build deviations from the design:
+
+- One Broadcast event name, `m`, with the message type in `t` (`p`, `c`, `ctl`, `hello`).
+- The payload's `k` is the sender's user id (not a random id), so the DM's mute survives a reload. Members already see each other's ids; the id is no more private than the display name.
+- The Ping tool and the settings menu live inside `Tabletop` beside the zoom buttons (`PingControls.tsx`), not in the host toolbars, to avoid merge conflicts.
+- The migration is `supabase/migrations/0046_map_pings_realtime.sql` (not applied).
 Mockup: [`round-2/map-pings-mockup.html`](round-2/map-pings-mockup.html)
 (open it in a browser; it has two simulated users, light and dark maps, and the DM toggle).
 
@@ -16,8 +23,7 @@ right click is a ping. A right-click drag shows that user's colored cursor.
 5. The P key ping and off-screen edge arrows stay.
 6. The cursor sends at 20/s, with 12/s kept as a switch (a constant in `pings.ts`) for the free tier.
 
-The migration number is a placeholder (`NNNN`) in this note. The hub assigns it at build time,
-because T-100 also plans a migration.
+The migration is `0046` (assigned by the hub).
 
 ## What the code does today
 
@@ -211,7 +217,7 @@ Migration (additive, adds no table and no function, so there is no
 SECURITY DEFINER function to revoke from `anon`):
 
 ```sql
--- NNNN_map_pings_realtime.sql (the hub assigns the number)
+-- 0046_map_pings_realtime.sql
 -- Campaign members (and the owner) can receive and send map ping broadcasts on
 -- the private channel "pings:<campaign uuid>". Nothing else changes.
 
