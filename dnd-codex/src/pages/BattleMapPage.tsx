@@ -49,7 +49,8 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { isIphoneSafari, isStandalone } from '../lib/standalone'
 import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
-import { activeIds, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
+import { activeIds, getCombat, type CombatState, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
+import { deleteToken, restoreToken } from '../lib/tokenHistory'
 import { tokenCombat } from '../lib/tokenCombat'
 import {
   MAP_MAX_DIM,
@@ -214,6 +215,13 @@ export function BattleMapPage() {
  * The DM's editor for one battle map. Used by the Battle Map tab and by Run
  * mode (which passes its selected session so full screen's notes follow it).
  */
+/** One undoable change on the board (T-99). */
+interface HistoryEntry {
+  undo: () => void
+  redo: () => void
+}
+const HISTORY_LIMIT = 30
+
 export function SceneEditor({
   campaign,
   scene,
@@ -599,11 +607,127 @@ export function SceneEditor({
     touch()
     setTokens((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)))
   }
-  function removeToken(id: string) {
-    touch()
-    setTokens((ts) => ts.filter((t) => t.id !== id))
-    setSelectedToken((s) => (s === id ? null : s))
+
+  // ---- Undo and redo (T-99) ---------------------------------------------------
+  // One stack for token delete, add, move and resize. Each entry carries its own undo
+  // and redo steps. Entries read the latest tokens, groups and combat through
+  // `liveRef` and `getCombat`, so later edits to other tokens survive an undo.
+  const liveRef = useRef({ tokens, groups })
+  liveRef.current = { tokens, groups }
+  const undoStack = useRef<HistoryEntry[]>([])
+  const redoStack = useRef<HistoryEntry[]>([])
+  const [historyDepth, setHistoryDepth] = useState({ undo: 0, redo: 0 })
+  const syncDepth = () => setHistoryDepth({ undo: undoStack.current.length, redo: redoStack.current.length })
+  function pushHistory(entry: HistoryEntry) {
+    undoStack.current = [...undoStack.current.slice(-(HISTORY_LIMIT - 1)), entry]
+    redoStack.current = []
+    syncDepth()
   }
+  function clearHistory() {
+    undoStack.current = []
+    redoStack.current = []
+    syncDepth()
+  }
+  // Applies a step that changes tokens, groups and combat together.
+  function applyHistoryState(fn: (s: GroupState) => GroupState) {
+    const s = fn({ tokens: liveRef.current.tokens, groups: liveRef.current.groups, combat: getCombat() })
+    touch()
+    liveRef.current = { tokens: s.tokens, groups: s.groups }
+    setTokens(s.tokens)
+    setGroups(s.groups)
+    combat.setState(s.combat)
+  }
+  // Deleting a token also removes its combatant. Returns the entry steps for undo and redo.
+  function deleteStep(id: string, onRecord: (e: HistoryEntry) => void) {
+    const res = deleteToken({ tokens: liveRef.current.tokens, groups: liveRef.current.groups, combat: getCombat() }, id)
+    if (!res) return
+    const rec = res.record
+    applyHistoryState(() => res.next)
+    setSelectedToken((s) => (s === id ? null : s))
+    onRecord({
+      undo: () => {
+        applyHistoryState((s) => restoreToken(s, rec))
+        setSelectedToken(rec.token.id)
+      },
+      redo: () => {
+        const again = deleteToken({ tokens: liveRef.current.tokens, groups: liveRef.current.groups, combat: getCombat() }, id)
+        if (!again) return
+        applyHistoryState(() => again.next)
+        setSelectedToken((s) => (s === id ? null : s))
+      },
+    })
+  }
+  function removeToken(id: string) {
+    deleteStep(id, pushHistory)
+  }
+  function moveToken(id: string, patch: Pick<SceneToken, 'col' | 'row'> | Pick<SceneToken, 'size'>) {
+    const cur = liveRef.current.tokens.find((t) => t.id === id)
+    if (!cur) return
+    const before = Object.fromEntries(Object.keys(patch).map((k) => [k, cur[k as keyof SceneToken]])) as Partial<SceneToken>
+    patchToken(id, patch)
+    pushHistory({
+      undo: () => patchToken(id, before),
+      redo: () => patchToken(id, patch),
+    })
+  }
+  function addTokenEntry(token: SceneToken) {
+    touch()
+    setTokens((ts) => [...ts, token])
+    setSelectedToken(token.id)
+    pushHistory({
+      undo: () => {
+        setTokens((ts) => ts.filter((t) => t.id !== token.id))
+        setSelectedToken((s) => (s === token.id ? null : s))
+        touch()
+      },
+      redo: () => {
+        setTokens((ts) => (ts.some((t) => t.id === token.id) ? ts : [...ts, token]))
+        setSelectedToken(token.id)
+        touch()
+      },
+    })
+  }
+  function undo() {
+    const e = undoStack.current[undoStack.current.length - 1]
+    if (!e) return
+    undoStack.current = undoStack.current.slice(0, -1)
+    redoStack.current = [...redoStack.current, e]
+    e.undo()
+    syncDepth()
+  }
+  function redo() {
+    const e = redoStack.current[redoStack.current.length - 1]
+    if (!e) return
+    redoStack.current = redoStack.current.slice(0, -1)
+    undoStack.current = [...undoStack.current, e]
+    e.redo()
+    syncDepth()
+  }
+  // A new map starts with a clean history.
+  useEffect(() => {
+    clearHistory()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.id])
+  const historyActions = useRef({ undo, redo, enabled: !preview })
+  historyActions.current = { undo, redo, enabled: !preview }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return
+      const k = e.key.toLowerCase()
+      const isUndo = k === 'z' && !e.shiftKey
+      const isRedo = (k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.metaKey)
+      if (!isUndo && !isRedo) return
+      // Inside a text field the browser's own undo applies.
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (!historyActions.current.enabled) return
+      e.preventDefault()
+      if (isUndo) historyActions.current.undo()
+      else historyActions.current.redo()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // Combat link: a token can represent a combatant in the DM's tracker so the
   // board shows its HP/conditions and highlights it on its turn.
@@ -648,9 +772,7 @@ export function SceneEditor({
       row,
       ...input,
     }
-    touch()
-    setTokens((ts) => [...ts, token])
-    setSelectedToken(token.id)
+    addTokenEntry(token)
   }
 
   function addNpcToken(npcId: string) {
@@ -1186,8 +1308,8 @@ export function SceneEditor({
           selectedId={selectedToken}
           onSelect={setSelectedToken}
           focus={focus}
-          onMoveToken={(id, col, row) => patchToken(id, { col, row })}
-          onResizeToken={(id, size) => patchToken(id, { size })}
+          onMoveToken={(id, col, row) => moveToken(id, { col, row })}
+          onResizeToken={(id, size) => moveToken(id, { size })}
           onDeleteToken={removeToken}
           onOpenToken={openToken}
           aligning={aligning}
@@ -1253,10 +1375,17 @@ export function SceneEditor({
     combat.setState(s.combat)
   }
   // A defeated member leaves its group and the turn order; a group of one dissolves.
+  const reconciled = useRef<{ tokens: SceneToken[]; groups: SceneGroup[]; combat: CombatState } | null>(null)
   useEffect(() => {
     if (!studio) return
+    // The combat store re-renders this component before the token and group updates below
+    // apply. Skip a pass that sees the same input and the result we just wrote, or it
+    // would repeat the same update until React gives up (T-99).
+    const done = reconciled.current
+    if (done && done.tokens === tokens && done.groups === groups && done.combat === combat.state) return
     const next = reconcileGroups({ tokens, groups, combat: combat.state })
     if (!next) return
+    reconciled.current = { tokens, groups, combat: next.combat }
     touch()
     setTokens(next.tokens)
     setGroups(next.groups)
@@ -1342,9 +1471,7 @@ export function SceneEditor({
       }
     }
     const copy: SceneToken = { ...t, id: newId(), col, label, combatantId: null, controlledBy: null }
-    touch()
-    setTokens((ts) => [...ts, copy])
-    setSelectedToken(copy.id)
+    addTokenEntry(copy)
   }
 
   if (studio) {
@@ -1682,7 +1809,28 @@ export function SceneEditor({
         <span className="bm-spacer" />
         {runKit?.topEnd}
         {liveEl}
-        {/* T-99: the Undo icon button goes here, before Full screen. */}
+        <button
+          type="button"
+          className="bm-btn bm-sq"
+          aria-label="Undo"
+          title="Undo (Ctrl or Cmd+Z)"
+          data-testid="bm-undo"
+          disabled={historyDepth.undo === 0 || preview}
+          onClick={undo}
+        >
+          <BmIcon name="undo" />
+        </button>
+        <button
+          type="button"
+          className="bm-btn bm-sq"
+          aria-label="Redo"
+          title="Redo (Ctrl or Cmd+Shift+Z)"
+          data-testid="bm-redo"
+          disabled={historyDepth.redo === 0 || preview}
+          onClick={redo}
+        >
+          <BmIcon name="redo" />
+        </button>
         <button
           type="button"
           className="bm-btn bm-sq"
@@ -1806,6 +1954,32 @@ export function SceneEditor({
             </button>
           )}
           {!isPhone && (
+            <>
+              <button
+                type="button"
+                className="bm-btn bm-sq"
+                aria-label="Undo"
+                title="Undo (Ctrl or Cmd+Z)"
+                data-testid="bm-undo"
+                disabled={historyDepth.undo === 0 || preview}
+                onClick={undo}
+              >
+                <BmIcon name="undo" />
+              </button>
+              <button
+                type="button"
+                className="bm-btn bm-sq"
+                aria-label="Redo"
+                title="Redo (Ctrl or Cmd+Shift+Z)"
+                data-testid="bm-redo"
+                disabled={historyDepth.redo === 0 || preview}
+                onClick={redo}
+              >
+                <BmIcon name="redo" />
+              </button>
+            </>
+          )}
+          {!isPhone && (
           <button
             type="button"
             className="bm-btn bm-sq"
@@ -1828,6 +2002,13 @@ export function SceneEditor({
               <>
                 {isPhone && (
                   <>
+                    <button type="button" role="menuitem" className="bm-item" data-testid="bm-undo" disabled={historyDepth.undo === 0 || preview} onClick={() => { close(); undo() }}>
+                      <BmIcon name="undo" size={16} /> Undo
+                    </button>
+                    <button type="button" role="menuitem" className="bm-item" data-testid="bm-redo" disabled={historyDepth.redo === 0 || preview} onClick={() => { close(); redo() }}>
+                      <BmIcon name="redo" size={16} /> Redo
+                    </button>
+                    <div className="bm-menu-sep" />
                     <div className="bm-menu-title">Battle maps</div>
                     {scenes?.map((s) => (
                       <button
