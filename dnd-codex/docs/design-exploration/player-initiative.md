@@ -40,11 +40,15 @@ A compact **initiative strip**, built only from the revealed combatants.
 
 - Header: **Round N**, and whose turn it is (highlighted chip, scrolls into view).
 - One chip per turn slot, in order: initiative number, name, a PC or enemy
-  marker, and condition pips.
+  marker, and condition pips. Players see **every revealed combatant's
+  initiative number**, enemies included (owner decision).
+- A chip for a character a player controls (their own, or one the DM assigned,
+  such as a mount) carries a "yours" outline and an edit control for its
+  initiative.
 - **Allies** (`isPC`, player-controlled, `friendly`) show real HP and max HP.
   This matches `tokenCombat`.
-- **Enemies** show only `damageTaken` (the same number the token overlay shows).
-  Never HP, max HP, or AC.
+- **Enemies** never show HP, max HP, a percentage, or AC. They show an optional
+  **health marker** only (see "Health markers" later in this section).
 - **Hidden combatants** are never uploaded. A combatant is hidden when its own
   `hiddenFromPlayers` flag is set (new, see section 3) or when its linked token
   has `hidden: true`. Hiding is decided on the DM's device, so a hidden row never
@@ -55,6 +59,40 @@ A compact **initiative strip**, built only from the revealed combatants.
   group of one becomes a normal chip.
 - Not shown to players: AC, dex modifier, stat blocks, DM notes, member names of a
   group, the existence of hidden combatants.
+
+**Health markers (optional, DM opt-in).** Three separate markers, each its own
+setting, all **off by default**:
+
+| Marker | Shows when |
+| --- | --- |
+| Injured | HP is 50 percent of max or below |
+| Bloodied | HP is 25 percent of max or below |
+| Death's door | HP is under 5 percent of max (and above 0) |
+
+- The chip shows the single most severe marker whose setting is on and whose
+  threshold is met. With only Death's door on, an enemy at 40 percent shows
+  nothing.
+- **Where the setting lives: per campaign**, as an optional field on the
+  campaign record (`combatMarkers?: { injured, bloodied, deathsDoor }`, all
+  false when absent). It is non-indexed, so it needs no Dexie version. A
+  campaign-wide default matches how a table plays ("we use bloodied"), survives
+  between fights, and is not lost on **End combat**. A per-session or
+  per-combat switch would reset too often. The combat roster header carries three
+  quick toggles that write to this setting.
+- **Per-combatant override (cheap):** `Combatant.showHealthMarker?: boolean | null`.
+  Unset follows the campaign. `false` hides the marker for that combatant (a boss
+  whose health stays a mystery). `true` shows all three levels for it. It is one
+  menu item on the roster row, next to the hide toggle.
+- **Never on the wire:** the DM device computes the marker from `hp` and `maxHp`
+  and uploads only the state (`injured`, `bloodied`, `deaths_door`, or null). The
+  upload carries no enemy HP, no percentage, and no damage total. A combatant
+  with no tracked HP never gets a marker.
+- **Allies** are unchanged: they show real HP, so markers do not apply.
+- **Reconciling with `damageTaken` on tokens.** The existing token overlay shows
+  enemies' damage taken to players. **Recommendation: the markers sit beside it,
+  and this change leaves the token overlay alone.** The strip shows markers only
+  and never a damage number, so the new surface adds no new leak. Retiring or
+  gating `damageTaken` on tokens is a separate decision (open question 1).
 
 Placement:
 
@@ -75,40 +113,83 @@ battle map is on show. A live session without a map still gets the strip.
 
 ### 2. How a player joins
 
-A **Join initiative** button sits at the right end of the strip header.
+Responsibility is on the player first. The player's own **Join initiative** is
+the primary path. The DM adding a PC is the fallback, and it never creates a
+duplicate.
 
-1. The button shows only when the DM has opened initiative (section 4) and the
-   player has a linked character. A player with no `characterData` can still join
-   by typing a name (prefilled from their campaign's player name).
-2. Click opens a small popover: **Initiative** (number field prefilled with a
-   d20 + dex modifier roll, a **Reroll** button, typed value allowed), and
-   **Join**. Dex modifier comes from `characterData.abilities.dex`. Without a
-   sheet, the modifier is 0.
-3. **Join** calls the `join_combat` RPC. The player's chip appears, with an
-   "(you)" marker. The button becomes **Leave initiative**.
+**The flow.** The DM presses **Ask players for initiative**. That opens the
+`gathering` phase: players see **Join initiative**, and NPCs stay private. The
+DM then presses **Start combat**, or skips straight to it.
 
-Rules:
+1. The button sits at the right end of the strip header. It shows only when the
+   DM has opened initiative.
+2. Click opens a small popover: **Character** (a name field with a picker of the
+   player's local sheets and an **Add another** entry), **Initiative** (prefilled
+   with a d20 plus dex modifier roll, a **Reroll** button, a typed value
+   allowed), and **Join**. Dex modifier comes from
+   `characterData.abilities.dex`; without a sheet it is 0.
+3. **Join** calls `join_combat`. The chip appears with a "yours" outline, and the
+   header button becomes **Leave initiative** for that character.
+
+**Rules**
 
 - **No approval step.** The row is added directly. The DM sees a toast, "Aria
-  joined initiative (17)", with **Remove** and **Edit** actions. This keeps the
-  table fast; the DM keeps final say.
-- **A player can do three things**, all to their own row only: join, change
-  their own initiative while the phase is `gathering` (before the DM starts
-  combat), and leave at any time. HP, conditions, order, and the turn belong to
-  the DM.
-- **One character per player per campaign** in v1 (unique on `campaign_id,
-  user_id`).
-- **Self-reported stats.** The player sends name, dex modifier, HP, max HP, and AC.
-  A player could type any HP for their own character. That is acceptable because
-  the DM tracks HP afterwards and sees the toast. The server clamps ranges.
-- **Combat not open**: no button. The strip area shows "No combat right now" only
+  joined initiative (17)", with **Remove** and **Edit**.
+- **More than one character.** A player may join several characters (most play
+  one). Each has a stable `char_key` (the local note id, or a slug of the name),
+  so a re-join updates that character instead of adding another. A cap of 6
+  player-created rows per player per campaign stops spam.
+- **Editing initiative: any time.** A player may change the initiative of a
+  character they own or control, before and after combat starts, through
+  `set_combat_initiative`. The server checks ownership. The DM client applies the
+  change, re-sorts with `resortKeepTurn`, and shows a toast with the old and new
+  values ("Aria 17 → 9") so a mid-combat change is never silent.
+- **Leaving.** A player may remove a character they own or control at any time
+  (`leave_combat`). The DM gets a toast with **Undo**.
+- **A player touches nothing else.** No other player's rows, no DM-only rows, no
+  HP, conditions, order, or turn. HP stays DM-only.
+- **Self-reported stats.** The player sends name, dex modifier result, HP, and max
+  HP. A player could type any HP for their own character. That is acceptable
+  because the DM tracks HP afterwards and sees the toast. The server clamps
+  ranges.
+- **No combat open:** no button. The strip area shows "No combat right now" only
   when a map is on show; otherwise nothing renders.
-- **Combat already active**: joining is allowed and inserts the player into the
-  order. The DM client re-sorts and keeps the turn on the same slot
-  (`resortKeepTurn`). Initiative is locked after that, so a player cannot reroll
-  after seeing the order.
-- **DM removes the player**: the row is deleted, and the player's button returns
-  to **Join initiative**.
+- **Joining while active:** allowed. The DM client inserts the character and keeps
+  the turn on the same slot.
+
+**The DM fallback and duplicates.** When the DM adds a PC to combat, the add form
+has an optional **Player** picker (the campaign's members, the same list as a
+token's **Controlled by**). The rules:
+
+- The DM add is skipped, with the toast "Aria already joined", when the picked
+  player already has a row with the same name, or when no name matches and the
+  player has exactly one joined character and the DM did not enter a different
+  name.
+- A DM-added PC with a player picked is uploaded with `controlled_by` set, so
+  that player may edit its initiative.
+- If the DM added the PC first and the player later presses **Join**,
+  `join_combat` matches the existing row by `controlled_by` plus `char_key`, or by
+  the same name (case-insensitive), and updates its initiative. It never inserts a
+  second row.
+
+**NPCs assigned to players (mounts, vehicles, companions).** A combatant gets an
+optional controlling player: `Combatant.controlledBy` (a member id).
+
+- **Assigning.** On the roster row, **Controlled by** opens the member list. A
+  combatant linked to a token inherits that token's existing `controlledBy`
+  unless the DM sets one on the combatant explicitly, so a horse the DM already
+  assigned for moving needs no second step.
+- **What the controlling player can do:** see the chip with the "yours" outline;
+  roll or edit its initiative at any time; **Leave** with it (the DM gets an Undo
+  toast). It cannot add the NPC to combat itself. Only the DM creates NPC rows,
+  so the DM re-adds it if it should come back. **HP is DM-only.** The chip shows
+  real HP to everyone, because a player-controlled combatant is an ally under
+  `isAllyToken`.
+- **Server rule:** an assigned combatant's row carries `controlled_by`. The
+  player RPCs match on `controlled_by = auth.uid()`, so a player can touch exactly
+  the rows where they are the owner or the assigned controller, and nothing else.
+- Assigned NPCs are still non-PC combatants, so the reveal warning (section 3)
+  fires when the DM adds one.
 
 ### 3. DM warning pop-up
 
@@ -117,14 +198,37 @@ Dialog (modal, uses the app's existing dialog and `useDialogExit` animation):
 > **Show these combatants to players?**
 > Everyone in the live session will see these combatants once they appear:
 > Goblin 1, Goblin 2, Grok the Ogre.
-> [ ] Do not ask again this session
+> [ ] Don't show this message again
 > **Cancel** **Add**
 
-Fires when all of these hold:
+**The warning is for the DM only.** A player never sees it, and no player-side
+code may render it or call `confirmReveal`. That covers the player board, the
+player session page, the **Join initiative** flow, and a controlling player who
+manages an assigned NPC.
 
-- the DM has a live session (`useLiveSession` returns a row), and
-- the shared combat is `active` (players can currently see it), and
-- the add includes at least one non-PC combatant that is not flagged hidden.
+Fires on **every** add of a non-PC, non-hidden combatant when all of these hold:
+the user is the DM (the campaign owner, in the DM view of the battle map, Run
+Mode, or the combat tracker), a live session exists, and the combat is visible to
+players. A live session alone is not enough.
+
+**How the DM-only rule is enforced:**
+
+- `confirmReveal` lives in `src/lib/revealGuard.ts` and takes the campaign. It
+  returns true without a dialog unless `campaign.role === 'dm'` and the signed-in
+  user owns the cloud campaign. Player campaigns (`role: 'player'`) never pass.
+- Only DM code imports it: `CombatRoster`, `CombatTrackerPage`, the encounter
+  runner, `BattleMapPage`, `GroupBox`, and Run Mode. Nothing under
+  `PlayerLiveBoard`, `PlayerSessionPage`, or the new strip imports
+  `revealGuard.ts` or the dialog component. An ESLint `no-restricted-imports` rule
+  on `src/components/Player*`, `src/pages/Player*`, and the strip component makes
+  the build fail if one does.
+- The server side already blocks player adds of NPCs (a player can only call
+  `join_combat` for their own characters), so there is no player path that
+  reveals an NPC.
+
+**What a player sees instead:** when a combatant appears, the new chip animates
+into the strip. There is no dialog, no toast, and no confirmation. A player's own
+join and edits show only an inline status ("Joined", "Saved") in the popover.
 
 It fires from every add path, through one helper (`confirmReveal` in a new
 `src/lib/revealGuard.ts`) that each caller awaits before `setCombat`:
@@ -133,30 +237,38 @@ It fires from every add path, through one helper (`confirmReveal` in a new
 - the encounter runner;
 - battle map **Add to combat** for a token (`BattleMapPage.tsx`, the two `makeCombatant` sites);
 - a monster group's **Add to initiative** (`GroupBox`, `addGroupToInitiative`);
-- **Start combat**, when `gathering` ends and the order holds visible NPCs
-  (the dialog lists everything that is about to appear).
+- an NPC assigned to a player (it is still a non-PC);
+- revealing a hidden combatant;
+- **Start combat**, when ending `gathering` reveals any non-PC (the dialog lists
+  everything that is about to appear).
 
-Cancel adds nothing. "Do not ask again this session" stores
-`codex.revealWarn.<campaignId>` in `sessionStorage`, so it resets when the tab
-closes and when the DM ends the live session.
+Cancel adds nothing.
+
+**The checkbox is a persistent DM preference, not a session setting.** **Don't
+show this message again** writes `codex.prefs.hideRevealWarning` to this device's
+`localStorage` (the same place the app keeps other `codex.*` preferences). While
+it is set, `confirmReveal` returns true without a dialog. The DM turns the
+warning back on from a **Reset hidden messages** control in the app's
+preferences page (confirm the exact location at build time). Because the
+warning guards a privacy edge, **Preferences** also names what it hides.
 
 **Hiding instead.** New per-combatant flag `Combatant.hiddenFromPlayers`
 (optional boolean, so no migration of saved state). A small eye toggle on the
 roster row sets it. Hidden combatants take their turn in the DM's order but are
-skipped in the player strip and in the upload. Revealing one later shows the same
-dialog for that combatant. A combatant whose token is hidden is treated as
-hidden, so the two flags cannot disagree. New combatants added from a hidden
-token inherit the flag.
+skipped in the player strip and in the upload. A combatant whose token is hidden
+is treated as hidden, so the two flags cannot disagree. New combatants added from
+a hidden token inherit the flag.
 
 The dialog must **not** appear when:
 
+- the user is a player, or is not the DM (see above);
 - there is no live session, or the DM is not signed in;
-- the combat is still in `gathering` or not shared (nothing is visible, so the
-  warning moves to **Start combat**);
+- the combat is in `gathering` or not shared (nothing is visible, so the warning
+  moves to **Start combat**);
 - the combatant is a PC, or is flagged hidden;
 - a group is only being built (grouping is prep; nothing enters initiative);
 - the DM previews as a player (check the preview mode flag at build time);
-- the user turned on "Do not ask again this session".
+- the preference above is set.
 
 In the demo it **does** appear, using a simulated live session: the guard needs
 no network, and it lets the owner try the dialog. Nothing is uploaded (see
@@ -165,7 +277,7 @@ section 5).
 ### 4. Data model and transport
 
 Mirror the live scene design: DM writes a privacy-filtered copy; members read it
-over Realtime; a player writes only through a narrow RPC.
+over Realtime; a player writes only through narrow RPCs.
 
 **`shared_combat`** (one row per campaign, exists only while the DM shares combat)
 
@@ -183,68 +295,79 @@ over Realtime; a player writes only through a narrow RPC.
 | --- | --- |
 | `id` | uuid PK. The combatant id for DM rows; for a player's row, the id the RPC creates, which the DM client adopts as the local combatant id |
 | `campaign_id` | references `shared_combat(campaign_id)` on delete cascade, so ending combat clears every row |
-| `user_id` | null for DM rows, the player's id for a player-joined row. Unique with `campaign_id` where not null |
+| `controlled_by` | the player allowed to edit this row's initiative and to remove it: the player who joined it, or the member the DM assigned. Null for plain DM rows |
+| `source` | `'dm'` or `'player'` (who created the row) |
+| `char_key` | stable per-character key for player-created rows, so a re-join updates the same row |
 | `name`, `kind` | `kind` is `'pc'`, `'ally'`, or `'enemy'`; a group is one `'enemy'` row |
 | `initiative`, `sort_order` | the DM sends the final order in `sort_order` |
 | `hp`, `max_hp` | null unless `kind` is `pc` or `ally` |
-| `damage_taken` | int, enemies and allies |
+| `health_marker` | `'injured'`, `'bloodied'`, `'deaths_door'`, or null. Enemy rows only, only when the DM enabled it |
 | `conditions` | jsonb array of names |
 | `group_count` | null unless the row is a group slot |
 
-**Why two tables, not one jsonb row.** A player's join must not race with the
-DM's push. If the DM overwrote one jsonb blob every 250 ms, a join could be lost.
-With rows, the DM's diff-push (same pattern as `pushedTokens` in
-`useDmLiveScene`) upserts and deletes only its own rows (`user_id is null`), and a
-player's row is untouched except where the DM edits it.
+The table has no damage column: the strip never shows damage.
+
+**Why two tables, not one jsonb row.** A player's join or edit must not race with
+the DM's push. With rows, the DM's diff-push (the `pushedTokens` pattern in
+`useDmLiveScene`) upserts and deletes only rows it owns, and a player's change
+lands on one row.
 
 **DM side.** A new `useDmLiveCombat` (beside `useDmLiveScene`, same debounce and
-queued, diffed push) builds the rows from `getCombat()` with the privacy filter,
-and:
+queued, diffed push) builds the rows from `getCombat()` with the privacy filter
+(hidden dropped, enemy HP replaced by the marker, groups collapsed), and:
 
-- adopts player rows: a row with `user_id` that has no local combatant becomes a
-  `makeCombatant({ isPC: true, ... })` with `id = row.id`, then `resortKeepTurn`
-  when active, and a toast with **Remove** and **Edit**;
-- removes the local combatant when a player row disappears (the player left);
+- adopts a player-created row with no local combatant: `makeCombatant({ isPC:
+  true, ... })` with `id = row.id` and `controlledBy = row.controlled_by`, then
+  `resortKeepTurn` when active, and a toast with **Remove** and **Edit**;
+- applies a player's initiative edit: when a row with `controlled_by` differs from
+  what the DM last pushed, copy only `initiative` into the local combatant, re-sort,
+  and toast the old and new values;
+- treats a row that disappears and is not in the DM's own "gone" list as a player
+  leaving: remove the local combatant and toast **Undo** (undo re-adds it and
+  re-uploads the row);
 - deletes `shared_combat` when the DM ends combat, clears combat, or ends the live
   session, which cascades every row.
 
 DM state stays the source of truth (still localStorage). The cloud copy is a
-mirror plus the player's inbox. T-99 and T-98 keep working because nothing in
-`combat.ts` changes shape except the optional `hiddenFromPlayers` field.
+mirror plus the player's inbox. T-99 and T-98 keep working because `combat.ts`
+only gains three optional fields: `hiddenFromPlayers`, `controlledBy`,
+`showHealthMarker`.
 
 **Player side.** A new `useLiveCombat(cloudCampaignId)` in
 `src/auth/liveCombat.ts`: fetch on mount, Realtime channel on both tables,
 refetch on `SUBSCRIBED`, gated on the auth token and with a unique channel name,
 exactly like `useLiveScene` (same reasons: anon joins drop RLS events). No
 polling. Offline or after a reconnect, the refetch on `SUBSCRIBED` repairs the
-list. A failed **Join** shows an inline error and a **Retry** button; there is no
+list. A failed write shows an inline error and a **Retry** button; there is no
 offline queue.
 
 **Security review.**
 
 | Concern | Control |
 | --- | --- |
-| Player adds another combatant | The only write path is `join_combat`, which writes one row with `user_id = auth.uid()`. There is no INSERT policy for members. |
-| Player edits or deletes someone else's row | RPCs filter on `user_id = auth.uid()`. No member UPDATE or DELETE policy. |
-| Player reads hidden combatants | They are never uploaded. RLS gives members `select` on a campaign's rows, and the rows hold nothing private. |
-| Player reads enemy HP | Enemy rows carry `hp = null`. The privacy filter runs on the DM device before upload, like `toLiveTokens`. |
-| Anon access | RLS policies are `to authenticated`. Both functions `revoke all ... from public, anon` and `grant execute ... to authenticated`. |
-| DM abuse via the RPC | `join_combat` refuses the owner (`is_owner`) and refuses when no `shared_combat` row exists. |
-| Input abuse | Name 1 to 60 characters, initiative -10 to 60, HP and AC clamped 0 to 999. |
+| Player adds another combatant | The only insert path is `join_combat`, which writes a row with `controlled_by = auth.uid()` and `source = 'player'`, capped at 6 per player. No member INSERT policy. |
+| Player edits or removes a row they do not control | `set_combat_initiative` and `leave_combat` require `controlled_by = auth.uid()`. No member UPDATE or DELETE policy. A player cannot reassign `controlled_by`. |
+| Player changes more than initiative | `set_combat_initiative` writes only `initiative`. `join_combat` on an existing DM row writes only `initiative`, and updates `name` only on rows with `source = 'player'`. |
+| Player reads hidden combatants | They are never uploaded. |
+| Player reads enemy HP | Enemy rows carry `hp = null`, `max_hp = null`. At most a marker is present. The privacy filter runs on the DM device before upload, like `toLiveTokens`. |
+| Anon access | RLS policies are `to authenticated`. Every function does `revoke all ... from public, anon` and `grant execute ... to authenticated`. |
+| DM abuse via the RPCs | The RPCs refuse the owner (the DM edits through RLS) and refuse when no `shared_combat` row exists. |
+| Input abuse | Name 1 to 60 characters, initiative -10 to 60, HP clamped 0 to 999, 6 player-created rows per player. |
 | Group internals | The upload sends the slot, never members. |
 
 The DM's own browser is the trusted filter. A modified DM client could upload
 more, but the DM already owns the campaign.
 
-**Migration 0045** (additive: two new tables, two new functions; nothing existing
-changes, so the old code keeps working). The owner runs this by hand in the
-Supabase SQL Editor before the build PR merges into `dev`:
+**Migration 0045** (additive: two new tables, three new functions; nothing
+existing changes, so the old code keeps working). The owner runs this by hand in
+the Supabase SQL Editor before the build PR merges into `dev`:
 
 ```sql
--- Players see the initiative order and add their own character (T-100).
+-- Players see the initiative order and manage their own characters (T-100).
 -- The DM mirrors a privacy-filtered copy of the combat here: hidden combatants and
--- enemy HP are never uploaded. Members read; the owner (DM) writes; a player writes
--- only their own row, through join_combat() and leave_combat().
+-- enemy HP are never uploaded (an enemy row carries at most a health marker).
+-- Members read; the owner (DM) writes; a player writes only rows they own or
+-- control, through join_combat(), set_combat_initiative() and leave_combat().
 -- Run in Supabase -> SQL Editor.
 
 create table if not exists public.shared_combat (
@@ -259,23 +382,28 @@ alter table public.shared_combat enable row level security;
 create table if not exists public.shared_combatants (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references public.shared_combat(campaign_id) on delete cascade,
-  user_id uuid references public.profiles(id) on delete cascade,
+  -- The player who may edit this row's initiative and remove it.
+  controlled_by uuid references public.profiles(id) on delete set null,
+  source text not null default 'dm' check (source in ('dm', 'player')),
+  char_key text,
   name text not null check (char_length(name) between 1 and 60),
   kind text not null default 'enemy' check (kind in ('pc', 'ally', 'enemy')),
   initiative integer,
   sort_order integer not null default 0,
   hp integer,
   max_hp integer,
-  damage_taken integer not null default 0,
+  health_marker text check (health_marker in ('injured', 'bloodied', 'deaths_door')),
   conditions jsonb not null default '[]'::jsonb,
   group_count integer,
   updated_at timestamptz not null default now()
 );
 alter table public.shared_combatants enable row level security;
 create index if not exists shared_combatants_campaign_idx on public.shared_combatants (campaign_id);
--- One joined character per player per campaign.
-create unique index if not exists shared_combatants_user_uniq
-  on public.shared_combatants (campaign_id, user_id) where user_id is not null;
+create index if not exists shared_combatants_controller_idx on public.shared_combatants (campaign_id, controlled_by);
+-- One row per player character: a re-join updates it.
+create unique index if not exists shared_combatants_char_uniq
+  on public.shared_combatants (campaign_id, controlled_by, char_key)
+  where source = 'player' and char_key is not null;
 
 drop policy if exists "shared_combat owner" on public.shared_combat;
 create policy "shared_combat owner" on public.shared_combat for all to authenticated
@@ -293,50 +421,88 @@ drop policy if exists "shared_combatants read" on public.shared_combatants;
 create policy "shared_combatants read" on public.shared_combatants for select to authenticated
   using (public.is_member(campaign_id, (select auth.uid())));
 
--- A player joins (or, while the DM is still gathering, re-rolls) their own character.
+-- A player joins one of their characters. If a row already exists for them (they
+-- joined before, or the DM added the PC first), it updates that row's initiative
+-- instead of inserting a duplicate.
 create or replace function public.join_combat(
-  cid uuid, pname text, init integer, hp_now integer, hp_max integer
+  cid uuid, pname text, init integer, hp_now integer, hp_max integer, ckey text
 ) returns uuid language plpgsql security definer set search_path = public as $$
 declare
-  phase_now text;
+  uid uuid := auth.uid();
+  clean text := trim(coalesce(pname, ''));
   rid uuid;
+  rsrc text;
 begin
-  if not public.is_member(cid, auth.uid()) or public.is_owner(cid, auth.uid()) then
+  if uid is null or not public.is_member(cid, uid) or public.is_owner(cid, uid) then
     raise exception 'Only a player in this campaign can join.';
   end if;
-  select phase into phase_now from public.shared_combat where campaign_id = cid;
-  if phase_now is null then
+  if not exists (select 1 from public.shared_combat where campaign_id = cid) then
     raise exception 'The DM has not opened initiative.';
   end if;
-  if pname is null or char_length(trim(pname)) not between 1 and 60 then
+  if char_length(clean) not between 1 and 60 then
     raise exception 'Enter a name of 1 to 60 characters.';
   end if;
   if init is null or init not between -10 and 60 then
     raise exception 'Initiative must be between -10 and 60.';
   end if;
-  insert into public.shared_combatants (campaign_id, user_id, name, kind, initiative, hp, max_hp)
-  values (cid, auth.uid(), trim(pname), 'pc', init,
+
+  select id, source into rid, rsrc from public.shared_combatants
+   where campaign_id = cid and controlled_by = uid
+     and ((ckey is not null and char_key = ckey) or lower(name) = lower(clean))
+   order by (char_key = ckey) desc nulls last
+   limit 1;
+
+  if rid is not null then
+    update public.shared_combatants
+       set initiative = init,
+           name = case when rsrc = 'player' then clean else name end,
+           updated_at = now()
+     where id = rid;
+    return rid;
+  end if;
+
+  if (select count(*) from public.shared_combatants
+       where campaign_id = cid and controlled_by = uid and source = 'player') >= 6 then
+    raise exception 'You can add up to 6 characters.';
+  end if;
+  insert into public.shared_combatants
+      (campaign_id, controlled_by, source, char_key, name, kind, initiative, hp, max_hp)
+  values (cid, uid, 'player', coalesce(ckey, lower(clean)), clean, 'pc', init,
           least(greatest(coalesce(hp_now, 0), 0), 999), least(greatest(coalesce(hp_max, 0), 0), 999))
-  on conflict (campaign_id, user_id) where user_id is not null do update
-     set name = excluded.name,
-         -- Initiative locks once combat is active: no reroll after seeing the order.
-         initiative = case when phase_now = 'gathering' then excluded.initiative
-                           else public.shared_combatants.initiative end,
-         updated_at = now()
   returning id into rid;
   return rid;
 end $$;
-revoke all on function public.join_combat(uuid, text, integer, integer, integer) from public, anon;
-grant execute on function public.join_combat(uuid, text, integer, integer, integer) to authenticated;
+revoke all on function public.join_combat(uuid, text, integer, integer, integer, text) from public, anon;
+grant execute on function public.join_combat(uuid, text, integer, integer, integer, text) to authenticated;
 
--- A player leaves: removes only their own row.
-create or replace function public.leave_combat(cid uuid)
+-- A player changes the initiative of a combatant they own or control, any time.
+create or replace function public.set_combat_initiative(cid uuid, rid uuid, init integer)
 returns void language plpgsql security definer set search_path = public as $$
 begin
-  delete from public.shared_combatants where campaign_id = cid and user_id = auth.uid();
+  if init is null or init not between -10 and 60 then
+    raise exception 'Initiative must be between -10 and 60.';
+  end if;
+  update public.shared_combatants
+     set initiative = init, updated_at = now()
+   where id = rid and campaign_id = cid and controlled_by = auth.uid()
+     and public.is_member(cid, auth.uid());
+  if not found then
+    raise exception 'You can only change your own character.';
+  end if;
 end $$;
-revoke all on function public.leave_combat(uuid) from public, anon;
-grant execute on function public.leave_combat(uuid) to authenticated;
+revoke all on function public.set_combat_initiative(uuid, uuid, integer) from public, anon;
+grant execute on function public.set_combat_initiative(uuid, uuid, integer) to authenticated;
+
+-- A player removes a combatant they own or control.
+create or replace function public.leave_combat(cid uuid, rid uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.shared_combatants
+   where id = rid and campaign_id = cid and controlled_by = auth.uid()
+     and public.is_member(cid, auth.uid());
+end $$;
+revoke all on function public.leave_combat(uuid, uuid) from public, anon;
+grant execute on function public.leave_combat(uuid, uuid) to authenticated;
 
 -- Live updates. REPLICA IDENTITY FULL so DELETE events carry campaign_id for RLS (see 0008).
 alter table public.shared_combat replica identity full;
@@ -354,79 +520,103 @@ begin
 end $$;
 ```
 
-Build-time check: confirm the number 0045 is free when the build starts (T-98 or
-T-99 may claim it), and confirm `gen_random_uuid()` is available (it is on
-Supabase).
+Build-time checks: confirm the number 0045 is free when the build starts (T-98 or
+T-99 may claim it), and re-read the SQL against the then-current `is_member`.
+Known limit: the DM adding a PC for a player who has not joined yet creates a
+`source = 'dm'` row; if the player later joins under a different name, they get a
+second row, and the DM removes one. The name match covers the usual case.
 
-**The `gathering` phase** is the one optional piece. The DM presses **Ask players
-for initiative** (or **Start combat**, which skips straight to `active`).
-`gathering` lets players roll before the DM adds NPCs, and it moves the NPC
-warning to the moment of **Start combat**. If the owner prefers the smallest
-version, drop `gathering`: the row exists only while combat is active and joining
-is allowed only then.
+**The `gathering` phase** is part of the design (owner decision): the DM presses
+**Ask players for initiative** to open it, and **Start combat** moves it to
+`active`. NPCs stay private until **Start combat**, where the warning fires.
 
 ### 5. Demo and tests
 
 **Demo.** The demo never reaches Supabase. `useDmLiveCombat` sets `available =
-false` for `isDemo()`, exactly like `useDmLiveScene`. The DM warning, the hide
-toggle, and **Start combat** work in the demo against local state. The player
-strip has no data source in the demo, so the owner sees it two ways: the
-`player-initiative-mockup.html` file, and a Playwright test that serves it from
-mocked responses. The `PlayerInitiativeStrip` component takes plain props
-(`entries`, `round`, `activeIds`, `mine`), so it renders from fixtures without
+false` for `isDemo()`, exactly like `useDmLiveScene`. The DM warning (with its
+preference checkbox), the hide toggle, the health marker toggles, the player
+assignment, and **Start combat** work in the demo against local state. The player
+strip has no data source in the demo, so the owner sees it in the
+`player-initiative-mockup.html` file, and in a Playwright test that serves it
+from mocked responses. The `PlayerInitiativeStrip` component takes plain props
+(`entries`, `round`, `activeIds`, `mineIds`), so it renders from fixtures without
 any network.
 
 **Playwright (mocked Supabase, like `e2e/world-map-detail.spec.ts`).** New
 `e2e/player-initiative.spec.ts`:
 
 - strip renders from mocked `shared_combat` and `shared_combatants` responses:
-  order, round, current turn, ally HP shown, enemy HP absent, group shows "×3"
-  and no member names;
-- hidden combatant absent from the strip (the mock never includes it; the unit
-  test of the upload filter proves the DM side);
-- **Join initiative**: the mocked `rpc/join_combat` is called once with the typed
-  initiative, the button becomes **Leave initiative**, and **Leave** calls
-  `rpc/leave_combat`;
-- the strip is absent when `shared_combat` is empty, and no `join_combat` call
-  fires;
+  order, round, current turn, enemy initiative numbers shown, ally HP shown, enemy
+  HP and damage absent, a group shows "×3" and no member names;
+- health markers: a mocked row with `health_marker: 'bloodied'` shows "Bloodied";
+  a row with none shows nothing;
+- the player's own chip and an assigned mount chip carry the "yours" outline; a
+  chip they do not control has no edit control;
+- **Join initiative**: the mocked `rpc/join_combat` is called with the typed
+  initiative and `char_key`; **Add another** joins a second character; editing
+  initiative calls `rpc/set_combat_initiative` at any phase; **Leave** calls
+  `rpc/leave_combat` with the row id;
+- the strip is absent when `shared_combat` is empty, and no RPC fires;
 - phone landscape (844 × 390) collapses the strip and the board keeps its size;
-- DM warning on the demo: adding two NPCs while active shows the dialog with
-  both names; **Cancel** adds none; **Add** adds both; the "Do not ask again"
-  box suppresses the second dialog; adding a PC and adding a hidden NPC show no
-  dialog; building a group shows none;
+- DM warning on the demo: adding two NPCs while active shows the dialog with both
+  names on every add; **Cancel** adds none; **Add** adds both; the **Don't show
+  this message again** box suppresses later dialogs, persists across a reload, and
+  **Reset hidden messages** brings it back; adding a PC and adding a hidden NPC
+  show no dialog; building a group shows none;
+- DM fallback: adding a PC for a player who already joined is skipped with a toast;
+- **The dialog never renders for players.** On the player routes
+  (`/player/:campaignId/session` and the other `/player/...` pages), with mocked
+  Supabase: a row appearing in `shared_combatants` (a Realtime payload and a
+  refetch) adds a chip and no `[role=dialog]` named "Show these combatants to
+  players?"; **Join initiative**, an initiative edit, **Leave**, and a controlling
+  player's mount edit never render it; and a spy on `confirmReveal` (exposed on
+  `window` in test builds only) records 0 calls. The same assertions run in
+  **preview as player** from the DM side (check the preview mode flag at build
+  time). A unit test also checks that `confirmReveal` returns true with no dialog
+  for a player campaign.
 - `supabaseRequests` stays empty for the demo tests.
 
-Vitest-style unit tests (pure functions): `publicCombatRows(combat, groups,
-tokens)` (privacy filter, group collapse), `needsRevealWarning(...)`.
+Unit tests (pure functions): `publicCombatRows(combat, groups, tokens, settings)`
+(privacy filter, group collapse, marker thresholds at 50, 25, and under 5 percent,
+marker off by default, per-combatant override), `needsRevealWarning(...)`, and the
+PC duplicate check.
 
 **Cannot be tested without two signed-in accounts** (use the owner's DM account
 and a test player on the live site, or the local Supabase stack from `e2e:live`
-with two seeded users):
+with two or three seeded users):
 
 - a real Realtime round trip from the DM's push to a player's strip;
-- the player's join reaching the DM and appearing in the DM's tracker;
-- RLS and RPC denial for a second player trying someone else's row, and for anon;
+- a player's join, initiative edit, or leave reaching the DM and the DM's tracker;
+- RLS and RPC denial for a second player trying someone else's row or an
+  unassigned NPC, and for anon;
+- a mount assigned to one player staying untouchable by another;
 - the DM's tab closed while a player joins, then reopened;
 - Google sign-in itself (production domain only).
 
 ### 6. Risks and open questions for the owner
 
-1. **Start-of-combat warning.** With the `gathering` phase, NPCs added before
-   **Start combat** stay private, and the warning fires at **Start**. Is that
-   right, or do you want the warning at every add, even before combat starts?
-2. **Join before combat.** Do you want the **Ask players for initiative** step
-   (recommended), or the smaller version where players join only after the DM has
-   started combat?
-3. **Initiative lock.** Players can change their roll only before combat starts.
-   Is that too strict?
-4. **More than one character.** v1 allows one character per player. Does anyone
-   play two characters?
-5. **Visible initiative numbers.** Players see every revealed combatant's
-   initiative number, including enemies. Do you want enemies' numbers hidden
-   (order only)?
-6. **Risk: combat mirror drift.** The DM's `localStorage` combat is the source
-   of truth, and the cloud is a mirror. A DM who clears browser data mid-combat
-   loses the combat, but the players' rows stay until the DM ends it. The DM's
-   **End combat** clears them.
-7. **Risk: sequencing.** The build touches `combat.ts`, the roster, and
-   `BattleMapPage.tsx`. It must wait for PR 162 and T-99, then rebase.
+Resolved by the owner: warning on every add with a persistent checkbox; an **Ask
+players for initiative** step with the player's join as the primary path and no
+duplicates from the DM fallback; initiative editable by players at any time;
+several characters per player and NPCs assignable to players; enemy initiative
+visible, enemy HP never, with optional health markers.
+
+New open questions:
+
+1. **`damageTaken` on tokens.** Enemy tokens on the player board already show
+   damage taken. With markers opt-in and off by default, players still see damage
+   numbers on tokens. Do you want to keep that (my recommendation: keep, change
+   nothing), or put it behind the same opt-in?
+2. **Rejoining an assigned NPC.** A player can edit and leave with an assigned
+   mount, but only the DM can put it back in. Is that enough, or should a
+   player-controlled NPC be able to rejoin by itself?
+
+Risks:
+
+- **Combat mirror drift.** The DM's `localStorage` combat is the source of truth,
+  and the cloud is a mirror. A DM who clears browser data mid-combat loses the
+  combat, but the players' rows stay until the DM ends it.
+- **Mid-combat initiative edits.** A player can move their own slot at any time.
+  The DM sees the old and new values in a toast, and can edit it back.
+- **Sequencing.** The build touches `combat.ts`, the roster, and
+  `BattleMapPage.tsx`. It must wait for PR 162 and T-99, then rebase.

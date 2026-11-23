@@ -47,35 +47,38 @@ button{font:inherit;color:inherit;cursor:pointer}
 <p class="note">Demo data only. Tokens come from stitch-design-language.md.</p>
 
 <h2>1. Player strip, with Join and Leave</h2>
-<p class="note">Allies show HP. Enemies show only damage taken. A group is one chip. Hidden combatants do not appear.</p>
+<p class="note">Enemy initiative is visible. Allies show HP. Enemies show an optional health marker (Injured, Bloodied, Death's door), never HP. Dashed outline = yours (own character or assigned mount); the pencil edits its initiative at any time. A group is one chip. Hidden combatants do not appear.</p>
 <div class="card">
   <div class="strip">
     <span class="round">Round 2</span>
     <div class="chips">
-      <span class="chip"><b>19</b> Grok the Ogre <span class="dot foe"></span><small>−12 dmg</small></span>
+      <span class="chip"><b>19</b> Grok the Ogre <span class="dot foe"></span><small>Bloodied</small></span>
       <span class="chip now"><b>17</b> Aria <span class="dot pc"></span><small>24/31 HP</small></span>
-      <span class="chip me"><b>14</b> Brann (you) <span class="dot pc"></span><small>38/38 HP</small></span>
+      <span class="chip me"><b>14</b> Brann <span class="dot pc"></span><small>38/38 HP</small> <button class="btn" style="padding:0 6px;font-size:12px" title="Edit initiative">✎</button></span>
+      <span class="chip me"><b>13</b> Biscuit the mule <span class="dot pc"></span><small>11/11 HP</small> <button class="btn" style="padding:0 6px;font-size:12px" title="Edit initiative">✎</button></span>
       <span class="chip"><b>12</b> Thugs ×3 <span class="dot foe"></span></span>
       <span class="chip"><b>8</b> Sel <span class="dot pc"></span><small>Poisoned</small></span>
     </div>
-    <button class="btn">Leave initiative</button>
+    <button class="btn">Leave: Brann</button><button class="btn">Add another</button>
   </div>
   <div class="map">Live battle map</div>
 </div>
 
-<h2>2. Join popover</h2>
+<h2>2. Join popover (before you join)</h2>
 <div class="pop">
+  <div class="row"><label>Character<input type="text" value="Brann" style="width:150px"></label></div>
   <div class="row"><label>Initiative<input type="number" value="14"></label><button class="btn" style="margin-top:18px">Reroll (d20 + 2)</button></div>
   <div class="row"><button class="btn primary">Join</button><button class="btn">Cancel</button></div>
 </div>
 
-<h2>3. DM warning dialog</h2>
+<h2>3. DM warning dialog (DM only)</h2>
+<p class="note">Only the DM sees this. Players never see a dialog: a new combatant just appears as a chip in the strip (section 1).</p>
 <div class="dlg-wrap">
   <div class="dlg" role="dialog" aria-label="Show these combatants to players?">
     <h2 style="margin:0;color:var(--text)">Show these combatants to players?</h2>
     <div>Everyone in the live session will see these combatants once they appear:</div>
     <ul><li>Goblin 1</li><li>Goblin 2</li><li>Grok the Ogre</li></ul>
-    <label class="chk"><input type="checkbox"> Do not ask again this session</label>
+    <label class="chk"><input type="checkbox"> Don't show this message again</label>
     <div class="acts"><button class="btn">Cancel</button><button class="btn primary">Add</button></div>
   </div>
 </div>
