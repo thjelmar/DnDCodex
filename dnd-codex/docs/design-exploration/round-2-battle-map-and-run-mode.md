@@ -121,8 +121,9 @@ Still to fix:
 - **Turn pulse and Round pill.** The current turn's token pulses on the map and
   in the lineup. Use one calm halo animation (1.8 seconds, no movement) driven by
   the `--accent` token, and replace it with a static ring when the user prefers
-  reduced motion. Keep Stitch's "Round X" pill at the top center of the map with
-  the current name and a Next turn button; Next turn advances the pulse and adds
+  reduced motion. Build Stitch's "Round X" into the turn order strip at the bottom left
+  (owner decision, not a separate pill over the map): the strip reads "Round 2",
+  the current name, a Next button (key `N`), then the combatant chips. Next advances the pulse and adds
   1 to the round after the last combatant.
 - **Inspector header.** Header controls (float, window, close) are icon-only with
   tooltips so they fit in the 300px panel.
