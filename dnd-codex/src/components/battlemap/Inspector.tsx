@@ -48,6 +48,7 @@ export function Inspector({
   onClose,
   extraTabs,
   foldScene = false,
+  noun = 'inspector',
   children,
 }: {
   mode: InspectorMode
@@ -57,6 +58,8 @@ export function Inspector({
   extraTabs?: ExtraInspectorTab[]
   /** Show one Scene tab in place of Tokens, Grid and Map. */
   foldScene?: boolean
+  /** What the panel is called in tooltips and labels: the scene inspector, or Run mode's panel. */
+  noun?: string
   onToggleFloat: () => void
   /** Moves the inspector to its own window (omitted where that is not offered). */
   onOpenWindow?: () => void
@@ -103,7 +106,7 @@ export function Inspector({
       ref={root}
       className={`bm-insp bm-insp-${mode}`}
       style={style}
-      aria-label="Scene inspector"
+      aria-label={noun === 'inspector' ? 'Scene inspector' : 'Run panel'}
       data-testid="bm-inspector"
     >
       <div
@@ -135,8 +138,8 @@ export function Inspector({
             type="button"
             className="bm-icon-btn"
             onClick={onOpenWindow}
-            title="Open the inspector in its own window, so you can move it off the page"
-            aria-label="Open the inspector in its own window"
+            title={`Open the ${noun} in its own window, so you can move it off the page`}
+            aria-label={`Open the ${noun} in its own window`}
           >
             <BmIcon name="window" size={16} />
           </button>
@@ -146,8 +149,8 @@ export function Inspector({
             type="button"
             className="bm-icon-btn"
             onClick={onToggleFloat}
-            title={mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map'}
-            aria-label={mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map'}
+            title={mode === 'float' ? `Dock the ${noun}` : `Float the ${noun} over the map`}
+            aria-label={mode === 'float' ? `Dock the ${noun}` : `Float the ${noun} over the map`}
           >
             <BmIcon name={mode === 'float' ? 'dock' : 'float'} size={16} />
           </button>
@@ -156,8 +159,8 @@ export function Inspector({
           type="button"
           className="bm-icon-btn"
           onClick={onClose}
-          title={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector (I)'}
-          aria-label={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector'}
+          title={mode === 'window' ? `Close the window and dock the ${noun}` : `Hide the ${noun} (I)`}
+          aria-label={mode === 'window' ? `Close the window and dock the ${noun}` : `Hide the ${noun}`}
         >
           <BmIcon name="close" size={16} />
         </button>

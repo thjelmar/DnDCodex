@@ -3195,7 +3195,7 @@ kbd {
 .run-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   padding: 16px 20px 0;
   box-sizing: border-box;
 }
@@ -3227,10 +3227,12 @@ kbd {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 430px;
+  /* The phone path only (desktop and tablets use the studio, see .run-studio): one column.
+     minmax(0, 1fr): a bare 1fr lets wide content stretch the column past the screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
-.run-col { min-height: 0; overflow-y: auto; padding: 14px 2px 40px; }
+.run-col { min-height: 0; overflow: visible; padding: 14px 2px 10px; min-width: 0; }
 .run-col-heading {
   display: flex;
   align-items: center;
@@ -3301,10 +3303,6 @@ kbd {
 .run-center-switch { margin-bottom: 12px; }
 .run-map-pick { width: auto; max-width: 320px; margin-bottom: 10px; }
 .run-map .tabletop-view { height: calc(100vh - 250px); height: calc(100dvh - 250px); min-height: 380px; }
-/* Battle Map pane: give the board the room (narrower In-play and tools columns). */
-.run-grid.map-mode { grid-template-columns: 200px minmax(0, 1fr) 340px; }
-@media (max-width: 1280px) { .run-grid.map-mode { grid-template-columns: 180px minmax(0, 1fr) 320px; } }
-@media (max-width: 1050px) { .run-grid.map-mode { grid-template-columns: minmax(0, 1fr); } }
 .run-session-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .run-session-title h2 { font-size: 20px; }
 
@@ -3464,16 +3462,6 @@ kbd {
 }
 .linklike:hover { text-decoration: underline; }
 
-@media (max-width: 1280px) {
-  .run-grid { grid-template-columns: 220px minmax(0, 1fr) 380px; }
-}
-@media (max-width: 1050px) {
-  .run-page { height: auto; }
-  /* minmax(0, 1fr): a bare 1fr lets wide content (a long tip, a nowrap row) stretch
-     the column past the screen. */
-  .run-grid { grid-template-columns: minmax(0, 1fr); }
-  .run-col { overflow: visible; padding-bottom: 10px; min-width: 0; }
-}
 
 /* "My Character" structured sheet (CharacterSheet.tsx). */
 .char-sheet { display: flex; flex-direction: column; gap: 16px; margin: 10px 0 4px; }
@@ -5528,3 +5516,30 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .il-full { margin-left: auto; font-size: 12px; color: var(--text-dim); }
 .il-add { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .il-foot .bm-menu-up, .bm-menu-up { top: auto; bottom: calc(100% + 4px); }
+
+/* Run mode, phase 3: the map column (the dice row sits under the map), timer, dice bar, voice roster. */
+.bm-contents { display: contents; }
+.bm-mapcol { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.bm-mapcol > .bm-map { flex: 1; min-height: 0; }
+.bm-dicerow { flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 0; background: var(--bg-elev); border-top: 1px solid var(--border); }
+.bm-dice-chip { position: absolute; right: 12px; bottom: 12px; z-index: 5; }
+.dice-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; overflow-x: auto; scrollbar-width: none; }
+.dice-bar::-webkit-scrollbar { display: none; }
+.dice-bar-dice { display: flex; gap: 4px; flex: none; }
+.dice-bar-die { min-width: 38px; height: 32px; padding: 0 6px; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dice-bar-die:hover { border-color: var(--accent); }
+.dice-bar-expr { width: 110px; flex: none; height: 32px; padding: 0 9px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 13px; }
+.dice-bar .bm-btn { height: 32px; }
+.dice-bar-last { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: none; font-size: 12px; white-space: nowrap; }
+.dice-bar-last b { font-family: var(--serif); font-size: 18px; color: var(--accent); }
+.run-timer { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 4px 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); font-variant-numeric: tabular-nums; font-size: 13px; }
+.run-timer-dot { width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--accent); }
+.run-timer.running .run-timer-dot { animation: il-pulse 1.8s ease-out infinite; }
+.run-timer.paused { color: var(--text-dim); }
+.run-timer.paused .run-timer-dot { background: var(--text-faint); }
+.run-timer .bm-icon-btn { width: 26px; height: 26px; }
+@media (prefers-reduced-motion: reduce) { .run-timer.running .run-timer-dot { animation: none; } }
+@media (max-width: 1280px) { .run-timer-lbl { display: none; } }
+/* The voice roster floats at the top left of the map, not above the page. */
+.bm-voice { position: absolute; z-index: 4; top: 10px; left: 10px; max-width: 45%; }
+.bm-voice .voice-roster { margin: 0; padding: 4px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; }

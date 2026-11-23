@@ -262,6 +262,14 @@ export function SceneEditor({
     topEnd?: ReactNode
     /** Docked only: the In play rail button and flyout. */
     play?: { count: number; content: ReactNode }
+    /** Docked only: after the map switcher in the top bar (the run timer). */
+    topMid?: ReactNode
+    /** Docked only: the quick dice row under the map. It hides while the Dice tab is open. */
+    diceBar?: ReactNode
+    /** Docked only: floats at the top left of the map (the voice roster). */
+    mapOverlay?: ReactNode
+    /** The id of the tab that holds the full dice roller. */
+    diceTabId?: string
   }
 }) {
   const confirm = useConfirm()
@@ -451,6 +459,14 @@ export function SceneEditor({
   // Docked Run mode folds Tokens, Grid and Map into one Scene tab with sub-tabs.
   const [sceneSub, setSceneSub] = useState<'tokens' | 'grid' | 'map'>('tokens')
   const [playOpen, setPlayOpen] = useState(false)
+  // The dice bar can be collapsed; the choice is remembered on this device.
+  const [diceOff, setDiceOff] = useState(() => {
+    try { return localStorage.getItem('codex.runDice.off') === '1' } catch { return false }
+  })
+  const setDice = (off: boolean) => {
+    setDiceOff(off)
+    try { localStorage.setItem('codex.runDice.off', off ? '1' : '0') } catch { /* ignore */ }
+  }
   // Pans the board to these tokens when a combatant is picked outside the board (Run mode's list).
   const [focus, setFocus] = useState<{ ids: string[]; seq: number }>({ ids: [], seq: 0 })
   const [tokenFilter, setTokenFilter] = useState('')
@@ -1264,7 +1280,7 @@ export function SceneEditor({
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
   // (Hooks above run in every layout; this effect only acts in the studio.)
-  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {} })
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {}, toggleDice: () => {} })
   const preview0 = preview
   function selectTool() {
     setFogTool(null)
@@ -1285,6 +1301,7 @@ export function SceneEditor({
     measure: () => !preview0 && toggleMeasure(),
     closeDrawer: () => { setDrawerOpen(false); setPlayOpen(false) },
     togglePlay: () => runKit?.play && setPlayOpen((o) => !o),
+    toggleDice: () => runKit?.diceBar && setDice(!diceOff),
     next: () => combat.state.active && combat.step(1),
   }
   useEffect(() => {
@@ -1301,6 +1318,7 @@ export function SceneEditor({
       else if (k === 'm') a.measure()
       else if (k === 'n') a.next()
       else if (k === '[') a.togglePlay()
+      else if (k === 'd') a.toggleDice()
       else if (k === 'escape') a.closeDrawer()
     }
     window.addEventListener('keydown', onKey)
@@ -1386,6 +1404,10 @@ export function SceneEditor({
       ? ['tokens', 'grid', 'map'].includes(inspTab) ? 'scene' : inspTab
       : inspTab === 'scene' ? 'tokens' : inspTab
     const sceneView = foldScene ? (tabId === 'scene' ? sceneSub : null) : tabId
+    // The dice bar hides while the Dice tab is open (the tab holds the full roller). Collapsed, a chip brings it back.
+    const diceTabOpen = !!runKit?.diceTabId && (inspVisible || !!iw.win) && tabId === runKit.diceTabId
+    const diceBarShown = runDocked && !!runKit?.diceBar && !diceOff && !diceTabOpen
+    const diceChipShown = runDocked && !!runKit?.diceBar && diceOff && !diceTabOpen
     const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
     const inspectorEl = (
       <Inspector
@@ -1394,6 +1416,7 @@ export function SceneEditor({
         onTab={setInspTab}
         extraTabs={runKit?.tabs}
         foldScene={foldScene}
+        noun={runDocked ? 'panel' : 'inspector'}
         onToggleFloat={() => setInspFloat((f) => !f)}
         onOpenWindow={isPhone ? undefined : iw.open}
         onClose={() => {
@@ -1562,10 +1585,10 @@ export function SceneEditor({
         {createPortal(inspectorEl, iw.win.document.body)}
         {inspVisible && (
           <aside className={`bm-insp bm-stub ${asDrawer ? 'bm-insp-drawer' : 'bm-insp-docked'}`} data-testid="bm-inspector-stub">
-            <div className="bm-stub-title">Inspector is in its own window</div>
+            <div className="bm-stub-title">{runDocked ? 'The panel' : 'Inspector'} is in its own window</div>
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
               {iw.onTop
-                ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+                ? 'This window stays on top of other windows. Close it to dock the ' + (runDocked ? 'panel' : 'inspector') + ' again.'
                 : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge 116 or later can keep it on top.'}
             </p>
             <button type="button" className="bm-btn" onClick={toggleInspector}>
@@ -1655,9 +1678,11 @@ export function SceneEditor({
             )}
           </BmMenu>
         )}
+        {runKit?.topMid}
         <span className="bm-spacer" />
         {runKit?.topEnd}
         {liveEl}
+        {/* T-99: the Undo icon button goes here, before Full screen. */}
         <button
           type="button"
           className="bm-btn bm-sq"
@@ -2012,7 +2037,9 @@ export function SceneEditor({
             </div>
           )}
 
+          <div className={runDocked ? 'bm-mapcol' : 'bm-mapcol bm-contents'}>
           <div className="bm-map">
+            {runDocked && runKit?.mapOverlay && <div className="bm-voice">{runKit.mapOverlay}</div>}
             {board}
             {preview && (
               <div className="bm-banner" role="status">
@@ -2065,6 +2092,20 @@ export function SceneEditor({
             {asDrawer && drawerOpen && <div className="bm-scrim" onClick={() => setDrawerOpen(false)} aria-hidden />}
             {inspMode !== 'docked' && inspMode !== 'window' && inspector}
             {inspMode === 'window' && asDrawer && inspector}
+            {diceChipShown && (
+              <button type="button" className="bm-btn bm-dice-chip" onClick={() => setDice(false)} aria-label="Show the dice bar" title="Show the dice bar (D)">
+                <BmIcon name="dice" size={16} /> Dice <BmIcon name="chevron-down" size={14} />
+              </button>
+            )}
+          </div>
+          {diceBarShown && (
+            <div className="bm-dicerow">
+              {runKit.diceBar}
+              <button type="button" className="bm-icon-btn" onClick={() => setDice(true)} aria-label="Hide the dice bar" title="Hide the dice bar (D)">
+                <BmIcon name="chevron-down" size={16} />
+              </button>
+            </div>
+          )}
           </div>
           {inspMode === 'docked' && inspector}
           {inspMode === 'window' && !asDrawer && inspector}

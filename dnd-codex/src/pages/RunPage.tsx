@@ -16,6 +16,8 @@ import { BmIcon } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { InitiativeList } from '../components/InitiativeList'
+import { DiceBar } from '../components/DiceBar'
+import { RunTimer } from '../components/RunTimer'
 import { RunHandouts } from '../components/RunHandouts'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
 import { VoiceRoster } from '../components/VoiceRoster'
@@ -267,6 +269,10 @@ export function RunPage() {
   const deskKit = {
     tabs: deskTabs,
     play: { count: inPlay.length, content: inPlayBody },
+    topMid: <RunTimer sessionId={session?.id ?? null} />,
+    diceBar: <DiceBar />,
+    diceTabId: 'run-dice',
+    mapOverlay: <VoiceRoster channelId={campaign.discordVoiceChannelId} />,
     topStart: (
       <>
         <Link to={`/campaign/${campaign.id}`} className="bm-btn bm-sq" aria-label="Exit run mode" title="Exit run mode">
@@ -350,7 +356,6 @@ export function RunPage() {
     return (
       <div className="run-page run-studio">
         <LiveSceneKeeper campaign={campaign} />
-        <VoiceRoster channelId={campaign.discordVoiceChannelId} />
         <RunBattleMap
           campaign={campaign}
           sessionId={session?.id ?? null}
