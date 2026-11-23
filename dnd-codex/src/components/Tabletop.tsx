@@ -311,10 +311,23 @@ export function Tabletop({
     // Safari's own page-pinch gesture events: stop them so a pinch on the board
     // never zooms or scrolls the page.
     const stop = (e: Event) => e.preventDefault()
+    // iOS Safari does not always honor `touch-action: none` inside a scrolling page.
+    // Cancel touch scrolling ourselves (non-passive listeners) whenever a second
+    // finger is down or a pan, token drag or pinch is under way.
+    const holdTouch = (e: TouchEvent) => {
+      if (e.touches.length >= 2 || drag.current || pinch.current) e.preventDefault()
+    }
+    const holdTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault()
+    }
+    el.addEventListener('touchstart', holdTouchStart, { passive: false })
+    el.addEventListener('touchmove', holdTouch, { passive: false })
     el.addEventListener('wheel', onWheel, { passive: false })
     el.addEventListener('gesturestart', stop)
     el.addEventListener('gesturechange', stop)
     return () => {
+      el.removeEventListener('touchstart', holdTouchStart)
+      el.removeEventListener('touchmove', holdTouch)
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('gesturestart', stop)
       el.removeEventListener('gesturechange', stop)
@@ -334,7 +347,7 @@ export function Tabletop({
 
   function onBgPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) return
-    wrapRef.current?.focus()
+    wrapRef.current?.focus({ preventScroll: true })
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
     if (measureTool) {
       const p = toBoard(e.clientX, e.clientY)
@@ -431,7 +444,7 @@ export function Tabletop({
       return
     }
     e.stopPropagation()
-    wrapRef.current?.focus()
+    wrapRef.current?.focus({ preventScroll: true })
     ;(e.currentTarget as Element).setPointerCapture?.(e.pointerId)
     const c = tokenCenter(grid, t)
     const p = toBoard(e.clientX, e.clientY)

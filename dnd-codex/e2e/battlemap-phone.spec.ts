@@ -209,3 +209,82 @@ test.describe('board gestures', () => {
     expect((await readXf(page)).tx).toBeGreaterThan(after.tx + 30)
   })
 })
+
+// ---- The page must not scroll during a pinch ------------------------------------
+
+/** Scroll positions of the document and of every scrolling ancestor of the board. */
+const scrollState = (page: Page) =>
+  page.evaluate(() => {
+    const out: number[] = [document.scrollingElement?.scrollTop ?? 0]
+    for (let e: Element | null = document.querySelector('.tabletop-view'); e; e = e.parentElement) out.push(e.scrollTop)
+    return out
+  })
+
+test.describe('a pinch never scrolls the page', () => {
+  async function openRunMapPartlyVisible(page: Page): Promise<void> {
+    await openDemo(page, `run/${CAMPAIGN}`, 375, 600)
+    await page.locator('button', { hasText: 'Battle Map' }).click()
+    await expect(page.locator('.tabletop-view')).toBeVisible()
+    // Scroll until the board's top edge is off screen, so only part of it shows (the focus call would scroll it back).
+    await page.evaluate(() => {
+      const v = document.querySelector('.tabletop-view')!
+      let e: Element | null = v
+      while (e && !(e.scrollHeight > e.clientHeight + 40 && /(auto|scroll)/.test(getComputedStyle(e).overflowY))) e = e.parentElement
+      const sc = e ?? document.scrollingElement!
+      sc.scrollTop = v.getBoundingClientRect().top + sc.scrollTop + 100
+    })
+  }
+
+  test('on Run mode, with the board partly on screen', async ({ page }) => {
+    await openRunMapPartlyVisible(page)
+    const start = await scrollState(page)
+    expect(Math.max(...start)).toBeGreaterThan(0)
+    const v = await viewBox(page)
+    const mx = v.x + v.width / 2
+    const my = Math.max(v.y, 0) + Math.min(v.height, 600 - Math.max(v.y, 0)) / 2
+    const before = await readXf(page)
+    await touch(page, 'pointerdown', 1, mx - 30, my)
+    await touch(page, 'pointerdown', 2, mx + 30, my)
+    for (let i = 1; i <= 6; i++) {
+      await touch(page, 'pointermove', 1, mx - 30 - i * 8, my)
+      await touch(page, 'pointermove', 2, mx + 30 + i * 8, my)
+      expect(await scrollState(page)).toEqual(start)
+    }
+    await touch(page, 'pointerup', 2, mx + 78, my)
+    await touch(page, 'pointerup', 1, mx - 78, my)
+    expect(await scrollState(page)).toEqual(start)
+    expect((await readXf(page)).k).toBeGreaterThan(before.k)
+  })
+
+  test('touchstart and touchmove with two fingers are cancelled, so the browser cannot scroll', async ({ page }) => {
+    await openRunMapPartlyVisible(page)
+    const r = await page.evaluate(() => {
+      const view = document.querySelector('.tabletop-view')!
+      // A plain event with a `touches` list: the Touch constructor is missing in some engines.
+      const mk = (type: string, n: number) => {
+        const e = new Event(type, { bubbles: true, cancelable: true })
+        Object.defineProperty(e, 'touches', { value: Array.from({ length: n }, (_, i) => ({ identifier: i + 1, clientX: 100 + i * 60, clientY: 300 })) })
+        return e
+      }
+      const one = mk('touchmove', 1)
+      view.dispatchEvent(one)
+      const twoStart = mk('touchstart', 2)
+      view.dispatchEvent(twoStart)
+      const twoMove = mk('touchmove', 2)
+      view.dispatchEvent(twoMove)
+      return { oneFinger: one.defaultPrevented, twoStart: twoStart.defaultPrevented, twoMove: twoMove.defaultPrevented }
+    })
+    // A lone finger on empty board is not a gesture yet, so it is left alone; two fingers are always cancelled.
+    expect(r.twoStart).toBe(true)
+    expect(r.twoMove).toBe(true)
+  })
+
+  test('focusing the board does not scroll the page', async ({ page }) => {
+    await openRunMapPartlyVisible(page)
+    const start = await scrollState(page)
+    const s = await emptySpot(page)
+    await touch(page, 'pointerdown', 1, s.x, s.y)
+    await touch(page, 'pointerup', 1, s.x, s.y)
+    expect(await scrollState(page)).toEqual(start)
+  })
+})

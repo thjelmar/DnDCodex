@@ -5080,7 +5080,11 @@ body.ov-dragging * { cursor: inherit !important; }
 /* Touch: a gesture on the board never scrolls or zooms the page. */
 .tabletop-view { overscroll-behavior: contain; }
 .main { overscroll-behavior: contain; }
-.tabletop-zoom, .tabletop-token-panel { touch-action: manipulation; }
+.tabletop-zoom, .tabletop-token-panel { touch-action: none; }
+.bm-turns { touch-action: none; }
+.bm-turns-chips { touch-action: pan-x; }
+/* A layout change during a pinch must not nudge the scroll position. */
+.main { overflow-anchor: none; }
 
 /* Monster groups (phase 4): a dashed ring on grouped tokens, a stacked chip in the strip, and the group panel. */
 .tabletop-group-ring { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 2px; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
