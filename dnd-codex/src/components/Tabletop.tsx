@@ -871,7 +871,12 @@ export function Tabletop({
 
                     {/* Active-turn ring, then the HP bar / damage number, then the
                         name below it — the stat never overlaps the name. */}
-                    {cc?.active && <circle r={r + Math.max(4, r * 0.2)} className="tabletop-combat-active" pointerEvents="none" />}
+                    {cc?.active && (
+                      <>
+                        <circle r={r + Math.max(4, r * 0.2)} className="tabletop-combat-active" pointerEvents="none" />
+                        <circle r={r + Math.max(4, r * 0.2)} className="tabletop-turn-halo" pointerEvents="none" />
+                      </>
+                    )}
                     {hpTracked && (() => {
                       const frac = Math.max(0, Math.min(1, (cc!.hp as number) / (cc!.maxHp as number)))
                       const bw = r * 1.7

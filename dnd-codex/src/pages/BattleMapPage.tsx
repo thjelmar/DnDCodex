@@ -23,6 +23,7 @@ import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { Inspector, TokenRow, type InspectorTab } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
+import { TurnStrip } from '../components/battlemap/TurnStrip'
 import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
@@ -1112,7 +1113,7 @@ export function SceneEditor({
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
   // (Hooks above run in every layout; this effect only acts in the studio.)
-  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {} })
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {} })
   const preview0 = preview
   function selectTool() {
     setFogTool(null)
@@ -1132,6 +1133,7 @@ export function SceneEditor({
     select: selectTool,
     measure: () => !preview0 && toggleMeasure(),
     closeDrawer: () => setDrawerOpen(false),
+    next: () => combat.state.active && combat.step(1),
   }
   useEffect(() => {
     if (!studio) return
@@ -1145,6 +1147,7 @@ export function SceneEditor({
       else if (k === 'f') a.fullscreen()
       else if (k === 'v') a.select()
       else if (k === 'm') a.measure()
+      else if (k === 'n') a.next()
       else if (k === 'escape') a.closeDrawer()
     }
     window.addEventListener('keydown', onKey)
@@ -1631,6 +1634,12 @@ export function SceneEditor({
                 {!live.isShowing && live.available && '. Not shown to players yet'}
               </div>
             )}
+            <TurnStrip
+              state={combat.state}
+              looks={Object.fromEntries(tokens.filter((t) => t.combatantId).map((t) => [t.combatantId as string, { color: live.colorFor(t) }]))}
+              onStart={combat.start}
+              onNext={() => combat.step(1)}
+            />
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
             {hintOn && !iw.error && tool === 'select' && !preview && !aligning && (
               <div className="bm-hint">Drag tokens to move. Arrow keys nudge.</div>

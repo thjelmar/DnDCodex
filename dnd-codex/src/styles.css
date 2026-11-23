@@ -3801,7 +3801,11 @@ kbd {
 .tabletop-ruler circle { fill: #fde047; }
 .tabletop-ruler-label { fill: #fde047; font-weight: 700; paint-order: stroke; stroke: rgba(0, 0, 0, 0.85); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 /* Combat overlay on tokens */
-.tabletop-combat-active { fill: none; stroke: #fbbf24; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.tabletop-combat-active { fill: none; stroke: var(--accent); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+/* Turn pulse: one calm halo, 1.8 seconds, no movement of the token. The accent token drives it. */
+.tabletop-turn-halo { fill: none; stroke: var(--accent); stroke-width: 3px; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; animation: bm-turn-halo 1.8s ease-out infinite; }
+@keyframes bm-turn-halo { 0% { opacity: 0.75; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(1.45); } }
+@media (prefers-reduced-motion: reduce) { .tabletop-turn-halo { animation: none; opacity: 0.45; transform: scale(1.2); } }
 .tabletop-hp-bg { fill: rgba(0, 0, 0, 0.55); }
 .tabletop-hp-fill.hp-hi { fill: #22c55e; }
 .tabletop-hp-fill.hp-mid { fill: #eab308; }
@@ -5047,6 +5051,31 @@ body.ov-dragging * { cursor: inherit !important; }
 .bm-stub { gap: 10px; padding: 14px; }
 .bm-stub-title { font-weight: 600; }
 .bm-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
+/* Turn order strip (battle map studio): round, whose turn, Next, then one chip per combatant. */
+.bm-turns {
+  position: absolute; left: 14px; bottom: 14px; z-index: 4; display: flex; align-items: center; gap: 8px;
+  max-width: calc(100% - 180px); padding: 5px 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px;
+}
+.bm-turns-round { display: grid; line-height: 1.15; padding: 0 4px 0 8px; white-space: nowrap; }
+.bm-turns-round strong { font-family: var(--serif); font-size: 15px; }
+.bm-turns-round small { color: var(--text-dim); font-size: 11px; }
+.bm-turns-next { height: 28px; border-radius: 999px; padding: 0 12px; font-size: 12px; }
+.bm-turns-sep { width: 1px; height: 22px; background: var(--border); flex: none; }
+.bm-turns-chips { display: flex; gap: 6px; align-items: center; margin: 0; padding: 0; list-style: none; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.bm-turns-chips::-webkit-scrollbar { display: none; }
+.bm-chip { display: grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--bg-elev-2); color: #fff; font-size: 11px; font-weight: 600; border: 2px solid transparent; }
+.bm-chip.down { opacity: 0.4; text-decoration: line-through; }
+.bm-chip.turn { border-color: var(--accent); animation: bm-chip-pulse 1.8s ease-out infinite; }
+@keyframes bm-chip-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 70%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 10px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .bm-chip.turn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent); } }
+@media (max-width: 820px) {
+  .bm-turns { bottom: 64px; max-width: calc(100% - 28px); }
+  .bm-turns-next { height: 38px; }
+}
 
 /* Touch: a gesture on the board never scrolls or zooms the page. */
 .tabletop-view { overscroll-behavior: contain; }
