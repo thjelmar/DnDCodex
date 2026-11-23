@@ -4615,6 +4615,12 @@ button.duel-die:focus-visible { outline: 2px solid var(--accent); outline-offset
 }
 
 .ov-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+/* The Counts card (T-91) lays its six tiles out by the card's own width, so a narrow card
+   never leaves one tile alone on a last row: 6 across, or 3 by 2, or 2 by 3. */
+.ov-counts { container-type: inline-size; }
+.ov-counts .ov-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container (min-width: 400px) { .ov-counts .ov-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container (min-width: 640px) { .ov-counts .ov-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .ov-tile {
   display: flex;
   flex-direction: column;

@@ -54,10 +54,40 @@ test.describe('overview layout model', () => {
     const s = saved({ cards: DEFAULT_LAYOUT.cards.filter((c) => c.id !== 'run'), hidden: ['run'] })
     const r = reconcile(s)
     expect(ids(r)).not.toContain('run')
-    expect(r.hidden).toEqual(['run'])
+    expect(r.hidden).toEqual(['run', 'counts'])
   })
 
   test('a layout from a newer version is ignored', () => {
     expect(reconcile({ ...saved(), version: 99 as 1 })).toEqual(DEFAULT_LAYOUT)
+  })
+
+  test('the counts card starts in the tray: default layout, and a layout saved before it existed', () => {
+    expect(ids(DEFAULT_LAYOUT)).not.toContain('counts')
+    expect(DEFAULT_LAYOUT.hidden).toEqual(['counts'])
+    expect(reconcile(null).hidden).toEqual(['counts'])
+    // Saved before the card existed: it does not know 'counts', so the card arrives in the tray, not on the page.
+    const old = saved({
+      cards: DEFAULT_LAYOUT.cards.map((c) => ({ ...c })),
+      knownIds: CARDS.map((c) => c.id).filter((i) => i !== 'counts'),
+    })
+    const r = reconcile(old)
+    expect(ids(r)).not.toContain('counts')
+    expect(r.hidden).toEqual(['counts'])
+  })
+
+  test('a saved layout that includes the counts card shows it, and a card left out of both lists goes to the tray', () => {
+    const withCounts = saved({ cards: [{ id: 'counts', span: 12 }, ...DEFAULT_LAYOUT.cards] })
+    expect(ids(reconcile(withCounts))[0]).toBe('counts')
+    expect(reconcile(withCounts).hidden).toEqual([])
+    // Known to the record but placed nowhere (hand-written or damaged): reachable in the tray, never lost.
+    const lost = saved({ cards: DEFAULT_LAYOUT.cards.filter((c) => c.id !== 'run'), hidden: [] })
+    expect(reconcile(lost).hidden.sort()).toEqual(['counts', 'run'])
+  })
+
+  test('a counts card the user hid stays hidden, and a width below its minimum is raised', () => {
+    const r = reconcile(saved({ cards: [{ id: 'counts', span: 4 }, ...DEFAULT_LAYOUT.cards] }))
+    expect(r.cards[0]).toEqual({ id: 'counts', span: 6 })
+    const hidden = reconcile(saved({ hidden: ['counts'] }))
+    expect(ids(hidden)).not.toContain('counts')
   })
 })
