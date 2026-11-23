@@ -4832,3 +4832,42 @@ a.ov-chip:hover { border-color: var(--accent); text-decoration: none; }
   .ov-edit-btn { min-height: 44px; min-width: 44px; justify-content: center; }
   .ov-edit-toolbar-name { flex: 1 0 100%; }
 }
+
+/* ---- Overview edit mode: pointer drag and resize (T-90) ---------------------------- */
+.ov-bento.is-editing .ov-cell { position: relative; }
+.ov-edit-grip {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 32px; min-height: 32px; padding: 0;
+  background: transparent; color: var(--text-dim);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  cursor: grab; touch-action: none; -webkit-user-select: none; user-select: none;
+}
+.ov-edit-grip:hover { background: var(--bg-elev); color: var(--text); }
+.ov-edit-grip:focus-visible, .ov-resize-handle:focus-visible { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+.ov-edit-toolbar:has(.ov-edit-grip) { justify-content: flex-start; }
+.ov-edit-toolbar:has(.ov-edit-grip) .ov-edit-toolbar-name { flex: 1 1 auto; }
+.ov-resize-handle {
+  position: absolute; top: 50%; right: -7px; transform: translateY(-50%);
+  width: 14px; height: 64px; padding: 0;
+  background: var(--accent-strong); border: 2px solid var(--bg); border-radius: 8px;
+  cursor: ew-resize; touch-action: none; z-index: 2;
+}
+.ov-cell.is-dragging { opacity: 0.4; }
+.ov-cell.is-resizing { outline-style: solid; }
+body.ov-dragging { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+body.ov-dragging * { cursor: inherit !important; }
+.ov-drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 1000; pointer-events: none;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  background: var(--accent-strong); color: #fff; font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); white-space: nowrap;
+}
+.ov-drop-indicator {
+  position: fixed; left: 0; top: 0; z-index: 999; pointer-events: none;
+  background: var(--accent-strong); border-radius: 2px; display: none;
+}
+/* Nothing here animates, so a reduced-motion preference has nothing to switch off. If a
+   transition is added later, it belongs inside this media query. */
+@media (prefers-reduced-motion: no-preference) {
+  .ov-edit-grip, .ov-resize-handle { transition: background 0.12s; }
+}

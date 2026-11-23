@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cancelActiveDrag, startMoveDrag, startResizeDrag } from './pointerDrag'
 import { Icon } from '../Icon'
 import { cardDef, type CardId, type ResolvedLayout, type Span } from '../../lib/overviewCards'
 import { addCard, hideCard, moveCard, spansFor, stepSpan } from './ops'
@@ -47,6 +48,7 @@ export function EditBar({
     listeners.add(onSay)
     return () => {
       listeners.delete(onSay)
+      cancelActiveDrag() // leaving edit mode ends any drag still in progress
       if (undoTimer.current) clearTimeout(undoTimer.current)
     }
   }, [])
@@ -168,25 +170,46 @@ export function CardToolbar({
   const span = layout.cards[index].span
   const allowed = spansFor(id)
   const name = title(id)
+  // The drag handlers outlive a render, so they read the layout through a ref.
+  const latest = useRef({ layout, onChange })
+  latest.current = { layout, onChange }
 
-  function move(to: Parameters<typeof moveCard>[2], kind: 'earlier' | 'later') {
+  const startDrag = (e: React.PointerEvent<HTMLElement>, kind: 'move' | 'resize') => {
+    if (e.button !== 0 || !e.isPrimary) return
+    e.preventDefault() // no text selection or focus ring flash while dragging
+    const common = {
+      event: e.nativeEvent,
+      handle: e.currentTarget,
+      id,
+      getLayout: () => latest.current.layout,
+      onChange: (next: ResolvedLayout) => latest.current.onChange(next),
+      announce: say,
+    }
+    if (kind === 'move') {
+      startMoveDrag({ ...common, onMoved: () => (pendingFocus = `${id}:drag`) })
+    } else {
+      startResizeDrag({ ...common, onResized: () => (pendingFocus = `${id}:resize`) })
+    }
+  }
+
+  function move(to: Parameters<typeof moveCard>[2], kind: 'earlier' | 'later', focus: string = kind) {
     const next = moveCard(layout, id, to)
     if (next === layout) {
       say(`${name} is already ${kind === 'earlier' ? 'first' : 'last'}.`)
       return
     }
-    pendingFocus = `${id}:${kind}`
+    pendingFocus = `${id}:${focus}`
     onChange(next)
     say(`${name} moved to position ${next.cards.findIndex((c) => c.id === id) + 1} of ${count}.`)
   }
 
-  function width(dir: -1 | 1, kind: 'narrower' | 'wider') {
+  function width(dir: -1 | 1, kind: 'narrower' | 'wider', focus: string = kind) {
     const next = stepSpan(layout, id, dir)
     if (next === layout) {
       say(`${name} is already ${dir < 0 ? 'at its narrowest' : 'full width'}.`)
       return
     }
-    pendingFocus = `${id}:${kind}`
+    pendingFocus = `${id}:${focus}`
     onChange(next)
     say(`${name} is now ${SPAN_LABEL[next.cards[index].span]}.`)
   }
@@ -198,23 +221,38 @@ export function CardToolbar({
     say(`${name} hidden. ${layout.hidden.length + 1} hidden.`)
   }
 
-  const moveKeys = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move({ by: -1 }, 'earlier')
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move({ by: 1 }, 'later')
-    else if (e.key === 'Home') move('first', 'earlier')
-    else if (e.key === 'End') move('last', 'later')
+  // `focus` is the control that keeps focus after the edit: the one the key was pressed on.
+  const moveKeys = (focus?: string) => (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move({ by: -1 }, 'earlier', focus)
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move({ by: 1 }, 'later', focus)
+    else if (e.key === 'Home') move('first', 'earlier', focus)
+    else if (e.key === 'End') move('last', 'later', focus)
     else return
     e.preventDefault()
   }
-  const widthKeys = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') width(-1, 'narrower')
-    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') width(1, 'wider')
+  const widthKeys = (focus?: string) => (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') width(-1, 'narrower', focus)
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') width(1, 'wider', focus)
     else return
     e.preventDefault()
   }
 
   return (
+    <>
     <div className="ov-edit-toolbar" role="group" aria-label={`${name} layout controls`}>
+      {wide && (
+        <button
+          type="button"
+          className="ov-edit-grip"
+          tabIndex={-1}
+          data-edit-focus={`${id}:drag`}
+          aria-label={`Drag ${name} to a new place. With the handle focused, arrow keys move it.`}
+          onPointerDown={(e) => startDrag(e, 'move')}
+          onKeyDown={moveKeys('drag')}
+        >
+          <Icon name="menu" size={14} color="currentColor" />
+        </button>
+      )}
       <span className="ov-edit-toolbar-name" aria-hidden>
         {name}
       </span>
@@ -226,7 +264,7 @@ export function CardToolbar({
           aria-disabled={index === 0}
           aria-label={`Move ${name} earlier, position ${index + 1} of ${count}`}
           onClick={() => move({ by: -1 }, 'earlier')}
-          onKeyDown={moveKeys}
+          onKeyDown={moveKeys()}
         >
           <Icon name="chevron-left" size={14} color="currentColor" />
           <span className="ov-edit-btn-text">Earlier</span>
@@ -238,7 +276,7 @@ export function CardToolbar({
           aria-disabled={index === count - 1}
           aria-label={`Move ${name} later, position ${index + 1} of ${count}`}
           onClick={() => move({ by: 1 }, 'later')}
-          onKeyDown={moveKeys}
+          onKeyDown={moveKeys()}
         >
           <span className="ov-edit-btn-text">Later</span>
           <Icon name="chevron-right" size={14} color="currentColor" />
@@ -252,7 +290,7 @@ export function CardToolbar({
               aria-disabled={span === allowed[0]}
               aria-label={`Make ${name} narrower, now ${SPAN_LABEL[span]}`}
               onClick={() => width(-1, 'narrower')}
-              onKeyDown={widthKeys}
+              onKeyDown={widthKeys()}
             >
               <span className="ov-edit-btn-text">Narrower</span>
             </button>
@@ -263,7 +301,7 @@ export function CardToolbar({
               aria-disabled={span === 12}
               aria-label={`Make ${name} wider, now ${SPAN_LABEL[span]}`}
               onClick={() => width(1, 'wider')}
-              onKeyDown={widthKeys}
+              onKeyDown={widthKeys()}
             >
               <span className="ov-edit-btn-text">Wider</span>
             </button>
@@ -275,5 +313,17 @@ export function CardToolbar({
         </button>
       </div>
     </div>
+    {wide && (
+      <button
+        type="button"
+        className="ov-resize-handle"
+        tabIndex={-1}
+        data-edit-focus={`${id}:resize`}
+        aria-label={`Resize ${name}, now ${SPAN_LABEL[span]}. Drag the edge, or use arrow keys.`}
+        onPointerDown={(e) => startDrag(e, 'resize')}
+        onKeyDown={widthKeys('resize')}
+      />
+    )}
+    </>
   )
 }

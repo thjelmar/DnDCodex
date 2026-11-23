@@ -230,6 +230,7 @@ export function OverviewPage() {
           return (
             <div
               key={c.id}
+              data-card-id={c.id}
               className={`ov-cell${cardDef(c.id)?.cellClass ? ` ${cardDef(c.id)!.cellClass}` : ''}`}
               style={{ '--span': c.span } as CSSProperties}
             >
