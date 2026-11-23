@@ -29,6 +29,9 @@ import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 // draggable tokens that snap to cells on drop. Controlled: the parent owns the
 // scene and persists changes.
 
+/** Pixels of the board that must stay on screen on every side while panning. */
+const PAN_MARGIN = 80
+
 type Drag =
   // `selectId` set = the press began on a token that can't be moved; a tap
   // (no pan) selects it (to show its card) instead of clearing the selection.
@@ -150,6 +153,7 @@ export function Tabletop({
   renderTokenPanel,
 }: Props) {
   const iconPaths = useTokenIconPaths()
+  const clampRef = useRef<(tx: number, ty: number, k: number) => { tx: number; ty: number }>((tx, ty) => ({ tx, ty }))
   const movable = (t: SceneToken) => (canMoveToken ? canMoveToken(t) : editable)
   const wrapRef = useRef<HTMLDivElement>(null)
   const maskId = useId()
@@ -202,6 +206,24 @@ export function Tabletop({
   useEffect(() => {
     if (!templateTool) setTemplateAim(null)
   }, [templateTool])
+
+  /**
+   * Keep the board from leaving the viewport: at least PAN_MARGIN px of it (or
+   * half the viewport, in a tiny pane) stays on screen on every side. Applied to
+   * pan, pinch, wheel and the zoom buttons.
+   */
+  function clampPan(tx: number, ty: number, k: number): { tx: number; ty: number } {
+    const el = wrapRef.current
+    if (!el) return { tx, ty }
+    const w = el.clientWidth
+    const h = el.clientHeight
+    const m = Math.min(PAN_MARGIN, w / 2, h / 2)
+    return {
+      tx: Math.min(w - m, Math.max(m - width * k, tx)),
+      ty: Math.min(h - m, Math.max(m - height * k, ty)),
+    }
+  }
+  clampRef.current = clampPan
 
   /** Show the whole board (the Fit button). */
   function fit() {
@@ -280,11 +302,20 @@ export function Tabletop({
       const factor = Math.exp(-e.deltaY * 0.0015)
       setTransform((t) => {
         const k = clampZoom(t.k * factor)
-        return { k, tx: mx - ((mx - t.tx) / t.k) * k, ty: my - ((my - t.ty) / t.k) * k }
+        return { k, ...clampRef.current(mx - ((mx - t.tx) / t.k) * k, my - ((my - t.ty) / t.k) * k, k) }
       })
     }
+    // Safari's own page-pinch gesture events: stop them so a pinch on the board
+    // never zooms or scrolls the page.
+    const stop = (e: Event) => e.preventDefault()
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    el.addEventListener('gesturestart', stop)
+    el.addEventListener('gesturechange', stop)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('gesturestart', stop)
+      el.removeEventListener('gesturechange', stop)
+    }
   }, [])
 
   function zoomBy(f: number) {
@@ -294,7 +325,7 @@ export function Tabletop({
     const my = el.clientHeight / 2
     setTransform((t) => {
       const k = clampZoom(t.k * f)
-      return { k, tx: mx - ((mx - t.tx) / t.k) * k, ty: my - ((my - t.ty) / t.k) * k }
+      return { k, ...clampPan(mx - ((mx - t.tx) / t.k) * k, my - ((my - t.ty) / t.k) * k, k) }
     })
   }
 
@@ -333,15 +364,56 @@ export function Tabletop({
       setBox({ x1: p.x, y1: p.y, x2: p.x, y2: p.y })
       return
     }
-    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    if (pointers.current.size === 2) {
-      // Second finger on the board: start a pinch zoom, cancel the pan.
-      const [p1, p2] = [...pointers.current.values()]
-      pinch.current = pinchStart(p1, p2, (e.currentTarget as Element).getBoundingClientRect(), transform)
-      drag.current = null
+    drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, tx: transform.tx, ty: transform.ty }
+  }
+
+  /** Abandon whatever one finger was doing (token drag, fog stroke, ruler, ...). */
+  function cancelStroke() {
+    drag.current = null
+    fogLastCell.current = null
+    setDragPos(null)
+    setBox(null)
+    setResizing(null)
+    setFogStroke(null)
+    setMeasure(null)
+    setTemplateAim(null)
+  }
+
+  /**
+   * Two-finger pinch, tracked before any child sees the press so it works
+   * wherever the fingers land (board, token, any tool). A pinch zooms about the
+   * midpoint of the two fingers and pans with it. It is ignored when the first
+   * finger is dragging or resizing a token: that finger keeps dragging it.
+   * Mouse input never starts one.
+   */
+  function onViewPointerDownCapture(e: React.PointerEvent) {
+    if (e.pointerType === 'mouse') return
+    // The first finger of a gesture clears any entry a lost pointerup left behind.
+    if (e.isPrimary) {
+      pointers.current.clear()
+      pinch.current = null
+    }
+    if (pinch.current) {
+      // A third finger does nothing and reaches no child.
+      e.stopPropagation()
       return
     }
-    drag.current = { kind: 'pan', startX: e.clientX, startY: e.clientY, tx: transform.tx, ty: transform.ty }
+    const d = drag.current
+    if (pointers.current.size >= 1 && d && (d.kind === 'token' || d.kind === 'resize')) return
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (pointers.current.size !== 2) return
+    const view = e.currentTarget as HTMLElement
+    const [p1, p2] = [...pointers.current.values()]
+    cancelStroke()
+    pinch.current = pinchStart(p1, p2, view.getBoundingClientRect(), transform)
+    for (const id of pointers.current.keys()) {
+      try {
+        view.setPointerCapture(id)
+      } catch {
+        /* the pointer is already gone */
+      }
+    }
+    e.stopPropagation()
   }
 
   function onTokenPointerDown(e: React.PointerEvent, t: SceneToken) {
@@ -379,7 +451,8 @@ export function Tabletop({
     }
     if (pinch.current && pointers.current.size >= 2) {
       const [p1, p2] = [...pointers.current.values()]
-      setTransform(pinchMove(pinch.current, p1, p2, (e.currentTarget as Element).getBoundingClientRect(), clampZoom))
+      const next = pinchMove(pinch.current, p1, p2, (e.currentTarget as Element).getBoundingClientRect(), clampZoom)
+      setTransform({ k: next.k, ...clampPan(next.tx, next.ty, next.k) })
       return
     }
     const d = drag.current
@@ -398,7 +471,7 @@ export function Tabletop({
       const span = Math.max(p.x - d.left, p.y - d.top) / grid.cellPx
       setResizing({ id: d.id, size: Math.min(MAX_TOKEN_SIZE, Math.max(1, Math.round(span))) })
     } else if (d.kind === 'pan') {
-      setTransform((t) => ({ ...t, tx: d.tx + (e.clientX - d.startX), ty: d.ty + (e.clientY - d.startY) }))
+      setTransform((t) => ({ ...t, ...clampPan(d.tx + (e.clientX - d.startX), d.ty + (e.clientY - d.startY), t.k) }))
     } else if (d.kind === 'token') {
       const p = toBoard(e.clientX, e.clientY)
       d.moved = true
@@ -429,8 +502,8 @@ export function Tabletop({
 
   function onPointerCancel(e: React.PointerEvent) {
     pointers.current.delete(e.pointerId)
-    pinch.current = null
-    drag.current = null
+    if (pointers.current.size < 2) pinch.current = null
+    cancelStroke()
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -560,6 +633,7 @@ export function Tabletop({
         ref={wrapRef}
         className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}${measureTool || templateTool ? ' crosshair' : ''}`}
         tabIndex={0}
+        onPointerDownCapture={onViewPointerDownCapture}
         onPointerDown={onBgPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
