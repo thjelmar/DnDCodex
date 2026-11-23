@@ -593,6 +593,49 @@ with two or three seeded users):
 - the DM's tab closed while a player joins, then reopened;
 - Google sign-in itself (production domain only).
 
+## Stitch check
+
+Source: the saved text of the round 2 "D&D Codex Battle Map & VTT" prototype
+screen, read as design context, not as a spec. I did not re-fetch the other
+screens (the Stitch tools were disconnected when I started), so the Battle Map
+Editor, Battle Map, DM Run Mode and round 1 screens are unchecked. Rerun the
+check on those before the build if the hub wants it.
+
+**What relates to this design**
+
+- A compact initiative strip with a **Round 2** counter, bare initiative numbers
+  (22, 19, 16, 14, 11, 9, 7), the current turn marked, and an expand/collapse
+  toggle.
+- Per-token and per-row visibility toggles with a "[Hidden]" label (the DM's
+  hide control).
+- A **Preview as player** button in the DM top bar.
+- Heroes and Hostiles groups, with HP shown for both (DM view).
+
+**Applied**
+
+- The strip's collapse toggle matches the phone landscape plan: a collapsed row
+  of the current turn and the next two, expanding to the full list.
+- The strip leads with the initiative number and marks the current turn, as the
+  prototype does. The player chip keeps the name beside the number because
+  players need to know who is who.
+- The DM roster's eye toggle for `hiddenFromPlayers` uses the same visibility
+  icon and "[Hidden]" label as the prototype's rows.
+- **Preview as player** exists as a DM action, which confirms that preview mode
+  needs the DM-only warning gate and the "no dialog in preview" e2e check already
+  in this note.
+
+**Left out, and why**
+
+- Enemy HP and AC in the inspector: DM view only. Players never get enemy HP
+  (owner decision).
+- The strip's position at the bottom of the DM map: the player strip stays above
+  the board on the session page, because the player layout puts notes and
+  controls beside and below the board. In full screen the strip overlays the top
+  edge to keep the phone landscape height rule.
+- Invented content (5e sheets, Party Level, "Act II", Ruleset): out of scope.
+- Join initiative, controlled NPCs, and health markers have no equivalent in the
+  prototype, so the design stands on the owner's answers.
+
 ### 6. Risks and open questions for the owner
 
 Resolved by the owner: warning on every add with a persistent checkbox; an **Ask
