@@ -45,6 +45,7 @@ import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
+import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
 import { activeIds, makeCombatant, resortKeepTurn, rollInitiative, type Combatant } from '../lib/combat'
 import { tokenCombat } from '../lib/tokenCombat'
@@ -66,6 +67,9 @@ import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplat
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
  *  emoji-faced token; squares read better for built things (boats, doors). */
+/** localStorage flag: the "Rotate for more room" chip shows once per device. */
+const ROTATE_HINT_KEY = 'codex-bm-rotate-hint'
+
 const TOKEN_PRESETS: { label: string; icon: string; shape: TokenShape }[] = [
   { label: 'Horse', icon: '🐴', shape: 'circle' },
   { label: 'Boat', icon: '⛵', shape: 'square' },
@@ -409,10 +413,11 @@ export function SceneEditor({
   const exitFullscreen = fs.exit
   const [panelOpen, setPanelOpen] = useState(!compact)
   // Full screen only: session notes beside the map.
-  const [notesOpen, setNotesOpen] = useState(true)
+  const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
   // Studio layout state: inspector (docked, floating, or an on-demand drawer
   // in full screen and on a phone), its tab, the token filter and the hint chip.
   const isPhone = useIsPhone()
+  const isLand = useIsPhoneLandscape()
   const [dockOpen, setDockOpen] = useState(!compact)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [inspFloat, setInspFloat] = useState(false)
@@ -428,9 +433,48 @@ export function SceneEditor({
       // The inspector is in its own window: this brings it back to the page.
       iw.close()
       setDockOpen(true)
-    } else if (asDrawer) setDrawerOpen((o) => !o)
-    else setDockOpen((o) => !o)
+    } else if (asDrawer) {
+      // On a phone the notes and the inspector share the right edge, so only one is open.
+      if (isPhone && !drawerOpen) setNotesOpen(false)
+      setDrawerOpen((o) => !o)
+    } else setDockOpen((o) => !o)
   }
+  function toggleNotes() {
+    if (isPhone && !notesOpen) setDrawerOpen(false)
+    setNotesOpen((o) => !o)
+  }
+  // A phone in full screen: the layout CSS hides the demo banner (see "Phone full screen" in styles.css).
+  const phoneFull = studio && expanded && isPhone
+  useEffect(() => {
+    if (!phoneFull) return
+    document.documentElement.dataset.bmFs = '1'
+    return () => {
+      delete document.documentElement.dataset.bmFs
+    }
+  }, [phoneFull])
+  // Portrait phone in full screen: suggest turning the phone, once per device.
+  const [rotateHint, setRotateHint] = useState(false)
+  useEffect(() => {
+    if (!phoneFull || isLand) {
+      setRotateHint(false)
+      return
+    }
+    let seen = false
+    try {
+      seen = localStorage.getItem(ROTATE_HINT_KEY) === '1'
+    } catch {
+      /* storage blocked: show it each time */
+    }
+    if (seen) return
+    try {
+      localStorage.setItem(ROTATE_HINT_KEY, '1')
+    } catch {
+      /* ignore */
+    }
+    setRotateHint(true)
+    const t = setTimeout(() => setRotateHint(false), 9000)
+    return () => clearTimeout(t)
+  }, [phoneFull, isLand])
   useEffect(() => {
     if (!studio) return
     const t = setTimeout(() => setHintOn(false), 12000)
@@ -1453,7 +1497,12 @@ export function SceneEditor({
     const campBase = `/campaign/${campaign.id}`
 
     return (
-      <div className={`bm-studio${expanded ? ' expanded' : ''}`} data-testid="bm-studio">
+      <div
+        className={`bm-studio${expanded ? ' expanded' : ''}${isPhone ? ' phone' : ''}${isLand ? ' land' : ''}${
+          (asDrawer && drawerOpen && inspMode !== 'window') || (isPhone && expanded && notesOpen) ? ' drawer-open' : ''
+        }`}
+        data-testid="bm-studio"
+      >
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => uploadMap(e.target.files?.[0])} />
         <input ref={tokenImageRef} type="file" accept="image/*" hidden onChange={(e) => addTokenFromImage(e.target.files)} />
 
@@ -1540,7 +1589,7 @@ export function SceneEditor({
               aria-pressed={notesOpen}
               aria-label="Session notes"
               title={notesOpen ? 'Hide session notes' : 'Show session notes beside the map'}
-              onClick={() => setNotesOpen((o) => !o)}
+              onClick={toggleNotes}
             >
               <BmIcon name="notes" />
             </button>
@@ -1683,6 +1732,12 @@ export function SceneEditor({
 
         <div className="bm-work">
           <div className="bm-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
+            {phoneFull && (
+              <>
+                {railBtn('exit-fs', 'fullscreen-exit', 'Exit full screen', false, exitFullscreen)}
+                <hr />
+              </>
+            )}
             {railBtn('select', 'select', 'Select (V)', tool === 'select', selectTool)}
             {railBtn('measure', 'measure', 'Measure (M)', tool === 'measure', toggleMeasure)}
             <hr />
@@ -1751,7 +1806,7 @@ export function SceneEditor({
           </div>
 
           {expanded && notesOpen && (
-            <div className="bm-notes">
+            <div className={`bm-notes${isPhone ? ' bm-notes-drawer' : ''}`}>
               <SessionNotesPanel campaignId={campaign.id} initialSessionId={notesSessionId} onWikiLink={peekByName} />
             </div>
           )}
@@ -1773,8 +1828,16 @@ export function SceneEditor({
               onNext={() => combat.step(1)}
             />
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
+            {rotateHint && (
+              <div className="bm-hint bm-rotate" role="status">
+                Rotate for more room
+                <button type="button" className="bm-icon-btn" aria-label="Dismiss" onClick={() => setRotateHint(false)}>
+                  <BmIcon name="close" size={14} />
+                </button>
+              </div>
+            )}
             {hintOn && !iw.error && tool === 'select' && !preview && !aligning && (
-              <div className="bm-hint">Drag tokens to move. Arrow keys nudge.</div>
+              <div className="bm-hint">{isPhone ? 'Drag a token to move it. Pinch to zoom.' : 'Drag tokens to move. Arrow keys nudge.'}</div>
             )}
             {(live.error || iw.error) && (
               <div className="bm-notice" role="status">
@@ -2198,17 +2261,4 @@ function publishNote(note: string | null, dismiss: () => void, toast = false) {
       <button className="btn ghost small" onClick={dismiss}>Dismiss</button>
     </p>
   )
-}
-
-/** True on a phone-width viewport, where the inspector becomes a drawer. */
-function useIsPhone(): boolean {
-  const q = '(max-width: 820px)'
-  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches)
-  useEffect(() => {
-    const mq = window.matchMedia(q)
-    const on = () => setPhone(mq.matches)
-    mq.addEventListener('change', on)
-    return () => mq.removeEventListener('change', on)
-  }, [])
-  return phone
 }

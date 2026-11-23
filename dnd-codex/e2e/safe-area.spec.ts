@@ -44,7 +44,7 @@ test('the shell is as wide as the screen and the page paints its own background'
   expect(bg.html).not.toBe('rgba(0, 0, 0, 0)')
 })
 
-test('with a notch, the demo banner, sidebar and content keep their text inside the insets', async ({ page }) => {
+test('with a notch, the demo banner, phone top bar and open drawer keep their content inside the insets', async ({ page }) => {
   await openDemo(page, `campaign/${CAMPAIGN}`)
   await page.addStyleTag({ content: NOTCH })
   await expect(page.locator('.demo-banner')).toBeVisible()
@@ -61,40 +61,15 @@ test('with a notch, the demo banner, sidebar and content keep their text inside 
     return {
       vw: innerWidth,
       banner: first('.demo-banner'),
-      sidebarLeft: box('.sidebar .sidebar-search, .sidebar a')?.left ?? null,
-      contentRight: box('.content')?.right ?? null,
+      burgerLeft: box('.topbar-burger')?.left ?? null,
+      drawerPad: parseFloat(getComputedStyle(document.querySelector('.sidebar')!).paddingLeft),
     }
   })
   expect(r.banner!.left).toBeGreaterThanOrEqual(47)
   expect(r.banner!.right).toBeLessThanOrEqual(r.vw - 47)
-  expect(r.sidebarLeft!).toBeGreaterThanOrEqual(47)
+  // A landscape phone uses the phone shell: the top bar's first control and the drawer clear the left inset.
+  expect(r.burgerLeft!).toBeGreaterThanOrEqual(47)
+  expect(r.drawerPad).toBeGreaterThanOrEqual(47)
 })
 
-test('with a notch, the battle map bar, rail, zoom and turn controls stay inside the insets', async ({ page }) => {
-  await openDemo(page, `campaign/${CAMPAIGN}/battlemap`)
-  await page.addStyleTag({ content: NOTCH })
-  await page.locator('.battlemap-maps .list-row').first().click()
-  await expect(page.locator('.tabletop-view')).toBeVisible()
-  await page.locator('button[aria-label="Full screen"]').click()
-  await expect(page.locator('.bm-studio.expanded')).toBeVisible()
-  await noSideScroll(page)
-  const r = await page.evaluate(() => {
-    const rect = (s: string) => document.querySelector(s)?.getBoundingClientRect()
-    return {
-      vw: innerWidth,
-      vh: innerHeight,
-      railBtn: rect('.bm-rail .bm-tool'),
-      topFirst: Array.from(document.querySelectorAll('.bm-top > *')).map((e) => e.getBoundingClientRect()).find((b) => b.width > 0),
-      topLast: rect('.bm-top > :last-child'),
-      zoom: rect('.bm-map .tabletop-zoom'),
-      rail: rect('.bm-rail'),
-    }
-  })
-  expect(r.railBtn!.left).toBeGreaterThanOrEqual(47)
-  expect(r.topFirst!.left).toBeGreaterThanOrEqual(47)
-  expect(r.topLast!.right).toBeLessThanOrEqual(r.vw - 47)
-  expect(r.zoom!.right).toBeLessThanOrEqual(r.vw - 47)
-  expect(r.zoom!.bottom).toBeLessThanOrEqual(r.vh - 21)
-  // The rail's background still reaches the left edge, under the notch.
-  expect(r.rail!.left).toBe(0)
-})
+// The battle map's controls under a notch are covered in battlemap-landscape.spec.ts.

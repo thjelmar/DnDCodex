@@ -482,7 +482,7 @@ button {
 .sidebar-collapse-btn:hover { background: var(--bg-elev-2); color: var(--text); }
 .sidebar-edge { display: none; }
 
-@media (min-width: 821px) {
+@media (min-width: 821px) and (not ((pointer: coarse) and (max-height: 500px))) {
   .app[data-collapsed='true'] { grid-template-columns: 1fr; }
   .app[data-collapsed='true'] .sidebar {
     position: fixed;
@@ -527,7 +527,7 @@ button {
   .app[data-collapsed='true'] .sidebar-edge:hover { background: var(--bg-elev-2); color: var(--text); }
 }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .app {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
@@ -5020,7 +5020,7 @@ body.ov-dragging * { cursor: inherit !important; }
 /* Narrow viewports: labels collapse to icons, the inspector becomes a drawer. */
 @media (max-width: 1500px) { .bm-crumb { display: none; } }
 @media (max-width: 1280px) { .bm-btn .bm-lbl { display: none; } .bm-btn:not(.bm-sq):not(.primary) { padding: 0 9px; } .bm-seg .bm-lbl { display: none; } }
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .bm-top { gap: 6px; padding: 0 8px; }
   .bm-btn, .bm-btn.bm-sq { height: 38px; min-width: 38px; }
   .bm-seg button { height: 36px; }
@@ -5033,14 +5033,14 @@ body.ov-dragging * { cursor: inherit !important; }
   .bm-tabs button { padding: 8px 10px; }
   .bm-insp-float { resize: none; }
 }
-@media (min-width: 821px) { .bm-scrim { display: none; } }
+@media (min-width: 821px) and (not ((pointer: coarse) and (max-height: 500px))) { .bm-scrim { display: none; } }
 .bm-flyout .battlemap-fogbar { width: max-content; max-width: 100%; }
 .bm-rail-menu .bm-tool.on { background: var(--bg-elev-2); color: var(--text); border-color: var(--accent); }
 /* The demo banner is 40px tall and fixed, so full screen starts below it. */
 .app[data-demo='true'] .bm-studio.expanded { top: 40px; }
 .bm-page, .bm-page > div, .bm-studio, .bm-top, .bm-work { min-width: 0; }
 .bm-page > div, .bm-studio { width: 100%; }
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .bm-seg button { height: 38px; }
   .bm-tabs button, .bm-row-main { min-height: 38px; }
 }
@@ -5072,7 +5072,7 @@ body.ov-dragging * { cursor: inherit !important; }
   70%, 100% { box-shadow: 0 0 0 10px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .bm-chip.turn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent); } }
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .bm-turns { bottom: 64px; max-width: calc(100% - 28px); }
   .bm-turns-next { height: 38px; }
 }
@@ -5115,7 +5115,7 @@ body.ov-dragging * { cursor: inherit !important; }
 .bm-gbox-each { display: grid; gap: 4px; margin-top: 6px; }
 .bm-gbox-each > div { display: flex; align-items: center; gap: 8px; }
 .bm-gbox-each > div > span:first-child { flex: 1; }
-@media (max-width: 820px) { .bm-mini { height: 38px; } .bm-init { min-height: 38px; padding: 0 10px; } .bm-check { width: 22px; height: 22px; } }
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) { .bm-mini { height: 38px; } .bm-init { min-height: 38px; padding: 0 10px; } .bm-check { width: 22px; height: 22px; } }
 
 /* ==========================================================================
    World map detail maps (T-94)
@@ -5183,7 +5183,7 @@ html { background: var(--bg); }
    desktop sidebar and its edge handle do too. */
 .sidebar { padding-left: calc(14px + var(--sal)); }
 .app[data-demo][data-collapsed='true'] .sidebar { top: var(--demo-h); }
-@media (min-width: 821px) {
+@media (min-width: 821px) and (not ((pointer: coarse) and (max-height: 500px))) {
   .app[data-collapsed='true'] .sidebar-edge { width: calc(15px + var(--sal)); padding-left: var(--sal); }
 }
 
@@ -5193,7 +5193,7 @@ html { background: var(--bg); }
 .app[data-collapsed='true'] .content { padding-left: calc(32px + var(--sal)); }
 .sidepanel { padding-right: var(--sar); box-sizing: border-box; }
 
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .topbar { padding-left: calc(12px + var(--sal)); padding-right: calc(12px + var(--sar)); }
   /* Without the banner, the top bar also clears the top inset (status bar). */
   .app:not([data-demo]) .topbar { padding-top: calc(8px + var(--sat)); min-height: calc(54px + var(--sat)); }
@@ -5212,9 +5212,89 @@ html { background: var(--bg); }
 .bm-insp-docked, .bm-insp-drawer { padding-right: var(--sar); }
 .bm-map .tabletop-zoom { right: calc(14px + var(--sar)); bottom: calc(14px + var(--sab)); }
 .bm-turns { bottom: calc(14px + var(--sab)); max-width: calc(100% - 180px - var(--sar)); }
-@media (max-width: 820px) {
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
   .bm-top { padding-left: calc(8px + var(--sal)); padding-right: calc(8px + var(--sar)); }
   .bm-rail { width: calc(52px + var(--sal)); padding-left: var(--sal); }
   .bm-studio.expanded .bm-rail { width: calc(52px + var(--sal)); }
   .bm-turns { bottom: calc(64px + var(--sab)); max-width: calc(100% - 28px - var(--sar)); }
+}
+
+/* ==========================================================================
+   Battle map on a phone: full screen and landscape (T-96)
+   .phone is (max-width: 820px) or a touch screen turned sideways; .land is a touch
+   screen turned sideways. In landscape full screen the top bar becomes a small
+   floating pill, the rail is 44px, and the inspector and notes are a right drawer
+   of at most 45% of the width. The demo banner is hidden while a phone is in full
+   screen (BattleMapPage sets data-bm-fs on <html>).
+   ========================================================================== */
+/* The app's own banner and phone top bar sit above full screen (z-index 60 over 40); hide them. */
+html[data-bm-fs] .demo-banner, html[data-bm-fs] .topbar { display: none; }
+html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
+@supports (height: 100dvh) {
+  .bm-studio.expanded.phone { bottom: auto; height: 100dvh; }
+}
+.bm-studio.phone .tabletop-zoom .btn { min-width: 38px; min-height: 38px; }
+.bm-studio.phone .bm-hint { white-space: nowrap; }
+.bm-rotate { display: flex; align-items: center; gap: 4px; padding-right: 2px; pointer-events: auto; }
+.bm-notes-drawer {
+  position: absolute; z-index: 8; top: 0; right: 0; bottom: 0; width: min(320px, 92%); max-width: none; box-sizing: border-box;
+  padding-right: calc(10px + var(--sar)); border-right: 0; border-left: 1px solid var(--border); box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
+}
+
+/* Landscape phone: both drawers use the same right edge, at most 45% wide, and the map stays usable beside them. */
+.bm-studio.land .bm-scrim { display: none; }
+.bm-studio.land .bm-insp-drawer,
+.bm-studio.land .bm-notes-drawer { width: calc(min(340px, 45vw) + var(--sar)); }
+.bm-studio.land .bm-turns { left: 10px; bottom: calc(10px + var(--sab)); max-width: calc(100% - 200px - var(--sar)); }
+.bm-studio.land .tabletop-zoom { right: calc(10px + var(--sar)); bottom: calc(10px + var(--sab)); }
+.bm-studio.land .bm-hint { top: auto; bottom: calc(14px + var(--sab)); }
+
+/* Landscape full screen: no bar row. */
+.bm-studio.expanded.land .bm-top {
+  position: absolute; top: 8px; right: calc(8px + var(--sar)); left: auto; z-index: 20; width: auto; height: auto;
+  gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 10px;
+}
+.bm-studio.expanded.land .bm-top .bm-crumb,
+.bm-studio.expanded.land .bm-top .bm-name,
+.bm-studio.expanded.land .bm-top .bm-spacer { display: none; }
+.bm-studio.expanded.land.drawer-open .bm-top { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
+.bm-studio.expanded.land .bm-rail { width: calc(44px + var(--sal)); gap: 2px; padding: 6px 0 calc(6px + var(--sab)) var(--sal); }
+.bm-studio.expanded.land .bm-tool { width: 38px; height: 38px; }
+.bm-studio.expanded.land .bm-rail hr { margin: 3px 0; }
+
+/* Player board on a phone in full screen (T-96): the same pill, drawer and insets as the studio. */
+.player-live-board.expanded.phone-fs { padding: 0; }
+@supports (height: 100dvh) {
+  .player-live-board.expanded.phone-fs { bottom: auto; height: 100dvh; }
+}
+.player-live-board.phone-fs .player-live-bar {
+  position: absolute; z-index: 20; top: 8px; right: calc(8px + var(--sar)); margin: 0; flex-wrap: nowrap; gap: 4px; padding: 4px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+}
+.player-live-board.phone-fs .player-live-bar > .row { margin-left: 0; gap: 4px; flex-wrap: nowrap; }
+.player-live-board.phone-fs .player-live-name,
+.player-live-board.phone-fs .pl-lbl { display: none; }
+.player-live-board.phone-fs .player-live-bar .btn { min-width: 38px; min-height: 38px; padding: 0 8px; }
+.player-color-dot { display: inline-block; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--text); }
+.player-live-board.phone-fs .battlemap-mycolor {
+  display: none; position: absolute; top: calc(100% + 6px); right: 0; z-index: 21; flex-wrap: wrap; justify-content: center; width: 220px;
+  padding: 8px; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+}
+.player-live-board.phone-fs.color-open .battlemap-mycolor { display: flex; }
+.player-live-board.phone-fs .battlemap-swatch { width: 30px; height: 30px; }
+.player-live-board.phone-fs .battlemap-color-custom { width: 30px; height: 30px; }
+.player-live-board.phone-fs .battlemap-body { flex: 1; min-height: 0; display: block; position: relative; }
+.player-live-board.phone-fs .battlemap-body .tabletop-view { border-radius: 0; border: 0; }
+.player-live-board.phone-fs .battlemap-notes {
+  position: absolute; z-index: 8; top: 0; right: 0; bottom: 0; width: min(320px, 92%); box-sizing: border-box; padding: 10px calc(10px + var(--sar)) 10px 10px;
+  background: var(--bg-elev); border-left: 1px solid var(--border); box-shadow: -12px 0 32px rgba(0, 0, 0, 0.45);
+}
+.player-live-board.phone-fs .tabletop-zoom { right: calc(10px + var(--sar)); bottom: calc(10px + var(--sab)); }
+.player-live-board.phone-fs .tabletop-zoom .btn { min-width: 38px; min-height: 38px; }
+.player-live-board.phone-fs > p { position: absolute; z-index: 20; left: calc(10px + var(--sal)); bottom: calc(10px + var(--sab)); margin: 0; }
+@media (orientation: portrait) { .player-live-board.phone-fs .battlemap-notes { top: 56px; } }
+@media (orientation: landscape) {
+  .player-live-board.phone-fs .battlemap-notes { width: calc(min(340px, 45vw) + var(--sar)); }
+  .player-live-board.phone-fs.notes-open .player-live-bar { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
+  .player-live-board.phone-fs .battlemap-body { padding-left: var(--sal); }
 }

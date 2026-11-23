@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { liveTokensForBoard, moveMyToken, placeMyTemplate, removeMyTemplate, usePlayerTemplates, useLiveScene } from '../auth/liveScene'
 import { getMyColor, setMyColor } from '../auth/cloud'
 import { useFullscreen } from '../lib/useFullscreen'
+import { PHONE_QUERY, useIsPhone } from '../lib/usePhone'
 import { TOKEN_COLORS } from '../lib/tabletop'
 import { Tabletop } from './Tabletop'
 import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
@@ -64,7 +65,19 @@ export function PlayerLiveBoardView({
   // Unmounting while expanded (e.g. the page moves the board when the DM stops
   // the map) must still tell the page full screen is over.
   useEffect(() => () => onExpandedRef.current?.(false), [])
-  const [notesOpen, setNotesOpen] = useState(true)
+  // On a phone the notes start closed and open as a drawer, so the map keeps the room (T-96).
+  const isPhone = useIsPhone()
+  const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
+  const [colorOpen, setColorOpen] = useState(false)
+  const phoneFs = fs.expanded && isPhone
+  // The page's demo banner and phone top bar hide while a phone is in full screen (see styles.css).
+  useEffect(() => {
+    if (!phoneFs) return
+    document.documentElement.dataset.bmFs = '1'
+    return () => {
+      delete document.documentElement.dataset.bmFs
+    }
+  }, [phoneFs])
   // Ruler: drag the board to measure distance in feet (ephemeral, local — the
   // player's own tool; nothing is shared or persisted).
   const [measuring, setMeasuring] = useState(false)
@@ -181,7 +194,7 @@ export function PlayerLiveBoardView({
   const withNotes = fs.expanded && notesOpen && !!notes
 
   return (
-    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}`}>
+    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}`}>
       <div className="player-live-bar">
         {(fs.expanded || !compact) && (
           <strong className="player-live-name">
@@ -212,12 +225,24 @@ export function PlayerLiveBoardView({
           />
         </div>
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
+          {phoneFs && (
+            <button
+              className={`btn small${colorOpen ? ' primary' : ''}`}
+              onClick={() => setColorOpen((o) => !o)}
+              aria-expanded={colorOpen}
+              aria-label="Your token color"
+              title="Pick the color your tokens wear"
+            >
+              <span aria-hidden className="player-color-dot" style={{ background: myColor ?? '#a78bfa' }} />
+            </button>
+          )}
           <button
             className={`btn small${measuring ? ' primary' : ''}`}
             onClick={() => { setSpellTool(null); setSpellOpen(false); setMeasuring((m) => !m) }}
             title="Ruler: drag on the map to measure distance in feet"
+            aria-label={measuring ? 'Done' : 'Measure'}
           >
-            📏 {measuring ? 'Done' : 'Measure'}
+            📏 <span className="pl-lbl">{measuring ? 'Done' : 'Measure'}</span>
           </button>
           <div className="player-spell-wrap">
             <button
@@ -225,8 +250,9 @@ export function PlayerLiveBoardView({
               onClick={() => { if (spellTool) { setSpellTool(null); setSpellOpen(false) } else setSpellOpen((o) => !o) }}
               aria-expanded={spellOpen}
               title="Drop a spell area (burst, cone or line) on the map"
+              aria-label={spellTool ? 'Stop' : 'Spell area'}
             >
-              ✨ {spellTool ? 'Stop' : 'Spell area'}
+              ✨ <span className="pl-lbl">{spellTool ? 'Stop' : 'Spell area'}</span>
             </button>
             {spellOpen && !spellTool && (
               <div className="player-spell-menu" role="menu">
@@ -244,13 +270,13 @@ export function PlayerLiveBoardView({
             </button>
           )}
           {fs.expanded && notes && (
-            <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)}>
-              📝 {notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}
+            <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)} aria-label={notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}>
+              📝 <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
             </button>
           )}
-          <button className={`btn small${fs.expanded ? ' primary' : ''}`} onClick={fs.expanded ? fs.exit : fs.enter}>
+          <button className={`btn small${fs.expanded ? ' primary' : ''}`} onClick={fs.expanded ? fs.exit : fs.enter} aria-label={fs.expanded ? 'Exit full screen' : 'Full screen'}>
             <Icon name={fs.expanded ? 'minimize' : 'maximize'} size={14} color={fs.expanded ? 'inherit' : undefined} />{' '}
-            {fs.expanded ? 'Exit full screen' : 'Full screen'}
+            <span className="pl-lbl">{fs.expanded ? 'Exit full screen' : 'Full screen'}</span>
           </button>
         </div>
       </div>
