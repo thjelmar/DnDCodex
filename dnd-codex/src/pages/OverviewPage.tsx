@@ -12,7 +12,7 @@ import { Modal } from '../components/Modal'
 import { NextSessionCard } from '../components/NextSessionCard'
 import { CampaignHero } from '../components/CampaignHero'
 import { PrepChecklistCard, RecentlyEditedCard } from '../components/CampaignPrep'
-import { PrepCard, RunCard, WorldLoreCard, ReferenceCard } from '../components/HubCards'
+import { CountsCard, PrepCard, RunCard, WorldLoreCard, ReferenceCard } from '../components/HubCards'
 import { CampaignSettingsModal } from '../components/CampaignSettingsModal'
 import { CollapsePanel } from '../components/CollapsePanel'
 import { useConfirm } from '../components/ConfirmDialog'
@@ -154,6 +154,7 @@ export function OverviewPage() {
         <NextSessionCard campaign={campaign} />
       </div>
     ),
+    counts: <CountsCard data={data} />,
     prep: <PrepCard campaign={campaign} data={data} />,
     run: <RunCard campaign={campaign} data={data} />,
     lore: <WorldLoreCard campaign={campaign} data={data} />,
@@ -225,7 +226,7 @@ export function OverviewPage() {
         {layout?.cards.map((c) => {
           // Cards that read the local data render nothing until it loads; skip their cell
           // so an empty cell does not add a grid gap.
-          const waiting = !data && ['prep', 'run', 'lore', 'reference', 'prep-checklist', 'recently-edited'].includes(c.id)
+          const waiting = !data && ['counts', 'prep', 'run', 'lore', 'reference', 'prep-checklist', 'recently-edited'].includes(c.id)
           if (waiting) return null
           return (
             <div

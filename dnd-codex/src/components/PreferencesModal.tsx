@@ -1,4 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
+import { resetOverviewLayout, saveOverviewLayout } from '../db/repo'
+import { OVERVIEW_LAYOUT_ID, reconcile } from '../lib/overviewCards'
+import type { OverviewLayoutRecord } from '../db/types'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
 import { Icon } from './Icon'
@@ -125,6 +130,22 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
   function resetDefault(kind: ShareableKind) {
     clearShareDefaults(kind)
     setDefaults((d) => ({ ...d, [kind]: null }))
+  }
+
+  // Campaign home layout (T-91): the same reset as the Overview's edit bar, for when you
+  // cannot reach it. The saved layout is one record for the account; reset deletes it
+  // (and syncs the delete), and Undo writes the same layout back.
+  const layoutRecord = useLiveQuery(async () => (await db.overviewLayout.get(OVERVIEW_LAYOUT_ID)) ?? null, [])
+  const [layoutUndo, setLayoutUndo] = useState<OverviewLayoutRecord | null>(null)
+  async function resetCampaignHome() {
+    if (!layoutRecord) return
+    setLayoutUndo(layoutRecord)
+    await resetOverviewLayout()
+  }
+  async function undoCampaignHome() {
+    if (!layoutUndo) return
+    await saveOverviewLayout(reconcile(layoutUndo))
+    setLayoutUndo(null)
   }
 
   function resetAllDefaults() {
@@ -308,6 +329,33 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
             </div>
           </span>
         </label>
+      </div>
+
+      <div className="prefs-section">
+        <div className="row between" style={{ alignItems: 'center' }}>
+          <div className="prefs-section-title" style={{ margin: 0 }}>
+            Campaign home
+          </div>
+          <button className="btn ghost small" onClick={resetCampaignHome} disabled={!layoutRecord}>
+            Reset campaign home layout
+          </button>
+        </div>
+        <div className="faint" style={{ fontSize: 12, margin: '4px 0 0' }}>
+          Puts the cards on every campaign's Overview back in their default places and sizes, and
+          brings back any you hid. It does not delete any campaign data.
+        </div>
+        <div role="status" className="faint" style={{ fontSize: 12, marginTop: 6 }}>
+          {layoutUndo ? (
+            <>
+              Layout reset.{' '}
+              <button className="linklike" onClick={undoCampaignHome}>
+                Undo
+              </button>
+            </>
+          ) : layoutRecord ? null : (
+            'You are using the default layout.'
+          )}
+        </div>
       </div>
 
       <div className="prefs-section">

@@ -6,6 +6,7 @@
 export type CardId =
   | 'world'
   | 'next'
+  | 'counts'
   | 'prep'
   | 'run'
   | 'lore'
@@ -37,6 +38,7 @@ export interface CardDef {
 export const CARDS: CardDef[] = [
   { id: 'world', title: 'World overview', blurb: 'The campaign world description.', defaultSpan: 12, minSpan: 6 },
   { id: 'next', title: 'Next session', blurb: "The next session's date, time and RSVP summary.", defaultSpan: 12, minSpan: 6 },
+  { id: 'counts', title: 'Counts', blurb: 'Sessions, world notes, NPCs, locations, items and roll tables at a glance.', defaultSpan: 12, minSpan: 6, defaultHidden: true },
   { id: 'prep', title: 'Prep', blurb: 'Last session recap, planning, and prep counts.', defaultSpan: 6, minSpan: 4 },
   { id: 'run', title: 'Run', blurb: 'Start Run Mode and see the latest battle map.', defaultSpan: 6, minSpan: 4 },
   { id: 'lore', title: 'World & Lore', blurb: 'NPCs, locations, world notes and families.', defaultSpan: 6, minSpan: 4 },
@@ -135,6 +137,9 @@ export function reconcile(saved: SavedLayout | null | undefined): ResolvedLayout
     }
     cards.splice(at, 0, { id: def.id, span: def.defaultSpan })
   })
+  // A card the layout knew about but placed nowhere (a hand-written or damaged record) goes
+  // to the tray, so it can always be added back and is never lost.
+  for (const def of CARDS) if (!seen.has(def.id)) hidden.push(def.id)
   return { cards, hidden }
 }
 

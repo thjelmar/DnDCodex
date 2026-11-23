@@ -65,6 +65,25 @@ function deriveHub(campaign: Campaign, data: OverviewData) {
 
 type CardProps = { campaign: Campaign; data: OverviewData | undefined }
 
+/** The six counts the Overview used to show as stat tiles, as one optional card. It starts
+ *  in the tray (hidden by default), reads the shared local data only, and each count links
+ *  to its page. */
+export function CountsCard({ data }: { data: OverviewData | undefined }) {
+  if (!data) return null
+  return (
+    <CollapsePanel title="Counts" className="ov-counts" defaultOpenPhone>
+      <div className="ov-tiles">
+        <Tile to="sessions" label="Sessions" value={data.sessions.length} />
+        <Tile to="notes" label="World notes" value={data.notes.length} />
+        <Tile to="npcs" label="NPCs" value={data.npcs.length} />
+        <Tile to="locations" label="Locations" value={data.locations.length} />
+        <Tile to="items" label="Items" value={data.items.length} />
+        <Tile to="tables" label="Roll tables" value={data.tables.length} />
+      </div>
+    </CollapsePanel>
+  )
+}
+
 export function PrepCard({ campaign, data }: CardProps) {
   if (!data) return null
   const { prep } = deriveHub(campaign, data)
