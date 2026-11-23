@@ -748,9 +748,15 @@ export async function deleteScene(id: Id): Promise<void> {
 
 // --- World maps (prep/reference maps with pins; one per campaign) -----------
 
+/** The campaign's root world map (the one without a parent), or undefined. */
+export async function getRootWorldMap(campaignId: Id): Promise<WorldMap | undefined> {
+  const all = await db.worldMaps.where('campaignId').equals(campaignId).toArray()
+  return all.find((m) => !m.parentMapId)
+}
+
 /** The campaign's world map, creating an empty one on first access. */
 export async function getOrCreateWorldMap(campaignId: Id): Promise<WorldMap> {
-  const existing = await db.worldMaps.where('campaignId').equals(campaignId).first()
+  const existing = await getRootWorldMap(campaignId)
   if (existing) return existing
   const ts = now()
   const map: WorldMap = {
@@ -774,12 +780,57 @@ export async function updateWorldMap(id: Id, patch: Partial<WorldMap>): Promise<
   await enqueuePutById('worldMaps', id)
 }
 
+/** Delete a world map, its image, and every detail map below it. Pins that pointed
+ *  at a deleted map lose their link and stay as plain pins. */
 export async function deleteWorldMap(id: Id): Promise<void> {
   const existing = await db.worldMaps.get(id)
-  await db.worldMaps.delete(id)
   if (!existing) return
-  await enqueueDel('worldMaps', id, existing.campaignId)
-  if (existing.imageId) await deleteImage(existing.imageId)
+  const all = await db.worldMaps.where('campaignId').equals(existing.campaignId).toArray()
+  const doomed = new Set<Id>([id])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const m of all) {
+      if (m.parentMapId && doomed.has(m.parentMapId) && !doomed.has(m.id)) { doomed.add(m.id); grew = true }
+    }
+  }
+  for (const m of all) {
+    if (doomed.has(m.id)) continue
+    if (m.pins.some((p) => p.detailMapId && doomed.has(p.detailMapId))) {
+      await updateWorldMap(m.id, { pins: m.pins.map((p) => (p.detailMapId && doomed.has(p.detailMapId) ? { ...p, detailMapId: undefined } : p)) })
+    }
+  }
+  for (const m of all) {
+    if (!doomed.has(m.id)) continue
+    await db.worldMaps.delete(m.id)
+    await enqueueDel('worldMaps', m.id, m.campaignId)
+    if (m.imageId) await deleteImage(m.imageId)
+  }
+}
+
+/** Create a detail map under `parentMapId`, with its image (T-94). */
+export async function createDetailMap(
+  campaignId: Id,
+  parentMapId: Id,
+  input: { name: string; imageId: Id | null; width: number; height: number },
+): Promise<WorldMap> {
+  const ts = now()
+  const map: WorldMap = { id: newId(), campaignId, name: input.name, imageId: input.imageId, width: input.width, height: input.height, pins: [], parentMapId, createdAt: ts, updatedAt: ts }
+  await db.worldMaps.add(map)
+  await enqueuePut('worldMaps', map.id, campaignId)
+  return map
+}
+
+/** Every detail map below `rootId`, at any depth (parents before children). */
+export function descendantMaps(all: WorldMap[], rootId: Id): WorldMap[] {
+  const out: WorldMap[] = []
+  const seen = new Set<Id>([rootId])
+  for (let grew = true; grew; ) {
+    grew = false
+    for (const m of all) {
+      if (m.parentMapId && seen.has(m.parentMapId) && !seen.has(m.id)) { seen.add(m.id); out.push(m); grew = true }
+    }
+  }
+  return out
 }
 
 // --- Campaign timeline: plot threads + dated events ------------------------

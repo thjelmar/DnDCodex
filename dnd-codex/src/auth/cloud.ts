@@ -256,12 +256,25 @@ export interface SharedWorldMap {
   width: number | null
   height: number | null
   pins: WorldPin[]
+  /** Detail maps below the root, at any depth (T-94). */
+  detailMaps: SharedDetailMap[]
+}
+
+/** One detail map in a shared world map. Its picture rides `shared_images`. */
+export interface SharedDetailMap {
+  id: string
+  parentMapId: string | null
+  name: string
+  imageId: string | null
+  width: number
+  height: number
+  pins: WorldPin[]
 }
 
 /** Share (or re-push) the campaign's world map so members read it live. */
 export async function shareWorldMap(
   campaignId: string,
-  map: { name: string; imageId: string | null; width: number; height: number; pins: WorldPin[] },
+  map: { name: string; imageId: string | null; width: number; height: number; pins: WorldPin[]; detailMaps?: SharedDetailMap[] },
 ): Promise<void> {
   if (demoSkipsCloud()) return
   if (!supabase) throw new Error('Not signed in.')
@@ -273,6 +286,7 @@ export async function shareWorldMap(
       width: map.width,
       height: map.height,
       pins: map.pins,
+      detail_maps: map.detailMaps ?? [],
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'campaign_id' },
@@ -293,7 +307,7 @@ export async function getSharedWorldMap(cloudCampaignId: string): Promise<Shared
   if (!supabase || demoSkipsCloud()) return null
   const { data, error } = await supabase
     .from('shared_world_maps')
-    .select('name, image_id, width, height, pins')
+    .select('name, image_id, width, height, pins, detail_maps')
     .eq('campaign_id', cloudCampaignId)
     .maybeSingle()
   if (error || !data) return null
@@ -303,6 +317,7 @@ export async function getSharedWorldMap(cloudCampaignId: string): Promise<Shared
     width: (data.width as number) ?? null,
     height: (data.height as number) ?? null,
     pins: (Array.isArray(data.pins) ? data.pins : []) as WorldPin[],
+    detailMaps: (Array.isArray(data.detail_maps) ? data.detail_maps : []) as SharedDetailMap[],
   }
 }
 
