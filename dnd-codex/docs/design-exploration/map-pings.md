@@ -1,11 +1,23 @@
 # Map pings and colored cursors (T-102)
 
-Status: proposal for the owner's approval. No application code changed yet.
+Status: **approved by the owner** (decisions below). No application code changed yet. The build waits for T-99 to land on `dev`.
 Mockup: [`round-2/map-pings-mockup.html`](round-2/map-pings-mockup.html)
 (open it in a browser; it has two simulated users, light and dark maps, and the DM toggle).
 
 Owner requirement: a ping system and a cursor color system on the map. A single
 right click is a ping. A right-click drag shows that user's colored cursor.
+
+## Decisions (owner, 2026-11-23)
+
+1. Players ping and show cursors by default, with the DM toggle and a per-player mute.
+2. The DM toggle is session-only, sent as a broadcast `ctl` message. No extra migration or column.
+3. The picker keeps the 8 token colors. Okabe-Ito is only the fallback for users with no saved color.
+4. Private channels, with the `realtime.messages` SQL migration.
+5. The P key ping and off-screen edge arrows stay.
+6. The cursor sends at 20/s, with 12/s kept as a switch (a constant in `pings.ts`) for the free tier.
+
+The migration number is a placeholder (`NNNN`) in this note. The hub assigns it at build time,
+because T-100 also plans a migration.
 
 ## What the code does today
 
@@ -193,14 +205,13 @@ each message and nobody needs a "who is here" list for this feature.
 
 A public channel name is guessable, and anyone with the project's anon key can
 subscribe. Use **private channels** with RLS on `realtime.messages`. That is the
-only authorization Realtime offers, and it needs an additive migration (the
-next free number is `0045`, but T-100 may claim it, so the hub assigns it).
+only authorization Realtime offers, and it needs an additive migration (the hub assigns the number; `NNNN` below).
 
 Migration (additive, adds no table and no function, so there is no
 SECURITY DEFINER function to revoke from `anon`):
 
 ```sql
--- 0045_map_pings_realtime.sql
+-- NNNN_map_pings_realtime.sql (the hub assigns the number)
 -- Campaign members (and the owner) can receive and send map ping broadcasts on
 -- the private channel "pings:<campaign uuid>". Nothing else changes.
 
@@ -257,7 +268,7 @@ writes to it.
   each, 160 msg/s for the channel and 8 senders' worth at each client (about
   8 x 20 x 150 bytes = 24 KB/s per client). That is inside the Realtime limits
   for the free tier (100 msg/s per channel is the documented default, so
-  **lower the cursor rate to 12/s** for the free tier; see open questions).
+  the cursor rate constant has a 12/s setting for the free tier; the default is 20/s).
 - Abuse: only members join (RLS). A member can still spam, so receivers apply
   the caps in section 1 and drop senders over the limit for 10 s. The DM mute
   (section 2) is the human control.
@@ -359,6 +370,53 @@ hosted Realtime service):
 5. The DM toggle **Allow player pings and cursors** and the per-player mute.
 6. Four or more people at once, to watch the rate caps.
 
+## Stitch check
+
+I checked the round 2 "D&D Codex Battle Map & VTT" prototype (saved HTML) and
+the round 2 "Battle Map — The Gilded Stag" screen (`2f2044da...`, downloaded
+through the Stitch MCP tools; same layout) for how map overlays are styled. I did
+not open "Battle Map Editor", "DM Run Mode" or the round 1 project. The prototype has no ping or remote cursor, so it is
+context, not a spec.
+
+What relates to pings and cursors:
+
+- **Overlay layering.** The cone template, range ring and cover markers are
+  `pointer-events: none` SVG or divs on the map, drawn dashed at 40% opacity
+  in the secondary or primary tint. The HUD (tip pill, readout, zoom controls)
+  sits above the map at a higher `z-index`.
+- **Name chips.** Token names are small (10 px) chips on a 90% opaque dark fill
+  with tight padding and rounded corners.
+- **Tip pill.** A rounded-full pill at the bottom center, blurred dark fill,
+  dim text, with the controls hint ("Drag tokens... [Space] + Drag to Pan").
+- **Readout.** A bottom-left monospace chip (`Grid: 5 ft / cell · Cursor: X, Y`).
+- **Ping tool.** The left toolbar has a **Ping** tool button, titled "Signal Alert / Ping (P)", with a `priority_high` icon in the tertiary tint. This matches the P-key decision.
+- **Pulse.** Range rings use a slow pulse, so a ping needs to look different.
+
+What I applied (to the mockup and the plan):
+
+- Ping and cursor name tags use the same 10 to 11 px chip on a 90% opaque dark
+  fill, with the user's color as the border instead of the neutral outline.
+- Pings draw above templates, rings and tokens, and below the HUD. They stay
+  `pointer-events: none`.
+- Pings are solid, haloed and fade out in 2 s, so they don't read as the
+  dashed 40% template overlays or the always-on range-ring pulse.
+- The mockup now has the bottom-center tip pill for the right-click hint and
+  the bottom-left mono chip, which shows "Pings on · 2 watching". In the app,
+  the right-click hint joins the existing tip pill text once, and the chip
+  only appears when the DM turns pings off ("Pings off") so it isn't permanent
+  noise.
+
+- Add a **Ping** tool button to the board toolbar (shortcut P). While it is on, a tap or click pings where you press, with no long press. This gives touch users a faster route than the 400 ms long press, and it doesn't change the right-click and long-press gestures. The P key pings at the pointer when it is over the board, else at the board center.
+
+What I left out and why:
+
+- Material Symbols icons and Tailwind classes: the app uses its own `Icon`
+  component and `styles.css` tokens.
+- The prototype's own cursor coordinate readout: it is the local pointer's
+  grid cell, not a remote cursor, and is out of scope for T-102.
+- Invented content (AC, 5e rules, Party Level, "Act II", Quick Ref): not part of
+  this design.
+
 ## 9. Risks and open questions
 
 Risks:
@@ -373,17 +431,4 @@ Risks:
 - A player's display name is sent on every message. A player who set a
   silly name sends a silly label; the 24-character cap and sanitize limit damage.
 
-Open questions for the owner:
-
-1. **Players ping by default?** Recommended yes, with the DM toggle and per-player mute.
-2. **Where does the DM toggle live?** Recommended: the live-map toolbar overflow,
-   stored on the DM's device and announced with `ctl` messages, so it ends with
-   the session. The alternative is a column on `shared_scenes` (needs a migration and
-   survives reloads). Which do you want?
-3. **Colors:** keep the 8 token colors as the picker, and use the Okabe-Ito
-   palette only as the fallback for users who never picked a color?
-4. **Private channels (SQL migration `0045`) or public channels?** Private is
-   recommended; public needs no SQL but anyone who guesses a campaign id could
-   listen.
-5. **Keyboard ping on the P key** and **edge arrows** for off-screen pings: keep both?
-6. **Cursor rate:** 12/s (safe on the free tier) or 20/s (smoother)?
+Open questions: none. All six are decided (see **Decisions**).
