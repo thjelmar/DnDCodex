@@ -262,6 +262,11 @@ fixed yet except the battle map (above) and the safe areas.
 | 10 | **`100vh` everywhere** | Safari's dynamic toolbar changes the visible height, so `100vh` is taller than what you see (for example `.wm-stage`, `.run-map`, `.session-map`, modals' `max-height`, `.bm-window-body`, `.duel-log-body`). | Replace with `100dvh` behind an `@supports (height: 100dvh)` fallback, in one pass. |
 | 11 | **Modals, side panels, toasts** | Modals use `calc(100vh - 40px)`; a short screen leaves little room and the bottom buttons can fall under the home indicator. | `dvh`, safe-area padding on the footer (side panel and toast insets done in the safe-area diff). |
 
+**Status (T-97):** rows 1, 2 (the 40px hide-on-scroll top bar and the 24px banner), 4, 5 and
+10 are fixed for a touch screen turned sideways. The 821 to 932px docked-sidebar case of row 2
+already uses the drawer through the `pointer: coarse` and `max-height: 500px` query. Rows 3, 6
+to 9 and 11 are still open.
+
 Suggested order after the battle map: 2 and 1 together (shell and banner, since
 they hit every page), then 3 (Run mode, the owner's screen), then 10, 4, 5, 6,
 7 and 8. Items 9 and 11 can wait. I'll change none of these until you and the
