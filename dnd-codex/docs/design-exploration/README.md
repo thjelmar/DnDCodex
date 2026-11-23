@@ -13,7 +13,8 @@ these files.
 | `battle-map-library.md` | The shared battle map library: who can publish, storage, copying into a campaign, the database design, phases. | Phases 1 and 2 shipped (T-76, T-77). Phase 3 is open (T-78). |
 | `supabase-memory.md` | An investigation of Supabase memory pressure, a read-only diagnostics pack, and a fix plan. | Findings only. The live database is about 34 MB on Nano compute, so the code tickets (T-79 to T-83) stay low priority. |
 | `round-2-page-ranking.md` | Round 2 review: pages ranked by need for a UI overhaul. | Not built. |
-| `round-2-battle-map-and-run-mode.md` | Stitch mockups for the battle map and Run Mode, with defects to fix. | Not built. |
+| `round-2-battle-map-and-run-mode.md` | Stitch mockups for the battle map and Run Mode, with defects to fix, the owner's feedback, and a hand-built HTML mockup (`round-2/battle-map-mockup.html`). | In progress as T-95 (draft PR 159). Run Mode is not started. |
+| `world-map-detail-maps.md` | Pins that open a detail map (such as a town) with a zoom and a Close button: data model, zoom, player share, migration 0044. | Built as T-94. |
 
 The Stitch mockup images and HTML that the exploration produced were not saved here.
 They live in the Stitch project "D&D Codex layout exploration (demo data only)".

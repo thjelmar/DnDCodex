@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Icon } from './Icon'
 import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 import type { WorldPin } from '../db/types'
 
@@ -15,17 +16,7 @@ const clampK = (k: number) => Math.max(MIN_K, Math.min(MAX_K, k))
 /** A pan/zoom image board with pins. Shared by the DM editor and the read-only
  *  player view; the DM passes `editable` to place and drag pins. Pins are stored
  *  as fractions of the image (0–1), so they stay put across zoom and resize. */
-export function WorldMapCanvas({
-  imageUrl,
-  width,
-  height,
-  pins,
-  editable = false,
-  selectedPinId = null,
-  onSelectPin,
-  onAddPin,
-  onMovePin,
-}: {
+interface WorldMapCanvasProps {
   imageUrl: string | null
   width: number
   height: number
@@ -35,7 +26,30 @@ export function WorldMapCanvas({
   onSelectPin?: (id: string | null) => void
   onAddPin?: (x: number, y: number) => void
   onMovePin?: (id: string, x: number, y: number) => void
-}) {
+  /** True for a pin that opens a detail map (T-94). Those pins show a map glyph. */
+  openable?: (pin: WorldPin) => boolean
+  /** Open a pin's detail map. Viewers: a click. Editor: a double-click or Enter. */
+  onOpenPin?: (pin: WorldPin) => void
+}
+
+export interface WorldMapCanvasHandle {
+  /** The pin's center in the canvas's own pixel space, or null if the pin is unknown. */
+  pinPoint(id: string): { x: number; y: number } | null
+}
+
+export const WorldMapCanvas = forwardRef<WorldMapCanvasHandle, WorldMapCanvasProps>(function WorldMapCanvas({
+  imageUrl,
+  width,
+  height,
+  pins,
+  editable = false,
+  selectedPinId = null,
+  onSelectPin,
+  onAddPin,
+  onMovePin,
+  openable,
+  onOpenPin,
+}, handle) {
   const ref = useRef<HTMLDivElement>(null)
   const [t, setT] = useState<Transform>({ k: 1, tx: 0, ty: 0 })
   // Drag bookkeeping: panning the board vs dragging one pin.
@@ -49,15 +63,29 @@ export function WorldMapCanvas({
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const pinch = useRef<PinchState | null>(null)
 
+  const tRef = useRef(t)
+  tRef.current = t
+  const pinsRef = useRef(pins)
+  pinsRef.current = pins
   const imgW = width || 1000
   const imgH = height || 700
+  useImperativeHandle(handle, () => ({
+    pinPoint(id) {
+      const p = pinsRef.current.find((q) => q.id === id)
+      if (!p) return null
+      const cur = tRef.current
+      return { x: cur.tx + p.x * imgW * cur.k, y: cur.ty + p.y * imgH * cur.k }
+    },
+  }), [imgW, imgH])
 
   // Fit the image to the container, centered. Shared by the auto-fit effect and
   // the "Fit" button.
   function fitView() {
     const el = ref.current
     if (!el || !imageUrl) return
-    const r = el.getBoundingClientRect()
+    // Layout size, not getBoundingClientRect: the stage animates the layer's scale
+    // while a detail map mounts, and a transformed rect would fit the image too small.
+    const r = { width: el.clientWidth, height: el.clientHeight }
     const pad = 24
     const k = clampK(Math.min((r.width - pad) / imgW, (r.height - pad) / imgH))
     setT({ k, tx: (r.width - imgW * k) / 2, ty: (r.height - imgH * k) / 2 })
@@ -218,17 +246,29 @@ export function WorldMapCanvas({
             const left = t.tx + p.x * imgW * t.k
             const top = t.ty + p.y * imgH * t.k
             const sel = p.id === selectedPinId
+            const opens = !!openable?.(p)
             return (
               <button
                 key={p.id}
-                className={`worldmap-pin${sel ? ' selected' : ''}`}
+                className={`worldmap-pin${sel ? ' selected' : ''}${opens ? ' has-detail' : ''}`}
                 title={p.label || 'Pin'}
                 onPointerDown={(e) => onPinDown(e, p.id)}
-                onClick={(e) => { e.stopPropagation(); if (!editable) onSelectPin?.(p.id) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!editable) {
+                    if (opens) onOpenPin?.(p)
+                    else onSelectPin?.(p.id)
+                  } else if (opens && e.detail === 0) {
+                    // Enter or Space on the focused pin (a click with no pointer).
+                    onOpenPin?.(p)
+                  }
+                }}
+                onDoubleClick={(e) => { e.stopPropagation(); if (editable && opens) onOpenPin?.(p) }}
                 style={{ left, top, cursor: editable ? 'move' : 'pointer' }}
               >
                 <span className="worldmap-pin-dot" style={{ background: p.color }} />
                 {p.label && <span className="worldmap-pin-label">{p.label}</span>}
+                {opens && <span className="worldmap-pin-detail" aria-label="Opens a detail map"><Icon name="map" size={12} color="inherit" /></span>}
               </button>
             )
           })}
@@ -251,6 +291,6 @@ export function WorldMapCanvas({
       )}
     </div>
   )
-}
+})
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
