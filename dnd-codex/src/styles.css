@@ -3195,7 +3195,7 @@ kbd {
 .run-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: auto;
   padding: 16px 20px 0;
   box-sizing: border-box;
 }
@@ -3227,10 +3227,12 @@ kbd {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr) 430px;
+  /* The phone path only (desktop and tablets use the studio, see .run-studio): one column.
+     minmax(0, 1fr): a bare 1fr lets wide content stretch the column past the screen. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
-.run-col { min-height: 0; overflow-y: auto; padding: 14px 2px 40px; }
+.run-col { min-height: 0; overflow: visible; padding: 14px 2px 10px; min-width: 0; }
 .run-col-heading {
   display: flex;
   align-items: center;
@@ -3301,10 +3303,6 @@ kbd {
 .run-center-switch { margin-bottom: 12px; }
 .run-map-pick { width: auto; max-width: 320px; margin-bottom: 10px; }
 .run-map .tabletop-view { height: calc(100vh - 250px); height: calc(100dvh - 250px); min-height: 380px; }
-/* Battle Map pane: give the board the room (narrower In-play and tools columns). */
-.run-grid.map-mode { grid-template-columns: 200px minmax(0, 1fr) 340px; }
-@media (max-width: 1280px) { .run-grid.map-mode { grid-template-columns: 180px minmax(0, 1fr) 320px; } }
-@media (max-width: 1050px) { .run-grid.map-mode { grid-template-columns: minmax(0, 1fr); } }
 .run-session-title { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .run-session-title h2 { font-size: 20px; }
 
@@ -3464,16 +3462,6 @@ kbd {
 }
 .linklike:hover { text-decoration: underline; }
 
-@media (max-width: 1280px) {
-  .run-grid { grid-template-columns: 220px minmax(0, 1fr) 380px; }
-}
-@media (max-width: 1050px) {
-  .run-page { height: auto; }
-  /* minmax(0, 1fr): a bare 1fr lets wide content (a long tip, a nowrap row) stretch
-     the column past the screen. */
-  .run-grid { grid-template-columns: minmax(0, 1fr); }
-  .run-col { overflow: visible; padding-bottom: 10px; min-width: 0; }
-}
 
 /* "My Character" structured sheet (CharacterSheet.tsx). */
 .char-sheet { display: flex; flex-direction: column; gap: 16px; margin: 10px 0 4px; }
@@ -5137,7 +5125,7 @@ body.ov-dragging * { cursor: inherit !important; }
 .bm-gbox-each > div > span:first-child { flex: 1; }
 @media (max-width: 820px), (pointer: coarse) and (max-height: 500px) { .bm-mini { height: 38px; } .bm-init { min-height: 38px; padding: 0 10px; } .bm-check { width: 22px; height: 22px; } }
 
-/* ==========================================================================
+/* ===================================================================
    World map detail maps (T-94)
    A stage that stacks the larger map and the open detail map. Scoped to
    .wm-* and .worldmap-pin.has-detail so it never touches other pages.
@@ -5355,6 +5343,50 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .bm-install span { grid-column: 1; }
 .bm-install .bm-icon-btn { grid-column: 2; grid-row: 1 / span 2; }
 
+/* ---------------------------------------------------------------------------
+   Run mode, desktop and tablet (T-98): the map is the page. One 48px top bar,
+   the studio's tool rail and board, and one tabbed panel docked on the right
+   (a drawer at 1050px and narrower). The phone keeps its own full screen path.
+--------------------------------------------------------------------------- */
+.run-page.run-studio { padding: 0; height: 100%; min-height: 0; }
+.run-studio .bm-studio, .run-studio .run-empty-studio { flex: 1; min-height: 0; }
+.run-empty-studio { display: flex; flex-direction: column; background: var(--bg); }
+.run-empty-body { flex: 1; min-height: 0; display: flex; }
+.run-empty-body > .empty { flex: 1; align-self: center; }
+/* Run mode hides the app sidebar on desktop and tablet. Exit run mode brings it back. */
+@media (min-width: 821px) and (not ((pointer: coarse) and (max-height: 500px))) {
+  .app:has(.run-studio) { grid-template-columns: 1fr; }
+  .app:has(.run-studio) .sidebar, .app:has(.run-studio) .sidebar-edge { display: none; }
+}
+.bm-top-run .run-dot { width: 10px; height: 10px; }
+.bm-top-run .run-title { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 22vw; }
+.run-session-name, .run-mapname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24vw; }
+.bm-top-run .run-live { display: inline-flex; align-items: center; gap: 8px; position: relative; }
+.bm-top-run .run-live .btn.small { height: 34px; padding: 0 10px; font-size: 13px; }
+.bm-top-run .run-live-on { font-size: 12px; }
+/* The panel */
+.run-studio .bm-insp-docked { width: 360px; }
+@media (max-width: 1279px) { .run-studio .bm-insp-docked { width: 320px; } }
+.run-studio .bm-insp-drawer { width: min(360px, 92%); }
+.bm-tabs button.has-icon { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; }
+.bm-tabs button.has-icon:not(.on) .bm-tab-label { display: none; }
+.bm-scene-sub { margin-bottom: 10px; }
+.bm-insp-body .run-card { background: none; border: 0; padding: 0; margin: 0; }
+/* In play: a rail button with a count, and a flyout beside the rail */
+.bm-rail-grow { flex: 1; }
+.bm-play-btn { position: relative; }
+.bm-badge {
+  position: absolute; top: -3px; right: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px;
+  background: var(--accent-strong); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center;
+  border: 2px solid var(--bg-elev);
+}
+.bm-play {
+  position: absolute; z-index: 6; top: 0; bottom: 0; left: 48px; width: 260px; display: flex; flex-direction: column;
+  background: var(--bg-elev); border-right: 1px solid var(--border); box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
+}
+.bm-play-hd { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border); font-family: var(--serif); }
+.bm-play-body { flex: 1; min-height: 0; overflow: auto; padding: 10px; }
+
 /* ==========================================================================
    Landscape phone shell (T-97)
    A touch screen turned sideways has about 350px of height. The demo banner shrinks to a
@@ -5429,3 +5461,85 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 @media (prefers-reduced-motion: reduce) {
   .topbar { transition: none; }
 }
+
+/* Run mode's initiative list (the Combat tab). Rows are turn slots; a group is one slot. */
+.il-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 2px 8px; font-size: 12px; }
+.il-head strong { font-family: var(--serif); font-size: 15px; font-weight: 600; }
+.il-empty { font-size: 13px; margin: 8px 2px; }
+.il-rows { display: flex; flex-direction: column; gap: 4px; }
+.il-row {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 56px; gap: 4px 8px; align-items: center;
+  padding: 7px 8px; border: 1px solid transparent; border-radius: var(--radius);
+}
+.il-row:hover { background: var(--bg-elev-2); }
+.il-row.sel { border-color: var(--border); background: var(--bg-elev-2); }
+.il-row.turn { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-elev-2)); animation: il-pulse 1.8s ease-out infinite; }
+.il-row.down { opacity: 0.45; }
+@keyframes il-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .il-row.turn { animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 55%, transparent); }
+}
+.il-main { display: flex; align-items: center; gap: 10px; min-width: 0; background: none; border: 0; padding: 0; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.il-av { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #fff; background: var(--text-faint); }
+.il-stack { flex: none; display: flex; }
+.il-stack b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; margin-left: -10px; border: 2px solid var(--bg-elev); font-size: 11px; color: #fff; background: var(--text-faint); }
+.il-stack b:first-child { margin-left: 0; }
+.il-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.il-name small { font-weight: 400; color: var(--text-faint); font-size: 11px; }
+.il-ini {
+  width: 56px; box-sizing: border-box; height: 30px; padding: 0 4px; text-align: right; background: transparent; border: 1px solid transparent;
+  border-radius: var(--radius-sm); color: var(--text-dim); font-family: var(--serif); font-size: 18px; -moz-appearance: textfield;
+}
+.il-ini::-webkit-outer-spin-button, .il-ini::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.il-ini:hover, .il-ini:focus { border-color: var(--border); background: var(--bg); outline: none; }
+.il-row.turn .il-ini { color: var(--accent); }
+.il-hp { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-dim); }
+.il-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--bg); overflow: hidden; }
+.il-bar i { display: block; height: 100%; border-radius: 3px; background: var(--good); }
+.il-bar i.mid { background: #fbbf24; }
+.il-bar i.low { background: var(--danger); }
+.il-conds { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.il-cond { font-size: 11px; padding: 0 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-dim); }
+.il-x { position: absolute; top: 4px; right: 66px; width: 24px; height: 24px; opacity: 0; }
+.il-row:hover .il-x, .il-x:focus-visible { opacity: 1; }
+.il-quick { grid-column: 1 / -1; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.il-quick-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.il-amt { width: 60px; box-sizing: border-box; height: 34px; padding: 0 8px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 14px; }
+.il-members { display: grid; gap: 3px; }
+.il-member { display: flex; justify-content: space-between; padding: 4px 8px; font: inherit; font-size: 12px; color: var(--text-dim); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+.il-member.on { color: var(--text); border-color: var(--accent); }
+.il-foot { display: flex; align-items: center; gap: 6px; margin-top: 12px; }
+.il-full { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+.il-add { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.il-foot .bm-menu-up, .bm-menu-up { top: auto; bottom: calc(100% + 4px); }
+
+/* Run mode, phase 3: the map column (the dice row sits under the map), timer, dice bar, voice roster. */
+.bm-contents { display: contents; }
+.bm-mapcol { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.bm-mapcol > .bm-map { flex: 1; min-height: 0; }
+.bm-dicerow { flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 0; background: var(--bg-elev); border-top: 1px solid var(--border); }
+.bm-dice-chip { position: absolute; right: 12px; bottom: 12px; z-index: 5; }
+.dice-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; overflow-x: auto; scrollbar-width: none; }
+.dice-bar::-webkit-scrollbar { display: none; }
+.dice-bar-dice { display: flex; gap: 4px; flex: none; }
+.dice-bar-die { min-width: 38px; height: 32px; padding: 0 6px; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dice-bar-die:hover { border-color: var(--accent); }
+.dice-bar-expr { width: 110px; flex: none; height: 32px; padding: 0 9px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 13px; }
+.dice-bar .bm-btn { height: 32px; }
+.dice-bar-last { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: none; font-size: 12px; white-space: nowrap; }
+.dice-bar-last b { font-family: var(--serif); font-size: 18px; color: var(--accent); }
+.run-timer { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 4px 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); font-variant-numeric: tabular-nums; font-size: 13px; }
+.run-timer-dot { width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--accent); }
+.run-timer.running .run-timer-dot { animation: il-pulse 1.8s ease-out infinite; }
+.run-timer.paused { color: var(--text-dim); }
+.run-timer.paused .run-timer-dot { background: var(--text-faint); }
+.run-timer .bm-icon-btn { width: 26px; height: 26px; }
+@media (prefers-reduced-motion: reduce) { .run-timer.running .run-timer-dot { animation: none; } }
+@media (max-width: 1280px) { .run-timer-lbl { display: none; } }
+/* The voice roster floats at the top left of the map, not above the page. */
+.bm-voice { position: absolute; z-index: 4; top: 10px; left: 10px; max-width: 45%; }
+.bm-voice .voice-roster { margin: 0; padding: 4px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; }

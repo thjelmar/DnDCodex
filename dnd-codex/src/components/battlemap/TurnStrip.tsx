@@ -24,6 +24,7 @@ export function TurnStrip({
   groupNames,
   onStart,
   onNext,
+  onSelect,
 }: {
   state: CombatState
   /** Color for a combatant's chip, by combatant id (tokens on this map). */
@@ -32,6 +33,8 @@ export function TurnStrip({
   groupNames?: Record<string, string>
   onStart: () => void
   onNext: () => void
+  /** A chip was clicked: the combatant ids of its slot. */
+  onSelect?: (ids: string[]) => void
 }) {
   const list = state.combatants
   if (list.length === 0) return null
@@ -67,7 +70,7 @@ export function TurnStrip({
           if (slot.length > 1) {
             return (
               <li key={slot[0].id}>
-                <span className={`bm-gchip${turn ? ' turn' : ''}`} data-testid="bm-group-chip" aria-label="Monster group" aria-current={turn ? 'step' : undefined}>
+                <span className={`bm-gchip${turn ? ' turn' : ''}`} data-testid="bm-group-chip" aria-label="Monster group" aria-current={turn ? 'step' : undefined} onClick={onSelect ? () => onSelect(slot.map((m) => m.id)) : undefined} style={onSelect ? { cursor: 'pointer' } : undefined}>
                   {slot.map((c) => (
                     <b key={c.id} className="bm-chip" style={looks[c.id]?.color ? { background: looks[c.id].color! } : undefined}>
                       {initials(c.name)}
@@ -83,7 +86,8 @@ export function TurnStrip({
             <li key={c.id}>
               <span
                 className={`bm-chip${turn ? ' turn' : ''}${down ? ' down' : ''}`}
-                style={looks[c.id]?.color ? { background: looks[c.id].color! } : undefined}
+                style={{ ...(looks[c.id]?.color ? { background: looks[c.id].color! } : {}), ...(onSelect ? { cursor: 'pointer' } : {}) }}
+                onClick={onSelect ? () => onSelect([c.id]) : undefined}
                 title={`${c.name}${c.initiative != null ? ` (initiative ${c.initiative})` : ''}`}
                 aria-current={turn ? 'step' : undefined}
               >

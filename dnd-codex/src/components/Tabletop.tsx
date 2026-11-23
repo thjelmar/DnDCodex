@@ -94,6 +94,8 @@ interface Props {
   renderTokenPanel?: (token: SceneToken) => ReactNode
   /** DM boards: draw a dashed ring on tokens that belong to a monster group. */
   showGroups?: boolean
+  /** Pans (never zooms) so these tokens sit in the middle of the viewport. Runs each time `seq` changes. */
+  focus?: { ids: string[]; seq: number } | null
 }
 
 /**
@@ -154,6 +156,7 @@ export function Tabletop({
   measureTool = false,
   renderTokenPanel,
   showGroups = false,
+  focus = null,
 }: Props) {
   const iconPaths = useTokenIconPaths()
   const clampRef = useRef<(tx: number, ty: number, k: number) => { tx: number; ty: number }>((tx, ty) => ({ tx, ty }))
@@ -283,6 +286,20 @@ export function Tabletop({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // Focus: pan to the token (or the middle of a group), keeping the zoom.
+  const focusSeq = focus?.seq
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || !focus || focus.seq === 0) return
+    const ts = tokensRef.current.filter((t) => focus.ids.includes(t.id))
+    if (ts.length === 0) return
+    const cs = ts.map((t) => tokenCenter(grid, t))
+    const cx = cs.reduce((a, c) => a + c.x, 0) / cs.length
+    const cy = cs.reduce((a, c) => a + c.y, 0) / cs.length
+    setTransform((tr) => ({ k: tr.k, ...clampRef.current(el.clientWidth / 2 - cx * tr.k, el.clientHeight / 2 - cy * tr.k, tr.k) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSeq])
 
   useEffect(() => {
     const el = wrapRef.current

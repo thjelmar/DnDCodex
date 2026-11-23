@@ -21,7 +21,7 @@ import { useConfirm } from '../components/ConfirmDialog'
 import { Icon } from '../components/Icon'
 import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
-import { Inspector, TokenRow, type ExtraInspectorTab } from '../components/battlemap/Inspector'
+import { Inspector, TokenRow, type RunTab, type RunStudioCtx } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
 import { TurnStrip } from '../components/battlemap/TurnStrip'
 import { GroupBox } from '../components/battlemap/GroupBox'
@@ -45,6 +45,7 @@ import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { isIphoneSafari, isStandalone } from '../lib/standalone'
 import { PHONE_QUERY, useIsPhone, useIsPhoneLandscape } from '../lib/usePhone'
 import { useCombat, combatantFromNpc, ConditionPicker } from '../components/CombatRoster'
@@ -249,9 +250,26 @@ export function SceneEditor({
   /** Run mode on a phone: the board is always full screen (no toggle), and the inspector
    *  drawer also holds Run mode's own sections (combat, notes, dice and so on). */
   runKit?: {
-    tabs: (ExtraInspectorTab & { content: ReactNode })[]
+    tabs: RunTab[]
     /** Leaves the map for Run mode's Notes page. */
     onBack: () => void
+    /** Desktop and tablet: the panel docks beside the map (a drawer at 1050px and narrower),
+     *  the three scene tabs fold into one Scene tab, and the studio shows Run mode's own top bar. */
+    docked?: boolean
+    /** Docked only: the start of the top bar (exit, campaign, session switcher). */
+    topStart?: ReactNode
+    /** Docked only: the end of the top bar (live session control). */
+    topEnd?: ReactNode
+    /** Docked only: the In play rail button and flyout. */
+    play?: { count: number; content: ReactNode }
+    /** Docked only: after the map switcher in the top bar (the run timer). */
+    topMid?: ReactNode
+    /** Docked only: the quick dice row under the map. It hides while the Dice tab is open. */
+    diceBar?: ReactNode
+    /** Docked only: floats at the top left of the map (the voice roster). */
+    mapOverlay?: ReactNode
+    /** The id of the tab that holds the full dice roller. */
+    diceTabId?: string
   }
 }) {
   const confirm = useConfirm()
@@ -423,9 +441,10 @@ export function SceneEditor({
     () => peekOpen.current || drawerOpenRef.current,
     studio && isStandalone() && typeof window !== 'undefined' && !!window.matchMedia?.(PHONE_QUERY).matches,
   )
-  const expanded = fs.expanded || !!runKit
+  const runDocked = !!runKit?.docked
+  const expanded = fs.expanded || (!!runKit && !runDocked)
   const enterFullscreen = fs.enter
-  const exitFullscreen = runKit ? runKit.onBack : fs.exit
+  const exitFullscreen = runKit && !runDocked ? runKit.onBack : fs.exit
   const [panelOpen, setPanelOpen] = useState(!compact)
   // Full screen only: session notes beside the map.
   const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
@@ -437,9 +456,23 @@ export function SceneEditor({
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [inspFloat, setInspFloat] = useState(false)
   const [inspTab, setInspTab] = useState<string>(runKit?.tabs[0]?.id ?? 'tokens')
+  // Docked Run mode folds Tokens, Grid and Map into one Scene tab with sub-tabs.
+  const [sceneSub, setSceneSub] = useState<'tokens' | 'grid' | 'map'>('tokens')
+  const [playOpen, setPlayOpen] = useState(false)
+  // The dice bar can be collapsed; the choice is remembered on this device.
+  const [diceOff, setDiceOff] = useState(() => {
+    try { return localStorage.getItem('codex.runDice.off') === '1' } catch { return false }
+  })
+  const setDice = (off: boolean) => {
+    setDiceOff(off)
+    try { localStorage.setItem('codex.runDice.off', off ? '1' : '0') } catch { /* ignore */ }
+  }
+  // Pans the board to these tokens when a combatant is picked outside the board (Run mode's list).
+  const [focus, setFocus] = useState<{ ids: string[]; seq: number }>({ ids: [], seq: 0 })
   const [tokenFilter, setTokenFilter] = useState('')
   const [hintOn, setHintOn] = useState(true)
-  const asDrawer = expanded || isPhone
+  const narrowDock = useMediaQuery('(max-width: 1050px)')
+  const asDrawer = expanded || isPhone || (runDocked && narrowDock)
   const inspVisible = asDrawer ? drawerOpen : dockOpen
   drawerOpenRef.current = studio && asDrawer && drawerOpen
   const iw = useInspectorWindow()
@@ -1152,6 +1185,7 @@ export function SceneEditor({
           portraits={portraits ?? {}}
           selectedId={selectedToken}
           onSelect={setSelectedToken}
+          focus={focus}
           onMoveToken={(id, col, row) => patchToken(id, { col, row })}
           onResizeToken={(id, size) => patchToken(id, { size })}
           onDeleteToken={removeToken}
@@ -1246,7 +1280,7 @@ export function SceneEditor({
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
   // (Hooks above run in every layout; this effect only acts in the studio.)
-  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {} })
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {}, toggleDice: () => {} })
   const preview0 = preview
   function selectTool() {
     setFogTool(null)
@@ -1265,7 +1299,9 @@ export function SceneEditor({
     fullscreen: () => (expanded ? exitFullscreen() : enterFullscreen()),
     select: selectTool,
     measure: () => !preview0 && toggleMeasure(),
-    closeDrawer: () => setDrawerOpen(false),
+    closeDrawer: () => { setDrawerOpen(false); setPlayOpen(false) },
+    togglePlay: () => runKit?.play && setPlayOpen((o) => !o),
+    toggleDice: () => runKit?.diceBar && setDice(!diceOff),
     next: () => combat.state.active && combat.step(1),
   }
   useEffect(() => {
@@ -1281,6 +1317,8 @@ export function SceneEditor({
       else if (k === 'v') a.select()
       else if (k === 'm') a.measure()
       else if (k === 'n') a.next()
+      else if (k === '[') a.togglePlay()
+      else if (k === 'd') a.toggleDice()
       else if (k === 'escape') a.closeDrawer()
     }
     window.addEventListener('keydown', onKey)
@@ -1346,13 +1384,39 @@ export function SceneEditor({
     )
     const toggleFog = () => (fogTool ? exitFog() : enterFog())
 
+    // What Run mode's tab bodies share with the board: the selection, and a pan to a combatant's token.
+    const runCtx: RunStudioCtx = {
+      selectedCombatantId: current ? combatantOf(combat.state, current)?.id ?? null : null,
+      selectCombatants: (ids) => {
+        const found = tokens.filter((t) => t.combatantId && ids.includes(t.combatantId))
+        if (found.length === 0) return
+        setSelectedToken(found[0].id)
+        setFocus((f) => ({ ids: found.map((t) => t.id), seq: f.seq + 1 }))
+      },
+      colorOf: (id) => {
+        const t = tokens.find((x) => x.combatantId === id)
+        return t ? live.colorFor(t) : null
+      },
+    }
+    // Which scene section the body shows: the folded Scene tab uses its sub-tab.
+    const foldScene = runDocked
+    const tabId = foldScene
+      ? ['tokens', 'grid', 'map'].includes(inspTab) ? 'scene' : inspTab
+      : inspTab === 'scene' ? 'tokens' : inspTab
+    const sceneView = foldScene ? (tabId === 'scene' ? sceneSub : null) : tabId
+    // The dice bar hides while the Dice tab is open (the tab holds the full roller). Collapsed, a chip brings it back.
+    const diceTabOpen = !!runKit?.diceTabId && (inspVisible || !!iw.win) && tabId === runKit.diceTabId
+    const diceBarShown = runDocked && !!runKit?.diceBar && !diceOff && !diceTabOpen
+    const diceChipShown = runDocked && !!runKit?.diceBar && diceOff && !diceTabOpen
     const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
     const inspectorEl = (
       <Inspector
         mode={inspMode}
-        tab={inspTab}
+        tab={tabId}
         onTab={setInspTab}
         extraTabs={runKit?.tabs}
+        foldScene={foldScene}
+        noun={runDocked ? 'panel' : 'inspector'}
         onToggleFloat={() => setInspFloat((f) => !f)}
         onOpenWindow={isPhone ? undefined : iw.open}
         onClose={() => {
@@ -1361,8 +1425,17 @@ export function SceneEditor({
           else setDockOpen(false)
         }}
       >
-        {runKit?.tabs.map((t) => inspTab === t.id && <div key={t.id}>{t.content}</div>)}
-        {inspTab === 'tokens' && (
+        {runKit?.tabs.map((t) => tabId === t.id && <div key={t.id}>{typeof t.content === 'function' ? t.content(runCtx) : t.content}</div>)}
+        {foldScene && tabId === 'scene' && (
+          <div className="bm-seg bm-scene-sub" role="group" aria-label="Scene section">
+            {(['tokens', 'grid', 'map'] as const).map((id) => (
+              <button key={id} type="button" className={sceneSub === id ? 'on' : ''} aria-pressed={sceneSub === id} onClick={() => setSceneSub(id)}>
+                {id === 'tokens' ? 'Tokens' : id === 'grid' ? 'Grid' : 'Map'}
+              </button>
+            ))}
+          </div>
+        )}
+        {sceneView === 'tokens' && (
           <>
             <input
               className="bm-filter"
@@ -1476,8 +1549,8 @@ export function SceneEditor({
             )}
           </>
         )}
-        {inspTab === 'grid' && gridSection}
-        {inspTab === 'map' && (
+        {sceneView === 'grid' && gridSection}
+        {sceneView === 'map' && (
           <section>
             <h4>Map</h4>
             {mapImage ? (
@@ -1512,10 +1585,10 @@ export function SceneEditor({
         {createPortal(inspectorEl, iw.win.document.body)}
         {inspVisible && (
           <aside className={`bm-insp bm-stub ${asDrawer ? 'bm-insp-drawer' : 'bm-insp-docked'}`} data-testid="bm-inspector-stub">
-            <div className="bm-stub-title">Inspector is in its own window</div>
+            <div className="bm-stub-title">{runDocked ? 'The panel' : 'Inspector'} is in its own window</div>
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
               {iw.onTop
-                ? 'This window stays on top of other windows. Close it to dock the inspector again.'
+                ? 'This window stays on top of other windows. Close it to dock the ' + (runDocked ? 'panel' : 'inspector') + ' again.'
                 : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge 116 or later can keep it on top.'}
             </p>
             <button type="button" className="bm-btn" onClick={toggleInspector}>
@@ -1530,6 +1603,107 @@ export function SceneEditor({
 
     const flyoutBar = preview ? null : fogTool ? fogBar : measuring ? measureBar : templatesOpen ? templateBar : null
     const campBase = `/campaign/${campaign.id}`
+    const liveEl = live.available &&
+    (live.isShowing ? (
+      <button
+        type="button"
+        className="bm-btn bm-live-on"
+        disabled={live.busy}
+        onClick={live.stop}
+        title="Players can see this map live. Click to take it down."
+      >
+        <span className="battlemap-live-dot" aria-hidden />
+        <span className="bm-lbl">{live.busy ? 'Working…' : 'Live · Stop'}</span>
+      </button>
+    ) : (
+      <button
+        type="button"
+        className="bm-btn"
+        disabled={live.busy || !live.sessionLive}
+        onClick={live.show}
+        aria-label={live.otherShowing ? 'Show this map instead' : 'Show to players'}
+        title={
+          !live.sessionLive
+            ? 'Players see battle maps during a live session. Start one from Run mode.'
+            : live.otherShowing
+              ? `Players are seeing “${live.otherName}”. This swaps it for this map.`
+              : 'Show this map in your players’ live session'
+        }
+      >
+        <BmIcon name="broadcast" />
+        <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
+      </button>
+    ))
+
+
+    // Docked Run mode: its own top bar. One bar, one of each control.
+    const runHeader = runDocked ? (
+      <header className="bm-top bm-top-run" data-testid="run-top">
+        {runKit?.topStart}
+        {scenes && onSelectScene && (
+          <BmMenu
+            label="Switch battle map"
+            trigger={
+              <>
+                <BmIcon name="map" />
+                <span className="run-mapname">{scene.name || 'Untitled map'}</span>
+                <BmIcon name="chevron-down" size={14} />
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                {scenes.map((sc) => (
+                  <button
+                    key={sc.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={sc.id === scene.id}
+                    className={`bm-item${sc.id === scene.id ? ' on' : ''}`}
+                    onClick={() => { onSelectScene(sc.id); close() }}
+                  >
+                    {sc.name || 'Untitled map'}
+                  </button>
+                ))}
+                <div className="bm-menu-sep" />
+                {onNewScene && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); onNewScene() }}>
+                    <BmIcon name="plus" size={16} /> New map
+                  </button>
+                )}
+                <Link to={`${campBase}/battlemap`} role="menuitem" className="bm-item" onClick={close}>
+                  <BmIcon name="map" size={16} /> Edit this map
+                </Link>
+              </>
+            )}
+          </BmMenu>
+        )}
+        {runKit?.topMid}
+        <span className="bm-spacer" />
+        {runKit?.topEnd}
+        {liveEl}
+        {/* T-99: the Undo icon button goes here, before Full screen. */}
+        <button
+          type="button"
+          className="bm-btn bm-sq"
+          aria-label={expanded ? 'Exit full screen' : 'Full screen'}
+          title={expanded ? 'Exit full screen (F)' : 'Full screen (F)'}
+          onClick={expanded ? exitFullscreen : enterFullscreen}
+        >
+          <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
+        </button>
+        <button
+          type="button"
+          className={`bm-btn bm-sq${inspVisible ? ' on' : ''}`}
+          aria-pressed={inspVisible}
+          aria-label="Run panel"
+          title="Show or hide the run panel (I)"
+          onClick={toggleInspector}
+        >
+          <BmIcon name="inspector" />
+        </button>
+      </header>
+    ) : null
 
     return (
       <div
@@ -1541,6 +1715,8 @@ export function SceneEditor({
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => uploadMap(e.target.files?.[0])} />
         <input ref={tokenImageRef} type="file" accept="image/*" hidden onChange={(e) => addTokenFromImage(e.target.files)} />
 
+        {runHeader}
+        {!runDocked && (
         <header className="bm-top">
           <nav className="bm-crumb" aria-label="Breadcrumb">
             <Link to={campBase}>{campaign.name}</Link>
@@ -1640,37 +1816,7 @@ export function SceneEditor({
             <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
           </button>
           )}
-          {!isPhone && live.available &&
-            (live.isShowing ? (
-              <button
-                type="button"
-                className="bm-btn bm-live-on"
-                disabled={live.busy}
-                onClick={live.stop}
-                title="Players can see this map live. Click to take it down."
-              >
-                <span className="battlemap-live-dot" aria-hidden />
-                <span className="bm-lbl">{live.busy ? 'Working…' : 'Live · Stop'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="bm-btn"
-                disabled={live.busy || !live.sessionLive}
-                onClick={live.show}
-                aria-label={live.otherShowing ? 'Show this map instead' : 'Show to players'}
-                title={
-                  !live.sessionLive
-                    ? 'Players see battle maps during a live session. Start one from Run mode.'
-                    : live.otherShowing
-                      ? `Players are seeing “${live.otherName}”. This swaps it for this map.`
-                      : 'Show this map in your players’ live session'
-                }
-              >
-                <BmIcon name="broadcast" />
-                <span className="bm-lbl">{live.busy ? 'Working…' : live.otherShowing ? 'Show instead' : 'Show to players'}</span>
-              </button>
-            ))}
+          {!isPhone && liveEl}
           {!runKit && (
           <Link to={`/run/${campaign.id}`} className="bm-btn primary" title="At-the-table screen: session notes, what's in play, combat and dice">
             <BmIcon name="play" size={16} />
@@ -1768,6 +1914,7 @@ export function SceneEditor({
             )}
           </BmMenu>
         </header>
+        )}
 
         <div className="bm-work">
           <div className="bm-rail" role="toolbar" aria-orientation="vertical" aria-label="Map tools">
@@ -1851,7 +1998,38 @@ export function SceneEditor({
                 </div>
               )}
             </BmMenu>
+            {runDocked && runKit?.play && (
+              <>
+                <span className="bm-rail-grow" />
+                <hr />
+                <button
+                  type="button"
+                  className={`bm-tool bm-play-btn${playOpen ? ' on' : ''}`}
+                  aria-pressed={playOpen}
+                  aria-expanded={playOpen}
+                  aria-label="In play"
+                  title="In play ([)"
+                  data-testid="tool-inplay"
+                  onClick={() => setPlayOpen((o) => !o)}
+                >
+                  <BmIcon name="pin" size={20} />
+                  {runKit.play.count > 0 && <span className="bm-badge">{runKit.play.count}</span>}
+                </button>
+              </>
+            )}
           </div>
+
+          {runDocked && runKit?.play && playOpen && (
+            <aside className="bm-play" aria-label="In play" data-testid="run-inplay">
+              <div className="bm-play-hd">
+                <strong>In play</strong>
+                <button type="button" className="bm-icon-btn" aria-label="Close In play" title="Close (Esc)" onClick={() => setPlayOpen(false)}>
+                  <BmIcon name="close" size={16} />
+                </button>
+              </div>
+              <div className="bm-play-body">{runKit.play.content}</div>
+            </aside>
+          )}
 
           {expanded && !runKit && notesOpen && (
             <div className={`bm-notes${isPhone ? ' bm-notes-drawer' : ''}`}>
@@ -1859,7 +2037,9 @@ export function SceneEditor({
             </div>
           )}
 
+          <div className={runDocked ? 'bm-mapcol' : 'bm-mapcol bm-contents'}>
           <div className="bm-map">
+            {runDocked && runKit?.mapOverlay && <div className="bm-voice">{runKit.mapOverlay}</div>}
             {board}
             {preview && (
               <div className="bm-banner" role="status">
@@ -1874,6 +2054,7 @@ export function SceneEditor({
               groupNames={Object.fromEntries(groups.map((g) => [g.id, g.name]))}
               onStart={combat.start}
               onNext={() => combat.step(1)}
+              onSelect={runDocked ? runCtx.selectCombatants : undefined}
             />
             {flyoutBar && <div className="bm-flyout">{flyoutBar}</div>}
             {installHint && !rotateHint && (
@@ -1911,6 +2092,20 @@ export function SceneEditor({
             {asDrawer && drawerOpen && <div className="bm-scrim" onClick={() => setDrawerOpen(false)} aria-hidden />}
             {inspMode !== 'docked' && inspMode !== 'window' && inspector}
             {inspMode === 'window' && asDrawer && inspector}
+            {diceChipShown && (
+              <button type="button" className="bm-btn bm-dice-chip" onClick={() => setDice(false)} aria-label="Show the dice bar" title="Show the dice bar (D)">
+                <BmIcon name="dice" size={16} /> Dice <BmIcon name="chevron-down" size={14} />
+              </button>
+            )}
+          </div>
+          {diceBarShown && (
+            <div className="bm-dicerow">
+              {runKit.diceBar}
+              <button type="button" className="bm-icon-btn" onClick={() => setDice(true)} aria-label="Hide the dice bar" title="Hide the dice bar (D)">
+                <BmIcon name="chevron-down" size={16} />
+              </button>
+            </div>
+          )}
           </div>
           {inspMode === 'docked' && inspector}
           {inspMode === 'window' && !asDrawer && inspector}

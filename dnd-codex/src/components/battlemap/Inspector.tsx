@@ -1,16 +1,31 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { BmIcon } from './BmIcon'
+import { BmIcon, type BmIconName } from './BmIcon'
 
 export type InspectorTab = 'tokens' | 'grid' | 'map'
 /** A section a host page adds before the scene tabs (Run mode's combat, notes and dice). */
 export interface ExtraInspectorTab {
   id: string
   label: string
+  /** When set, the tab shows this icon, and only the active tab also shows its label. */
+  icon?: BmIconName
 }
+/** What the studio shares with Run mode's tab bodies: the selected combatant, a way to select one
+ *  (which selects its token and pans the map to it), and a token's color. */
+export interface RunStudioCtx {
+  selectedCombatantId: string | null
+  selectCombatants: (ids: string[]) => void
+  colorOf: (combatantId: string) => string | null
+}
+/** A Run mode tab: its body may read the studio context. */
+export type RunTab = ExtraInspectorTab & { content: ReactNode | ((ctx: RunStudioCtx) => ReactNode) }
+
 /** `docked` sits beside the map, `float` hovers over it, `drawer` is the
  *  on-demand overlay used in full screen and on a phone, and `window` fills a
  *  separate browser window. */
 export type InspectorMode = 'docked' | 'float' | 'drawer' | 'window'
+
+/** Desktop Run mode folds the three scene tabs into one (the sub-tabs live in its body). */
+const FOLDED_TABS: ExtraInspectorTab[] = [{ id: 'scene', label: 'Scene', icon: 'sliders' }]
 
 const TABS: { id: InspectorTab; label: string }[] = [
   { id: 'tokens', label: 'Tokens' },
@@ -32,6 +47,8 @@ export function Inspector({
   onOpenWindow,
   onClose,
   extraTabs,
+  foldScene = false,
+  noun = 'inspector',
   children,
 }: {
   mode: InspectorMode
@@ -39,6 +56,10 @@ export function Inspector({
   tab: string
   onTab: (t: string) => void
   extraTabs?: ExtraInspectorTab[]
+  /** Show one Scene tab in place of Tokens, Grid and Map. */
+  foldScene?: boolean
+  /** What the panel is called in tooltips and labels: the scene inspector, or Run mode's panel. */
+  noun?: string
   onToggleFloat: () => void
   /** Moves the inspector to its own window (omitted where that is not offered). */
   onOpenWindow?: () => void
@@ -85,7 +106,7 @@ export function Inspector({
       ref={root}
       className={`bm-insp bm-insp-${mode}`}
       style={style}
-      aria-label="Scene inspector"
+      aria-label={noun === 'inspector' ? 'Scene inspector' : 'Run panel'}
       data-testid="bm-inspector"
     >
       <div
@@ -93,26 +114,32 @@ export function Inspector({
         onPointerDown={onPointerDown}
       >
         <div className="bm-tabs" role="tablist" aria-label="Inspector sections">
-          {[...(extraTabs ?? []), ...TABS].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className={tab === t.id ? 'on' : ''}
-              onClick={() => onTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+          {[...(extraTabs ?? []), ...(foldScene ? FOLDED_TABS : TABS)].map((t) => {
+            const icon = (t as ExtraInspectorTab).icon
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                aria-label={t.label}
+                title={t.label}
+                className={`${tab === t.id ? 'on' : ''}${icon ? ' has-icon' : ''}`}
+                onClick={() => onTab(t.id)}
+              >
+                {icon && <BmIcon name={icon} size={16} />}
+                <span className="bm-tab-label">{t.label}</span>
+              </button>
+            )
+          })}
         </div>
         {onOpenWindow && mode !== 'window' && (
           <button
             type="button"
             className="bm-icon-btn"
             onClick={onOpenWindow}
-            title="Open the inspector in its own window, so you can move it off the page"
-            aria-label="Open the inspector in its own window"
+            title={`Open the ${noun} in its own window, so you can move it off the page`}
+            aria-label={`Open the ${noun} in its own window`}
           >
             <BmIcon name="window" size={16} />
           </button>
@@ -122,8 +149,8 @@ export function Inspector({
             type="button"
             className="bm-icon-btn"
             onClick={onToggleFloat}
-            title={mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map'}
-            aria-label={mode === 'float' ? 'Dock the inspector' : 'Float the inspector over the map'}
+            title={mode === 'float' ? `Dock the ${noun}` : `Float the ${noun} over the map`}
+            aria-label={mode === 'float' ? `Dock the ${noun}` : `Float the ${noun} over the map`}
           >
             <BmIcon name={mode === 'float' ? 'dock' : 'float'} size={16} />
           </button>
@@ -132,8 +159,8 @@ export function Inspector({
           type="button"
           className="bm-icon-btn"
           onClick={onClose}
-          title={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector (I)'}
-          aria-label={mode === 'window' ? 'Close the window and dock the inspector' : 'Hide the inspector'}
+          title={mode === 'window' ? `Close the window and dock the ${noun}` : `Hide the ${noun} (I)`}
+          aria-label={mode === 'window' ? `Close the window and dock the ${noun}` : `Hide the ${noun}`}
         >
           <BmIcon name="close" size={16} />
         </button>

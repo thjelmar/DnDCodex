@@ -14,6 +14,7 @@ these files.
 | `supabase-memory.md` | An investigation of Supabase memory pressure, a read-only diagnostics pack, and a fix plan. | Findings only. The live database is about 34 MB on Nano compute, so the code tickets (T-79 to T-83) stay low priority. |
 | `round-2-page-ranking.md` | Round 2 review: pages ranked by need for a UI overhaul. | Not built. |
 | `round-2-battle-map-and-run-mode.md` | Stitch mockups for the battle map and Run Mode, with defects to fix, the owner's feedback, and a hand-built HTML mockup (`round-2/battle-map-mockup.html`). | In progress as T-95 (draft PR 159). Run Mode is not started. |
+| `run-mode-desktop.md` | Run Mode desktop and tablet redesign: audit, map-first layout, one tabbed panel, timer, code sharing with the studio, owner questions, and a hand-built mockup (`round-2/run-mode-mockup.html`). | Design only (T-98). Awaiting owner approval. |
 | `world-map-detail-maps.md` | Pins that open a detail map (such as a town) with a zoom and a Close button: data model, zoom, player share, migration 0044. | Built as T-94. |
 
 The Stitch mockup images and HTML that the exploration produced were not saved here.

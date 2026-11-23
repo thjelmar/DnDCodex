@@ -3,10 +3,10 @@ import { Modal } from './Modal'
 import { quickRoll, rollExpression, type RollMode, type RollResult } from '../lib/dice'
 
 const DICE = [4, 6, 8, 10, 12, 20, 100]
-const HISTORY_KEY = 'dnd-codex-dice-history'
-const MAX_HISTORY = 20
+export const HISTORY_KEY = 'dnd-codex-dice-history'
+export const MAX_HISTORY = 20
 
-function loadHistory(): RollResult[] {
+export function loadHistory(): RollResult[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY)
     return raw ? (JSON.parse(raw) as RollResult[]) : []
