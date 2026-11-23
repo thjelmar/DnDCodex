@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useIsPhone } from '../lib/usePhone'
+import type { ExtraInspectorTab } from '../components/battlemap/Inspector'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -181,6 +183,65 @@ export function RunPage() {
 
   const peekEntity = peek ? index.byKey.get(pinKey(peek.kind, peek.id)) : undefined
 
+  // The "In play" pins and rows: the left column, and a tab in the phone map drawer.
+  const inPlayEl = (
+    <>
+      <div className="run-col-heading">In play</div>
+      <PinPicker index={index.byKey} pinned={pins} onPin={togglePin} />
+      {inPlay.length === 0 ? (
+        <p className="faint run-hint">
+          Nothing yet. [[Wiki links]] in this session's notes show up here automatically, or pin anything above.
+        </p>
+      ) : (
+        KIND_ORDER.map((kind) => {
+          const rows = inPlay.filter((r) => r.e.kind === kind)
+          if (rows.length === 0) return null
+          return (
+            <div key={kind} className="run-play-group">
+              <div className="sidebar-heading run-play-kind">{KIND_HEADING[kind]}</div>
+              {rows.map(({ e, pinned, linked }) => (
+                <div key={e.id} className="run-play-row">
+                  <button className="run-play-main" onClick={() => setPeek({ kind: e.kind, id: e.id })} title="Peek">
+                    <span aria-hidden>{KIND_ICON[e.kind]}</span>
+                    <span className="run-play-text">
+                      <span className="run-play-name">{e.name || '(untitled)'}</span>
+                      {e.sub && <span className="run-play-sub faint">{e.sub}</span>}
+                    </span>
+                  </button>
+                  {e.npc && (
+                    <button className="btn ghost small" onClick={() => addToCombat(e.npc!)} title="Add to combat">
+                      <Icon name="swords" size={14} />
+                    </button>
+                  )}
+                  <button
+                    className={`btn ghost small run-pin${pinned ? ' on' : ''}`}
+                    onClick={() => togglePin(e.kind, e.id)}
+                    title={pinned ? 'Unpin' : linked ? 'Pin (keeps it here across sessions)' : 'Pin'}
+                  >
+                    <Icon name="pin" size={14} color={pinned ? 'var(--accent)' : 'var(--text-dim)'} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        })
+      )}
+    </>
+  )
+
+  // Phone map: everything the DM runs the table with, as tabs in the map's one right drawer.
+  const runTabs = [
+    { id: 'run-combat', label: 'Combat', content: <RunCombat combat={combat} /> },
+    { id: 'run-play', label: 'In play', content: inPlayEl },
+    {
+      id: 'run-notes',
+      label: 'Notes',
+      content: session ? <RunSessionNotes key={session.id} session={session} onWikiLink={peekByName} /> : <p className="faint">No sessions yet.</p>,
+    },
+    { id: 'run-handouts', label: 'Handouts', content: <RunHandouts campaignId={campaignId} /> },
+    { id: 'run-dice', label: 'Dice', content: <DicePanel compact /> },
+  ]
+
   return (
     <div className="run-page">
       <LiveSceneKeeper campaign={campaign} />
@@ -223,46 +284,7 @@ export function RunPage() {
       <div className={`run-grid${center === 'map' ? ' map-mode' : ''}`}>
         {/* In play */}
         <aside className="run-col run-play">
-          <div className="run-col-heading">In play</div>
-          <PinPicker index={index.byKey} pinned={pins} onPin={togglePin} />
-          {inPlay.length === 0 ? (
-            <p className="faint run-hint">
-              Nothing yet. [[Wiki links]] in this session's notes show up here automatically, or pin anything above.
-            </p>
-          ) : (
-            KIND_ORDER.map((kind) => {
-              const rows = inPlay.filter((r) => r.e.kind === kind)
-              if (rows.length === 0) return null
-              return (
-                <div key={kind} className="run-play-group">
-                  <div className="sidebar-heading run-play-kind">{KIND_HEADING[kind]}</div>
-                  {rows.map(({ e, pinned, linked }) => (
-                    <div key={e.id} className="run-play-row">
-                      <button className="run-play-main" onClick={() => setPeek({ kind: e.kind, id: e.id })} title="Peek">
-                        <span aria-hidden>{KIND_ICON[e.kind]}</span>
-                        <span className="run-play-text">
-                          <span className="run-play-name">{e.name || '(untitled)'}</span>
-                          {e.sub && <span className="run-play-sub faint">{e.sub}</span>}
-                        </span>
-                      </button>
-                      {e.npc && (
-                        <button className="btn ghost small" onClick={() => addToCombat(e.npc!)} title="Add to combat">
-                          <Icon name="swords" size={14} />
-                        </button>
-                      )}
-                      <button
-                        className={`btn ghost small run-pin${pinned ? ' on' : ''}`}
-                        onClick={() => togglePin(e.kind, e.id)}
-                        title={pinned ? 'Unpin' : linked ? 'Pin (keeps it here across sessions)' : 'Pin'}
-                      >
-                        <Icon name="pin" size={14} color={pinned ? 'var(--accent)' : 'var(--text-dim)'} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )
-            })
-          )}
+          {inPlayEl}
         </aside>
 
         {/* Session notes, or the battle map */}
@@ -276,7 +298,13 @@ export function RunPage() {
             </button>
           </div>
           {center === 'map' ? (
-            <RunBattleMap campaign={campaign} sessionId={session?.id ?? null} requestedSceneId={requestedMap} />
+            <RunBattleMap
+              campaign={campaign}
+              sessionId={session?.id ?? null}
+              requestedSceneId={requestedMap}
+              runTabs={runTabs}
+              onBack={() => setCenter('notes')}
+            />
           ) : session ? (
             <RunSessionNotes key={session.id} session={session} onWikiLink={peekByName} />
           ) : (
@@ -336,12 +364,18 @@ function RunBattleMap({
   campaign,
   sessionId,
   requestedSceneId,
+  runTabs,
+  onBack,
 }: {
   campaign: Campaign
   sessionId: Id | null
   /** Switch to this map when it changes (set by the live-session offer). */
   requestedSceneId?: Id | null
+  /** The phone map's drawer sections, and the way back to the Notes page. */
+  runTabs: (ExtraInspectorTab & { content: ReactNode })[]
+  onBack: () => void
 }) {
+  const isPhone = useIsPhone()
   const scenes = useLiveQuery(
     () => db.scenes.where('campaignId').equals(campaign.id).reverse().sortBy('updatedAt'),
     [campaign.id],
@@ -378,7 +412,7 @@ function RunBattleMap({
 
   return (
     <>
-      {scenes.length > 1 && (
+      {!isPhone && scenes.length > 1 && (
         <select
           className="select run-map-pick"
           value={scene.id}
@@ -397,6 +431,16 @@ function RunBattleMap({
         onDeleted={() => setPicked(null)}
         notesSessionId={sessionId}
         compact
+        {...(isPhone
+          ? {
+              // A phone gets the full screen studio, with Run mode's sections in its drawer.
+              studio: true,
+              runKit: { tabs: runTabs, onBack },
+              scenes,
+              onSelectScene: setPicked,
+              onNewScene: async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` })).id),
+            }
+          : {})}
       />
     </>
   )

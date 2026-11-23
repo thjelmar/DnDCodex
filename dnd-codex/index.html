@@ -2,10 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the page paint under the notch and home indicator. The CSS
+         pads controls with env(safe-area-inset-*) (see "Safe areas" at the end of styles.css). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Tints Safari's toolbar. The boot script below and lib/theme.ts keep it in step with the theme. -->
+    <meta name="theme-color" content="#14121a" />
     <meta name="description" content="A local-first web app for D&D session notes and campaign creation." />
     <!-- Temporary placeholder favicon — replace public/favicon.svg with the real art. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Add to Home Screen opens the app with no browser bars (standalone). iOS reads the apple-* tags;
+         the manifest covers Android and desktop. black-translucent lets the page paint under the status
+         bar, so the CSS pads it with env(safe-area-inset-top). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="D&D Codex" />
     <title>D&D Codex</title>
     <!-- Apply the user's cached theme/accent before first paint to avoid a flash.
          The account value (synced) reconciles once auth loads; see lib/theme.ts. -->
@@ -17,6 +30,8 @@
           var el = document.documentElement
           var light = t === 'light'
           el.dataset.theme = light ? 'light' : 'dark'
+          var tc = document.querySelector('meta[name=theme-color]')
+          if (tc) tc.setAttribute('content', light ? '#f6f4fb' : '#14121a')
           if (/^#[0-9a-fA-F]{6}$/.test(a || '')) {
             // Custom accent: derive the same tokens lib/theme.ts does (keep in sync).
             var shade = function (hex, amt) {

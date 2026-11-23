@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Battle map: phone landscape (T-96 mockup)</title>
+<style>
+:root{--bg:#14121a;--elev:#1d1a26;--elev2:#262234;--border:#34304a;--text:#ece9f5;--dim:#a8a3bd;--accent:#8b5cf6;--accent-strong:#7c3aed}
+body{margin:0;background:#0b0a0f;color:var(--text);font:14px system-ui;padding:16px}
+.ctl{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}.ctl button{background:var(--elev2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer}
+.ctl button.on{border-color:var(--accent)}
+.phone{position:relative;width:844px;height:390px;background:#000;border-radius:28px;overflow:hidden;margin:auto;transform-origin:top left}
+.screen{position:absolute;inset:0;background:var(--bg);--sl:47px;--sr:47px;--sb:21px}
+.rail{position:absolute;left:0;top:0;bottom:0;width:calc(44px + var(--sl));padding:6px 0 var(--sb) var(--sl);box-sizing:border-box;background:var(--elev);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;overflow:auto}
+.t{flex:none;width:38px;height:38px;border-radius:6px;display:grid;place-items:center;color:var(--dim);font-size:16px}.t.on{background:var(--accent-strong);color:#fff}
+.map{position:absolute;left:calc(44px + var(--sl));right:0;top:0;bottom:0;background:#d8d0bc;background-image:linear-gradient(#0002 1px,transparent 1px),linear-gradient(90deg,#0002 1px,transparent 1px);background-size:56px 56px}
+.tok{position:absolute;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
+.pill{position:absolute;top:8px;right:calc(var(--sr) + 8px);display:flex;gap:4px;padding:4px;background:var(--elev);border:1px solid var(--border);border-radius:10px}
+.pill span{min-width:38px;height:38px;display:grid;place-items:center;border-radius:6px;font-size:13px;padding:0 6px}.pill .p{background:var(--accent-strong)}
+.hint{position:absolute;top:12px;left:50%;transform:translateX(-30%);white-space:nowrap;padding:4px 12px;background:var(--elev);border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--dim)}
+.turns{position:absolute;left:calc(44px + var(--sl) + 8px);bottom:calc(var(--sb) - 8px);display:flex;gap:8px;align-items:center;padding:5px 8px;background:var(--elev);border:1px solid var(--border);border-radius:999px}
+.turns b{font-size:13px}.turns i{width:26px;height:26px;border-radius:50%;background:var(--elev2);display:inline-block}.turns u{text-decoration:none;background:var(--accent-strong);border-radius:999px;padding:9px 12px;font-size:12px}
+.zoom{position:absolute;right:calc(var(--sr) + 8px);bottom:calc(var(--sb) - 8px);display:flex;gap:2px;padding:3px;background:var(--elev);border:1px solid var(--border);border-radius:8px}.zoom span{width:38px;height:38px;display:grid;place-items:center}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:calc(min(340px,45vw) + var(--sr));padding-right:var(--sr);box-sizing:border-box;background:var(--elev);border-left:1px solid var(--border);box-shadow:-12px 0 32px #0007;display:none}
+.drawer h4{margin:12px;font-size:13px;text-transform:uppercase;color:var(--dim)}.drawer p{margin:6px 12px;color:var(--dim)}
+.notch{position:absolute;left:0;top:130px;width:32px;height:130px;background:#000;border-radius:0 18px 18px 0;opacity:.85}
+.safe{position:absolute;inset:0;pointer-events:none;display:none;border:0}.safe i{position:absolute;background:#f43f5e33}
+</style></head><body>
+<div class="ctl"><button id="b1" class="on">Drawer closed</button><button id="b2">Inspector drawer open</button><button id="b3">Show safe areas</button></div>
+<div class="phone"><div class="screen">
+ <div class="rail"><div class="t">⤢</div><div class="t on">⌖</div><div class="t">📏</div><div class="t">☁</div><div class="t">◔</div><div class="t">⊕</div><div class="t">▣</div></div>
+ <div class="map">
+  <div class="tok" style="left:120px;top:110px;background:#16a34a">Bram</div>
+  <div class="tok" style="left:330px;top:210px;background:#14b8a6">Vara</div>
+  <div class="tok" style="left:470px;top:160px;background:#dc2626">Thug</div>
+ </div>
+ <div class="hint">Drag a token to move it. Pinch to zoom.</div>
+ <div class="pill"><span>Edit</span><span>👁</span><span>◫</span><span>📝</span><span class="p">▶</span><span>⋯</span></div>
+ <div class="turns"><b>R3</b><i></i><i></i><i></i><u>Next</u></div>
+ <div class="zoom"><span>+</span><span>−</span><span>Fit</span></div>
+ <div class="drawer" id="dr"><h4>Tokens · Scene</h4><p>Docks over at most 45% of the width. No scrim: the map stays usable.</p></div>
+ <div class="safe" id="sf"><i style="left:0;top:0;bottom:0;width:47px"></i><i style="right:0;top:0;bottom:0;width:47px"></i><i style="left:0;right:0;bottom:0;height:21px"></i></div>
+</div></div>
+<p style="color:var(--dim);max-width:844px;margin:12px auto">844 × 390 landscape, notch on the sides (47px) and a 21px home indicator. Map area is about 89% of the screen. Red overlay = safe areas.</p>
+<script>
+const dr=document.getElementById('dr'),sf=document.getElementById('sf');
+b1.onclick=()=>{dr.style.display='none';b1.className='on';b2.className=''};
+b2.onclick=()=>{dr.style.display='block';b2.className='on';b1.className=''};
+let s=false;b3.onclick=()=>{s=!s;sf.style.display=s?'block':'none';b3.className=s?'on':''};
+</script></body></html>

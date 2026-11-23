@@ -2,6 +2,11 @@ import { useRef, useState, type ReactNode } from 'react'
 import { BmIcon } from './BmIcon'
 
 export type InspectorTab = 'tokens' | 'grid' | 'map'
+/** A section a host page adds before the scene tabs (Run mode's combat, notes and dice). */
+export interface ExtraInspectorTab {
+  id: string
+  label: string
+}
 /** `docked` sits beside the map, `float` hovers over it, `drawer` is the
  *  on-demand overlay used in full screen and on a phone, and `window` fills a
  *  separate browser window. */
@@ -26,11 +31,14 @@ export function Inspector({
   onToggleFloat,
   onOpenWindow,
   onClose,
+  extraTabs,
   children,
 }: {
   mode: InspectorMode
-  tab: InspectorTab
-  onTab: (t: InspectorTab) => void
+  /** A scene tab, or the id of one of `extraTabs`. */
+  tab: string
+  onTab: (t: string) => void
+  extraTabs?: ExtraInspectorTab[]
   onToggleFloat: () => void
   /** Moves the inspector to its own window (omitted where that is not offered). */
   onOpenWindow?: () => void
@@ -85,7 +93,7 @@ export function Inspector({
         onPointerDown={onPointerDown}
       >
         <div className="bm-tabs" role="tablist" aria-label="Inspector sections">
-          {TABS.map((t) => (
+          {[...(extraTabs ?? []), ...TABS].map((t) => (
             <button
               key={t.id}
               type="button"

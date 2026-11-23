@@ -89,6 +89,8 @@ export function normalizeAccent(v: unknown): string {
 export function applyTheme(theme: Theme, accent: string): void {
   const el = document.documentElement
   el.dataset.theme = theme
+  // Keep Safari's toolbar tint in step with --bg (the two values in styles.css).
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', theme === 'light' ? '#f6f4fb' : '#14121a')
   if (isHexAccent(accent)) {
     el.dataset.accent = 'custom'
     const { accent: a, strong } = customAccentTokens(accent.toLowerCase(), theme)
