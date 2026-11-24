@@ -35,7 +35,8 @@ test.describe('Run mode desktop 1440x900', () => {
   test('one of each control in the top bar', async ({ page }) => {
     await openRun(page, { width: 1440, height: 900 })
     const top = page.locator('.bm-top')
-    for (const name of ['Full screen', 'Run panel', 'Switch session', 'Switch battle map', 'Exit run mode']) {
+    await expect(page.locator('.bm-rail').getByRole('button', { name: 'Full screen' })).toHaveCount(1)
+    for (const name of ['Run panel', 'Switch session', 'Switch battle map', 'Exit run mode']) {
       await expect(top.getByRole('button', { name }).or(top.getByRole('link', { name })), name).toHaveCount(1)
     }
   })

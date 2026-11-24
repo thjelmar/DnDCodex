@@ -21,7 +21,6 @@ import { BmMenu } from '../components/battlemap/BmMenu'
 import { PlayerSharingBar } from '../components/PlayerSharing'
 import { useCombat, useCombatState, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { InitiativeList } from '../components/InitiativeList'
-import { DiceBar } from '../components/DiceBar'
 import { RunTimer } from '../components/RunTimer'
 import { RunHandouts } from '../components/RunHandouts'
 import { JoinVoiceButton } from '../components/JoinVoiceButton'
@@ -275,7 +274,6 @@ export function RunPage() {
     tabs: deskTabs,
     play: { count: inPlay.length, content: inPlayBody },
     topMid: <RunTimer sessionId={session?.id ?? null} />,
-    diceBar: <DiceBar />,
     diceTabId: 'run-dice',
     mapOverlay: <VoiceRoster channelId={campaign.discordVoiceChannelId} />,
     topStart: (

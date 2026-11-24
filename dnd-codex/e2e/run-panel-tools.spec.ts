@@ -71,44 +71,24 @@ test.describe('run timer', () => {
   })
 })
 
-test.describe('dice bar', () => {
-  test('rolls a die, shares the log with the Dice tab, and hides while that tab is open', async ({ page }) => {
+test.describe('dice in the panel', () => {
+  test('the Dice tab rolls a die and a formula, with the log, Dis/Norm/Adv and no bar under the map', async ({ page }) => {
     await openRun(page)
-    const bar = page.getByTestId('dice-bar')
-    await expect(bar).toBeVisible()
-    await bar.getByRole('button', { name: 'Roll d20' }).click()
-    const total = (await bar.getByTestId('dice-bar-total').textContent())!
-    expect(Number(total)).toBeGreaterThanOrEqual(1)
+    await expect(page.getByTestId('dice-bar')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Show the dice bar' })).toHaveCount(0)
     await panel(page).getByRole('tab', { name: 'Dice' }).click()
-    await expect(page.getByTestId('dice-bar')).toHaveCount(0)
-    await expect(panel(page).locator('.dice-latest')).toContainText(total)
-    await panel(page).getByRole('tab', { name: 'Combat' }).click()
-    await expect(page.getByTestId('dice-bar')).toBeVisible()
+    for (const d of [4, 6, 8, 10, 12, 20, 100]) await expect(panel(page).getByRole('button', { name: `d${d}`, exact: true })).toBeVisible()
+    await expect(panel(page).getByRole('button', { name: 'Adv' })).toBeVisible()
+    await panel(page).getByRole('button', { name: 'd20', exact: true }).click()
+    await expect(panel(page).locator('.dice-latest')).not.toContainText('Roll a die')
   })
 
-  test('a formula rolls, and Roll is off until there is one', async ({ page }) => {
+  test('D opens the Dice tab, even when the panel is closed', async ({ page }) => {
     await openRun(page)
-    const bar = page.getByTestId('dice-bar')
-    await expect(bar.getByRole('button', { name: 'Roll', exact: true })).toBeDisabled()
-    await bar.getByLabel('Roll formula').fill('2d6+3')
-    await bar.getByLabel('Roll formula').press('Enter')
-    const total = Number(await bar.getByTestId('dice-bar-total').textContent())
-    expect(total).toBeGreaterThanOrEqual(5)
-    expect(total).toBeLessThanOrEqual(15)
-  })
-
-  test('collapses to a chip with the button or the D key, and remembers it', async ({ page }) => {
-    await openRun(page)
-    await page.getByRole('button', { name: 'Hide the dice bar' }).click()
-    await expect(page.getByTestId('dice-bar')).toHaveCount(0)
-    await page.reload()
-    await expect(page.getByRole('button', { name: 'Show the dice bar' })).toBeVisible()
+    await page.keyboard.press('i')
+    await expect(panel(page)).toHaveCount(0)
     await page.keyboard.press('d')
-    await expect(page.getByTestId('dice-bar')).toBeVisible()
-    await page.keyboard.press('d')
-    await expect(page.getByTestId('dice-bar')).toHaveCount(0)
-    await page.getByRole('button', { name: 'Show the dice bar' }).click()
-    await expect(page.getByTestId('dice-bar')).toBeVisible()
+    await expect(panel(page).getByRole('tab', { name: 'Dice', selected: true })).toBeVisible()
   })
 })
 

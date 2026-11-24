@@ -285,8 +285,6 @@ export function SceneEditor({
     play?: { count: number; content: ReactNode }
     /** Docked only: after the map switcher in the top bar (the run timer). */
     topMid?: ReactNode
-    /** Docked only: the quick dice row under the map. It hides while the Dice tab is open. */
-    diceBar?: ReactNode
     /** Docked only: floats at the top left of the map (the voice roster). */
     mapOverlay?: ReactNode
     /** The id of the tab that holds the full dice roller. */
@@ -516,14 +514,6 @@ export function SceneEditor({
   // Docked Run mode folds Tokens, Grid and Map into one Scene tab with sub-tabs.
   const [sceneSub, setSceneSub] = useState<'tokens' | 'grid' | 'map'>('tokens')
   const [playOpen, setPlayOpen] = useState(false)
-  // The dice bar can be collapsed; the choice is remembered on this device.
-  const [diceOff, setDiceOff] = useState(() => {
-    try { return localStorage.getItem('codex.runDice.off') === '1' } catch { return false }
-  })
-  const setDice = (off: boolean) => {
-    setDiceOff(off)
-    try { localStorage.setItem('codex.runDice.off', off ? '1' : '0') } catch { /* ignore */ }
-  }
   // Pans the board to these tokens when a combatant is picked outside the board (Run mode's list).
   const [focus, setFocus] = useState<{ ids: string[]; seq: number }>({ ids: [], seq: 0 })
   const [tokenFilter, setTokenFilter] = useState('')
@@ -575,6 +565,51 @@ export function SceneEditor({
       setDrawerOpen((o) => !o)
     } else setDockOpen((o) => !o)
   }
+  // D: show the Dice tab of the panel (opens the panel first when it is closed).
+  function openDice() {
+    if (!runKit?.diceTabId) return
+    setInspTab(runKit.diceTabId)
+    if (iw.win) return
+    if (asDrawer) {
+      if (isPhone) setNotesOpen(false)
+      setDrawerOpen(true)
+    } else setDockOpen(true)
+  }
+  // The zoom, Fit and Ping bar sits at the bottom right of the map. A floating panel or the drawer
+  // overlays the map, so measure how far it reaches in from the right edge and publish it as
+  // --map-clear-right; the bar moves clear of it. Docked panels shrink the map itself, so they need none.
+  const mapElRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const map = mapElRef.current
+    if (!map) return
+    const overlays = !iw.win && (asDrawer || inspFloat) && inspVisible
+    const overlay = () => (overlays ? map.querySelector<HTMLElement>('[data-testid="bm-inspector"]') : null)
+    const update = () => {
+      const panel = overlay()
+      let clear = 0
+      if (panel) {
+        const m = map.getBoundingClientRect()
+        const r = panel.getBoundingClientRect()
+        // Only a panel that reaches the bottom strip hides the bar; a panel over most of the map (a phone drawer) is modal.
+        if (r.width > 0 && r.bottom > m.bottom - 72 && r.left < m.right) clear = Math.max(0, m.right - r.left)
+        if (clear > m.width * 0.6) clear = 0
+      }
+      map.style.setProperty('--map-clear-right', `${Math.round(clear)}px`)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(map)
+    const panel = overlay()
+    if (panel) ro.observe(panel)
+    const mo = new MutationObserver(update)
+    if (panel) mo.observe(panel, { attributes: true, attributeFilter: ['style', 'class'] })
+    window.addEventListener('resize', update)
+    return () => {
+      ro.disconnect()
+      mo.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  })
   function toggleNotes() {
     if (isPhone && !notesOpen) setDrawerOpen(false)
     setNotesOpen((o) => !o)
@@ -1626,7 +1661,7 @@ export function SceneEditor({
     range: toggleRange,
     closeDrawer: () => { setDrawerOpen(false); setPlayOpen(false) },
     togglePlay: () => runKit?.play && setPlayOpen((o) => !o),
-    toggleDice: () => runKit?.diceBar && setDice(!diceOff),
+    toggleDice: openDice,
     next: () => combat.state.active && combat.step(1),
   }
   useEffect(() => {
@@ -1726,10 +1761,6 @@ export function SceneEditor({
       ? ['tokens', 'grid', 'map'].includes(inspTab) ? 'scene' : inspTab
       : inspTab === 'scene' ? 'tokens' : inspTab
     const sceneView = foldScene ? (tabId === 'scene' ? sceneSub : null) : tabId
-    // The dice bar hides while the Dice tab is open (the tab holds the full roller). Collapsed, a chip brings it back.
-    const diceTabOpen = !!runKit?.diceTabId && (inspVisible || !!iw.win) && tabId === runKit.diceTabId
-    const diceBarShown = runDocked && !!runKit?.diceBar && !diceOff && !diceTabOpen
-    const diceChipShown = runDocked && !!runKit?.diceBar && diceOff && !diceTabOpen
     const inspMode = iw.win ? 'window' : asDrawer ? 'drawer' : inspFloat ? 'float' : 'docked'
     const inspectorEl = (
       <Inspector
@@ -1951,7 +1982,7 @@ export function SceneEditor({
       <>
         {createPortal(inspectorEl, iw.win.document.body)}
         {inspVisible && (
-          <aside className={`bm-insp bm-stub ${asDrawer ? 'bm-insp-drawer' : 'bm-insp-docked'}`} data-testid="bm-inspector-stub">
+          <aside className="bm-insp bm-stub bm-stub-float" data-testid="bm-inspector-stub">
             <div className="bm-stub-title">{runDocked ? 'The panel' : 'Inspector'} is in its own window</div>
             <p className="faint" style={{ fontSize: 13, margin: 0 }}>
               {iw.onTop
@@ -2049,6 +2080,18 @@ export function SceneEditor({
         <span className="bm-spacer" />
         {runKit?.topEnd}
         {liveEl}
+        {expanded && (
+          <button
+            type="button"
+            className="bm-btn"
+            aria-label="Exit full screen"
+            title="Exit full screen (F)"
+            data-testid="map-fullscreen"
+            onClick={exitFullscreen}
+          >
+            <BmIcon name="fullscreen-exit" size={16} /> <span className="bm-lbl">Exit full screen</span>
+          </button>
+        )}
         <button
           type="button"
           className="bm-btn bm-sq"
@@ -2070,15 +2113,6 @@ export function SceneEditor({
           onClick={redo}
         >
           <BmIcon name="redo" />
-        </button>
-        <button
-          type="button"
-          className="bm-btn bm-sq"
-          aria-label={expanded ? 'Exit full screen' : 'Full screen'}
-          title={expanded ? 'Exit full screen (F)' : 'Full screen (F)'}
-          onClick={expanded ? exitFullscreen : enterFullscreen}
-        >
-          <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
         </button>
         <button
           type="button"
@@ -2219,18 +2253,19 @@ export function SceneEditor({
               </button>
             </>
           )}
-          {!isPhone && (
-          <button
-            type="button"
-            className="bm-btn bm-sq"
-            aria-label={expanded ? 'Exit full screen' : 'Full screen'}
-            title={expanded ? 'Exit full screen (F)' : 'Full screen (F)'}
-            onClick={expanded ? exitFullscreen : enterFullscreen}
-          >
-            <BmIcon name={expanded ? 'fullscreen-exit' : 'fullscreen'} />
-          </button>
-          )}
           {!isPhone && liveEl}
+          {expanded && (
+            <button
+              type="button"
+              className="bm-btn"
+              aria-label="Exit full screen"
+              title="Exit full screen (F)"
+              data-testid="map-fullscreen"
+              onClick={exitFullscreen}
+            >
+              <BmIcon name="fullscreen-exit" size={16} /> <span className="bm-lbl">Exit full screen</span>
+            </button>
+          )}
           {!runKit && (
           <Link to={`/run/${campaign.id}`} className="bm-btn primary" title="At-the-table screen: session notes, what's in play, combat and dice">
             <BmIcon name="play" size={16} />
@@ -2438,6 +2473,18 @@ export function SceneEditor({
                 </div>
               )}
             </BmMenu>
+            {!expanded && (
+              <button
+                type="button"
+                className="bm-tool"
+                aria-label="Full screen"
+                title="Full screen (F)"
+                data-testid="map-fullscreen"
+                onClick={enterFullscreen}
+              >
+                <BmIcon name="fullscreen" size={20} />
+              </button>
+            )}
             {runDocked && runKit?.play && (
               <>
                 <span className="bm-rail-grow" />
@@ -2478,7 +2525,7 @@ export function SceneEditor({
           )}
 
           <div className={runDocked ? 'bm-mapcol' : 'bm-mapcol bm-contents'}>
-          <div className="bm-map">
+          <div className="bm-map" ref={mapElRef}>
             {runDocked && runKit?.mapOverlay && <div className="bm-voice">{runKit.mapOverlay}</div>}
             {board}
             {preview && (
@@ -2531,24 +2578,10 @@ export function SceneEditor({
 
             {asDrawer && drawerOpen && <div className="bm-scrim" onClick={() => setDrawerOpen(false)} aria-hidden />}
             {inspMode !== 'docked' && inspMode !== 'window' && inspector}
-            {inspMode === 'window' && asDrawer && inspector}
-            {diceChipShown && (
-              <button type="button" className="bm-btn bm-dice-chip" onClick={() => setDice(false)} aria-label="Show the dice bar" title="Show the dice bar (D)">
-                <BmIcon name="dice" size={16} /> Dice <BmIcon name="chevron-down" size={14} />
-              </button>
-            )}
+            {inspMode === 'window' && inspector}
           </div>
-          {diceBarShown && (
-            <div className="bm-dicerow">
-              {runKit.diceBar}
-              <button type="button" className="bm-icon-btn" onClick={() => setDice(true)} aria-label="Hide the dice bar" title="Hide the dice bar (D)">
-                <BmIcon name="chevron-down" size={16} />
-              </button>
-            </div>
-          )}
           </div>
           {inspMode === 'docked' && inspector}
-          {inspMode === 'window' && !asDrawer && inspector}
         </div>
 
         {peek && world && (

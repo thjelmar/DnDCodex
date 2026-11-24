@@ -267,7 +267,8 @@ export function PlayerLiveBoardView({
   const withNotes = fs.expanded && !withPanel && notesOpen && !!notes
 
   return (
-    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}${withPanel ? ` pl-fs-shell${panelOpen ? ' panel-open' : ''}${narrow ? ' pl-fs-narrow' : ''}` : ''}`}>
+    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${rail && fs.expanded ? ' pl-fs-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}${withPanel ? ` pl-fs-shell${panelOpen ? ' panel-open' : ''}${narrow ? ' pl-fs-narrow' : ''}` : ''}`}>
+      {fs.expanded && rail && fsExtras?.demo && <div className="pl-fs-demo">{fsExtras.demo}</div>}
       <div className="player-live-bar">
         {(fs.expanded || !compact) && (
           <strong className="player-live-name">
@@ -298,8 +299,8 @@ export function PlayerLiveBoardView({
           />
         </div>
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
-          {fs.expanded && fsExtras?.demo}
-          {(phoneFs || (rail && !fs.expanded)) && (
+          {fs.expanded && !rail && fsExtras?.demo}
+          {(phoneFs || rail) && (
             <button
               className={`btn small${colorOpen ? ' primary' : ''}`}
               onClick={() => setColorOpen((o) => !o)}
@@ -365,7 +366,7 @@ export function PlayerLiveBoardView({
               📝 <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
             </button>
           )}
-          <button className={`btn small${fs.expanded ? ' primary' : ''}`} onClick={fs.expanded ? fs.exit : fs.enter} aria-label={fs.expanded ? 'Exit full screen' : 'Full screen'}>
+          <button className={`btn small${fs.expanded ? ' primary' : ''}`} onClick={fs.expanded ? fs.exit : fs.enter} aria-label={fs.expanded ? 'Exit full screen' : 'Full screen'} data-testid="map-fullscreen">
             <Icon name={fs.expanded ? 'minimize' : 'maximize'} size={14} color={fs.expanded ? 'inherit' : undefined} />{' '}
             <span className="pl-lbl">{fs.expanded ? 'Exit full screen' : 'Full screen'}</span>
           </button>
