@@ -9,7 +9,8 @@ import { Icon } from './Icon'
  */
 export function DemoLiveControls() {
   const demo = useDemoLive()
-  const [open, setOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 700)
+  // Collapsed into a header pill so the map keeps the first screen; the panel floats over the page.
+  const [open, setOpen] = useState(false)
   const [target, setTarget] = useState('')
   if (!isDemo()) return null
   const c = demo.combat
@@ -17,14 +18,14 @@ export function DemoLiveControls() {
   const pick = rows.find((r) => r.id === target) ?? rows[0]
   const tokenId = demo.tokens.find((t) => t.id === target)?.id ?? demo.tokens[0]?.id
   return (
-    <section className="demo-ctl card" data-testid="demo-controls" aria-label="Demo controls">
-      <button type="button" className="demo-ctl-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+    <section className={`demo-ctl${open ? ' open' : ''}`} data-testid="demo-controls" aria-label="Demo controls">
+      <button type="button" className="demo-ctl-head" data-testid="demo-controls-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <Icon name="play" size={13} /> <b>Demo controls</b>
-        <span className="faint">You are the player. These buttons play the DM. Nothing leaves your browser.</span>
         <span className="demo-ctl-caret">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && (
-        <div className="demo-ctl-body">
+        <div className="demo-ctl-body card">
+          <p className="faint demo-ctl-intro">You are the player. These buttons play the DM. Nothing leaves your browser.</p>
           <div className="demo-ctl-row">
             <button type="button" className="btn small" data-testid="demo-ask" onClick={demoDm.askInitiative}>Ask players for initiative</button>
             <button type="button" className="btn small primary" data-testid="demo-start" onClick={demoDm.startCombat}>Start combat</button>

@@ -41,7 +41,7 @@ export function PlayerSessionPage() {
   // The shared initiative order and the player's own characters in it (T-100).
   const liveCombat = useLiveCombat(campaign?.linkedCampaignId)
   const { user } = useAuth()
-  // The docked panel: Initiative while a fight is shared, otherwise Notes, until the player picks.
+  // The docked panel opens on Initiative (it has its own empty state), until the player picks.
   const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
   const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
   useMyTurnAlert(myTurnRows)
@@ -155,12 +155,11 @@ export function PlayerSessionPage() {
         <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
+        <DemoLiveControls />
         <Link to={`/player/${campaignId}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Leave
         </Link>
       </div>
-
-      <DemoLiveControls />
 
       <VoiceRoster channelId={voice?.channelId} />
 
@@ -183,7 +182,7 @@ export function PlayerSessionPage() {
         </section>
 
         <PlayerSessionDock
-          tab={pickedTab ?? (liveCombat.combat ? 'initiative' : 'notes')}
+          tab={pickedTab ?? 'initiative'}
           onTab={setPickedTab}
           combat={liveCombat.combat}
           cloudCampaignId={linkedId}
