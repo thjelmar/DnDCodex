@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test'
 // The server always starts with a placeholder Supabase config (never real keys),
 // so the app behaves as a configured-but-unreachable backend. Every request to
 // supabase.co is intercepted and recorded by the fixtures in e2e/fixtures.ts.
-const PORT = 5174
+const PORT = Number(process.env.E2E_PORT ?? 5174)
 
 // Live mode (npm run e2e:live) points the dev server at a LOCAL Supabase stack.
 // The URL must be a loopback address; anything else falls back to the placeholder.
