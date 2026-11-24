@@ -12,6 +12,9 @@ test('demo player: empty state through combat and End turn, with no Supabase req
   await page.getByTestId('demo-player-entry').click()
   await expect(page).toHaveURL(/#\/player\/demo-player-campaign-0001\/session/)
   await expect(page.getByTestId('demo-controls')).toBeVisible()
+  // The controls start collapsed into a header pill, so the map owns the first screen.
+  await expect(page.getByTestId('demo-ask')).toHaveCount(0)
+  await page.getByTestId('demo-controls-toggle').click()
   await expect(page.locator('.session-header')).toContainText('Live')
 
   // The tabletop shows the demo map with tokens.
