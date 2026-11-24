@@ -128,3 +128,28 @@ Recommendation: A, B, C now; D and E as follow-ups.
 
 - Which extras (A to E)?
 - Should the Notes editor stay in the panel, or open as a sheet on phones?
+
+## As built (T-104)
+
+- `src/components/PlayerSessionDock.tsx`: the tabbed panel (Initiative, Me, Notes,
+  Handouts), the "Your turn" banner with **End turn**, and `useMyTurnAlert`
+  (vibration plus a "Your turn" title prefix; real push stays T-25).
+- `src/pages/PlayerSessionPage.tsx`: top bar with the Round chip and banner; the
+  strip sits above the map; the board's tools are a vertical rail on wide screens
+  and an icon toolbar on phones; the color picker is a popover.
+- `supabase/migrations/0048_end_my_turn.sql` and `endMyTurn()` in
+  `src/auth/liveCombat.ts`; `LiveCombatKeeper` applies the request once and clears it.
+- Empty state: the Initiative tab says "No combat yet" instead of nothing.
+
+Differences from the mockups:
+
+- The turn strip sits above the map, not over it, and keeps its Join initiative and
+  edit and leave controls (the dock rows show only **End turn**).
+- The tool rail reuses the existing player board tools (range, measure, spell area,
+  color, full screen). Ping stays on the map's own toolbar.
+- Me shows HP (adjustable, saved to the local sheet), AC, speed and the conditions
+  the DM set. The quick-roll bar (extra E) is not built.
+- Phone portrait stacks the panel under the map instead of a bottom sheet.
+
+Not verified: the signed-in Realtime path, the DM applying End turn on a real
+second device, and a real iPhone. Tests mock Supabase.

@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
-import { SharedHandouts } from '../components/SharedHandouts'
+import { PlayerSessionDock, PlayerTurnBanner, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
@@ -40,6 +40,10 @@ export function PlayerSessionPage() {
   // The shared initiative order and the player's own characters in it (T-100).
   const liveCombat = useLiveCombat(campaign?.linkedCampaignId)
   const { user } = useAuth()
+  // The docked panel: Initiative while a fight is shared, otherwise Notes, until the player picks.
+  const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
+  const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
+  useMyTurnAlert(myTurnRows)
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -116,6 +120,7 @@ export function PlayerSessionPage() {
       live={liveMap}
       linkedCampaignId={linkedId}
       compact={compact}
+      rail={!compact}
       onExpandedChange={setMapFull}
       notesLabel="Notes"
       notes={
@@ -143,6 +148,10 @@ export function PlayerSessionPage() {
         <h1 className="mb-0 run-title">{live.title || 'Session'}</h1>
         <span className="run-live-on"><span className="run-live-dot" /> Live</span>
         {live.sessionDate && <span className="faint" style={{ fontSize: 13 }}>{formatDate(live.sessionDate)}</span>}
+        {liveCombat.combat?.phase === 'active' && (
+          <span className="pl-round" data-testid="top-round"><span className="pl-pulse" aria-hidden /> Round {liveCombat.combat.round}</span>
+        )}
+        <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
         <Link to={`/player/${campaignId}`} className="btn ghost small">
@@ -152,37 +161,33 @@ export function PlayerSessionPage() {
 
       <VoiceRoster channelId={voice?.channelId} />
 
-      <PlayerInitiativeStrip
-        combat={liveCombat.combat}
-        cloudCampaignId={linkedId}
-        localCampaignId={campaignId}
-        userId={user?.id ?? null}
-      />
-
-      {/* While the DM is showing a map it takes the main column and your notes
-          move to the rail; otherwise notes lead and the Tabletop waits there. */}
       <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
-        {mapLive ? (
-          <section className="session-map">
-            <div className="card run-card session-vtt">
-              <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
-              {board(false)}
-            </div>
-          </section>
-        ) : (
-          <section className="session-notes">{notesCard}</section>
-        )}
-
-        <aside className="session-aside">
-          {mapLive && <div className="card run-card session-notes-rail">{notesCard}</div>}
-          <SharedHandouts linkedCampaignId={campaign.linkedCampaignId} />
-          {!mapLive && (
+        <section className="session-map">
+          <PlayerInitiativeStrip
+            combat={liveCombat.combat}
+            cloudCampaignId={linkedId}
+            localCampaignId={campaignId}
+            userId={user?.id ?? null}
+          />
+          {mapLive ? (
+            <div className="card run-card session-vtt">{board(false)}</div>
+          ) : (
             <div className="card run-card session-vtt">
               <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
               {board(true)}
             </div>
           )}
-        </aside>
+        </section>
+
+        <PlayerSessionDock
+          tab={pickedTab ?? (liveCombat.combat ? 'initiative' : 'notes')}
+          onTab={setPickedTab}
+          combat={liveCombat.combat}
+          cloudCampaignId={linkedId}
+          localCampaignId={campaignId}
+          userId={user?.id ?? null}
+          notes={notesCard}
+        />
       </div>
     </div>
   )

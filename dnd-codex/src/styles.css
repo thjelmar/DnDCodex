@@ -5660,3 +5660,69 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .bm-terrain-pill { font-size: 11px; line-height: 1.25; padding: 1px 6px; border-radius: 999px; background: var(--bg-elev-2); color: var(--text-dim); min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .bm-terrain { display: grid; gap: 8px; }
 .bm-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; }
+
+/* ---- Player session shell (T-104): top bar chips, tool rail, docked panel ---- */
+.pl-round { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-elev); font-weight: 600; font-size: 13px; }
+.pl-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pl-pulse 1.6s ease-in-out infinite; }
+@keyframes pl-pulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 55%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+.pl-turn { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 6px 4px 12px; border: 1px solid var(--accent); border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, var(--bg-elev)); }
+.pl-turn-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); animation: pl-pulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pl-pulse, .pl-turn-dot { animation: none; } }
+
+.session-grid { align-items: start; }
+.pl-dock { padding: 0; display: flex; flex-direction: column; min-width: 0; position: sticky; top: 12px; max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); }
+.pl-dock-tabs { display: flex; gap: 2px; padding: 6px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.pl-dock-tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.pl-dock-tab.on { background: var(--bg-elev-2, var(--bg)); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.pl-dock-body { padding: 12px; overflow-y: auto; min-height: 0; }
+.pl-empty { padding: 18px 6px; text-align: center; }
+.pl-empty p { margin: 6px 0 0; font-size: 13px; }
+.pl-init-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.pl-init-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev-2, var(--bg)); }
+.pl-init-row.now { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.pl-init-row.me { outline: 1px dashed var(--good, #4ade80); outline-offset: 2px; }
+.pl-init-num { min-width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 8px; background: var(--bg-elev); font-weight: 700; }
+.pl-init-main { display: grid; flex: 1; min-width: 0; }
+.pl-init-name { font-family: var(--font-serif, inherit); font-weight: 600; overflow-wrap: anywhere; }
+.pl-you { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 25%, transparent); font-style: normal; font-size: 11px; }
+.pl-init-sub { font-size: 12px; }
+.pl-init-hp { font-size: 13px; font-variant-numeric: tabular-nums; }
+.pl-init-marker { font-size: 12px; font-weight: 600; color: var(--danger, #f87171); }
+.pl-me { display: grid; gap: 12px; }
+.pl-me-card { padding: 12px; border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 10px; }
+.pl-me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pl-me-stat { display: grid; gap: 2px; justify-items: start; padding: 8px; border-radius: 8px; background: var(--bg-elev-2, var(--bg)); font-size: 18px; font-weight: 600; }
+.pl-me-stat small { font-size: 11px; font-weight: 400; color: var(--text-dim); }
+.pl-me-adj { display: inline-flex; gap: 4px; }
+.pl-me-adj .btn { min-width: 36px; min-height: 36px; }
+.pl-me-conds { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pl-cond { padding: 2px 8px; border: 1px solid; border-radius: 999px; font-size: 12px; }
+
+.player-live-board.pl-rail:not(.expanded) .player-live-name,
+.player-live-board.pl-rail:not(.expanded) .pl-lbl { display: none; }
+.player-live-board.pl-rail:not(.expanded) .player-live-bar { position: relative; flex-wrap: nowrap; }
+.player-live-board.pl-rail:not(.expanded) .player-live-bar > .row { flex-wrap: nowrap; margin-left: 0 !important; gap: 6px !important; }
+.player-live-board.pl-rail:not(.expanded) .player-live-bar .btn { min-width: 40px; min-height: 40px; padding: 0 8px; }
+.player-live-board.pl-rail:not(.expanded) .battlemap-mycolor { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 21; flex-wrap: wrap; justify-content: center; width: 220px; padding: 8px; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+.player-live-board.pl-rail.color-open:not(.expanded) .battlemap-mycolor { display: flex; }
+/* Tool rail: on a wide page the player's board tools sit in a slim column left of the map. */
+@media (min-width: 861px) {
+  .player-live-board.pl-rail:not(.expanded) { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 8px; align-items: start; }
+  .player-live-board.pl-rail:not(.expanded) > * { grid-column: 2; }
+  .player-live-board.pl-rail:not(.expanded) > .player-live-bar { grid-column: 1; grid-row: 1 / span 6; position: relative; flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 6px; padding: 6px 0; margin: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev); }
+  .player-live-board.pl-rail:not(.expanded) > .player-live-bar > .row { flex-direction: column; margin: 0 !important; gap: 6px !important; }
+  .player-live-board.pl-rail:not(.expanded) .player-live-name,
+  .player-live-board.pl-rail:not(.expanded) .pl-lbl { display: none; }
+  .player-live-board.pl-rail:not(.expanded) .player-live-bar .btn { min-width: 38px; min-height: 38px; padding: 0 8px; }
+  .player-live-board.pl-rail:not(.expanded) .battlemap-mycolor { display: none; position: absolute; left: calc(100% + 6px); top: 0; z-index: 21; flex-wrap: wrap; width: 220px; padding: 8px; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+  .player-live-board.pl-rail.color-open:not(.expanded) .battlemap-mycolor { display: flex; }
+  .player-live-board.pl-rail:not(.expanded) .player-spell-menu { left: calc(100% + 6px); right: auto; top: 0; }
+}
+@media (max-width: 860px) {
+  .pl-dock { position: static; max-height: none; }
+  .pl-turn { width: 100%; justify-content: space-between; }
+  .pl-dock-tabs { position: sticky; top: 0; z-index: 2; background: var(--bg-elev); }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .pl-dock { position: static; max-height: none; }
+}
