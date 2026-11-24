@@ -145,12 +145,20 @@ function draw(s,who,type,pt,done,local){
     if(!local){log.textContent=`${who.who} pinged the map`}
   }else{
     let cur=s._cursors[who.who];
-    if(!cur){cur={g:mk('g',{class:'cur'},s._layer)};s._cursors[who.who]=cur;
+    if(!cur){cur={g:mk('g',{class:'cur'},s._layer),pts:[]};s._cursors[who.who]=cur;
+      cur.trail=mk('g',{},cur.g);
+      cur.dot=mk('g',{},cur.g);
       const h=halo(c);
-      mk('path',{d:'M0 0 L0 17 L5 13 L9 21 L12 19.5 L8 12 L14 12 Z',fill:c,stroke:h,'stroke-width':1.5,'stroke-linejoin':'round'},cur.g);
-      label(cur.g,18,30,name,c);}
+      mk('circle',{r:9,fill:c,stroke:h,'stroke-width':2.5},cur.dot);
+      label(cur.dot,20,20,name,c);}
     cur.g.style.opacity=1;
-    cur.g.setAttribute('transform',`translate(${pt.x} ${pt.y})`);
+    // Dot plus a trail of the last 0.5 s that tapers and fades (the product draws the same).
+    const t0=performance.now();cur.pts.push({x:pt.x,y:pt.y,t:t0});
+    cur.pts=cur.pts.filter(q=>t0-q.t<500);
+    cur.trail.innerHTML='';
+    if(!document.body.classList.contains('reduced'))cur.pts.slice(1).forEach((q,i)=>{const f=1-(t0-q.t)/500;
+      mk('line',{x1:cur.pts[i].x,y1:cur.pts[i].y,x2:q.x,y2:q.y,stroke:c,'stroke-opacity':f*.8,'stroke-width':2+10*f,'stroke-linecap':'round'},cur.trail)});
+    cur.dot.setAttribute('transform',`translate(${pt.x} ${pt.y})`);
     clearTimeout(cur.t);
     cur.t=setTimeout(()=>{cur.g.style.opacity=0},done?600:1500);
   }

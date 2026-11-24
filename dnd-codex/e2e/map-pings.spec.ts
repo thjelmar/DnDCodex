@@ -98,6 +98,43 @@ test.describe('map pings', () => {
     expect(await page.evaluate(() => (window as unknown as { __added: number }).__added)).toBe(1)
   })
 
+  test('the drag marker is a circle with a trail, not an arrow', async ({ page }) => {
+    const { x, y } = await openBoard(page)
+    await page.mouse.move(x, y)
+    await page.mouse.down({ button: 'right' })
+    for (let i = 1; i <= 10; i++) await page.mouse.move(x + i * 15, y + i * 8)
+    await expect(cursors(page).locator('circle.ping-dot-mark')).toHaveCount(1)
+    await expect(cursors(page).locator('path')).toHaveCount(0)
+    await expect(cursors(page).locator('.ping-trail').first()).toBeAttached()
+    await page.mouse.up({ button: 'right' })
+  })
+
+  test('reduced motion draws the drag circle without a trail', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    const { x, y } = await openBoard(page)
+    await page.mouse.move(x, y)
+    await page.mouse.down({ button: 'right' })
+    for (let i = 1; i <= 10; i++) await page.mouse.move(x + i * 15, y + i * 8)
+    await expect(cursors(page).locator('circle.ping-dot-mark')).toHaveCount(1)
+    await expect(cursors(page).locator('.ping-trail')).toHaveCount(0)
+    await page.mouse.up({ button: 'right' })
+  })
+
+  test('a ping burst allows ten pings in a window, then stops', async ({ page }) => {
+    const { x, y } = await openBoard(page)
+    await page.evaluate(() => {
+      ;(window as unknown as { __added: number }).__added = 0
+      new MutationObserver((ms) => {
+        for (const m of ms) m.addedNodes.forEach((n) => (n as Element).classList?.contains('ping') && ((window as unknown as { __added: number }).__added += 1))
+      }).observe(document.querySelector('.ping-layer')!, { childList: true })
+    })
+    for (let i = 0; i < 12; i++) {
+      await page.mouse.click(x, y, { button: 'right' })
+      await page.waitForTimeout(320)
+    }
+    expect(await page.evaluate(() => (window as unknown as { __added: number }).__added)).toBe(10)
+  })
+
   test('a ping lands on the click point after zooming in', async ({ page }) => {
     const { x, y, box } = await openBoard(page)
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
