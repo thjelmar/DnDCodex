@@ -27,7 +27,7 @@ test('demo player: Notes tab is editable and the text survives tab switches, ful
   await expect(editor).toContainText('Thalia saw the cellar door.')
   // Keep typing: the caret is at the end and nothing was lost.
   await editor.click()
-  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.press('End')
   await page.keyboard.type(' Then a wolf howled.')
   await expect(page.getByTestId('notes-status')).toContainText('Saved')
 
@@ -35,6 +35,7 @@ test('demo player: Notes tab is editable and the text survives tab switches, ful
   await page.keyboard.press('ControlOrMeta+A')
   await page.keyboard.press('ControlOrMeta+B')
   await expect(editor.locator('strong')).toContainText('Thalia saw')
+  await page.keyboard.press('ArrowRight') // collapse the selection so later typing appends
 
   // Combat turn changes re-render the page without dropping the text or the focus.
   await page.getByTestId('demo-controls-toggle').click()
@@ -42,7 +43,7 @@ test('demo player: Notes tab is editable and the text survives tab switches, ful
   await expect(page.getByTestId('top-round')).toContainText('Round 1')
   await page.getByRole('tab', { name: /Notes/ }).click()
   await editor.click()
-  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.press('End')
   await page.keyboard.type(' [x]')
   await page.getByTestId('demo-next').click()
   await page.getByTestId('demo-next').click()
@@ -56,11 +57,12 @@ test('demo player: Notes tab is editable and the text survives tab switches, ful
 
   // Full screen hosts the same panel: the text is there, and what you type there saves too.
   await page.getByRole('button', { name: 'Full screen' }).click()
-  await page.getByTestId('player-dock').getByRole('tab', { name: /Notes/ }).click()
-  const fsEditor = page.getByTestId('player-dock').locator('.ProseMirror')
+  const fsPanel = page.getByTestId('fs-panel')
+  await fsPanel.getByRole('tab', { name: /Notes/ }).click()
+  const fsEditor = fsPanel.locator('.ProseMirror')
   await expect(fsEditor).toContainText('Then a wolf howled. [x]')
   await fsEditor.click()
-  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.press('End')
   await page.keyboard.type(' (full screen)')
   await page.getByRole('button', { name: 'Exit full screen' }).click()
   await page.getByRole('tab', { name: /Notes/ }).click()

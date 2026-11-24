@@ -5,7 +5,7 @@ import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { NotesSaveStatus, type SaveState } from '../components/NotesSaveStatus'
-import { clearDraft, getDraft, setDraft } from '../lib/noteDrafts'
+import { getDraft, onDraft, setDraft } from '../lib/noteDrafts'
 import { PlayerSessionDock, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
@@ -236,6 +236,7 @@ function SessionNotes({
       if (!alive) return
       saved.current = n?.body ?? ''
       loaded.current = true
+      setDraft(draftKey, n?.body ?? '')
       setBody(n?.body ?? '')
       setReady(true)
     })
@@ -266,13 +267,15 @@ function SessionNotes({
         } else {
           saved.current = html
         }
-        clearDraft(draftKey, html)
       } finally {
         if (mounted.current && bodyRef.current === html) setStatus('saved')
       }
     })
     return chain.current
   }
+
+  // The page's panel and the full-screen panel can both be mounted: follow the other one's text.
+  useEffect(() => onDraft<string>(draftKey, (v) => { if (v !== bodyRef.current) setBody(v) }), [draftKey])
 
   // Autosave 500ms after the last keystroke.
   useEffect(() => {
