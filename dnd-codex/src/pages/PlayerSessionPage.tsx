@@ -12,6 +12,9 @@ import { JoinVoiceButton } from '../components/JoinVoiceButton'
 import { VoiceRoster } from '../components/VoiceRoster'
 import { parseDiscordChannelLink } from '../lib/discord'
 import { useLiveSession } from '../lib/useLiveSession'
+import { useLiveCombat } from '../auth/liveCombat'
+import { useAuth } from '../auth/AuthProvider'
+import { PlayerInitiativeStrip } from '../components/PlayerInitiativeStrip'
 import { formatDate } from '../lib/format'
 
 /**
@@ -34,6 +37,9 @@ export function PlayerSessionPage() {
   // move between columns without re-subscribing).
   const liveMap = useLiveScene(campaign?.linkedCampaignId)
   const mapLive = !!liveMap.scene
+  // The shared initiative order and the player's own characters in it (T-100).
+  const liveCombat = useLiveCombat(campaign?.linkedCampaignId)
+  const { user } = useAuth()
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -145,6 +151,13 @@ export function PlayerSessionPage() {
       </div>
 
       <VoiceRoster channelId={voice?.channelId} />
+
+      <PlayerInitiativeStrip
+        combat={liveCombat.combat}
+        cloudCampaignId={linkedId}
+        localCampaignId={campaignId}
+        userId={user?.id ?? null}
+      />
 
       {/* While the DM is showing a map it takes the main column and your notes
           move to the rail; otherwise notes lead and the Tabletop waits there. */}

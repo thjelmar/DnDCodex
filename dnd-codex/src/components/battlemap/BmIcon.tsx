@@ -16,6 +16,8 @@ export type BmIconName =
   | 'inspector'
   | 'fullscreen'
   | 'fullscreen-exit'
+  | 'undo'
+  | 'redo'
   | 'float'
   | 'dock'
   | 'close'
@@ -90,6 +92,8 @@ const PATHS: Record<BmIconName, ReactNode> = {
   ),
   fullscreen: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
   'fullscreen-exit': <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />,
+  undo: <path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />,
+  redo: <path d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" />,
   float: (
     <>
       <rect x="3" y="3" width="18" height="18" rx="2" />

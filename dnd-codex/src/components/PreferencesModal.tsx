@@ -6,6 +6,7 @@ import { OVERVIEW_LAYOUT_ID, reconcile } from '../lib/overviewCards'
 import type { OverviewLayoutRecord } from '../db/types'
 import { useNavigate } from 'react-router-dom'
 import { Modal } from './Modal'
+import { usePingsPref } from '../lib/usePings'
 import { Icon } from './Icon'
 import { CalendarSubscriptionsPref } from './CalendarSubscriptionsPref'
 import { useAuth, type ReminderPrefs } from '../auth/AuthProvider'
@@ -24,6 +25,7 @@ import {
 } from '../lib/theme'
 import {
   REVEAL_CONFIRM_KEY,
+  COMBAT_REVEAL_KEY,
   SHAREABLE_KINDS,
   clearShareDefaults,
   isConfirmSkipped,
@@ -49,6 +51,7 @@ const KIND_LABEL: Record<ShareableKind, string> = {
 export function PreferencesModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate()
   const { profile, updateProfile } = useAuth()
+  const [pingsOn, setPingsOn] = usePingsPref()
 
   // Appearance: reflect the current choice (profile when signed in, else the
   // local cache), apply instantly on change, and sync to the account if signed in.
@@ -115,6 +118,7 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
     if (profile) updateProfile({ reminder_prefs: next }).catch(() => {})
   }
 
+  const [askCombatReveal, setAskCombatReveal] = useState(() => !isConfirmSkipped(COMBAT_REVEAL_KEY))
   const [askReveal, setAskReveal] = useState(() => !isConfirmSkipped(REVEAL_CONFIRM_KEY))
   const [defaults, setDefaults] = useState<Record<ShareableKind, string[] | null>>(() => {
     const d = {} as Record<ShareableKind, string[] | null>
@@ -125,6 +129,11 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
   function toggleAskReveal(next: boolean) {
     setConfirmSkip(REVEAL_CONFIRM_KEY, !next) // "skip" is the inverse of "ask"
     setAskReveal(next)
+  }
+
+  function toggleAskCombatReveal(next: boolean) {
+    setConfirmSkip(COMBAT_REVEAL_KEY, !next)
+    setAskCombatReveal(next)
   }
 
   function resetDefault(kind: ShareableKind) {
@@ -250,6 +259,19 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
         )}
       </div>
 
+      <div className="prefs-section">
+        <div className="prefs-section-title">Battle map</div>
+        <label className="prefs-row" style={{ cursor: 'pointer' }}>
+          <div className="prefs-row-label">Pings and cursors</div>
+          <div className="prefs-row-value">
+            <input type="checkbox" checked={pingsOn} onChange={(e) => setPingsOn(e.target.checked)} aria-label="Show and send map pings and colored cursors" />
+          </div>
+        </label>
+        <div className="faint" style={{ fontSize: 12 }}>
+          Right click the map to ping, or right-drag to show your colored cursor. On a touch screen, press and hold.
+        </div>
+      </div>
+
       {profile && (
         <div className="prefs-section">
           <div className="prefs-section-title">Session reminders</div>
@@ -326,6 +348,22 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
             <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
               When on, un-hiding spoilered text on an entity that's already shared asks for
               confirmation first. Turn off to skip it (the same as ticking “Don't ask again”).
+            </div>
+          </span>
+        </label>
+        <label className="row" style={{ gap: 10, cursor: 'pointer', alignItems: 'flex-start', marginTop: 12 }}>
+          <input
+            type="checkbox"
+            checked={askCombatReveal}
+            onChange={(e) => toggleAskCombatReveal(e.target.checked)}
+            style={{ marginTop: 3 }}
+            data-testid="pref-combat-reveal"
+          />
+          <span>
+            <div>Warn before NPCs join a combat players can see</div>
+            <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
+              During a live session, adding an NPC to combat asks first, because everyone sees it once it
+              appears. Turn off to skip it (the same as ticking “Don't show this message again”).
             </div>
           </span>
         </label>

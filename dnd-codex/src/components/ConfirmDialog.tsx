@@ -21,6 +21,8 @@ interface ConfirmOptions {
    * immediately (no prompt). Stored per browser.
    */
   remember?: string
+  /** Label for the remember checkbox. Defaults to "Don't ask again". */
+  rememberLabel?: string
 }
 
 type ConfirmFn = (opts: ConfirmOptions) => Promise<boolean>
@@ -105,7 +107,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           {pending.remember && (
             <label className="row" style={{ gap: 8, marginTop: 14, fontSize: 13, cursor: 'pointer' }}>
               <input type="checkbox" checked={dontAsk} onChange={(e) => setDontAsk(e.target.checked)} />
-              Don't ask again
+              {pending.rememberLabel ?? "Don't ask again"}
             </label>
           )}
         </Modal>

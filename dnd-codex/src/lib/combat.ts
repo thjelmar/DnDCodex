@@ -62,6 +62,16 @@ export interface Combatant {
   /** Running total damage taken (net of healing, floored at 0). Lets players
    *  see how hurt an enemy is without ever seeing its HP pool. */
   damageTaken?: number
+  /** The DM hides this combatant from players: it keeps its turn but never reaches
+   *  the players' initiative strip (T-100). A hidden token hides its combatant too. */
+  hiddenFromPlayers?: boolean
+  /** The player (member id) who may edit this combatant's initiative and remove it,
+   *  for a character they joined or an NPC the DM assigned (a mount, a vehicle).
+   *  Unset falls back to the linked token's `controlledBy`. */
+  controlledBy?: string | null
+  /** Health marker override for players. Unset follows the campaign setting;
+   *  `false` never shows a marker; `true` shows all three levels (T-100). */
+  showHealthMarker?: boolean | null
 }
 
 export interface CombatState {
@@ -73,6 +83,9 @@ export interface CombatState {
   /** The campaign whose NPCs the "Add from NPCs" picker draws from. */
   campaignId: Id | null
   combatants: Combatant[]
+  /** The DM opened initiative to players ("Ask players for initiative"): players
+   *  can join, and NPCs stay private until combat starts (T-100). */
+  askPlayers?: boolean
 }
 
 const KEY = 'codex.combat'
@@ -278,6 +291,8 @@ export function makeCombatant(input: {
   ac?: number | null
   groupKey?: string | null
   groupTurn?: boolean
+  controlledBy?: string | null
+  hiddenFromPlayers?: boolean
 }): Combatant {
   const maxHp = input.hp ?? null
   return {
@@ -292,6 +307,8 @@ export function makeCombatant(input: {
     conditions: [],
     groupKey: input.groupKey ?? null,
     ...(input.groupTurn ? { groupTurn: true } : {}),
+    ...(input.controlledBy ? { controlledBy: input.controlledBy } : {}),
+    ...(input.hiddenFromPlayers ? { hiddenFromPlayers: true } : {}),
     damageTaken: 0,
   }
 }
