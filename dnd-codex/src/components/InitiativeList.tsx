@@ -5,6 +5,7 @@ import { BmMenu } from './battlemap/BmMenu'
 import { AddCustom, ConditionPicker, type useCombat } from './CombatRoster'
 import { turnSlots, type Combatant } from '../lib/combat'
 import { initials } from '../lib/tabletop'
+import { MARKER_LABELS, PlayerShareControls, useMarkerSettings } from './PlayerSharing'
 
 /**
  * Run mode's initiative list (the Combat tab): one row per turn slot, in order. A monster group is one
@@ -30,6 +31,7 @@ export function InitiativeList({
   const current = state.active ? state.combatants[state.turnIndex] : undefined
   const currentSlot = current ? slots.find((s) => s.some((c) => c.id === current.id)) : undefined
   const [adding, setAdding] = useState(false)
+  const markers = useMarkerSettings()
 
   // A token picked on the map brings its row into view.
   const listRef = useRef<HTMLDivElement>(null)
@@ -84,6 +86,17 @@ export function InitiativeList({
                 <button type="button" role="menuitem" className="bm-item" disabled={n === 0} onClick={() => { close(); combat.sortNow() }}>
                   Sort by initiative
                 </button>
+                {markers.dm && !state.active && (
+                  <button type="button" role="menuitem" className="bm-item" onClick={() => { close(); combat.askPlayers(!state.askPlayers) }} data-testid="ask-players">
+                    {state.askPlayers ? 'Stop asking players for initiative' : 'Ask players for initiative'}
+                  </button>
+                )}
+                {markers.dm &&
+                  MARKER_LABELS.map((m) => (
+                    <button key={m.key} type="button" role="menuitemcheckbox" aria-checked={!!markers.settings[m.key]} className="bm-item" onClick={() => markers.set(m.key, !markers.settings[m.key])}>
+                      {markers.settings[m.key] ? '✓ ' : ''}Players see “{m.label}” ({m.hint})
+                    </button>
+                  ))}
                 <button type="button" role="menuitem" className="bm-item" disabled={n === 0 && !state.active} onClick={() => { close(); combat.end() }}>
                   End combat
                 </button>
@@ -182,6 +195,18 @@ function Row({
           <BmIcon name="close" size={14} />
         </button>
       )}
+      <PlayerShareControls
+        c={lead}
+        eyeOnly={group}
+        onPatch={(p) => combat.patch(lead.id, p)}
+        onHide={(h) => {
+          // A group hides or shows as one slot: ask once, then set every member.
+          void (async () => {
+            if (!h) await combat.setHiddenFromPlayers(lead.id, false)
+            for (const c of slot) if (h || c.id !== lead.id) combat.patch(c.id, { hiddenFromPlayers: h })
+          })()
+        }}
+      />
       {turn && <Quick slot={slot} combat={combat} />}
     </div>
   )

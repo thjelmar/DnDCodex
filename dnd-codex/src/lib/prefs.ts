@@ -11,6 +11,9 @@ const CONFIRM_SKIP_PREFIX = 'codex.confirmSkip.'
 /** The shared "don't ask again" key used by the reveal-to-players confirm. */
 export const REVEAL_CONFIRM_KEY = 'spoiler-reveal'
 
+/** The "don't show again" key for the DM's warning before NPCs join a visible combat (T-100). */
+export const COMBAT_REVEAL_KEY = 'combat-reveal'
+
 /** Invite code parked across the OAuth round-trip when joining via a link. */
 export const PENDING_JOIN_KEY = 'codex.pendingJoin'
 

@@ -25,6 +25,7 @@ import {
 } from '../lib/theme'
 import {
   REVEAL_CONFIRM_KEY,
+  COMBAT_REVEAL_KEY,
   SHAREABLE_KINDS,
   clearShareDefaults,
   isConfirmSkipped,
@@ -117,6 +118,7 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
     if (profile) updateProfile({ reminder_prefs: next }).catch(() => {})
   }
 
+  const [askCombatReveal, setAskCombatReveal] = useState(() => !isConfirmSkipped(COMBAT_REVEAL_KEY))
   const [askReveal, setAskReveal] = useState(() => !isConfirmSkipped(REVEAL_CONFIRM_KEY))
   const [defaults, setDefaults] = useState<Record<ShareableKind, string[] | null>>(() => {
     const d = {} as Record<ShareableKind, string[] | null>
@@ -127,6 +129,11 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
   function toggleAskReveal(next: boolean) {
     setConfirmSkip(REVEAL_CONFIRM_KEY, !next) // "skip" is the inverse of "ask"
     setAskReveal(next)
+  }
+
+  function toggleAskCombatReveal(next: boolean) {
+    setConfirmSkip(COMBAT_REVEAL_KEY, !next)
+    setAskCombatReveal(next)
   }
 
   function resetDefault(kind: ShareableKind) {
@@ -341,6 +348,22 @@ export function PreferencesModal({ onClose }: { onClose: () => void }) {
             <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
               When on, un-hiding spoilered text on an entity that's already shared asks for
               confirmation first. Turn off to skip it (the same as ticking “Don't ask again”).
+            </div>
+          </span>
+        </label>
+        <label className="row" style={{ gap: 10, cursor: 'pointer', alignItems: 'flex-start', marginTop: 12 }}>
+          <input
+            type="checkbox"
+            checked={askCombatReveal}
+            onChange={(e) => toggleAskCombatReveal(e.target.checked)}
+            style={{ marginTop: 3 }}
+            data-testid="pref-combat-reveal"
+          />
+          <span>
+            <div>Warn before NPCs join a combat players can see</div>
+            <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>
+              During a live session, adding an NPC to combat asks first, because everyone sees it once it
+              appears. Turn off to skip it (the same as ticking “Don't show this message again”).
             </div>
           </span>
         </label>
