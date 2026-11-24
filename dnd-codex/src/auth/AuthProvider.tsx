@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { DEMO_PLAYER_ID, isDemo } from '../lib/demo'
 import { setTheme, normalizeTheme, normalizeAccent } from '../lib/theme'
 
 export type OAuthProvider = 'discord' | 'google'
@@ -159,4 +160,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
+}
+
+/**
+ * The demo player's identity, for the faux live session only (lib/demoLive.ts). Wraps the
+ * player session page so the real player UI sees a signed-in player. No account exists and
+ * nothing is sent anywhere: the Supabase client is null in the demo. Outside the demo it
+ * renders its children unchanged.
+ */
+export function DemoPlayerAuth({ children }: { children: ReactNode }) {
+  const real = useAuth()
+  if (!isDemo()) return <>{children}</>
+  const user = { id: DEMO_PLAYER_ID } as User
+  const profile: Profile = {
+    id: DEMO_PLAYER_ID,
+    username: 'demo-player',
+    display_name: 'Demo player',
+    avatar_url: null,
+    theme: null,
+    accent: null,
+    reminder_prefs: null,
+  }
+  return <AuthContext.Provider value={{ ...real, user, profile }}>{children}</AuthContext.Provider>
 }

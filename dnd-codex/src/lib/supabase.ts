@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { isDemo } from './demo'
 
 // A single Supabase client for the app. Config comes from Vite env vars
 // (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY) — see .env.example. When those
@@ -8,7 +9,10 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-export const isSupabaseConfigured = Boolean(url && anonKey)
+// The demo never has a backend: no client is created at all, so nothing in it can reach
+// Supabase (no auth refresh, no Realtime socket, no REST call). The demo flag lives in
+// sessionStorage and is set before the reload that starts the demo (see lib/demo.ts).
+export const isSupabaseConfigured = Boolean(url && anonKey) && !isDemo()
 
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(url!, anonKey!, {

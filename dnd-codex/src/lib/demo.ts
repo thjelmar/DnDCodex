@@ -9,6 +9,12 @@ const FLAG = 'codex-demo'
 export const DEMO_DB_NAME = 'dnd-codex-demo'
 export const REAL_DB_NAME = 'dnd-codex'
 
+// Ids for the demo player's faux live session (see lib/demoLive.ts). The demo player
+// campaign is a local record linked to this fake "cloud" campaign id.
+export const DEMO_PLAYER_CAMPAIGN_ID = 'demo-player-campaign-0001'
+export const DEMO_CLOUD_ID = 'demo-cloud-campaign-0001'
+export const DEMO_PLAYER_ID = 'demo-player-user'
+
 /** True when this tab is running the demo. Read at startup to pick the DB name. */
 export function isDemo(): boolean {
   try {

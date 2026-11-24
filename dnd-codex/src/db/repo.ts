@@ -1,7 +1,7 @@
 import { db, newId, now } from './db'
 import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
 import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
-import { isDemo, notifyDemoBlocked, DemoBlockedError } from '../lib/demo'
+import { isDemo, notifyDemoBlocked, DemoBlockedError, DEMO_PLAYER_CAMPAIGN_ID } from '../lib/demo'
 import { tableForKind } from '../lib/syncKinds'
 import { LOCATION_TYPES } from './types'
 import { CARDS, LAYOUT_VERSION, OVERVIEW_LAYOUT_ID, type ResolvedLayout } from '../lib/overviewCards'
@@ -638,7 +638,8 @@ export async function createPlayerNote(
   campaignId: Id,
   input: Partial<Pick<PlayerNote, 'section' | 'title' | 'body' | 'tags' | 'date' | 'status'>> = {},
 ): Promise<PlayerNote> {
-  blockDemoWrite()
+  // The demo player's own notes work (local demo DB only), so the session Notes tab can be tried.
+  if (campaignId !== DEMO_PLAYER_CAMPAIGN_ID) blockDemoWrite()
   const ts = now()
   const section = input.section ?? 'notes'
   const note: PlayerNote = {
@@ -659,7 +660,7 @@ export async function createPlayerNote(
 }
 
 export async function updatePlayerNote(id: Id, patch: Partial<PlayerNote>): Promise<void> {
-  if (skipDemoWrite()) return
+  if (skipDemoWrite() && (await db.playerNotes.get(id))?.campaignId !== DEMO_PLAYER_CAMPAIGN_ID) return
   await db.playerNotes.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('playerNotes', id)
 }

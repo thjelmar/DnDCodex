@@ -32,7 +32,7 @@ test('the demo Overview loads without the editor crash, load after load (WebKit)
     })
     await page.goto('/#/')
     await page.getByRole('button', { name: 'Try the live demo' }).click()
-    await page.getByRole('heading', { name: 'The Hollow Crown' }).click()
+    await page.getByRole('heading', { name: 'The Hollow Crown', exact: true }).click()
     await page.locator('.ov-hero, :text("Something went wrong")').first().waitFor({ timeout: 20_000 })
     await page.waitForTimeout(1500) // let the editor effects run
     const text = await page.locator('main').innerText().catch(() => '')

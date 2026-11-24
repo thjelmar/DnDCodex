@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { isDemo } from '../lib/demo'
+import { demoPlayer, getDemoLive, isDemoCloud } from '../lib/demoLive'
 import type { RevealedEntity } from '../lib/reveal'
 import type { WorldPin } from '../db/types'
 
@@ -142,6 +143,7 @@ export async function getCampaignMembers(campaignId: string): Promise<Member[]> 
 
 /** The current user's own battle-map color in a campaign (null if unset). */
 export async function getMyColor(campaignId: string, userId: string): Promise<string | null> {
+  if (isDemoCloud(campaignId)) return getDemoLive().myColor
   if (!supabase || demoSkipsCloud()) return null
   const { data } = await supabase
     .from('campaign_members')
@@ -154,6 +156,7 @@ export async function getMyColor(campaignId: string, userId: string): Promise<st
 
 /** Set the current user's battle-map color (only their own; see 0016). */
 export async function setMyColor(campaignId: string, color: string | null): Promise<void> {
+  if (isDemoCloud(campaignId)) return demoPlayer.setColor(color)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('set_my_color', { cid: campaignId, new_color: color })
   if (error) throw new Error(error.message)
@@ -224,6 +227,7 @@ export async function unshareImageFromCampaign(imageId: string): Promise<void> {
 
 /** The live shared gallery for a campaign the current user belongs to. */
 export async function getSharedImages(cloudCampaignId: string): Promise<SharedImage[]> {
+  if (isDemoCloud(cloudCampaignId)) return getDemoLive().handouts
   if (!supabase || demoSkipsCloud()) return []
   const { data, error } = await supabase
     .from('shared_images')

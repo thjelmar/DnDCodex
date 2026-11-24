@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isDemo } from '../lib/demo'
+import { demoPlayer, isDemoCloud, useDemoLive } from '../lib/demoLive'
 import { useAuth } from './AuthProvider'
 import type { CombatKind, HealthMarker, PublicCombat, PublicCombatRow } from '../lib/liveCombat'
 
@@ -142,6 +143,7 @@ export async function joinCombat(
   maxHp: number | null,
   charKey: string,
 ): Promise<string> {
+  if (isDemoCloud(campaignId)) return demoPlayer.join(name, initiative, hp, maxHp, charKey)
   if (!supabase) throw new Error('Not signed in.')
   const { data, error } = await supabase.rpc('join_combat', {
     cid: campaignId,
@@ -156,6 +158,7 @@ export async function joinCombat(
 }
 
 export async function setMyInitiative(campaignId: string, rowId: string, initiative: number): Promise<void> {
+  if (isDemoCloud(campaignId)) return demoPlayer.setInitiative(rowId, initiative)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('set_combat_initiative', { cid: campaignId, rid: rowId, init: initiative })
   check(error)
@@ -163,12 +166,14 @@ export async function setMyInitiative(campaignId: string, rowId: string, initiat
 
 /** Ask the DM's client to end this character's turn (it must be that character's turn). */
 export async function endMyTurn(campaignId: string, rowId: string): Promise<void> {
+  if (isDemoCloud(campaignId)) return demoPlayer.endTurn(rowId)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('end_my_turn', { cid: campaignId, rid: rowId })
   check(error)
 }
 
 export async function leaveCombat(campaignId: string, rowId: string): Promise<void> {
+  if (isDemoCloud(campaignId)) return demoPlayer.leave(rowId)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('leave_combat', { cid: campaignId, rid: rowId })
   check(error)
@@ -187,6 +192,8 @@ export function useLiveCombat(cloudCampaignId: string | null | undefined) {
   const [combat, setCombat] = useState<LiveCombat | null>(null)
   // True once the first read for this campaign has finished (so the DM waits to seed its diff).
   const [loaded, setLoaded] = useState(false)
+  // The demo's faux session (lib/demoLive.ts) stands in for the channel below.
+  const demo = useDemoLive()
   const refresh = useRef(async () => {})
   refresh.current = async () => {
     if (!cloudCampaignId) return
@@ -235,5 +242,6 @@ export function useLiveCombat(cloudCampaignId: string | null | undefined) {
     }
   }, [cloudCampaignId, token])
 
+  if (isDemoCloud(cloudCampaignId)) return { combat: demo.combat, loaded: true, setCombat, refresh: () => refresh.current() }
   return { combat, loaded, setCombat, refresh: () => refresh.current() }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
+import { emitDemoPing, isDemoCloud, onDemoPing } from './demoLive'
 import { useAuth } from '../auth/AuthProvider'
 import {
   CURSOR_FADE_MS,
@@ -101,7 +102,27 @@ interface Shared {
 }
 const registry = new Map<string, Shared>()
 
+/** The demo's in-memory stand-in for a Realtime channel (lib/demoLive.ts). */
+function acquireDemo(topic: string): Shared {
+  let s = registry.get(topic)
+  if (!s) {
+    const shared: Shared = {
+      ch: { send: async (p: { payload: PingMsg }) => emitDemoPing(p.payload) } as unknown as RealtimeChannel,
+      refs: 0,
+      online: true,
+      onMsg: new Set(),
+      onStatus: new Set(),
+    }
+    onDemoPing((m) => shared.onMsg.forEach((fn) => fn(m)))
+    registry.set(topic, shared)
+    s = shared
+  }
+  s.refs++
+  return s
+}
+
 function acquire(topic: string): Shared | null {
+  if (isDemo()) return acquireDemo(topic)
   if (!supabase) return null
   let s = registry.get(topic)
   if (!s) {
@@ -126,7 +147,7 @@ function release(topic: string): void {
   if (!s) return
   if (--s.refs <= 0) {
     registry.delete(topic)
-    void supabase?.removeChannel(s.ch)
+    if (!isDemo()) void supabase?.removeChannel(s.ch)
   }
 }
 
@@ -185,7 +206,12 @@ export function usePings({ campaignId, sceneId, userId, name, savedColor, isDm }
   // Latest values for callbacks that outlive a render.
   const live = useRef({ me, name, myColor, isDm, allowPlayers, muted, prefOn, online, sk: sceneKey(sceneId) })
   live.current = { me, name, myColor, isDm, allowPlayers, muted, prefOn, online, sk: sceneKey(sceneId) }
-  const topic = campaignId && token && supabase && !isDemo() ? pingTopic(campaignId) : null
+  const topic =
+    campaignId && isDemoCloud(campaignId)
+      ? pingTopic(campaignId)
+      : campaignId && token && supabase && !isDemo()
+        ? pingTopic(campaignId)
+        : null
   const sharedRef = useRef<Shared | null>(null)
   const sendLog = useRef<number[]>([])
   const recvLog = useRef(new Map<string, number[]>())
@@ -204,7 +230,7 @@ export function usePings({ campaignId, sceneId, userId, name, savedColor, isDm }
       return
     }
     try {
-      void supabase!.realtime.setAuth(token)
+      if (!isDemo()) void supabase!.realtime.setAuth(token)
     } catch {
       /* the session token is applied on the next refresh */
     }

@@ -7,6 +7,7 @@ import { db } from '../db/db'
 import { createScene, createSession, updateSession } from '../db/repo'
 import { SceneEditor } from './BattleMapPage'
 import { LiveSceneKeeper } from './LiveSceneKeeper'
+import { LiveCombatKeeper } from './LiveCombatKeeper'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { SidePanel } from '../components/SidePanel'
 import { StatBlockView } from '../components/StatBlockEditor'
@@ -357,6 +358,8 @@ export function RunPage() {
     return (
       <div className="run-page run-studio">
         <LiveSceneKeeper campaign={campaign} />
+      {/* Mirrors the combat to players and sets the DM-only reveal context (also mounted by CampaignLayout). */}
+      <LiveCombatKeeper campaign={campaign} />
         <RunBattleMap
           campaign={campaign}
           sessionId={session?.id ?? null}
@@ -386,6 +389,8 @@ export function RunPage() {
   return (
     <div className="run-page">
       <LiveSceneKeeper campaign={campaign} />
+      {/* Mirrors the combat to players and sets the DM-only reveal context (also mounted by CampaignLayout). */}
+      <LiveCombatKeeper campaign={campaign} />
       <div className="run-header">
         <span aria-hidden className="run-dot" style={{ background: campaign.color }} />
         <h1 className="mb-0 run-title">{campaign.name}</h1>

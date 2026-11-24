@@ -9,7 +9,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { JoinCampaignModal } from '../auth/JoinCampaignModal'
 import { AddPlayerCampaignModal } from '../components/AddPlayerCampaignModal'
 import { todayISODate } from '../lib/format'
-import { enterDemo, isDemo, demoGuard } from '../lib/demo'
+import { enterDemo, isDemo, demoGuard, DEMO_PLAYER_CAMPAIGN_ID } from '../lib/demo'
 import type { Campaign } from '../db/types'
 
 const COLORS = ['#7c3aed', '#db2777', '#0891b2', '#ca8a04', '#16a34a', '#dc2626', '#2563eb']
@@ -229,6 +229,17 @@ export function HomePage() {
           <div>
             <div className="home-next-lbl">Next session</div>
             <div className="home-next-line">{nextSession.name} — {formatWhen(nextSession.nextSessionDate!, nextSession.nextSessionTime)}</div>
+          </div>
+          <span className="home-next-go"><Icon name="chevron-right" size={18} color="inherit" /></span>
+        </button>
+      )}
+
+      {isDemo() && (
+        <button className="home-next demo-player-entry" data-testid="demo-player-entry" onClick={() => navigate(`/player/${DEMO_PLAYER_CAMPAIGN_ID}/session`)}>
+          <div>
+            <div className="home-next-lbl">Demo</div>
+            <div className="home-next-line">Try the player side in a faux live session</div>
+            <div className="faint" style={{ fontSize: 13 }}>Open the session as a player and use the Demo controls to play the DM.</div>
           </div>
           <span className="home-next-go"><Icon name="chevron-right" size={18} color="inherit" /></span>
         </button>
