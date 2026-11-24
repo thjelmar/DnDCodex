@@ -41,6 +41,7 @@ export function PlayerLiveBoardView({
   notes,
   notesLabel = 'Notes',
   compact = false,
+  rail = false,
   empty,
   onExpandedChange,
 }: {
@@ -50,6 +51,8 @@ export function PlayerLiveBoardView({
   notesLabel?: string
   /** Small inline board (e.g. a sidebar card); full screen still gets the room. */
   compact?: boolean
+  /** Tools as a slim vertical rail beside the map (the session page's Run Mode look). */
+  rail?: boolean
   /** Rendered when the DM isn't showing a map. */
   empty?: ReactNode
   /** Told when full screen opens/closes (so a page can pause a duplicate editor). */
@@ -231,7 +234,7 @@ export function PlayerLiveBoardView({
   const withNotes = fs.expanded && notesOpen && !!notes
 
   return (
-    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}`}>
+    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}`}>
       <div className="player-live-bar">
         {(fs.expanded || !compact) && (
           <strong className="player-live-name">
@@ -262,7 +265,7 @@ export function PlayerLiveBoardView({
           />
         </div>
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
-          {phoneFs && (
+          {(phoneFs || (rail && !fs.expanded)) && (
             <button
               className={`btn small${colorOpen ? ' primary' : ''}`}
               onClick={() => setColorOpen((o) => !o)}

@@ -15,6 +15,8 @@ type Row = Record<string, unknown>
 export interface LiveCombatRow extends PublicCombatRow {
   /** 'player' when a player created it (the DM adopts these into the local combat). */
   source: 'dm' | 'player'
+  /** Set when the controlling player pressed End turn (migration 0048); the DM's client clears it. */
+  endTurnRequestedAt: string | null
 }
 
 export interface LiveCombat {
@@ -30,6 +32,7 @@ function rowFrom(r: Row): LiveCombatRow {
     id: r.id as string,
     controlledBy: (r.controlled_by as string) ?? null,
     source: (r.source as string) === 'player' ? 'player' : 'dm',
+    endTurnRequestedAt: (r.end_turn_requested_at as string) ?? null,
     name: (r.name as string) ?? '',
     kind: ((r.kind as string) ?? 'enemy') as CombatKind,
     initiative: r.initiative == null ? null : Number(r.initiative),
@@ -155,6 +158,13 @@ export async function joinCombat(
 export async function setMyInitiative(campaignId: string, rowId: string, initiative: number): Promise<void> {
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('set_combat_initiative', { cid: campaignId, rid: rowId, init: initiative })
+  check(error)
+}
+
+/** Ask the DM's client to end this character's turn (it must be that character's turn). */
+export async function endMyTurn(campaignId: string, rowId: string): Promise<void> {
+  if (!supabase) throw new Error('Not signed in.')
+  const { error } = await supabase.rpc('end_my_turn', { cid: campaignId, rid: rowId })
   check(error)
 }
 

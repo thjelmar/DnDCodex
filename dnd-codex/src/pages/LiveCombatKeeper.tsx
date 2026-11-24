@@ -9,7 +9,7 @@ import { pushLiveCombat, stopLiveCombat, useLiveCombat } from '../auth/liveComba
 import { useLiveSession } from '../lib/useLiveSession'
 import { useCombatState } from '../components/CombatRoster'
 import { setCombatMembers, setRevealContext } from '../lib/revealContext'
-import { makeCombatant, removeCombatants, resortKeepTurn, setCombat, getCombat, type Combatant } from '../lib/combat'
+import { activeIds as actingIds, makeCombatant, removeCombatants, resortKeepTurn, setCombat, getCombat, stepTurn, type Combatant } from '../lib/combat'
 import { publicCombat, type PublicCombatRow, type TokenFacts } from '../lib/liveCombat'
 import { useIsKeeperLeader } from './LiveSceneKeeper'
 import type { Campaign } from '../db/types'
@@ -93,6 +93,7 @@ function CombatPusher({
   const pushedHead = useRef<string | null>(null)
   const selfDeleted = useRef(new Set<string>())
   const seen = useRef(new Set<string>())
+  const endHandled = useRef(new Set<string>())
   const queue = useRef<Promise<void>>(Promise.resolve())
   const [notices, setNotices] = useState<Notice[]>([])
   const nextId = useRef(1)
@@ -159,6 +160,22 @@ function CombatPusher({
     if (!live.loaded) return
     const list = rows ?? []
     const local = getCombat().combatants
+    // A player pressed End turn (migration 0048): advance once if it is still that
+    // character's turn, and always clear the request.
+    for (const r of list) {
+      if (!r.endTurnRequestedAt) continue
+      const key = `${r.id}|${r.endTurnRequestedAt}`
+      if (endHandled.current.has(key)) continue
+      endHandled.current.add(key)
+      if (getCombat().active && actingIds(getCombat()).has(r.id)) {
+        setCombat((s) => stepTurn(s, 1))
+        notify(`${r.name} ended their turn.`)
+      }
+      enqueue(async () => {
+        if (!supabase) return
+        await supabase.from('shared_combatants').update({ end_turn_requested_at: null }).eq('id', r.id)
+      })
+    }
     for (const r of list) {
       const lc = local.find((c) => c.id === r.id)
       if (!lc && r.source === 'player') {
