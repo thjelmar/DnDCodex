@@ -43,13 +43,42 @@ mocked up; it follows `battle-map-phone-landscape.md`.
 
 Mockup elements I will **not** build, because they break a rule or add scope:
 
-- **End Turn** button. The DM owns turn order. Players get a "Your turn" banner only.
 - AC for allies' rows and enemy "Hostile - Melee" subtitles. Players see an
   ally's HP, never AC or stat-block text.
 - Spell slots, Cast Spell, Chat, latency, and the Spells / Codex / Gear bottom
   tabs. Out of scope.
 - The mock's real-HP bar on the player's row is kept (own character), and the
   "Bloodied / Healthy" label on enemies is kept only when the DM turns markers on.
+
+## Ending a turn (owner decision)
+
+Players end their own turn. The DM can also end a player's turn, as a fallback.
+The DM's device stays the source of truth for combat state, so the player's
+button is a request that the DM client applies:
+
+1. **End turn** shows only on the player's own active row (and in the "Your turn"
+   banner). It calls a new RPC `end_my_turn(cid, rid)`.
+2. The RPC checks `controlled_by = auth.uid()` and that `rid` is in
+   `shared_combat.active_ids`, then sets a new nullable column
+   `shared_combatants.end_turn_requested_at`. Nothing else changes.
+3. The DM client (`useDmLiveCombat`) sees the flag, calls the existing `step`
+   once, and clears the flag on the next push. A stale request (the turn already
+   moved) is ignored and cleared.
+4. The DM keeps **Next turn** in Run Mode and the roster. Its use for a player
+   turn is the fallback when the player is away.
+
+Limit: the turn advances only while the DM's browser is online and running Run
+Mode. If it isn't, the button shows "Waiting for your DM" and the request stays.
+
+Migration 0048 (additive: one nullable column, one function; the owner runs it
+in the Supabase SQL Editor before the PR merges into `dev`).
+
+## Follow-up (separate worker, later)
+
+Spell-slot footer: the **Me** tab shows slots pulled from the player's character
+sheet, and spell details pulled from D&D Beyond or another reliable third-party
+source when the spell exists. Out of scope for T-104. Hub note:
+`player-ui-spell-footer-followup.md` in the shared notes folder.
 
 ## Layout
 
