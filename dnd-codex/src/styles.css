@@ -5737,3 +5737,20 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .demo-ctl-lbl { display: flex; flex-direction: column; font-size: 11px; gap: 2px; }
 .demo-ctl-log { margin: 0; font-size: 12px; }
 .demo-player-entry { margin-bottom: 14px; }
+
+/* ==========================================================================
+   Full screen map tools stay reachable
+   The player board's full screen is a fixed overlay at z-index 40 and the demo banner is a
+   fixed bar above it, so the banner covered the toolbar (Range, Measure, Spell area, color,
+   Exit). Start the overlay below the banner, like the battle map studio does. A phone in full
+   screen hides the banner (data-bm-fs on <html>), so there the overlay starts at the top.
+   ========================================================================== */
+.app[data-demo='true'] .battlemap-editor.expanded {
+  top: var(--demo-h);
+  padding-top: 12px;
+}
+html[data-bm-fs] .app[data-demo='true'] .battlemap-editor.expanded {
+  top: 0;
+  padding-top: calc(12px + var(--sat));
+}
+html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { padding: 0; }
