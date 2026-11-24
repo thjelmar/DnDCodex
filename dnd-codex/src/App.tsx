@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
+import { useEffect, useRef, useState, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
 import { HashRouter, Routes, Route, NavLink, Link, Navigate, useParams, useLocation, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
@@ -18,6 +18,7 @@ import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog, logBoundaryError } from './lib/errorLog'
 import { isChunkLoadError } from './lib/chunkError'
+import { lazyWithRetry } from './lib/lazyWithRetry'
 import { PENDING_JOIN_KEY } from './lib/prefs'
 import { HomePage } from './pages/HomePage'
 import { useTopbarAutoHide } from './lib/useTopbarAutoHide'
@@ -32,46 +33,46 @@ import { useChangelogUnseen } from './lib/useChangelog'
 // battle-map renderer, the bundled SRD monsters) ride along with the routes
 // that use them instead of the first paint. Landing (HomePage) stays eager.
 // Named exports are mapped to the default export React.lazy expects.
-const CampaignsPage = lazy(() => import('./pages/CampaignsPage').then((m) => ({ default: m.CampaignsPage })))
-const BackupPage = lazy(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
-const TemplatesPage = lazy(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
-const BattleLibraryPage = lazy(() => import('./pages/BattleLibraryPage').then((m) => ({ default: m.BattleLibraryPage })))
-const BattleLibraryManagePage = lazy(() => import('./pages/BattleLibraryManagePage').then((m) => ({ default: m.BattleLibraryManagePage })))
-const CreditsPage = lazy(() => import('./pages/CreditsPage').then((m) => ({ default: m.CreditsPage })))
-const ChangelogPage = lazy(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
-const CampaignLayout = lazy(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
-const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
-const SessionsPage = lazy(() => import('./pages/SessionsPage').then((m) => ({ default: m.SessionsPage })))
-const TimelinePage = lazy(() => import('./pages/TimelinePage').then((m) => ({ default: m.TimelinePage })))
-const NpcsPage = lazy(() => import('./pages/NpcsPage').then((m) => ({ default: m.NpcsPage })))
-const FamiliesPage = lazy(() => import('./pages/FamiliesPage').then((m) => ({ default: m.FamiliesPage })))
-const RaceGroupsPage = lazy(() => import('./pages/RaceGroupsPage').then((m) => ({ default: m.RaceGroupsPage })))
-const LocationsPage = lazy(() => import('./pages/LocationsPage').then((m) => ({ default: m.LocationsPage })))
-const ItemsPage = lazy(() => import('./pages/ItemsPage').then((m) => ({ default: m.ItemsPage })))
-const NotesPage = lazy(() => import('./pages/NotesPage').then((m) => ({ default: m.NotesPage })))
-const RollTablesPage = lazy(() => import('./pages/RollTablesPage').then((m) => ({ default: m.RollTablesPage })))
-const EncountersPage = lazy(() => import('./pages/EncountersPage').then((m) => ({ default: m.EncountersPage })))
-const GeneratorTablesPage = lazy(() => import('./pages/GeneratorTablesPage').then((m) => ({ default: m.GeneratorTablesPage })))
-const CombatTrackerPage = lazy(() => import('./pages/CombatTrackerPage').then((m) => ({ default: m.CombatTrackerPage })))
-const RunPage = lazy(() => import('./pages/RunPage').then((m) => ({ default: m.RunPage })))
-const GalleryPage = lazy(() => import('./pages/GalleryPage').then((m) => ({ default: m.GalleryPage })))
-const HandoutsPage = lazy(() => import('./pages/HandoutsPage').then((m) => ({ default: m.HandoutsPage })))
-const LootPage = lazy(() => import('./pages/LootPage').then((m) => ({ default: m.LootPage })))
-const MapPage = lazy(() => import('./pages/MapPage').then((m) => ({ default: m.MapPage })))
-const WorldMapPage = lazy(() => import('./pages/WorldMapPage').then((m) => ({ default: m.WorldMapPage })))
-const BattleMapPage = lazy(() => import('./pages/BattleMapPage').then((m) => ({ default: m.BattleMapPage })))
-const TagsPage = lazy(() => import('./pages/TagsPage').then((m) => ({ default: m.TagsPage })))
-const PlayerNotesPage = lazy(() => import('./pages/PlayerNotesPage').then((m) => ({ default: m.PlayerNotesPage })))
-const PlayerStoryPage = lazy(() => import('./pages/PlayerStoryPage').then((m) => ({ default: m.PlayerStoryPage })))
-const PlayerLootPage = lazy(() => import('./pages/PlayerLootPage').then((m) => ({ default: m.PlayerLootPage })))
-const PlayerGalleryPage = lazy(() => import('./pages/PlayerGalleryPage').then((m) => ({ default: m.PlayerGalleryPage })))
-const PlayerWorldMapPage = lazy(() => import('./pages/PlayerWorldMapPage').then((m) => ({ default: m.PlayerWorldMapPage })))
-const PlayerHandoutsPage = lazy(() => import('./pages/PlayerHandoutsPage').then((m) => ({ default: m.PlayerHandoutsPage })))
-const PlayerSessionPage = lazy(() => import('./pages/PlayerSessionPage').then((m) => ({ default: m.PlayerSessionPage })))
-const TicketsPage = lazy(() => import('./pages/TicketsPage').then((m) => ({ default: m.TicketsPage })))
-const DailyDuelPage = lazy(() => import('./pages/DailyDuelPage').then((m) => ({ default: m.DailyDuelPage })))
-const RoadmapPage = lazy(() => import('./pages/RoadmapPage').then((m) => ({ default: m.RoadmapPage })))
-const JoinLandingPage = lazy(() => import('./pages/JoinLandingPage').then((m) => ({ default: m.JoinLandingPage })))
+const CampaignsPage = lazyWithRetry(() => import('./pages/CampaignsPage').then((m) => ({ default: m.CampaignsPage })))
+const BackupPage = lazyWithRetry(() => import('./pages/BackupPage').then((m) => ({ default: m.BackupPage })))
+const TemplatesPage = lazyWithRetry(() => import('./pages/TemplatesPage').then((m) => ({ default: m.TemplatesPage })))
+const BattleLibraryPage = lazyWithRetry(() => import('./pages/BattleLibraryPage').then((m) => ({ default: m.BattleLibraryPage })))
+const BattleLibraryManagePage = lazyWithRetry(() => import('./pages/BattleLibraryManagePage').then((m) => ({ default: m.BattleLibraryManagePage })))
+const CreditsPage = lazyWithRetry(() => import('./pages/CreditsPage').then((m) => ({ default: m.CreditsPage })))
+const ChangelogPage = lazyWithRetry(() => import('./pages/ChangelogPage').then((m) => ({ default: m.ChangelogPage })))
+const CampaignLayout = lazyWithRetry(() => import('./pages/CampaignLayout').then((m) => ({ default: m.CampaignLayout })))
+const OverviewPage = lazyWithRetry(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
+const SessionsPage = lazyWithRetry(() => import('./pages/SessionsPage').then((m) => ({ default: m.SessionsPage })))
+const TimelinePage = lazyWithRetry(() => import('./pages/TimelinePage').then((m) => ({ default: m.TimelinePage })))
+const NpcsPage = lazyWithRetry(() => import('./pages/NpcsPage').then((m) => ({ default: m.NpcsPage })))
+const FamiliesPage = lazyWithRetry(() => import('./pages/FamiliesPage').then((m) => ({ default: m.FamiliesPage })))
+const RaceGroupsPage = lazyWithRetry(() => import('./pages/RaceGroupsPage').then((m) => ({ default: m.RaceGroupsPage })))
+const LocationsPage = lazyWithRetry(() => import('./pages/LocationsPage').then((m) => ({ default: m.LocationsPage })))
+const ItemsPage = lazyWithRetry(() => import('./pages/ItemsPage').then((m) => ({ default: m.ItemsPage })))
+const NotesPage = lazyWithRetry(() => import('./pages/NotesPage').then((m) => ({ default: m.NotesPage })))
+const RollTablesPage = lazyWithRetry(() => import('./pages/RollTablesPage').then((m) => ({ default: m.RollTablesPage })))
+const EncountersPage = lazyWithRetry(() => import('./pages/EncountersPage').then((m) => ({ default: m.EncountersPage })))
+const GeneratorTablesPage = lazyWithRetry(() => import('./pages/GeneratorTablesPage').then((m) => ({ default: m.GeneratorTablesPage })))
+const CombatTrackerPage = lazyWithRetry(() => import('./pages/CombatTrackerPage').then((m) => ({ default: m.CombatTrackerPage })))
+const RunPage = lazyWithRetry(() => import('./pages/RunPage').then((m) => ({ default: m.RunPage })))
+const GalleryPage = lazyWithRetry(() => import('./pages/GalleryPage').then((m) => ({ default: m.GalleryPage })))
+const HandoutsPage = lazyWithRetry(() => import('./pages/HandoutsPage').then((m) => ({ default: m.HandoutsPage })))
+const LootPage = lazyWithRetry(() => import('./pages/LootPage').then((m) => ({ default: m.LootPage })))
+const MapPage = lazyWithRetry(() => import('./pages/MapPage').then((m) => ({ default: m.MapPage })))
+const WorldMapPage = lazyWithRetry(() => import('./pages/WorldMapPage').then((m) => ({ default: m.WorldMapPage })))
+const BattleMapPage = lazyWithRetry(() => import('./pages/BattleMapPage').then((m) => ({ default: m.BattleMapPage })))
+const TagsPage = lazyWithRetry(() => import('./pages/TagsPage').then((m) => ({ default: m.TagsPage })))
+const PlayerNotesPage = lazyWithRetry(() => import('./pages/PlayerNotesPage').then((m) => ({ default: m.PlayerNotesPage })))
+const PlayerStoryPage = lazyWithRetry(() => import('./pages/PlayerStoryPage').then((m) => ({ default: m.PlayerStoryPage })))
+const PlayerLootPage = lazyWithRetry(() => import('./pages/PlayerLootPage').then((m) => ({ default: m.PlayerLootPage })))
+const PlayerGalleryPage = lazyWithRetry(() => import('./pages/PlayerGalleryPage').then((m) => ({ default: m.PlayerGalleryPage })))
+const PlayerWorldMapPage = lazyWithRetry(() => import('./pages/PlayerWorldMapPage').then((m) => ({ default: m.PlayerWorldMapPage })))
+const PlayerHandoutsPage = lazyWithRetry(() => import('./pages/PlayerHandoutsPage').then((m) => ({ default: m.PlayerHandoutsPage })))
+const PlayerSessionPage = lazyWithRetry(() => import('./pages/PlayerSessionPage').then((m) => ({ default: m.PlayerSessionPage })))
+const TicketsPage = lazyWithRetry(() => import('./pages/TicketsPage').then((m) => ({ default: m.TicketsPage })))
+const DailyDuelPage = lazyWithRetry(() => import('./pages/DailyDuelPage').then((m) => ({ default: m.DailyDuelPage })))
+const RoadmapPage = lazyWithRetry(() => import('./pages/RoadmapPage').then((m) => ({ default: m.RoadmapPage })))
+const JoinLandingPage = lazyWithRetry(() => import('./pages/JoinLandingPage').then((m) => ({ default: m.JoinLandingPage })))
 
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
