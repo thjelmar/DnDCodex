@@ -5341,7 +5341,7 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 @media (orientation: landscape) {
   .player-live-board.phone-fs .battlemap-notes { width: calc(min(340px, 45vw) + var(--sar)); }
   .player-live-board.phone-fs.notes-open .player-live-bar { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
-  .player-live-board.phone-fs .battlemap-body { padding-left: var(--sal); }
+  .player-live-board.phone-fs:not(.pl-fs-rail) .battlemap-body { padding-left: var(--sal); }
 }
 
 /* Run mode's drawer has more tabs than the studio's three: the row scrolls sideways inside the drawer. */
@@ -5557,17 +5557,6 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .bm-contents { display: contents; }
 .bm-mapcol { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .bm-mapcol > .bm-map { flex: 1; min-height: 0; }
-.bm-dicerow { flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 0; background: var(--bg-elev); border-top: 1px solid var(--border); }
-.bm-dice-chip { position: absolute; right: 12px; bottom: 12px; z-index: 5; }
-.dice-bar { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 12px; overflow-x: auto; scrollbar-width: none; }
-.dice-bar::-webkit-scrollbar { display: none; }
-.dice-bar-dice { display: flex; gap: 4px; flex: none; }
-.dice-bar-die { min-width: 38px; height: 32px; padding: 0 6px; background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-.dice-bar-die:hover { border-color: var(--accent); }
-.dice-bar-expr { width: 110px; flex: none; height: 32px; padding: 0 9px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font: inherit; font-size: 13px; }
-.dice-bar .bm-btn { height: 32px; }
-.dice-bar-last { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex: none; font-size: 12px; white-space: nowrap; }
-.dice-bar-last b { font-family: var(--serif); font-size: 18px; color: var(--accent); }
 .run-timer { display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 4px 0 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); font-variant-numeric: tabular-nums; font-size: 13px; }
 .run-timer-dot { width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--accent); }
 .run-timer.running .run-timer-dot { animation: il-pulse 1.8s ease-out infinite; }
@@ -5857,3 +5846,40 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 }
 /* The Join initiative form (.pis-pop, z 30) must win over the floating demo pill. */
 .player-live-board .demo-ctl-head { z-index: 25; }
+
+/* ---- Map controls and panel layout (T-109) ---------------------------------------------------
+   The own-window stub that no longer reserves space, and the zoom bar
+   that moves clear of a floating panel or the drawer (--map-clear-right is set from BattleMapPage). */
+.bm-stub-float { position: absolute; z-index: 8; top: 12px; right: 12px; width: min(280px, calc(100% - 24px)); height: auto; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.bm-studio .bm-map .tabletop-zoom { right: calc(14px + var(--sar, 0px) + var(--map-clear-right, 0px)); }
+.bm-studio.land .bm-map .tabletop-zoom { right: calc(10px + var(--sar, 0px) + var(--map-clear-right, 0px)); }
+
+/* ---- Player map in full screen keeps the tool rail (T-109) ------------------------------------
+   Same slim left rail as the page and the DM's battle map: the bar becomes a vertical column at the
+   left edge, labels hide, the color swatches open beside it, and the map leaves room for it. */
+.player-live-board.expanded.pl-fs-rail { padding-left: calc(64px + var(--sal)); }
+.player-live-board.expanded.pl-fs-rail.phone-fs,
+html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.phone-fs { padding-left: calc(52px + var(--sal)); }
+.player-live-board.expanded.pl-fs-rail > .player-live-bar {
+  position: absolute; z-index: 20; top: calc(12px + var(--sat)); left: calc(8px + var(--sal)); right: auto !important; bottom: auto; width: 44px; box-sizing: border-box;
+  margin: 0; padding: 6px 0; flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 6px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+}
+.player-live-board.expanded.pl-fs-rail > .player-live-bar > .row { flex-direction: column; flex-wrap: nowrap; margin: 0 !important; gap: 6px !important; }
+.player-live-board.expanded.pl-fs-rail .player-live-name,
+.player-live-board.expanded.pl-fs-rail .pl-lbl { display: none; }
+.player-live-board.expanded.pl-fs-rail .player-live-bar .btn { min-width: 38px; min-height: 38px; padding: 0 6px; }
+.player-live-board.expanded.pl-fs-rail .player-live-bar .btn.ghost { padding: 0 2px; font-size: 10px; line-height: 1.1; white-space: normal; }
+.player-live-board.expanded.pl-fs-rail .battlemap-mycolor {
+  display: none; position: absolute; left: calc(100% + 6px); right: auto; top: 0; z-index: 21; flex-wrap: wrap; justify-content: center; width: 220px;
+  padding: 8px; gap: 8px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow);
+}
+.player-live-board.expanded.pl-fs-rail.color-open .battlemap-mycolor { display: flex; }
+.player-live-board.expanded.pl-fs-rail .player-spell-menu { left: calc(100% + 6px); right: auto; top: 0; }
+.pl-fs-demo { align-self: flex-end; margin-bottom: 6px; }
+.player-live-board.phone-fs .pl-fs-demo { position: absolute; z-index: 20; top: calc(8px + var(--sat)); right: calc(8px + var(--sar)); margin: 0; }
+@media (max-height: 500px) {
+  .player-live-board.expanded.pl-fs-rail > .player-live-bar { gap: 3px; padding: 4px 0; top: calc(6px + var(--sat)); }
+  .player-live-board.expanded.pl-fs-rail > .player-live-bar > .row { gap: 3px !important; }
+  .player-live-board.expanded.pl-fs-rail .player-live-bar .btn { min-width: 34px; min-height: 34px; }
+}

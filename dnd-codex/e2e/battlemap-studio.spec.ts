@@ -22,9 +22,11 @@ test.describe('battle map studio', () => {
     const bar = page.locator('.bm-top')
     expect((await bar.boundingBox())!.height).toBe(48)
     await expect(page.getByTestId('bm-studio').locator('.bm-top')).toHaveCount(1)
-    for (const name of ['Switch battle map', 'New battle map', 'Battle map name', 'Inspector', 'Full screen', 'More actions']) {
+    for (const name of ['Switch battle map', 'New battle map', 'Battle map name', 'Inspector', 'More actions']) {
       await expect(bar.getByRole('button', { name, exact: true }).or(bar.getByLabel(name, { exact: true })), name).toHaveCount(1)
     }
+    // Full screen moved to the tool rail (same place as the player map).
+    await expect(page.locator('.bm-rail').getByRole('button', { name: 'Full screen', exact: true })).toHaveCount(1)
     await expect(bar.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(1)
     await expect(bar.getByRole('button', { name: /Preview/ })).toHaveCount(1)
     await expect(bar.getByRole('link', { name: /Run session/ })).toHaveCount(1)
