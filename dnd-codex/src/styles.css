@@ -5812,3 +5812,6 @@ html[data-bm-fs] .app[data-demo='true'] .battlemap-editor.expanded {
   padding-top: calc(12px + var(--sat));
 }
 html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { padding: 0; }
+
+/* The demo controls step aside while the board is full screen, so they never cover its tools. */
+body:has(.player-live-board.expanded) .demo-ctl { display: none; }
