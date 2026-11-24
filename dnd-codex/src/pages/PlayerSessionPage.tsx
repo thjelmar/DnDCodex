@@ -106,15 +106,25 @@ export function PlayerSessionPage() {
   const notesCard = (
     <>
       <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
-      {mapFull ? (
-        // The full-screen map shows these notes beside it; unmount this copy
-        // so it reloads fresh afterwards instead of saving a stale body.
-        <p className="faint" style={{ fontSize: 13 }}>Your notes are open beside the full-screen map.</p>
-      ) : (
-        notesEditor
-      )}
+      {notesEditor}
       <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>Saved to your Journal and the “Story So Far” recap.</p>
     </>
+  )
+  // The same player UI the page shows, built once so full screen can host it too.
+  const turnEl = <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
+  const stripEl = (
+    <PlayerInitiativeStrip combat={liveCombat.combat} cloudCampaignId={linkedId} localCampaignId={campaignId} userId={user?.id ?? null} />
+  )
+  const dockEl = (
+    <PlayerSessionDock
+      tab={pickedTab ?? 'initiative'}
+      onTab={setPickedTab}
+      combat={liveCombat.combat}
+      cloudCampaignId={linkedId}
+      localCampaignId={campaignId}
+      userId={user?.id ?? null}
+      notes={notesCard}
+    />
   )
   const board = (compact: boolean) => (
     <PlayerLiveBoardView
@@ -123,13 +133,7 @@ export function PlayerSessionPage() {
       compact={compact}
       rail={!compact}
       onExpandedChange={setMapFull}
-      notesLabel="Notes"
-      notes={
-        <>
-          <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
-          {notesEditor}
-        </>
-      }
+      fsExtras={{ turn: turnEl, strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
       empty={
         <div className="session-vtt-slot">
           <Icon name="map" size={28} strokeWidth={1.3} />
@@ -152,10 +156,10 @@ export function PlayerSessionPage() {
         {liveCombat.combat?.phase === 'active' && (
           <span className="pl-round" data-testid="top-round"><span className="pl-pulse" aria-hidden /> Round {liveCombat.combat.round}</span>
         )}
-        <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
+        {!mapFull && turnEl}
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
-        <DemoLiveControls />
+        {!mapFull && <DemoLiveControls />}
         <Link to={`/player/${campaignId}`} className="btn ghost small">
           <Icon name="arrow-left" size={13} /> Leave
         </Link>
@@ -165,12 +169,7 @@ export function PlayerSessionPage() {
 
       <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
         <section className="session-map">
-          <PlayerInitiativeStrip
-            combat={liveCombat.combat}
-            cloudCampaignId={linkedId}
-            localCampaignId={campaignId}
-            userId={user?.id ?? null}
-          />
+          {!mapFull && stripEl}
           {mapLive ? (
             <div className="card run-card session-vtt">{board(false)}</div>
           ) : (
@@ -181,15 +180,7 @@ export function PlayerSessionPage() {
           )}
         </section>
 
-        <PlayerSessionDock
-          tab={pickedTab ?? 'initiative'}
-          onTab={setPickedTab}
-          combat={liveCombat.combat}
-          cloudCampaignId={linkedId}
-          localCampaignId={campaignId}
-          userId={user?.id ?? null}
-          notes={notesCard}
-        />
+        {!mapFull && dockEl}
       </div>
     </div>
   )
