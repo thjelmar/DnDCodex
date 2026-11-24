@@ -1,5 +1,5 @@
 import { Icon } from '../components/Icon'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -23,10 +23,11 @@ import { DEFAULT_LAYOUT, cardDef, sameLayout, type CardId, type ResolvedLayout }
 import { isDemo } from '../lib/demo'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useOverviewLayout } from '../lib/useOverviewLayout'
+import { lazyWithRetry } from '../lib/lazyWithRetry'
 
 // Edit mode (T-89) lives in its own chunk, so normal use never loads it.
-const EditBar = lazy(() => import('../components/overview-edit/EditChrome').then((m) => ({ default: m.EditBar })))
-const CardToolbar = lazy(() =>
+const EditBar = lazyWithRetry(() => import('../components/overview-edit/EditChrome').then((m) => ({ default: m.EditBar })))
+const CardToolbar = lazyWithRetry(() =>
   import('../components/overview-edit/EditChrome').then((m) => ({ default: m.CardToolbar })),
 )
 

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import { isChunkLoadError } from '../src/lib/chunkError'
+import { CHUNK_RETRY_DELAYS } from '../src/lib/lazyWithRetry'
 
 // T-58: a stale tab asks for a lazy chunk that a deploy removed, and the server
 // answers with index.html. Safari words that as "'text/html' is not a valid
@@ -35,10 +36,12 @@ test.describe('stale chunk recovery', () => {
       return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><html></html>' })
     })
     await page.goto('/#/roadmap')
-    await expect(page.getByText('Something went wrong loading this page.')).toBeVisible()
-    // First failure reloaded the tab (second request); the second failure stayed put.
-    expect(chunkRequests).toBe(2)
+    await expect(page.getByText('Something went wrong loading this page.')).toBeVisible({ timeout: 20_000 })
+    // Each page load tries the chunk 1 + retries times. The first load's failure reloaded
+    // the tab (second load); the second load's failure stayed put.
+    const perLoad = 1 + CHUNK_RETRY_DELAYS.length
+    expect(chunkRequests).toBe(2 * perLoad)
     await page.waitForTimeout(1500)
-    expect(chunkRequests).toBe(2)
+    expect(chunkRequests).toBe(2 * perLoad)
   })
 })
