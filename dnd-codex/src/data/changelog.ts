@@ -19,6 +19,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-11-23',
     title: 'A redesigned battle map, detail maps, pings, and phone landscape',
     changes: [
+      { kind: 'fixed', text: 'Map pings: when you right-drag on the map, you now see your own colored circle and trail, and every ping marker is a circle.' },
       { kind: 'new', text: 'The battle map has a new look: a slim top bar, a tool rail, and an inspector panel. Dock the inspector, float it, open it in its own window, or use it as a drawer.' },
       { kind: 'new', text: 'A turn strip shows the Round counter and a pulsing marker on whose turn it is.' },
       { kind: 'new', text: 'Monster groups roll one initiative and share hit points. Tokens now have types: Characters, NPCs, Enemies, and Props.' },
