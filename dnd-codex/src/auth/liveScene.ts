@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { isDemo } from '../lib/demo'
+import { DEMO_PLAYER_ID, isDemo } from '../lib/demo'
+import { demoPlayer, isDemoCloud, useDemoLive } from '../lib/demoLive'
 import { useAuth } from './AuthProvider'
 import { downloadMapObjectUrl } from '../lib/mapStorage'
 import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenTerrain } from '../db/types'
@@ -240,6 +241,7 @@ export async function stopLiveScene(campaignId: string): Promise<void> {
 
 /** Move the caller's own token (the server refuses anyone else's). */
 export async function moveMyToken(id: string, col: number, row: number): Promise<void> {
+  if (isDemo()) return demoPlayer.moveToken(id, col, row)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('move_scene_token', { tid: id, new_col: col, new_row: row })
   check(error)
@@ -277,6 +279,7 @@ export async function getPlayerTemplates(campaignId: string): Promise<LivePlayer
 /** Place (or re-position) the caller's own spell area; the server stamps them as
  *  the owner and refuses a campaign they're not in. */
 export async function placeMyTemplate(campaignId: string, t: SceneTemplate): Promise<void> {
+  if (isDemoCloud(campaignId)) return demoPlayer.placeTemplate({ ...t, createdBy: DEMO_PLAYER_ID })
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('place_scene_template', {
     cid: campaignId,
@@ -294,6 +297,7 @@ export async function placeMyTemplate(campaignId: string, t: SceneTemplate): Pro
 
 /** Remove a spell area the caller placed (the DM can remove any). */
 export async function removeMyTemplate(id: string): Promise<void> {
+  if (isDemo()) return demoPlayer.removeTemplate(id)
   if (!supabase) throw new Error('Not signed in.')
   const { error } = await supabase.rpc('remove_scene_template', { tid: id })
   check(error)
@@ -317,6 +321,7 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
   // Dedup key for the current map (its Storage path or legacy id), plus the
   // object URL we made for a Storage map so we can revoke it when it changes.
   const mapKeyRef = useRef<string | null>(null)
+  const demo = useDemoLive()
   const objectUrlRef = useRef<string | null>(null)
 
   const revokeObjectUrl = () => {
@@ -412,6 +417,16 @@ export function useLiveScene(cloudCampaignId: string | null | undefined) {
     }
   }, [cloudCampaignId, token])
 
+  // The demo's faux session (lib/demoLive.ts) replaces the channel above.
+  if (isDemoCloud(cloudCampaignId))
+    return {
+      scene: demo.scene,
+      tokens: demo.tokens,
+      setTokens: setTokens,
+      mapUrl: demo.mapUrl,
+      loading: false,
+      refresh: () => refresh.current(),
+    }
   return { scene, tokens, setTokens, mapUrl, loading, refresh: () => refresh.current() }
 }
 
@@ -425,6 +440,7 @@ export function usePlayerTemplates(cloudCampaignId: string | null | undefined) {
   const { session } = useAuth()
   const token = session?.access_token ?? null
   const [templates, setTemplates] = useState<LivePlayerTemplate[]>([])
+  const demo = useDemoLive()
 
   const refresh = useRef(async () => {})
   refresh.current = async () => {
@@ -460,5 +476,6 @@ export function usePlayerTemplates(cloudCampaignId: string | null | undefined) {
     }
   }, [cloudCampaignId, token])
 
+  if (isDemoCloud(cloudCampaignId)) return { templates: demo.templates, setTemplates, refresh: () => refresh.current() }
   return { templates, setTemplates, refresh: () => refresh.current() }
 }

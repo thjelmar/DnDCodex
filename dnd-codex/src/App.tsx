@@ -5,7 +5,7 @@ import { db } from './db/db'
 import { SearchPalette } from './components/SearchPalette'
 import { DiceRoller } from './components/DiceRoller'
 import { ConfirmProvider } from './components/ConfirmDialog'
-import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { AuthProvider, DemoPlayerAuth, useAuth } from './auth/AuthProvider'
 import { SyncProvider } from './auth/SyncProvider'
 import { AccountArea, TopbarSignIn } from './auth/AccountArea'
 import { Icon } from './components/Icon'
@@ -632,7 +632,7 @@ export function App() {
             <Route path="/run/:campaignId" element={<RunPage />} />
             <Route path="/player/:campaignId" element={<PlayerNotesPage />} />
             <Route path="/player/:campaignId/story" element={<PlayerStoryPage />} />
-            <Route path="/player/:campaignId/session" element={<PlayerSessionPage />} />
+            <Route path="/player/:campaignId/session" element={<DemoPlayerAuth><PlayerSessionPage /></DemoPlayerAuth>} />
             <Route path="/player/:campaignId/handouts" element={<PlayerHandoutsPage />} />
             <Route path="/player/:campaignId/gallery" element={<PlayerGalleryPage />} />
             <Route path="/player/:campaignId/worldmap" element={<PlayerWorldMapPage />} />

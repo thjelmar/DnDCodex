@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 import { isDemo } from './demo'
+import { isDemoCloud, useDemoLive } from './demoLive'
 import { useAuth } from '../auth/AuthProvider'
 import { getLiveSession, type LiveSession } from '../auth/cloud'
 
@@ -12,6 +13,7 @@ const STALE_MS = 12 * 60 * 60 * 1000
 
 export function useLiveSession(linkedCampaignId: string | undefined | null): LiveSession | null {
   const [live, setLive] = useState<LiveSession | null>(null)
+  const demo = useDemoLive()
   // Gate the Realtime channel on the auth token (see SharedGallery for why).
   const { session } = useAuth()
   const token = session?.access_token ?? null
@@ -56,5 +58,7 @@ export function useLiveSession(linkedCampaignId: string | undefined | null): Liv
     }
   }, [linkedCampaignId, token])
 
+  // The demo's faux session (lib/demoLive.ts).
+  if (isDemoCloud(linkedCampaignId)) return demo.live ? demo.session : null
   return live
 }

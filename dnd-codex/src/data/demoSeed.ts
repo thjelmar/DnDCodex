@@ -8,12 +8,14 @@ import type {
   Note,
   RollTable,
   PlotThread,
+  PlayerNote,
   TimelineEvent,
   StoredImage,
   Scene,
   SceneToken,
   WorldMap,
 } from '../db/types'
+import { DEMO_CLOUD_ID, DEMO_PLAYER_CAMPAIGN_ID } from '../lib/demo'
 import { DEMO_IMG_WORLDMAP, DEMO_IMG_DECREE, DEMO_IMG_WANTED, DEMO_IMG_SIGIL } from './demoSeedImages'
 
 // Sample campaign for the interactive demo (T-32, enriched in T-34). Loaded into
@@ -508,16 +510,63 @@ const worldMaps: WorldMap[] = [
   },
 ]
 
+// The demo player (T-104 demo): a player-role campaign linked to the faux live session
+// in lib/demoLive.ts, with one character. Its updatedAt is older than the DM campaign's
+// so the DM campaign stays first on Home.
+const playerCampaign: Campaign = {
+  id: DEMO_PLAYER_CAMPAIGN_ID,
+  name: 'Demo player: The Hollow Crown',
+  summary: 'Play as a player in a faux live session. Use the Demo controls to act as the DM.',
+  description: '',
+  color: '#0891b2',
+  relatedCampaignIds: [],
+  archived: false,
+  coverImageId: null,
+  role: 'player',
+  externalLinks: [],
+  linkedCampaignId: DEMO_CLOUD_ID,
+  createdAt: '2026-02-13T18:00:00.000Z',
+  updatedAt: '2026-02-13T18:00:00.000Z',
+}
+
+const playerCharacter: PlayerNote = {
+  id: 'demo-player-character',
+  campaignId: DEMO_PLAYER_CAMPAIGN_ID,
+  section: 'character',
+  title: 'Thalia',
+  body: '<p>A quick-witted half-elf rogue chasing the stolen crown.</p>',
+  tags: [],
+  date: '',
+  status: '',
+  characterData: {
+    species: 'Half-elf',
+    classes: [{ name: 'Rogue', level: 3 }],
+    background: 'Criminal',
+    alignment: 'Chaotic Good',
+    level: 3,
+    abilities: { str: 10, dex: 16, con: 13, int: 12, wis: 11, cha: 14 },
+    saveProficiencies: ['dex', 'int'],
+    skillProficiencies: ['Stealth', 'Sleight of Hand', 'Perception'],
+    proficiencyBonus: 2,
+    ac: 14,
+    maxHp: 22,
+    currentHp: 22,
+    speeds: { walk: 30 },
+  },
+  createdAt: T,
+  updatedAt: T,
+}
+
 export const DEMO_SNAPSHOT: DatabaseSnapshot = {
   version: 8,
   exportedAt: T,
-  campaigns: [campaign],
+  campaigns: [campaign, playerCampaign],
   sessions,
   locations,
   npcs,
   items,
   notes,
-  playerNotes: [],
+  playerNotes: [playerCharacter],
   rollTables,
   images,
   links: [],

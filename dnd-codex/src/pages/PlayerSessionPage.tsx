@@ -16,6 +16,7 @@ import { useLiveCombat } from '../auth/liveCombat'
 import { useAuth } from '../auth/AuthProvider'
 import { PlayerInitiativeStrip } from '../components/PlayerInitiativeStrip'
 import { formatDate } from '../lib/format'
+import { DemoLiveControls } from '../components/DemoLiveControls'
 
 /**
  * The player's live-session workspace. Reachable only while the DM has a live
@@ -158,6 +159,8 @@ export function PlayerSessionPage() {
           <Icon name="arrow-left" size={13} /> Leave
         </Link>
       </div>
+
+      <DemoLiveControls />
 
       <VoiceRoster channelId={voice?.channelId} />
 

@@ -5726,3 +5726,14 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 @media (orientation: landscape) and (max-height: 500px) {
   .pl-dock { position: static; max-height: none; }
 }
+
+/* Demo controls (demo only): plays the DM for the faux live session. */
+.demo-ctl { padding: 0; margin: 0 0 12px; border-color: var(--accent); }
+.demo-ctl-head { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 12px; cursor: pointer; flex-wrap: wrap; font-size: 13px; }
+.demo-ctl-head .faint { flex: 1; min-width: 0; }
+.demo-ctl-caret { font-size: 12px; text-decoration: underline; }
+.demo-ctl-body { padding: 4px 12px 10px; display: flex; flex-direction: column; gap: 8px; }
+.demo-ctl-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-end; }
+.demo-ctl-lbl { display: flex; flex-direction: column; font-size: 11px; gap: 2px; }
+.demo-ctl-log { margin: 0; font-size: 12px; }
+.demo-player-entry { margin-bottom: 14px; }
