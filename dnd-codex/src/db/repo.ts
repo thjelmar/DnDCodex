@@ -165,7 +165,10 @@ export async function createSession(
 }
 
 export async function updateSession(id: Id, patch: Partial<Session>): Promise<void> {
-  if (skipDemoWrite()) return
+  // The demo keeps session notes (the notes editor in Run Mode writes the throwaway demo
+  // database only); every other session edit stays a no-op there.
+  const notesOnly = Object.keys(patch).every((k) => k === 'notes' || k === 'dmNotes')
+  if (skipDemoWrite() && !notesOnly) return
   await db.sessions.update(id, { ...patch, updatedAt: now() })
   await enqueuePutById('sessions', id)
 }
