@@ -3423,14 +3423,17 @@ kbd {
   position: absolute;
   transform: translate(-50%, -100%);
   display: inline-flex; align-items: center; gap: 5px;
-  background: color-mix(in srgb, var(--panel) 85%, transparent);
-  border: 1px solid var(--border);
+  /* A light chip with dark text, so the label reads on any map image in both themes.
+     The colors are fixed (not theme variables) because the backing sits on the map, not the page. */
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(29, 26, 39, 0.45);
   border-radius: 999px;
   padding: 2px 8px 2px 4px;
-  font: inherit; color: var(--text); white-space: nowrap;
+  font: inherit; color: #1d1a27; white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
-.worldmap-pin.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
-.worldmap-pin-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px rgba(0,0,0,0.35); }
+.worldmap-pin.selected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent), 0 1px 3px rgba(0, 0, 0, 0.35); }
+.worldmap-pin-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(29,26,39,0.6); }
 .worldmap-pin-label { font-size: 12.5px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .worldmap-inspector { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel); }
 .worldmap-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -5157,7 +5160,7 @@ body.ov-dragging * { cursor: inherit !important; }
 .wm-crumb-link:hover { color: var(--text); text-decoration: underline; }
 .wm-crumb-current { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .worldmap-pin { min-height: 28px; }
-.worldmap-pin-detail { display: inline-flex; color: var(--accent); }
+.worldmap-pin-detail { display: inline-flex; color: #4a3f8f; }
 .worldmap-pin.has-detail { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
 .wm-detail-field .row { gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 @media (max-width: 900px) {

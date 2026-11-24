@@ -352,3 +352,44 @@ test.describe('world map detail maps: player view', () => {
     await expect(page.locator('.worldmap-pin.has-detail')).toHaveCount(0)
   })
 })
+
+// Pin label readability (T-101): the label sits on a light chip with dark text, so it reads on any map image.
+/** Contrast of the first pin's label text against its chip, plus the chip's alpha. */
+const chipContrast = (page: Page) =>
+  page.locator('.worldmap-pin').first().evaluate((el) => {
+    const parse = (c: string) => {
+      const m = c.match(/[\d.]+/g)!.map(Number)
+      return { r: m[0], g: m[1], b: m[2], a: m[3] ?? 1 }
+    }
+    const lum = ({ r, g, b }: { r: number; g: number; b: number }) => {
+      const f = (v: number) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4 }
+      return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+    }
+    const bg = parse(getComputedStyle(el).backgroundColor)
+    const fg = parse(getComputedStyle(el.querySelector('.worldmap-pin-label')!).color)
+    // Worst case: the chip sits on a black map, so blend it over black.
+    const over = { r: bg.r * bg.a, g: bg.g * bg.a, b: bg.b * bg.a }
+    const [a, b] = [lum(over), lum(fg)]
+    return { alpha: bg.a, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) }
+  })
+
+test.describe('world map pin labels are readable', () => {
+  test.use({ viewport: { width: 1280, height: 900 } })
+
+  test('editor: the label chip is opaque enough and meets 4.5:1 contrast', async ({ page }) => {
+    await openDemoMap(page)
+    const { alpha, ratio } = await chipContrast(page)
+    expect(alpha).toBeGreaterThanOrEqual(0.85)
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
+
+  test('player view: the label chip is opaque enough and meets 4.5:1 contrast', async ({ page }) => {
+    await seedPlayerCampaign(page)
+    await mockSharedMap(page)
+    await page.goto(`/#/player/${PLAYER_CID}/worldmap`)
+    await expect(page.locator('.worldmap-pin')).toHaveCount(2)
+    const { alpha, ratio } = await chipContrast(page)
+    expect(alpha).toBeGreaterThanOrEqual(0.85)
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
+})
