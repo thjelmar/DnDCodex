@@ -14,7 +14,7 @@ import { parseDiscordChannelLink } from '../lib/discord'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useLiveCombat } from '../auth/liveCombat'
 import { useAuth } from '../auth/AuthProvider'
-import { PlayerInitiativeStrip } from '../components/PlayerInitiativeStrip'
+import { PlayerInitiativeStrip, OPEN_INITIATIVE_EVENT } from '../components/PlayerInitiativeStrip'
 import { formatDate } from '../lib/format'
 import { DemoLiveControls } from '../components/DemoLiveControls'
 
@@ -45,6 +45,16 @@ export function PlayerSessionPage() {
   const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
   const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
   useMyTurnAlert(myTurnRows)
+  // The "Roll for initiative" prompt asks for the Initiative tab; on the page the dock sits under
+  // or beside the map, so show the tab and bring it into view (full screen opens its own drawer).
+  useEffect(() => {
+    const open = () => {
+      setPickedTab('initiative')
+      requestAnimationFrame(() => document.querySelector('.pl-dock')?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }))
+    }
+    window.addEventListener(OPEN_INITIATIVE_EVENT, open)
+    return () => window.removeEventListener(OPEN_INITIATIVE_EVENT, open)
+  }, [])
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -113,7 +123,7 @@ export function PlayerSessionPage() {
   // The same player UI the page shows, built once so full screen can host it too.
   const turnEl = <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
   const stripEl = (
-    <PlayerInitiativeStrip combat={liveCombat.combat} cloudCampaignId={linkedId} localCampaignId={campaignId} userId={user?.id ?? null} />
+    <PlayerInitiativeStrip combat={liveCombat.combat} userId={user?.id ?? null} />
   )
   const dockEl = (
     <PlayerSessionDock

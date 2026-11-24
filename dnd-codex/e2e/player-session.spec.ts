@@ -111,8 +111,14 @@ test.describe('player session shell', () => {
     await expect(rows.nth(0)).toContainText('19')
     await expect(rows.nth(0).getByTestId('dock-marker')).toHaveText('Bloodied')
     await expect(rows.nth(0).getByTestId('dock-hp')).toHaveCount(0)
-    await expect(rows.nth(1).getByTestId('dock-hp')).toHaveText('24/31 HP')
-    await expect(page.locator('.pl-init-row.me')).toHaveCount(1)
+    await expect(rows.nth(1).getByTestId('dock-hp')).toHaveText('24 / 31')
+    await expect(page.locator('.il-row.mine')).toHaveCount(1)
+    // The DM tracker's look: header with counts, round avatar, initiative number, highlighted turn.
+    await expect(page.locator('.il-head strong')).toHaveText('Initiative')
+    await expect(page.getByTestId('il-count')).toContainText('4 turns · 6 combatants')
+    await expect(rows.nth(0).locator('.il-av')).toHaveText('GT')
+    await expect(rows.nth(0).locator('.il-ini')).toHaveText('19')
+    expect(await rows.nth(0).locator('.il-av').evaluate((el) => getComputedStyle(el).borderRadius)).toMatch(/50%|\d+px/)
   })
 
   test('Me shows the character, and Handouts has its heading', async ({ page }) => {

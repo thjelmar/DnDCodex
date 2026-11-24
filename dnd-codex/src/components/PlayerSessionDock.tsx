@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updatePlayerNote } from '../db/repo'
 import { Icon } from './Icon'
 import { SharedHandouts } from './SharedHandouts'
-import { endMyTurn, orderRows, type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
+import { endMyTurn, type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
+import { PlayerInitiativePanel } from './PlayerInitiativePanel'
+import { needsInitiative } from './PlayerInitiativeStrip'
 import { conditionMeta } from '../lib/combat'
-import type { HealthMarker } from '../lib/liveCombat'
 
 // The player's docked panel for the live session (T-104): Initiative, Me, Notes and
 // Handouts in one tabbed column, the way Run Mode docks the DM's tools. It reads the
@@ -14,8 +15,6 @@ import type { HealthMarker } from '../lib/liveCombat'
 // Like the strip, this file never imports the DM's reveal guard.
 
 export type DockTab = 'initiative' | 'me' | 'notes' | 'handouts'
-
-const MARKER_TEXT: Record<HealthMarker, string> = { injured: 'Injured', bloodied: 'Bloodied', deaths_door: 'Death’s door' }
 
 /** The rows of this combat the signed-in player controls that are acting right now. */
 export function myActiveRows(combat: LiveCombat | null, userId: string | null): LiveCombatRow[] {
@@ -101,6 +100,7 @@ export function PlayerSessionDock({
     { id: 'notes', label: 'Notes', icon: 'pencil' },
     { id: 'handouts', label: 'Handouts', icon: 'image' },
   ]
+  const asking = needsInitiative(combat, userId)
   return (
     <aside className="pl-dock card" data-testid="player-dock" aria-label="Session panel">
       <div className="pl-dock-tabs" role="tablist">
@@ -116,11 +116,12 @@ export function PlayerSessionDock({
             onClick={() => onTab(t.id)}
           >
             <Icon name={t.icon} size={14} /> <span>{t.label}</span>
+            {t.id === 'initiative' && asking && <span className="pl-tab-badge" data-testid="initiative-badge" role="img" aria-label="Your DM is asking for initiative" />}
           </button>
         ))}
       </div>
       <div className="pl-dock-body" id="pl-dock-body" role="tabpanel" aria-labelledby={`pl-tab-${tab}`}>
-        {tab === 'initiative' && <InitiativeList combat={combat} cloudCampaignId={cloudCampaignId} userId={userId} />}
+        {tab === 'initiative' && <PlayerInitiativePanel combat={combat} cloudCampaignId={cloudCampaignId} localCampaignId={localCampaignId} userId={userId} />}
         {tab === 'me' && <MeTab combat={combat} localCampaignId={localCampaignId} userId={userId} />}
         {tab === 'notes' && notes}
         {tab === 'handouts' && (
@@ -132,93 +133,6 @@ export function PlayerSessionDock({
         )}
       </div>
     </aside>
-  )
-}
-
-function InitiativeList({ combat, cloudCampaignId, userId }: { combat: LiveCombat | null; cloudCampaignId: string; userId: string | null }) {
-  const rows = useMemo(() => (combat ? orderRows(combat.rows) : []), [combat])
-  if (!combat) {
-    return (
-      <div className="pl-empty" data-testid="initiative-empty">
-        <b>No combat yet</b>
-        <p className="faint">Your DM will ask for initiative when a fight starts. Your turn order appears here.</p>
-      </div>
-    )
-  }
-  return (
-    <div data-testid="initiative-list">
-      <div className="run-col-heading">
-        {combat.phase === 'active' ? `Round ${combat.round}` : 'Roll for initiative'}
-        <span className="faint" style={{ marginLeft: 8, fontWeight: 400 }}>{rows.length} in the order</span>
-      </div>
-      {combat.phase === 'gathering' && (
-        <p className="faint" style={{ fontSize: 13 }}>Use <b>Join initiative</b> above the map to add your character. Enemies appear when your DM starts combat.</p>
-      )}
-      {rows.length === 0 && <p className="faint" style={{ fontSize: 13 }}>Nobody has joined yet.</p>}
-      <ol className="pl-init-list">
-        {rows.map((r) => (
-          <InitRow
-            key={r.id}
-            r={r}
-            now={combat.activeIds.includes(r.id)}
-            mine={!!userId && r.controlledBy === userId}
-            cloudCampaignId={cloudCampaignId}
-          />
-        ))}
-      </ol>
-    </div>
-  )
-}
-
-function InitRow({ r, now, mine, cloudCampaignId }: { r: LiveCombatRow; now: boolean; mine: boolean; cloudCampaignId: string }) {
-  const ally = r.kind !== 'enemy'
-  return (
-    <li className={`pl-init-row${now ? ' now' : ''}${mine ? ' me' : ''}`} data-testid="dock-row" data-kind={r.kind}>
-      <span className="pl-init-num">{r.initiative ?? '–'}</span>
-      <span className="pl-init-main">
-        <span className="pl-init-name">
-          {r.name}{r.groupCount != null && r.groupCount > 1 ? ` ×${r.groupCount}` : ''}
-          {mine && <em className="pl-you">You</em>}
-        </span>
-        <span className="pl-init-sub faint">
-          {now ? 'Acting now' : ally ? (r.kind === 'pc' ? 'Player' : 'Ally') : 'Enemy'}
-          {r.conditions.slice(0, 3).map((c) => (
-            <small key={c} style={{ color: conditionMeta(c).color, marginLeft: 6 }}>{conditionMeta(c).code}</small>
-          ))}
-        </span>
-      </span>
-      {ally && r.hp != null && r.maxHp != null && <span className="pl-init-hp" data-testid="dock-hp">{r.hp}/{r.maxHp} HP</span>}
-      {r.healthMarker && <span className="pl-init-marker" data-testid="dock-marker">{MARKER_TEXT[r.healthMarker]}</span>}
-      {mine && now && <EndTurnButton rowId={r.id} cloudCampaignId={cloudCampaignId} />}
-    </li>
-  )
-}
-
-function EndTurnButton({ rowId, cloudCampaignId }: { rowId: string; cloudCampaignId: string }) {
-  const [state, setState] = useState<'idle' | 'busy' | 'asked'>('idle')
-  const [error, setError] = useState<string | null>(null)
-  return (
-    <>
-      <button
-        type="button"
-        className="btn small primary"
-        disabled={state !== 'idle'}
-        onClick={async () => {
-          setState('busy')
-          setError(null)
-          try {
-            await endMyTurn(cloudCampaignId, rowId)
-            setState('asked')
-          } catch (e) {
-            setError(e instanceof Error ? e.message : 'Could not end your turn.')
-            setState('idle')
-          }
-        }}
-      >
-        {state === 'asked' ? 'Waiting…' : 'End turn'}
-      </button>
-      {error && <span className="pis-error" role="alert">{error}</span>}
-    </>
   )
 }
 

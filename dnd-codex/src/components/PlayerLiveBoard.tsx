@@ -1,3 +1,4 @@
+import { OPEN_INITIATIVE_EVENT } from './PlayerInitiativeStrip'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { liveTokensForBoard, moveMyToken, placeMyTemplate, removeMyTemplate, usePlayerTemplates, useLiveScene } from '../auth/liveScene'
@@ -105,6 +106,12 @@ export function PlayerLiveBoardView({
   const narrow = useNarrowFs()
   const [panelPick, setPanelPick] = useState<boolean | null>(null)
   const panelOpen = panelPick ?? !narrow
+  // The "Roll for initiative" prompt asks to open the drawer (the page switches the tab).
+  useEffect(() => {
+    const open = () => setPanelPick(true)
+    window.addEventListener(OPEN_INITIATIVE_EVENT, open)
+    return () => window.removeEventListener(OPEN_INITIATIVE_EVENT, open)
+  }, [])
   // A short landscape window (a phone turned sideways, even without a touch screen) gets the phone layout too.
   const shortScreen = useMedia('(max-height: 500px)')
   const phoneFs = fs.expanded && (isPhone || shortScreen)

@@ -44,9 +44,12 @@ for (const size of SIZES) {
     }
     await demo('demo-ask')
     await expect(board.getByTestId('initiative-strip')).toBeVisible()
+    // The prompt opens the panel (a drawer on narrow screens); Join initiative lives in its list.
+    await board.getByTestId('open-initiative').click()
+    await expect(board.getByTestId('initiative-list')).toBeVisible()
     await board.getByTestId('join-initiative').click()
-    await page.getByTestId('join-submit').click()
-    await expect(board.getByTestId('strip-chip').filter({ hasText: 'Thalia' })).toBeVisible()
+    await board.getByTestId('join-submit').click()
+    await expect(board.getByTestId('dock-row').filter({ hasText: 'Thalia' })).toBeVisible()
     await demo('demo-start')
     await expect(board.getByTestId('dock-row').filter({ hasText: 'Goblin Boss' })).toBeVisible()
 

@@ -157,7 +157,7 @@ const LOCAL = 'player-camp-init'
 const ME = '11111111-1111-4111-8111-111111111111'
 const NOTE = 'note-brann'
 
-type Mock = { rows: Record<string, unknown>[]; calls: { name: string; body: Record<string, unknown> }[] }
+type Mock = { rows: Record<string, unknown>[]; calls: { name: string; body: Record<string, unknown> }[]; phase?: 'gathering' | 'active' }
 
 const row = (o: Record<string, unknown>) => ({
   campaign_id: LINKED, controlled_by: null, source: 'dm', kind: 'enemy', initiative: 10, sort_order: 0,
@@ -209,7 +209,7 @@ async function mockCombat(page: Page, mock: Mock, shared = true) {
   )
   await page.route('**/rest/v1/shared_combat?*', (route) =>
     shared
-      ? route.fulfill({ contentType: 'application/json', body: JSON.stringify({ campaign_id: LINKED, phase: 'active', round: 2, active_ids: ['aria'], updated_at: '2026-01-01T00:00:00Z' }) })
+      ? route.fulfill({ contentType: 'application/json', body: JSON.stringify({ campaign_id: LINKED, phase: mock.phase ?? 'active', round: 2, active_ids: mock.phase === 'gathering' ? [] : ['aria'], updated_at: '2026-01-01T00:00:00Z' }) })
       : route.fulfill({ status: 406, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST116', message: 'no rows', details: '', hint: '' }) }),
   )
   await page.route('**/rest/v1/shared_combatants*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(mock.rows) }))
@@ -228,43 +228,28 @@ const rowsFor = (withMe: boolean) => [
   row({ id: 'thugs', name: 'Thugs', initiative: 12, sort_order: 3, group_count: 3 }),
 ]
 
-const chips = (page: Page) => page.getByTestId('strip-chip')
 const revealDialog = (page: Page) => page.getByRole('dialog', { name: /Show these combatants/ })
 
-test.describe('player initiative strip', () => {
+test.describe('player initiative panel (T-108)', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
-  test('shows the order, ally HP, an enemy marker and a group, and no DM warning', async ({ page }) => {
-    const mock: Mock = { rows: rowsFor(true), calls: [] }
-    await seedPlayer(page)
-    await mockCombat(page, mock)
-    await page.goto(`/#/player/${LOCAL}/session`)
-    await expect(page.getByTestId('strip-round')).toHaveText('Round 2')
-    await expect(chips(page)).toHaveCount(4)
-    await expect(chips(page).nth(0)).toContainText('19')
-    await expect(chips(page).nth(0)).toContainText('Grok the Ogre')
-    // Enemy: marker only, never HP.
-    await expect(chips(page).nth(0).getByTestId('chip-marker')).toHaveText('Bloodied')
-    await expect(chips(page).nth(0).getByTestId('chip-hp')).toHaveCount(0)
-    // Ally: real HP.
-    await expect(chips(page).nth(1).getByTestId('chip-hp')).toHaveText('24/31 HP')
-    // Group: one chip with a count.
-    await expect(chips(page).nth(3)).toContainText('Thugs ×3')
-    // Only my own chip has controls.
-    await expect(page.locator('.pis-chip.me')).toHaveCount(1)
-    await expect(page.locator('.pis-chip.me').getByRole('button', { name: /Edit Brann initiative/ })).toBeVisible()
-    await expect(page.locator('.pis-chip:not(.me) .pis-x')).toHaveCount(0)
-    await expect(revealDialog(page)).toHaveCount(0)
-  })
-
-  test('Join initiative calls join_combat once with the typed initiative and the character key', async ({ page }) => {
+  test('Join initiative sits at the bottom of the list, opens the form there and calls join_combat once', async ({ page }) => {
     const mock: Mock = { rows: rowsFor(false), calls: [] }
     await seedPlayer(page)
     await mockCombat(page, mock)
     await page.goto(`/#/player/${LOCAL}/session`)
-    await page.getByTestId('join-initiative').click()
-    const form = page.getByRole('dialog', { name: 'Join initiative' })
-    await expect(form.getByRole('combobox')).toContainText('Brann')
+    const list = page.getByTestId('initiative-list')
+    const btn = list.getByTestId('join-initiative')
+    await expect(btn).toHaveText(/Join initiative/)
+    // The button is below the last row, like the DM's Add combatant.
+    const lastRow = await list.getByTestId('dock-row').last().boundingBox()
+    const btnBox = await btn.boundingBox()
+    expect(btnBox!.y).toBeGreaterThan(lastRow!.y + lastRow!.height - 1)
+    await btn.click()
+    const form = list.getByTestId('join-form')
+    await expect(form).toBeVisible()
+    await expect(form.getByRole('combobox', { name: 'Character' })).toContainText('Brann')
+    await expect(form.getByTestId('join-hp')).toContainText('38 / 38')
     await form.getByLabel('Initiative').fill('15')
     await form.getByTestId('join-submit').click()
     await expect(form).toHaveCount(0)
@@ -273,13 +258,16 @@ test.describe('player initiative strip', () => {
     await expect(revealDialog(page)).toHaveCount(0)
   })
 
-  test('a player edits their own initiative and leaves, each through its own call', async ({ page }) => {
+  test('a player edits their own initiative and leaves, each through its own call; others are read-only', async ({ page }) => {
     const mock: Mock = { rows: rowsFor(true), calls: [] }
     await seedPlayer(page)
     await mockCombat(page, mock)
     await page.goto(`/#/player/${LOCAL}/session`)
-    await page.getByRole('button', { name: 'Edit Brann initiative' }).click()
-    const field = page.getByRole('spinbutton', { name: 'Brann initiative' })
+    await expect(page.getByTestId('join-initiative')).toHaveText(/Set my initiative/)
+    await expect(page.locator('.il-row.mine')).toHaveCount(1)
+    await expect(page.locator('.il-row:not(.mine) input')).toHaveCount(0)
+    await expect(page.locator('.il-row:not(.mine) .il-x')).toHaveCount(0)
+    const field = page.getByRole('spinbutton', { name: 'Edit Brann initiative' })
     await field.fill('9')
     await field.press('Enter')
     await expect.poll(() => mock.calls.filter((c) => c.name === 'set_combat_initiative').length).toBe(1)
@@ -289,7 +277,36 @@ test.describe('player initiative strip', () => {
     await expect(revealDialog(page)).toHaveCount(0)
   })
 
-  test('no strip, and no join button, when the DM is not sharing combat', async ({ page }) => {
+  test('Leave combat and Set my initiative from the bottom form', async ({ page }) => {
+    const mock: Mock = { rows: rowsFor(true), calls: [] }
+    await seedPlayer(page)
+    await mockCombat(page, mock)
+    await page.goto(`/#/player/${LOCAL}/session`)
+    await page.getByTestId('join-initiative').click()
+    const form = page.getByTestId('join-form')
+    await form.getByLabel('Initiative').fill('21')
+    await form.getByTestId('join-submit').click()
+    await expect.poll(() => mock.calls.find((c) => c.name === 'set_combat_initiative')?.body).toMatchObject({ rid: 'brann', init: 21 })
+    await page.getByTestId('leave-combat').click()
+    await expect.poll(() => mock.calls.find((c) => c.name === 'leave_combat')?.body).toMatchObject({ rid: 'brann' })
+  })
+
+  test('the prompt shows while the DM gathers initiative, badges the tab and opens it', async ({ page }) => {
+    const mock: Mock = { rows: rowsFor(false), calls: [], phase: 'gathering' }
+    await seedPlayer(page)
+    await mockCombat(page, mock)
+    await page.goto(`/#/player/${LOCAL}/session`)
+    await page.getByRole('tab', { name: 'Notes' }).click()
+    const prompt = page.getByTestId('initiative-strip')
+    await expect(prompt).toContainText('Roll for initiative')
+    await expect(page.getByTestId('initiative-badge')).toBeVisible()
+    // The prompt has no Join button of its own.
+    await expect(prompt.getByTestId('join-initiative')).toHaveCount(0)
+    await prompt.getByTestId('open-initiative').click()
+    await expect(page.getByTestId('initiative-list')).toBeVisible()
+  })
+
+  test('no prompt, and no join button, when the DM is not sharing combat', async ({ page }) => {
     const mock: Mock = { rows: [], calls: [] }
     await seedPlayer(page)
     await mockCombat(page, mock, false)
@@ -298,21 +315,6 @@ test.describe('player initiative strip', () => {
     await expect(page.getByTestId('initiative-strip')).toHaveCount(0)
     await expect(page.getByTestId('join-initiative')).toHaveCount(0)
     expect(mock.calls).toHaveLength(0)
-  })
-
-  test('phone landscape: the strip floats and adds no page height', async ({ page }) => {
-    const mock: Mock = { rows: rowsFor(true), calls: [] }
-    await page.setViewportSize({ width: 844, height: 390 })
-    await seedPlayer(page)
-    await mockCombat(page, mock)
-    await page.goto(`/#/player/${LOCAL}/session`)
-    const strip = page.getByTestId('initiative-strip')
-    await expect(strip).toBeVisible()
-    expect(await strip.evaluate((el) => getComputedStyle(el).position)).toBe('fixed')
-    // Current turn plus the next two only, until the player expands the list.
-    await expect(chips(page).locator('visible=true')).toHaveCount(3)
-    await strip.getByRole('button', { name: 'List' }).click()
-    await expect(chips(page).locator('visible=true')).toHaveCount(4)
   })
 })
 

@@ -153,3 +153,14 @@ Differences from the mockups:
 
 Not verified: the signed-in Realtime path, the DM applying End turn on a real
 second device, and a real iPhone. Tests mock Supabase.
+
+## T-108: Initiative tab wears the DM tracker look
+
+- `PlayerInitiativePanel.tsx` renders the player's Initiative tab with the DM tracker's `il-*` classes
+  (header with turn and combatant counts, round avatar, initiative at the right, highlighted turn).
+  Enemies show the optional marker and never HP; a player edits only their own row.
+- Join initiative (or Set my initiative) and Leave combat sit at the bottom of the list. The form opens
+  there, in place of the buttons, like the DM's Add combatant.
+- `PlayerInitiativeStrip.tsx` is now only a prompt, shown while the DM gathers initiative and the player
+  is not in the order. Its Open Initiative button fires `OPEN_INITIATIVE_EVENT`: the page selects the tab
+  and scrolls the dock into view, and full screen opens its drawer. The tab also shows a pulsing dot.
