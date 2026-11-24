@@ -43,6 +43,8 @@ import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
+import { usePings } from '../lib/usePings'
+import { useAuth } from '../auth/AuthProvider'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import { useMediaQuery } from '../lib/useMediaQuery'
@@ -68,6 +70,10 @@ import {
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
+import { TokenCard } from '../components/battlemap/TokenCard'
+import { tokenCardData } from '../lib/tokenCard'
+import { KindChips, SectionHead, type KindFilter } from '../components/battlemap/KindSections'
+import { TOKEN_KINDS, normalizeKind, resolveKind } from '../lib/tokenKind'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
@@ -348,6 +354,17 @@ export function SceneEditor({
       }))
     },
   )
+  // Pings and colored cursors: shared with players over a private Broadcast
+  // channel; in the demo and offline they only animate locally (T-102).
+  const { user: pingUser, profile: pingProfile } = useAuth()
+  const pings = usePings({
+    campaignId: live.available ? campaign.id : null,
+    sceneId: scene.id,
+    userId: pingUser?.id,
+    name: pingProfile?.display_name || 'DM',
+    savedColor: live.members.find((m) => m.userId === pingUser?.id)?.color,
+    isDm: true,
+  })
   const [aligning, setAligning] = useState(false)
   // Fog of war: paint tool (null = not in fog mode). Painting a stroke commits a
   // set of revealed/hidden cells; the whole fog state syncs like the tokens.
@@ -486,6 +503,20 @@ export function SceneEditor({
   // Pans the board to these tokens when a combatant is picked outside the board (Run mode's list).
   const [focus, setFocus] = useState<{ ids: string[]; seq: number }>({ ids: [], seq: 0 })
   const [tokenFilter, setTokenFilter] = useState('')
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all')
+  // Which inspector sections are folded: a per-browser preference, not part of the scene.
+  const [folded, setFolded] = useState<TokenKind[]>(() => {
+    try { return JSON.parse(localStorage.getItem('codex.bm.foldedKinds') ?? '[]') as TokenKind[] } catch { return [] }
+  })
+  function toggleFolded(k: TokenKind) {
+    setFolded((f) => {
+      const next = f.includes(k) ? f.filter((x) => x !== k) : [...f, k]
+      try { localStorage.setItem('codex.bm.foldedKinds', JSON.stringify(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
+  // Add from NPC files the new token as an Enemy (default) or an NPC.
+  const [npcAddKind, setNpcAddKind] = useState<'enemy' | 'npc'>('enemy')
   const [hintOn, setHintOn] = useState(true)
   const narrowDock = useMediaQuery('(max-width: 1050px)')
   const asDrawer = expanded || isPhone || (runDocked && narrowDock)
@@ -797,6 +828,7 @@ export function SceneEditor({
       // show the same icon.
       tokenIcon: npcTokenIcon(npc),
       size: sizeFromStatBlock(npc.statBlockData?.size),
+      kind: npcAddKind,
     })
   }
 
@@ -1113,14 +1145,14 @@ export function SceneEditor({
                     Type
                     <select
                       className="select"
-                      value={current.kind ?? ''}
+                      value={normalizeKind(current.kind) ?? ''}
                       onChange={(e) => patchToken(current.id, { kind: (e.target.value || undefined) as TokenKind | undefined })}
                       title="Which inspector list this token appears in"
                     >
                       <option value="">Automatic</option>
-                      <option value="hero">Hero</option>
-                      <option value="foe">Foe</option>
-                      <option value="object">Object</option>
+                      {TOKEN_KINDS.map((k) => (
+                        <option key={k.kind} value={k.kind}>{k.one}</option>
+                      ))}
                     </select>
                   </label>
                 )}
@@ -1309,6 +1341,7 @@ export function SceneEditor({
 
   const board = (
         <Tabletop
+          pings={pings}
           width={size.width}
           height={size.height}
           grid={grid}
@@ -1488,24 +1521,22 @@ export function SceneEditor({
   }
 
   if (studio) {
-    const kindOf = (t: SceneToken): TokenKind => {
-      if (t.kind) return t.kind
-      const c = combatantOf(combat.state, t)
-      if (t.controlledBy || c?.isPC || t.friendly) return 'hero'
-      if (t.npcId || c) return 'foe'
-      return 'object'
-    }
+    const kindOf = (t: SceneToken): TokenKind => resolveKind(t, combatantOf(combat.state, t))
     const hpOf = (t: SceneToken) => {
       const c = combatantOf(combat.state, t)
       return c && c.hp != null ? `${c.hp}/${c.maxHp ?? c.hp}` : null
     }
     const needle = tokenFilter.trim().toLowerCase()
     const shown = tokens.filter((t) => !needle || t.label.toLowerCase().includes(needle))
-    const tokenGroups: { title: string; list: SceneToken[] }[] = [
-      { title: 'Heroes', list: shown.filter((t) => kindOf(t) === 'hero') },
-      { title: 'Foes', list: shown.filter((t) => kindOf(t) === 'foe') },
-      { title: 'Objects', list: shown.filter((t) => kindOf(t) === 'object') },
-    ]
+    const kindCounts = { character: 0, npc: 0, enemy: 0, prop: 0 } as Record<TokenKind, number>
+    for (const t of tokens) kindCounts[kindOf(t)]++
+    const tokenGroups: { kind: TokenKind; title: string; list: SceneToken[] }[] = TOKEN_KINDS.filter(
+      (k) => kindFilter === 'all' || kindFilter === k.kind,
+    ).map((k) => ({ kind: k.kind, title: k.title, list: shown.filter((t) => kindOf(t) === k.kind) }))
+    const setHiddenFor = (ids: Set<string>, hidden: boolean) => {
+      touch()
+      setTokens((ts) => ts.map((t) => (ids.has(t.id) ? { ...t, hidden } : t)))
+    }
     const tool = fogTool ? 'fog' : measuring ? 'measure' : templatesOpen ? 'templates' : 'select'
     const railBtn = (id: string, icon: BmIconName, label: string, on: boolean, onClick: () => void) => (
       <button
@@ -1557,6 +1588,16 @@ export function SceneEditor({
         extraTabs={runKit?.tabs}
         foldScene={foldScene}
         noun={runDocked ? 'panel' : 'inspector'}
+        footer={
+          sceneView === 'tokens' && current ? (
+            <TokenCard
+              data={tokenCardData(current, combatantOf(combat.state, current), npcs?.find((n) => n.id === current.npcId))}
+              speedFt={current.speedFt ?? null}
+              onSpeed={(v) => patchToken(current.id, { speedFt: v })}
+              onOpenStatBlock={current.npcId ? () => setPeek({ kind: 'npc', id: current.npcId as string }) : undefined}
+            />
+          ) : undefined
+        }
         onToggleFloat={() => setInspFloat((f) => !f)}
         onOpenWindow={isPhone ? undefined : iw.open}
         onClose={() => {
@@ -1584,9 +1625,10 @@ export function SceneEditor({
               onChange={(e) => setTokenFilter(e.target.value)}
               aria-label="Filter tokens"
             />
+            {tokens.length > 0 && <KindChips counts={kindCounts} value={kindFilter} onChange={setKindFilter} />}
             {tokens.length === 0 && <p className="faint bm-empty">No tokens yet. Use Add token or Add object in the tool rail.</p>}
             {tokenGroups.map((g) => {
-              const isFoes = g.title === 'Foes'
+              const isFoes = g.kind === 'enemy'
               if (g.list.length === 0 && !(isFoes && groups.length > 0)) return null
               const pickable = g.list.filter((t) => {
                 const c = combatantOf(combat.state, t)
@@ -1594,9 +1636,18 @@ export function SceneEditor({
               })
               const picked = groupSel.filter((id) => pickable.some((t) => t.id === id))
               return (
-                <div key={g.title} className="bm-group">
-                  <div className="bm-group-title">{g.title}</div>
-                  {isFoes &&
+                <div key={g.kind} className="bm-group" data-testid={`bm-section-${g.kind}`}>
+                  <SectionHead
+                    kind={g.kind}
+                    title={g.title}
+                    count={g.list.length}
+                    collapsed={folded.includes(g.kind)}
+                    onToggle={() => toggleFolded(g.kind)}
+                    onSelectAll={isFoes ? () => setGroupSel(pickable.map((t) => t.id)) : undefined}
+                    onHideAll={() => setHiddenFor(new Set(g.list.map((t) => t.id)), true)}
+                    onShowAll={() => setHiddenFor(new Set(g.list.map((t) => t.id)), false)}
+                  />
+                  {!folded.includes(g.kind) && isFoes &&
                     groups.map((grp) => {
                       const mem = tokens.filter((t) => t.groupId === grp.id)
                       const first = mem[0] ? makeMember(mem[0]) : null
@@ -1624,7 +1675,7 @@ export function SceneEditor({
                         />
                       )
                     })}
-                  {g.list.map((t) => {
+                  {!folded.includes(g.kind) && g.list.map((t) => {
                     const c = combatantOf(combat.state, t)
                     const grp = t.groupId ? groups.find((x) => x.id === t.groupId) : undefined
                     const prepHp = grp ? memberHp(grp, t.id) : null
@@ -1671,7 +1722,7 @@ export function SceneEditor({
                       />
                     )
                   })}
-                  {isFoes && picked.length >= 2 && (
+                  {!folded.includes(g.kind) && isFoes && picked.length >= 2 && (
                     <button
                       type="button"
                       className="bm-btn primary bm-group-btn"
@@ -2148,6 +2199,13 @@ export function SceneEditor({
               {(close) => (
                 <>
                   <div className="bm-menu-title">Add from NPC</div>
+                  <div className="bm-seg bm-add-as" role="group" aria-label="Add as">
+                    {(['enemy', 'npc'] as const).map((k) => (
+                      <button key={k} type="button" className={npcAddKind === k ? 'on' : ''} aria-pressed={npcAddKind === k} onClick={() => setNpcAddKind(k)}>
+                        {k === 'enemy' ? 'As Enemy' : 'As NPC'}
+                      </button>
+                    ))}
+                  </div>
                   <div className="bm-menu-scroll">
                     {npcs?.length ? (
                       npcs.map((n) => (
@@ -2186,7 +2244,7 @@ export function SceneEditor({
                       className="bm-preset"
                       title={p.label}
                       onClick={() => {
-                        addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape, kind: 'object' })
+                        addToken({ label: p.label, tokenIcon: EMOJI_TOKEN_ICONS[p.icon] ?? null, icon: EMOJI_TOKEN_ICONS[p.icon] ? null : p.icon, shape: p.shape, kind: 'prop' })
                         close()
                       }}
                     >

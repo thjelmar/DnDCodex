@@ -23,6 +23,10 @@ import { conditionMeta } from '../lib/combat'
 import { conditionIcon } from '../lib/conditionIcons'
 import { conditionArt, coverCondition, COVER_ASPECT } from '../lib/conditionArt'
 import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
+import type { PingsApi } from '../lib/usePings'
+import { PingLayer } from './PingLayer'
+import { PingControls } from './PingControls'
+import { useBoardPings } from './useBoardPings'
 
 // The battle-map board: an SVG viewport with pan (drag the background), zoom
 // (wheel, around the cursor), a map image, a calibratable square grid, and
@@ -96,6 +100,8 @@ interface Props {
   showGroups?: boolean
   /** Pans (never zooms) so these tokens sit in the middle of the viewport. Runs each time `seq` changes. */
   focus?: { ids: string[]; seq: number } | null
+  /** Shared pings and colored cursors (T-102). Omit for a board with neither. */
+  pings?: PingsApi
 }
 
 /**
@@ -157,6 +163,7 @@ export function Tabletop({
   renderTokenPanel,
   showGroups = false,
   focus = null,
+  pings,
 }: Props) {
   const iconPaths = useTokenIconPaths()
   const clampRef = useRef<(tx: number, ty: number, k: number) => { tx: number; ty: number }>((tx, ty) => ({ tx, ty }))
@@ -412,6 +419,22 @@ export function Tabletop({
     setTemplateAim(null)
   }
 
+  // Pings and colored cursors: right click, long press, Ping tool, P key.
+  useBoardPings(wrapRef, {
+    pings,
+    toBoard,
+    blocked: aligning || !!fogTool || measureTool || !!templateTool,
+    claim: () => {
+      cancelStroke()
+      pointers.current.clear()
+      pinch.current = null
+    },
+    center: () => {
+      const el = wrapRef.current
+      return el ? { x: (el.clientWidth / 2 - transform.tx) / transform.k, y: (el.clientHeight / 2 - transform.ty) / transform.k } : { x: 0, y: 0 }
+    },
+  })
+
   /**
    * Two-finger pinch, tracked before any child sees the press so it works
    * wherever the fingers land (board, token, any tool). A pinch zooms about the
@@ -664,7 +687,7 @@ export function Tabletop({
     <div className="tabletop">
       <div
         ref={wrapRef}
-        className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}${measureTool || templateTool ? ' crosshair' : ''}`}
+        className={`tabletop-view${aligning ? ' aligning' : ''}${fogTool ? ' fogging' : ''}${measureTool || templateTool ? ' crosshair' : ''}${pings?.enabled ? ' pingable' : ''}`}
         tabIndex={0}
         onPointerDownCapture={onViewPointerDownCapture}
         onPointerDown={onBgPointerDown}
@@ -1039,8 +1062,20 @@ export function Tabletop({
                 </g>
               )
             })()}
+            {pings && (
+              <PingLayer
+                pings={pings}
+                scale={transform.k}
+                view={{ tx: transform.tx, ty: transform.ty, w: wrapRef.current?.clientWidth ?? 0, h: wrapRef.current?.clientHeight ?? 0 }}
+              />
+            )}
           </g>
         </svg>
+        {pings && (
+          <span className="sr-only" role="status" aria-live="polite">
+            {pings.announce}
+          </span>
+        )}
         {aligning && (
           <div className="tabletop-hint">Zoom in, then drag a box around one or more whole squares, edge to edge on the map's lines.</div>
         )}
@@ -1060,6 +1095,7 @@ export function Tabletop({
         <button className="btn ghost small" onClick={() => zoomBy(1.2)} title="Zoom in">＋</button>
         <button className="btn ghost small" onClick={() => zoomBy(0.833)} title="Zoom out">－</button>
         <button className="btn ghost small" onClick={fit} title="Fit the whole map">Fit</button>
+        {pings && <PingControls pings={pings} />}
       </div>
     </div>
   )
