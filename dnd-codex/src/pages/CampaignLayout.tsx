@@ -7,6 +7,7 @@ import { PushChangesPanel } from '../components/PushChangesPanel'
 import { CampaignNav } from '../components/CampaignNav'
 import { Icon } from '../components/Icon'
 import { LiveSceneKeeper } from './LiveSceneKeeper'
+import { LiveCombatKeeper } from './LiveCombatKeeper'
 import { campaignPageLabel } from '../lib/campaignNav'
 import type { Campaign } from '../db/types'
 
@@ -91,6 +92,8 @@ export function CampaignLayout() {
       <Outlet context={{ campaign } satisfies CampaignContext} />
       {/* Keeps a live battle map in sync when its editor isn't open. */}
       <LiveSceneKeeper campaign={campaign} />
+      {/* Mirrors the combat to players during a live session; sets the DM-only NPC warning. */}
+      <LiveCombatKeeper campaign={campaign} />
     </div>
   )
 }

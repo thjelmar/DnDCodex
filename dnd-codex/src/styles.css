@@ -5574,6 +5574,48 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .bm-voice { position: absolute; z-index: 4; top: 10px; left: 10px; max-width: 45%; }
 .bm-voice .voice-roster { margin: 0; padding: 4px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; }
 
+/* Combat notices (T-100): a player joined, edited their initiative, or left. */
+.combat-notices { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: grid; gap: 8px; max-width: min(420px, calc(100vw - 32px)); }
+.combat-notice { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow, 0 6px 20px #0006); font-size: 13px; }
+.combat-notice span { flex: 1; }
+.combat-share-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 8px 0; font-size: 13px; }
+.combat-share { position: relative; font-size: 12px; }
+.combat-share summary { cursor: pointer; color: var(--text-dim); list-style: none; padding: 4px 6px; border: 1px solid var(--border); border-radius: 7px; }
+.combat-share-pop { position: absolute; right: 0; z-index: 20; display: grid; gap: 8px; min-width: 190px; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; }
+.combat-share-pop label { display: grid; gap: 4px; color: var(--text-dim); }
+
+/* Players' initiative strip (T-100). One scrolling row; in short landscape it floats
+   over the page so it adds no height, and shows only the current turn plus the next two. */
+.pis { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; margin: 8px 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; }
+.pis-round { font-weight: 600; white-space: nowrap; }
+.pis-chips { display: flex; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.pis-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-elev-2, var(--bg)); font-size: 13px; }
+.pis-chip b { color: var(--text-dim); }
+.pis-chip small { color: var(--text-faint, var(--text-dim)); }
+.pis-chip.now { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.pis-chip.me { outline: 1px dashed var(--good, #4ade80); outline-offset: 2px; }
+.pis-dot { width: 8px; height: 8px; border-radius: 50%; }
+.pis-dot.ally { background: var(--good, #4ade80); }
+.pis-dot.foe { background: var(--danger, #f87171); }
+.pis-marker { font-weight: 600; color: var(--danger, #f87171) !important; }
+.pis-x { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; padding: 2px; }
+.pis-more { display: none; }
+.pis-pop { position: absolute; top: calc(100% + 6px); right: 8px; z-index: 30; display: grid; gap: 10px; min-width: 260px; padding: 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 20px #0006; }
+.pis-pop label { display: grid; gap: 4px; font-size: 13px; color: var(--text-dim); }
+.pis-error { color: var(--danger, #f87171); font-size: 12px; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .pis { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); right: calc(env(safe-area-inset-right, 0px) + 8px); z-index: 40; max-width: min(70vw, 640px); min-height: 0; margin: 0; padding: 3px 8px; flex-wrap: wrap; }
+  .pis-more { display: inline-flex; }
+  .pis:not(.open) .pis-chip { display: none; }
+  .pis:not(.open) .pis-chip.now,
+  .pis:not(.open) .pis-chip.now + .pis-chip,
+  .pis:not(.open) .pis-chip.now + .pis-chip + .pis-chip,
+  .pis:not(.open):not(.has-now) .pis-chip:nth-child(-n+3) { display: inline-flex; }
+  .pis.open .pis-chips { flex-wrap: wrap; max-height: 40vh; overflow-y: auto; }
+  .pis-pop { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); top: auto; }
+}
+.pis-init-input { width: 56px; padding: 0 6px; height: 24px; }
+
 /* ---- Map pings and colored cursors (T-102) ---- */
 .tabletop-view.pingable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .ping-layer .ping-ring { transform-box: fill-box; transform-origin: center; animation: ping-grow 2s ease-out forwards; }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Icon } from './Icon'
+import { PlayerShareControls } from './PlayerSharing'
 import { NumberField } from './NumberField'
 import { useConfirm } from './ConfirmDialog'
 import {
@@ -20,6 +21,9 @@ import {
   type CombatState,
 } from '../lib/combat'
 import { abilityMod } from '../lib/statblock'
+import { duplicatePc, visibleNpcs } from '../lib/liveCombat'
+import { getRevealContext, useCombatMembers } from '../lib/revealContext'
+import { useConfirmReveal } from '../lib/revealGuard'
 import type { Id, NPC } from '../db/types'
 
 // Combat tracker building blocks shared by the full Combat Tracker page and the
@@ -47,6 +51,7 @@ export function useCombatState(): CombatState {
  *  shared store so the tracker, Run panel, and board overlay all stay in sync. */
 export function useCombat() {
   const confirm = useConfirm()
+  const confirmReveal = useConfirmReveal()
   const state = useSyncExternalStore(subscribeCombat, getCombat)
   const setState = setCombat
 
@@ -70,8 +75,28 @@ export function useCombat() {
     }))
   }
 
-  function addCombatants(rows: Combatant[]) {
-    setState((s) => ({ ...s, combatants: [...s.combatants, ...rows] }))
+  /** Add rows to the order. In a combat players can see, the DM confirms first when an
+   *  NPC would appear (T-100). A PC the DM adds for a player who already joined is
+   *  skipped, so the player's own join is never duplicated. */
+  async function addCombatants(rows: Combatant[]): Promise<'added' | 'cancelled' | 'duplicate'> {
+    const fresh = rows.filter((c) => !(c.isPC && duplicatePc(getCombat(), c.name, c.controlledBy ?? null)))
+    if (fresh.length === 0) return 'duplicate'
+    if (!(await confirmReveal(fresh, getCombat().active))) return 'cancelled'
+    setState((s) => ({ ...s, combatants: [...s.combatants, ...fresh] }))
+    return 'added'
+  }
+
+  /** Hide a combatant from players, or reveal it (revealing asks first in a visible combat). */
+  async function setHiddenFromPlayers(id: Id, hidden: boolean) {
+    const c = getCombat().combatants.find((x) => x.id === id)
+    if (!c) return
+    if (!hidden && !(await confirmReveal([c], getCombat().active))) return
+    patch(id, { hiddenFromPlayers: hidden })
+  }
+
+  /** Open initiative to players: they can join, and NPCs stay private until combat starts. */
+  function askPlayers(on = true) {
+    setState((s) => ({ ...s, askPlayers: on }))
   }
 
   function removeCombatant(id: Id) {
@@ -91,7 +116,11 @@ export function useCombat() {
     })
   }
 
-  function start() {
+  async function start() {
+    const cur = getCombat()
+    if (cur.combatants.length === 0) return
+    // Starting opens the order to players: warn about every NPC that appears (T-100).
+    if (!cur.active && !(await confirmReveal(visibleNpcs(cur, getRevealContext()?.facts), true))) return
     setState((s) => {
       if (s.combatants.length === 0) return s
       const rolled = s.combatants.map((c) => (c.initiative == null ? { ...c, initiative: rollInitiative(c.dexMod) } : c))
@@ -118,7 +147,7 @@ export function useCombat() {
   /** Everyone acting this turn: one combatant, or every member of a group slot. */
   const activeSet = activeIds(state)
 
-  return { state, setState, activeId, activeSet, patch, adjustHp, addCombatants, removeCombatant, rollAll, sortNow, start, step, end }
+  return { state, setState, activeId, activeSet, patch, adjustHp, addCombatants, setHiddenFromPlayers, askPlayers, removeCombatant, rollAll, sortNow, start, step, end }
 }
 
 export function CombatantRow({
@@ -129,6 +158,7 @@ export function CombatantRow({
   onDamage,
   onHeal,
   onRemove,
+  onHide,
 }: {
   c: Combatant
   index: number
@@ -137,6 +167,8 @@ export function CombatantRow({
   onDamage: (n: number) => void
   onHeal: (n: number) => void
   onRemove: () => void
+  /** Hide or show the combatant to players (DM campaigns; see useCombat().setHiddenFromPlayers). */
+  onHide?: (hidden: boolean) => void
 }) {
   const down = c.hp != null && c.hp <= 0
   return (
@@ -174,6 +206,7 @@ export function CombatantRow({
 
       <HpControl c={c} onDamage={onDamage} onHeal={onHeal} onPatch={onPatch} />
 
+      {onHide && <PlayerShareControls c={c} onPatch={onPatch} onHide={onHide} />}
       <button className="btn ghost small" onClick={onRemove} aria-label={`Remove ${c.name}`} title="Remove">
         <Icon name="x" size={14} />
       </button>
@@ -291,16 +324,25 @@ export function ConditionPicker({ value, onChange }: { value: string[]; onChange
   )
 }
 
-export function AddCustom({ onAdd }: { onAdd: (row: Combatant) => void }) {
+export function AddCustom({ onAdd }: { onAdd: (row: Combatant) => unknown }) {
+  const members = useCombatMembers()
+  const [player, setPlayer] = useState('')
+  const [note, setNote] = useState('')
   const [name, setName] = useState('')
   const [hp, setHp] = useState<number | null>(null)
   const [ac, setAc] = useState<number | null>(null)
   const [init, setInit] = useState<number | null>(null)
   const [isPC, setIsPC] = useState(false)
 
-  function submit() {
+  async function submit() {
     if (!name.trim()) return
-    onAdd(makeCombatant({ name, isPC, hp, ac, initiative: init }))
+    const res = await onAdd(makeCombatant({ name, isPC, hp, ac, initiative: init, controlledBy: player || null }))
+    if (res === 'duplicate') {
+      setNote(`${name.trim()} already joined initiative.`)
+      return
+    }
+    if (res === 'cancelled') return
+    setNote('')
     setName(''); setHp(null); setAc(null); setInit(null)
   }
 
@@ -315,8 +357,17 @@ export function AddCustom({ onAdd }: { onAdd: (row: Combatant) => void }) {
         <label className="row" style={{ gap: 6, alignItems: 'center', fontSize: 13 }}>
           <input type="checkbox" checked={isPC} onChange={(e) => setIsPC(e.target.checked)} /> PC
         </label>
+        {members.length > 0 && (
+          <select className="input" value={player} onChange={(e) => setPlayer(e.target.value)} aria-label="Player" style={{ maxWidth: 130 }}>
+            <option value="">Player: none</option>
+            {members.map((m) => (
+              <option key={m.userId} value={m.userId}>{m.name}</option>
+            ))}
+          </select>
+        )}
         <button className="btn small primary" onClick={submit} disabled={!name.trim()}>Add</button>
       </div>
+      {note && <div className="faint" style={{ fontSize: 12, marginTop: 6 }} role="status">{note}</div>}
     </div>
   )
 }
