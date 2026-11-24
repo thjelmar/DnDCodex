@@ -26,6 +26,8 @@ export function RichTextEditor({
   revealNeedsConfirm = false,
   shareable = false,
   onWikiLink,
+  demoEditable = false,
+  onEditor,
 }: {
   campaignId: Id
   value: string
@@ -41,12 +43,18 @@ export function RichTextEditor({
   shareable?: boolean
   /** Overrides wiki-link clicks (e.g. the Run screen peeks instead of navigating). */
   onWikiLink?: (target: string) => void
+  /** The demo renders prose read-only. A field backed by the demo's throwaway local
+   *  database (session notes) opts in so the demo can show real editing. */
+  demoEditable?: boolean
+  /** Hands the live tiptap editor to the parent (for quick-insert buttons). */
+  onEditor?: (editor: Editor | null) => void
 }) {
   const { follow } = useWikiResolver(campaignId)
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
-  // The demo is read-only: every prose field renders as its non-editable view.
-  const editable = editableProp && !isDemo()
+  // The demo is read-only: every prose field renders as its non-editable view,
+  // except fields that opt in with `demoEditable` (they only write the local demo database).
+  const editable = editableProp && (!isDemo() || demoEditable)
 
   const editor = useEditor({
     editable,
@@ -60,12 +68,21 @@ export function RichTextEditor({
     content: value || '',
     onUpdate: ({ editor }) => onChange?.(editor.getHTML()),
     editorProps: {
+      // Keep the caret clear of the panel edges (and of a phone's on-screen keyboard).
+      scrollMargin: { top: 56, bottom: 120, left: 0, right: 0 },
+      scrollThreshold: { top: 56, bottom: 120, left: 0, right: 0 },
       attributes: {
         class: 'rte-content',
         ...(minHeight ? { style: `min-height:${minHeight}px` } : {}),
       },
     },
   })
+
+  useEffect(() => {
+    onEditor?.(editor ?? null)
+    return () => onEditor?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
 
   // Sync the editor when its source value changes externally — always for
   // read-only editors, and for editable ones only while unfocused, so a

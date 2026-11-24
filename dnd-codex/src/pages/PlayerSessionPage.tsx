@@ -4,6 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { NotesSaveStatus, type SaveState } from '../components/NotesSaveStatus'
+import { clearDraft, getDraft, setDraft } from '../lib/noteDrafts'
 import { PlayerSessionDock, PlayerTurnBanner, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
@@ -211,61 +213,105 @@ function SessionNotes({
   date?: string
 }) {
   // The note we're bound to once it exists (starts from any existing note).
-  const idRef = useRef<string | null>(initialNoteId)
-  const existing = useLiveQuery(() => (initialNoteId ? db.playerNotes.get(initialNoteId) : undefined), [initialNoteId])
-  const [body, setBody] = useState('')
+  const draftKey = `player-note:${campaignId}:${sessionRef}`
+  // A note an earlier mount just created may not have reached the page's lookup yet.
+  const idRef = useRef<string | null>(initialNoteId ?? getDraft<string>(`${draftKey}:id`) ?? null)
+  // Text typed before this editor was last unmounted that may not be in the database yet.
+  const draftAtMount = useRef(getDraft<string>(draftKey))
+  const [body, setBody] = useState(draftAtMount.current ?? '')
+  const [status, setStatus] = useState<SaveState>('saved')
   const loaded = useRef(false)
-  const saved = useRef('') // last body persisted (or loaded), to skip no-op saves
-
-  // Load an existing note's body once.
-  useEffect(() => {
-    if (existing && !loaded.current) {
-      loaded.current = true
-      saved.current = existing.body
-      setBody(existing.body)
-    }
-  }, [existing])
+  const saved = useRef(draftAtMount.current === undefined ? '' : '\u0000') // last body persisted (or loaded), to skip no-op saves
+  const chain = useRef<Promise<void>>(Promise.resolve())
+  const mounted = useRef(true)
 
   const bodyRef = useRef(body)
   bodyRef.current = body
+
+  // Read an existing note's body once, before the editor mounts. An editor that mounts
+  // empty and fills in later would lose the saved text if you start typing in between
+  // (a slow database read, a phone). A draft from an earlier mount skips the read.
+  const [ready, setReady] = useState(draftAtMount.current !== undefined || !idRef.current)
+  useEffect(() => {
+    if (ready) return
+    let alive = true
+    void db.playerNotes.get(idRef.current!).then((n) => {
+      if (!alive) return
+      saved.current = n?.body ?? ''
+      loaded.current = true
+      setBody(n?.body ?? '')
+      setReady(true)
+    })
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Create the note on first real content; after that, save what's typed —
   // including an emptied note (WYSIWYG). We don't auto-delete an emptied note:
   // it's the player's own entry, it's hidden from "Story So Far" while empty, and
   // deleting a just-synced record raced the sync layer and the editor's reload.
-  async function persist(html: string) {
-    if (html === saved.current) return
-    if (idRef.current) {
-      await updatePlayerNote(idRef.current, { body: html })
-      saved.current = html
-    } else if (hasContent(html)) {
-      const n = await createPlayerNote(campaignId, { section: 'journal', title: defaultTitle, date })
-      await updatePlayerNote(n.id, { sessionRef, body: html })
-      idRef.current = n.id
-      loaded.current = true
-      saved.current = html
-    }
+  // Saves run one after another, so a debounce save and the unmount flush can't
+  // both create a note.
+  function persist(html: string): Promise<void> {
+    chain.current = chain.current.then(async () => {
+      if (html === saved.current) return
+      try {
+        if (idRef.current) {
+          await updatePlayerNote(idRef.current, { body: html })
+          saved.current = html
+        } else if (hasContent(html)) {
+          const n = await createPlayerNote(campaignId, { section: 'journal', title: defaultTitle, date })
+          await updatePlayerNote(n.id, { sessionRef, body: html })
+          idRef.current = n.id
+          setDraft(`${draftKey}:id`, n.id)
+          loaded.current = true
+          saved.current = html
+        } else {
+          saved.current = html
+        }
+        clearDraft(draftKey, html)
+      } finally {
+        if (mounted.current && bodyRef.current === html) setStatus('saved')
+      }
+    })
+    return chain.current
   }
 
   // Autosave 500ms after the last keystroke.
   useEffect(() => {
     if (body === saved.current) return
-    const t = setTimeout(() => persist(body), 500)
+    setDraft(draftKey, body)
+    setStatus('saving')
+    const t = setTimeout(() => void persist(body), 500)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [body])
 
-  // Flush on unmount too (the page moves the editor between columns), so a
-  // keystroke still inside the debounce isn't lost — and an emptied note is cleaned up.
-  useEffect(() => () => void persist(bodyRef.current), [])
+  // Flush on unmount too (the page moves the editor between columns, tabs and
+  // full screen), so a keystroke still inside the debounce isn't lost.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      void persist(bodyRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  if (!ready) return <p className="faint" style={{ fontSize: 13 }}>Loading your notes…</p>
 
   return (
-    <RichTextEditor
-      campaignId={campaignId}
-      value={body}
-      onChange={setBody}
-      placeholder="Jot down what happens this session — [[wiki links]] and images work too."
-      minHeight={280}
-    />
+    <div className="notes-editor">
+      <RichTextEditor
+        campaignId={campaignId}
+        value={body}
+        onChange={setBody}
+        placeholder="Jot down what happens this session — [[wiki links]] and images work too."
+        minHeight={260}
+        demoEditable
+      />
+      <NotesSaveStatus state={status} />
+    </div>
   )
 }
 

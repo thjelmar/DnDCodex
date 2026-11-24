@@ -5857,3 +5857,23 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 }
 /* The Join initiative form (.pis-pop, z 30) must win over the floating demo pill. */
 .player-live-board .demo-ctl-head { z-index: 25; }
+
+/* Notes in the side panel (T-108): a roomy editor with a save state, a toolbar that stays
+   in view while the text scrolls, and room for a phone's on-screen keyboard. */
+.notes-editor { display: flex; flex-direction: column; gap: 8px; }
+.notes-foot { display: flex; align-items: center; gap: 10px; }
+.notes-status { margin-left: auto; font-size: 12px; color: var(--text-dim); }
+.notes-status.saving { color: var(--accent); }
+.notes-editor .rte-editable .rte-content { min-height: 220px; }
+.pl-dock-body .rte-toolbar,
+.battlemap-notes .rte-toolbar,
+.bm-insp-body .rte-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #18151f;
+  opacity: 1;
+}
+.pl-dock-body, .battlemap-notes { scroll-padding-bottom: 140px; }
+/* While the on-screen keyboard is up the visual viewport is short: keep the editor tall enough to type in. */
+@media (max-height: 520px) { .notes-editor .rte-editable .rte-content { min-height: 140px; } }
