@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { BmIcon } from './battlemap/BmIcon'
 import { possessiveTurn } from './battlemap/TurnStrip'
 import { JoinForm, useMyCharacters } from './PlayerInitiativePanel'
@@ -33,6 +33,34 @@ export function PlayerTurnStrip({
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const characters = useMyCharacters(localCampaignId)
+  const [popStyle, setPopStyle] = useState<CSSProperties>({})
+
+  // Keep the pop-up inside the visible area: pin it above the strip and cap its height at the room
+  // below whatever bar sits above the map (the page header, or full screen's tool bar). When there is
+  // little room above, open it below the strip. It scrolls inside when the window is short.
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const el = ref.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      let top = 8
+      for (const bar of document.querySelectorAll('.session-header, .player-live-bar, .demo-banner')) {
+        const b = bar.getBoundingClientRect()
+        if (b.height > 0 && b.bottom < r.top) top = Math.max(top, b.bottom + 8)
+      }
+      const above = r.top - top - 8
+      const below = window.innerHeight - r.bottom - 16
+      const base: CSSProperties = { position: 'fixed', left: Math.max(8, Math.min(r.left, window.innerWidth - 348)), overflowY: 'auto' }
+      // Not enough room above the strip (a short window, or a strip high on the page): open below it instead.
+      if (above < 240 && below > above) setPopStyle({ ...base, top: r.bottom + 8, maxHeight: Math.max(120, below) })
+      else setPopStyle({ ...base, bottom: window.innerHeight - r.top + 8, maxHeight: Math.max(120, above) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true) }
+  }, [open])
 
   // Close the pop-up on Escape or a press outside it.
   useEffect(() => {
@@ -132,7 +160,7 @@ export function PlayerTurnStrip({
       </ol>
 
       {open && userId && (
-        <div className="pl-turns-pop" data-testid="join-pop">
+        <div className="pl-turns-pop" data-testid="join-pop" style={popStyle}>
           <JoinForm
             joinable={joinable}
             mine={mine}

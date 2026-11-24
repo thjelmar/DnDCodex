@@ -29,7 +29,8 @@ test.describe('public combat rows', () => {
     expect(g.hp).toBeNull()
     expect(g.maxHp).toBeNull()
     expect(a.hp).toBe(31)
-    expect(JSON.stringify(pc.rows.filter((r) => r.kind === 'enemy'))).not.toContain('59')
+    // Row ids are random UUIDs and can contain "59", so look for the HP fields, not a bare substring.
+    expect(JSON.stringify(pc.rows.filter((r) => r.kind === 'enemy'))).not.toMatch(/"(hp|maxHp)":59/)
   })
 
   test('hidden combatants and combatants on hidden tokens are never included', () => {
@@ -233,7 +234,7 @@ const revealDialog = (page: Page) => page.getByRole('dialog', { name: /Show thes
 test.describe('player initiative panel (T-108)', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
-  test('Join initiative sits in the turn strip, its pop-up opens above it, and joining calls join_combat once', async ({ page }) => {
+  test('Join initiative sits in the turn strip, its pop-up opens next to it, and joining calls join_combat once', async ({ page }) => {
     const mock: Mock = { rows: rowsFor(false), calls: [], phase: 'gathering' }
     await seedPlayer(page)
     await mockCombat(page, mock)
@@ -251,7 +252,8 @@ test.describe('player initiative panel (T-108)', () => {
     await expect(pop).toBeVisible()
     const sb = await strip.boundingBox()
     const pb = await pop.boundingBox()
-    expect(pb!.y + pb!.height).toBeLessThanOrEqual(sb!.y + 1)
+    // The pop-up never covers the strip: it opens above it, or below it when there is no room above.
+    expect(pb!.y + pb!.height <= sb!.y + 1 || pb!.y >= sb!.y + sb!.height - 1).toBe(true)
     await expect(pop.getByRole('combobox', { name: 'Character' })).toContainText('Brann')
     await expect(pop.getByTestId('join-hp')).toContainText('38 / 38')
     await pop.getByRole('spinbutton', { name: 'Initiative', exact: true }).fill('15')
@@ -261,6 +263,32 @@ test.describe('player initiative panel (T-108)', () => {
     expect(mock.calls[0]).toMatchObject({ name: 'join_combat', body: { cid: LINKED, pname: 'Brann', init: 15, hp_now: 38, hp_max: 38, ckey: NOTE } })
     await expect(revealDialog(page)).toHaveCount(0)
   })
+
+  for (const vp of [
+    { name: '1280x720', width: 1280, height: 720 },
+    { name: '1440x900', width: 1440, height: 900 },
+    { name: 'tablet', width: 820, height: 1180 },
+    { name: 'phone portrait', width: 390, height: 844 },
+    { name: 'phone landscape', width: 844, height: 390 },
+  ]) {
+    test(`the join pop-up stays inside the visible map area and its buttons are clickable (${vp.name})`, async ({ page }) => {
+      const mock: Mock = { rows: rowsFor(false), calls: [], phase: 'gathering' }
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await seedPlayer(page)
+      await mockCombat(page, mock)
+      await page.goto(`/#/player/${LOCAL}/session`)
+      await page.getByTestId('initiative-strip').getByTestId('join-initiative').click()
+      const pop = page.getByTestId('join-pop')
+      await expect(pop).toBeVisible()
+      const pb = (await pop.boundingBox())!
+      const hb = await page.locator('.session-header').boundingBox()
+      expect(pb.y).toBeGreaterThanOrEqual(0)
+      if (hb) expect(pb.y).toBeGreaterThanOrEqual(hb.y + hb.height - 1)
+      expect(pb.x + pb.width).toBeLessThanOrEqual(vp.width + 1)
+      await pop.getByTestId('join-submit').click()
+      expect(mock.calls.filter((c) => c.name === 'join_combat')).toHaveLength(1)
+    })
+  }
 
   test('the strip shows the round, the active chip, and no HP or Next for a player', async ({ page }) => {
     const mock: Mock = { rows: rowsFor(true), calls: [] }

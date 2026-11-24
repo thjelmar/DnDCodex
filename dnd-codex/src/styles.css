@@ -5857,12 +5857,12 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 /* ---- Player turn strip (T-108): the DM's .bm-turns pill, bottom left of the player's map ----
    The pill, round, chips and Next-style button come from the DM strip's classes above. Only the
    placement, the pulse while the DM asks, and the pop-up are new. */
-.pl-map-wrap { position: relative; }
+.pl-map-wrap { position: relative; min-height: 150px; } /* room for the strip when no map is live */
 .pl-turns { flex-wrap: nowrap; }
 .pl-turns.asking { border-color: var(--accent); animation: bm-chip-pulse 1.8s ease-out infinite; }
 .pl-turns .pl-ask-btn { animation: bm-chip-pulse 1.8s ease-out infinite; }
 .bm-chip.mine { background: var(--accent); }
-.pl-turns-pop { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 6; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.pl-turns-pop { position: fixed; left: 8px; z-index: 60; overscroll-behavior: contain; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .pl-turns-pop .il-join { border: 0; padding: 0; background: transparent; }
 .pl-turns-err { position: absolute; left: 12px; bottom: calc(100% + 4px); }
 @media (min-width: 861px) {
