@@ -230,12 +230,25 @@ export function templateGeom(grid: SceneGrid, tpl: SceneTemplate): TemplateGeom 
   const py = ax
   const ex = o.x + ax * len
   const ey = o.y + ay * len
+  if (tpl.shape === 'cube') {
+    // A square: `len` deep along the aim, `len` wide, starting at the origin's face.
+    const half = len / 2
+    return {
+      kind: 'poly',
+      points: [
+        [o.x + px * half, o.y + py * half],
+        [ex + px * half, ey + py * half],
+        [ex - px * half, ey - py * half],
+        [o.x - px * half, o.y - py * half],
+      ],
+    }
+  }
   if (tpl.shape === 'cone') {
     const half = len / 2 // base width == length
     return { kind: 'poly', points: [[o.x, o.y], [ex + px * half, ey + py * half], [ex - px * half, ey - py * half]] }
   }
   // line
-  const half = ((TEMPLATE_LINE_WIDTH_FT / FT_PER_CELL) * grid.cellPx) / 2
+  const half = (((tpl.widthFt ?? TEMPLATE_LINE_WIDTH_FT) / FT_PER_CELL) * grid.cellPx) / 2
   return {
     kind: 'poly',
     points: [

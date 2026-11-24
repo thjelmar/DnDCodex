@@ -5635,3 +5635,22 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .ping-menu input[type="checkbox"] { width: auto; flex: none; margin: 0; }
 .ping-menu-list { display: grid; gap: 4px; }
 .ping-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* Movement range ring (T-103): a soft accent fill under the selected token. */
+.bm-range-ring {
+  fill: var(--accent);
+  fill-opacity: 0.18;
+}
+.bm-slider { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.bm-slider input[type='range'] { flex: 1; min-height: 38px; }
+.bm-slider output { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Terrain zones under props (T-103). */
+.bm-zone { fill: rgba(167, 139, 250, 0.08); stroke: rgba(255, 255, 255, 0.35); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.bm-zone.blocks { stroke: #1a1410; stroke-width: 3; stroke-dasharray: none; }
+.bm-hatch-line { stroke: rgba(240, 200, 120, 0.7); stroke-width: 2.5; }
+.bm-cover-chip { fill: #1a1410; fill-opacity: 0.88; stroke: rgba(255, 255, 255, 0.5); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.bm-cover-text { fill: #f5ecd8; font-weight: 700; letter-spacing: 0.04em; }
+.bm-tag { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--bg-elev-2); color: var(--text-dim); white-space: nowrap; }
+.bm-terrain { display: grid; gap: 8px; }
+.bm-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; }

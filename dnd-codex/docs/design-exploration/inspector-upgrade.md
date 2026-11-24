@@ -302,3 +302,16 @@ The owner approved every recommendation:
 5. Players see their own ring on their own turn, and each player can hide it with a per-player toggle.
 6. Built-in common area-spell names are acceptable as optional labels.
 7. Build order stays as listed.
+
+## Build notes (phases 3 to 6)
+
+What shipped differs from the design in these ways.
+
+- **Board layers.** `Tabletop` gets one new prop, `overlays`, drawn above the map and grid and below templates, fog and tokens. `BoardOverlays` fills it with the light tint, terrain zones and the range ring.
+- **Light.** The DM sees the tint at half strength (`DM_LIGHT_SHARE`). Players see full strength.
+- **Range ring.** The ring is computed in `src/lib/rangeRing.ts`. The DM toggle (`R`, rail button) and the 5-10-5 option are `localStorage` preferences. A player sees a ring for their own token only on that token's turn, only when the DM set a manual speed, and can hide it with the **Range** button or `R` (`codex.bm.playerRange`).
+- **Speed sharing.** `speed_ft` goes to players only for a player-controlled token, so a monster's speed never leaves the DM's device.
+- **Footprint.** A prop's `w` and `h` draw a zone under the token. The token keeps its `size` and stays on the zone's top-left cell, so collision and snapping are unchanged. Dragging the token moves the zone with it. A true rectangular token is a later change.
+- **Terrain.** Markers are labels. The zone shows a hatch (difficult), a dark outline (blocks) and a cover chip that shortens to "½" or "¾" on small cells.
+- **Migration 0047.** Adds `terrain jsonb`, `cell_w`, `cell_h` and `speed_ft` to `shared_scene_tokens`. The app writes the four columns on every token push (null when unset), so run the migration before this code reaches a live site.
+- **Templates.** `cube` is a square aimed like a line. A stale client draws an unknown shape as a 5 ft line. Presets and spell names live in `src/data/templatePresets.ts`. Spell suggestions come from the built-in list, with spells named in the selected token's stat block first. Tokens have no character link, so sheet spells are not suggested. Players keep their own spell presets and do not get `cube`.

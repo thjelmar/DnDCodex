@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { isDemo } from '../lib/demo'
 import { useAuth } from './AuthProvider'
 import { downloadMapObjectUrl } from '../lib/mapStorage'
-import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat } from '../db/types'
+import type { SceneFog, SceneGrid, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenTerrain } from '../db/types'
 
 // Live battle maps (migration 0015). The DM shows ONE battle map per campaign to
 // players; the scene row, its visible tokens, and its map image are mirrored to
@@ -44,6 +44,14 @@ export interface LiveToken {
   controlledBy: string | null
   /** Privacy-filtered combat overlay, or null when not in combat. */
   combat: TokenCombat | null
+  /** Terrain and cover markers (migration 0047). Absent = none. */
+  terrain?: TokenTerrain
+  /** Footprint in cells for a prop that is not square (migration 0047). */
+  cellW?: number
+  cellH?: number
+  /** Manual walking speed in feet, sent only for player-controlled tokens, so a
+   *  player's range ring works. Never sent for monsters. (migration 0047) */
+  speedFt?: number
 }
 
 type Row = Record<string, unknown>
@@ -76,6 +84,10 @@ function tokenFromRow(r: Row): LiveToken {
     shape: (r.shape as string) ?? null,
     controlledBy: (r.controlled_by as string) ?? null,
     combat: (r.combat as TokenCombat) ?? null,
+    ...(r.terrain ? { terrain: r.terrain as TokenTerrain } : {}),
+    ...(r.cell_w != null ? { cellW: Number(r.cell_w) } : {}),
+    ...(r.cell_h != null ? { cellH: Number(r.cell_h) } : {}),
+    ...(r.speed_ft != null ? { speedFt: Number(r.speed_ft) } : {}),
   }
 }
 
@@ -93,6 +105,12 @@ export function tokenToRow(campaignId: string, t: LiveToken): Row {
     shape: t.shape,
     controlled_by: t.controlledBy,
     combat: t.combat,
+    // Migration 0047 columns. Written as null when unset, so removing a marker
+    // clears it for players too. Run the migration before this code ships.
+    terrain: t.terrain ?? null,
+    cell_w: t.cellW ?? null,
+    cell_h: t.cellH ?? null,
+    speed_ft: t.speedFt ?? null,
     updated_at: new Date().toISOString(),
   }
 }
@@ -117,6 +135,10 @@ export function liveTokensForBoard(
       icon: t.icon,
       shape: (t.shape as SceneToken['shape']) ?? null,
       controlledBy: t.controlledBy,
+      ...(t.terrain ? { terrain: t.terrain } : {}),
+      ...(t.cellW != null ? { w: t.cellW } : {}),
+      ...(t.cellH != null ? { h: t.cellH } : {}),
+      ...(t.speedFt != null ? { speedFt: t.speedFt } : {}),
     }
   })
   return { tokens: out, portraits, combat }

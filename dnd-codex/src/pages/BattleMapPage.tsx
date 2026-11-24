@@ -70,11 +70,15 @@ import {
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
+import { BoardOverlays, type RangeRing } from '../components/BoardOverlays'
+import { COMMON_SPELLS, TEMPLATE_PRESETS, spellsMentioned } from '../data/templatePresets'
+import { cleanTerrain, terrainTags, MIN_FOOTPRINT, MAX_FOOTPRINT } from '../lib/terrain'
+import { ringSquares, type RingDiagonals } from '../lib/rangeRing'
 import { TokenCard } from '../components/battlemap/TokenCard'
 import { tokenCardData } from '../lib/tokenCard'
 import { KindChips, SectionHead, type KindFilter } from '../components/battlemap/KindSections'
 import { TOKEN_KINDS, normalizeKind, resolveKind } from '../lib/tokenKind'
-import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape } from '../db/types'
+import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneGroup, SceneTemplate, SceneToken, TemplateShape, TokenCombat, TokenKind, TokenShape, TokenTerrain } from '../db/types'
 
 /** Quick-add palette for non-NPC object tokens (T-21). Each drops a labeled,
  *  emoji-faced token; squares read better for built things (boats, doors). */
@@ -106,6 +110,7 @@ const TEMPLATE_SHAPES: { shape: TemplateShape; label: string; glyph: JSX.Element
   { shape: 'circle', label: 'Circle', glyph: <circle cx={8} cy={8} r={6} /> },
   { shape: 'cone', label: 'Cone', glyph: <polygon points="8,2 14,14 2,14" /> },
   { shape: 'line', label: 'Line', glyph: <rect x={2} y={6} width={12} height={4} /> },
+  { shape: 'cube', label: 'Cube', glyph: <rect x={3} y={3} width={10} height={10} /> },
 ]
 
 // Battle Map tab: the built-in VTT. A scene list on the left; the selected
@@ -413,7 +418,12 @@ export function SceneEditor({
   const [templateShape, setTemplateShape] = useState<TemplateShape | null>(null)
   const [templateSizeFt, setTemplateSizeFt] = useState(20)
   const [templateColor, setTemplateColor] = useState(TEMPLATE_COLORS[0])
-  const templateTool = templatesOpen && templateShape ? { shape: templateShape, sizeFt: templateSizeFt, color: templateColor } : null
+  const [templateWidthFt, setTemplateWidthFt] = useState<number | undefined>(undefined)
+  const [templateLabel, setTemplateLabel] = useState('')
+  const templateTool =
+    templatesOpen && templateShape
+      ? { shape: templateShape, sizeFt: templateSizeFt, color: templateColor, widthFt: templateWidthFt, label: templateLabel.trim() || undefined }
+      : null
   // Only one board tool at a time.
   function toggleMeasure() {
     setMeasuring((m) => {
@@ -440,9 +450,23 @@ export function SceneEditor({
     })
   }
   function armTemplate(shape: TemplateShape) {
+    setTemplateWidthFt(undefined)
+    setTemplateLabel('')
     setTemplateShape((s) => (s === shape ? null : shape))
   }
-  function placeTemplate(t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) {
+  /** Arm a preset or a spell: its shape, size and width (a label comes from the spell). */
+  function armPreset(p: { shape: TemplateShape; sizeFt: number; widthFt?: number }, label?: string) {
+    setTemplateShape(p.shape)
+    setTemplateSizeFt(p.sizeFt)
+    setTemplateWidthFt(p.widthFt)
+    setTemplateLabel(label ?? '')
+  }
+  function pickSpellName(name: string) {
+    setTemplateLabel(name)
+    const known = COMMON_SPELLS.find((x) => x.name.toLowerCase() === name.trim().toLowerCase())
+    if (known) armPreset(known, known.name)
+  }
+  function placeTemplate(t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string; widthFt?: number; label?: string }) {
     touch()
     setTemplates((ts) => [...ts, { ...t, id: crypto.randomUUID() }])
   }
@@ -517,6 +541,23 @@ export function SceneEditor({
   }
   // Add from NPC files the new token as an Enemy (default) or an NPC.
   const [npcAddKind, setNpcAddKind] = useState<'enemy' | 'npc'>('enemy')
+  // Movement range ring (T-103): per-browser preferences, not part of the scene.
+  const [rangeOn, setRangeOn] = useState(() => {
+    try { return localStorage.getItem('codex.bm.rangeRing') !== '0' } catch { return true }
+  })
+  const [rangeRule, setRangeRule] = useState<RingDiagonals>(() => {
+    try { return localStorage.getItem('codex.bm.rangeRule') === '5-10-5' ? '5-10-5' : 'standard' } catch { return 'standard' }
+  })
+  function toggleRange() {
+    setRangeOn((on) => {
+      try { localStorage.setItem('codex.bm.rangeRing', on ? '0' : '1') } catch { /* ignore */ }
+      return !on
+    })
+  }
+  function pickRangeRule(r: RingDiagonals) {
+    setRangeRule(r)
+    try { localStorage.setItem('codex.bm.rangeRule', r) } catch { /* ignore */ }
+  }
   const [hintOn, setHintOn] = useState(true)
   const narrowDock = useMediaQuery('(max-width: 1050px)')
   const asDrawer = expanded || isPhone || (runDocked && narrowDock)
@@ -1059,6 +1100,23 @@ export function SceneEditor({
               <input type="checkbox" checked={grid.show} onChange={(e) => setGridField({ show: e.target.checked })} />
               Show grid
             </label>
+            <label className="bm-slider">
+              Grid opacity
+              <input
+                type="range"
+                min={10}
+                max={100}
+                step={5}
+                value={Math.round((grid.opacity ?? 0.55) * 100)}
+                onChange={(e) => setGridField({ opacity: Number(e.target.value) / 100 })}
+                aria-label="Grid opacity"
+              />
+              <output>{Math.round((grid.opacity ?? 0.55) * 100)}%</output>
+            </label>
+            <label className="battlemap-check">
+              <input type="checkbox" checked={rangeRule === '5-10-5'} onChange={(e) => pickRangeRule(e.target.checked ? '5-10-5' : 'standard')} />
+              Range ring: count every second diagonal as 10 ft
+            </label>
             <div className="battlemap-fields">
               <label>
                 Square size (px)
@@ -1126,6 +1184,11 @@ export function SceneEditor({
           </section>
   )
 
+  const kindOf0 = (t: SceneToken): TokenKind => resolveKind(t, combatantOf(combat.state, t))
+  /** Set terrain markers; an empty marker set removes the key so nothing syncs. */
+  function patchTerrain(t: SceneToken, patch: Partial<TokenTerrain>) {
+    patchToken(t.id, { terrain: cleanTerrain({ ...t.terrain, ...patch }) })
+  }
   const tokenEditor = current ? (
     <div className="battlemap-token-edit">
                 <label>
@@ -1155,6 +1218,41 @@ export function SceneEditor({
                       ))}
                     </select>
                   </label>
+                )}
+                {studio && kindOf0(current) === 'prop' && (
+                  <div className="bm-terrain" data-testid="bm-terrain">
+                    <div className="battlemap-fields">
+                      <label>
+                        Width (cells)
+                        <NumberField value={current.w ?? current.size} min={MIN_FOOTPRINT} max={MAX_FOOTPRINT} step={1} onChange={(v) => v != null && patchToken(current.id, { w: v })} ariaLabel="Footprint width in cells" />
+                      </label>
+                      <label>
+                        Height (cells)
+                        <NumberField value={current.h ?? current.size} min={MIN_FOOTPRINT} max={MAX_FOOTPRINT} step={1} onChange={(v) => v != null && patchToken(current.id, { h: v })} ariaLabel="Footprint height in cells" />
+                      </label>
+                    </div>
+                    <label className="battlemap-check">
+                      <input type="checkbox" checked={!!current.terrain?.difficult} onChange={(e) => patchTerrain(current, { difficult: e.target.checked })} />
+                      Difficult terrain
+                    </label>
+                    <label className="battlemap-check">
+                      <input type="checkbox" checked={!!current.terrain?.blocks} onChange={(e) => patchTerrain(current, { blocks: e.target.checked })} />
+                      Blocks movement
+                    </label>
+                    <div className="bm-chips" role="group" aria-label="Cover">
+                      {([[undefined, 'No cover'], ['half', '½ cover'], ['three-quarters', '¾ cover']] as const).map(([v, label]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          className={`bm-chip${current.terrain?.cover === v ? ' on' : ''}`}
+                          aria-pressed={current.terrain?.cover === v}
+                          onClick={() => patchTerrain(current, { cover: v })}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <label>
                   Shape
@@ -1288,6 +1386,10 @@ export function SceneEditor({
         </div>
   )
 
+  // Spell names to suggest: those the selected token's stat block mentions come first.
+  const selNpc = npcs?.find((n) => n.id === tokens.find((t) => t.id === selectedToken)?.npcId)
+  const mentioned = spellsMentioned((selNpc?.statBlockData?.spellcasting ?? []).map((e) => `${e.name} ${e.text}`).join(' '))
+  const spellSuggestions = [...mentioned, ...COMMON_SPELLS.filter((c) => !mentioned.some((m) => m.name === c.name))]
   const templateBar = (
         <div className="battlemap-fogbar battlemap-templatebar">
           <span className="battlemap-fogbar-label"><Icon name="sparkles" size={14} /> Templates</span>
@@ -1302,6 +1404,35 @@ export function SceneEditor({
             <span className="faint">{templateShape === 'circle' ? 'Radius' : 'Length'}</span>
             <NumberField value={templateSizeFt} min={5} max={200} step={5} onChange={(v) => v != null && setTemplateSizeFt(v)} ariaLabel="Template size in feet" />
             <span className="faint">ft</span>
+          </label>
+          <div className="bm-chips bm-presets" role="group" aria-label="Template presets">
+            {TEMPLATE_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`bm-chip${templateShape === p.shape && templateSizeFt === p.sizeFt && !templateLabel ? ' on' : ''}`}
+                aria-pressed={templateShape === p.shape && templateSizeFt === p.sizeFt && !templateLabel}
+                onClick={() => armPreset(p)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <label className="battlemap-tpl-size" title="Optional caption. A known spell also sets the shape and size.">
+            <span className="faint">Spell (optional)</span>
+            <input
+              className="input"
+              list="bm-spell-list"
+              value={templateLabel}
+              onChange={(e) => pickSpellName(e.target.value)}
+              placeholder="Fireball"
+              aria-label="Spell name (optional)"
+            />
+            <datalist id="bm-spell-list">
+              {spellSuggestions.map((sp) => (
+                <option key={sp.name} value={sp.name}>{sp.shape} {sp.sizeFt} ft</option>
+              ))}
+            </datalist>
           </label>
           <div className="battlemap-tpl-colors" role="group" aria-label="Template color">
             {TEMPLATE_COLORS.map((c) => (
@@ -1327,7 +1458,7 @@ export function SceneEditor({
               {templates.map((t) => (
                 <span key={t.id} className="battlemap-tpl-chip" style={{ borderColor: t.color }}>
                   <span className="battlemap-tpl-dot" style={{ background: t.color }} />
-                  {t.shape} {t.sizeFt}ft
+                  {t.label ?? t.shape} {t.sizeFt}ft
                   <button className="battlemap-tpl-remove" onClick={() => removeTemplate(t.id)} aria-label="Remove template" title="Remove">×</button>
                 </span>
               ))}
@@ -1339,9 +1470,27 @@ export function SceneEditor({
         </div>
   )
 
+  // The selected token's walking range, from its manual speed or its stat block.
+  const ringToken = rangeOn && !preview ? tokens.find((t) => t.id === selectedToken) ?? null : null
+  const ringSpeed = ringToken
+    ? tokenCardData(ringToken, combatantOf(combat.state, ringToken), npcs?.find((n) => n.id === ringToken.npcId)).speedFt
+    : null
+  const rangeRing: RangeRing | null =
+    ringToken && ringSquares(ringSpeed) > 0 ? { token: ringToken, squares: ringSquares(ringSpeed), rule: rangeRule } : null
+
   const board = (
         <Tabletop
           pings={pings}
+          overlays={
+            <BoardOverlays
+              grid={grid}
+              width={size.width}
+              height={size.height}
+              viewer="dm"
+              ring={rangeRing}
+              tokens={boardTokens}
+            />
+          }
           width={size.width}
           height={size.height}
           grid={grid}
@@ -1455,7 +1604,7 @@ export function SceneEditor({
   // ---- Studio layout (round 2) ----------------------------------------------
   // Keyboard: I inspector, F full screen, V select, M measure, Esc closes the drawer.
   // (Hooks above run in every layout; this effect only acts in the studio.)
-  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {}, toggleDice: () => {} })
+  const keyActions = useRef({ toggleInspector, fullscreen: () => {}, select: () => {}, measure: () => {}, range: () => {}, closeDrawer: () => {}, next: () => {}, togglePlay: () => {}, toggleDice: () => {} })
   const preview0 = preview
   function selectTool() {
     setFogTool(null)
@@ -1474,6 +1623,7 @@ export function SceneEditor({
     fullscreen: () => (expanded ? exitFullscreen() : enterFullscreen()),
     select: selectTool,
     measure: () => !preview0 && toggleMeasure(),
+    range: toggleRange,
     closeDrawer: () => { setDrawerOpen(false); setPlayOpen(false) },
     togglePlay: () => runKit?.play && setPlayOpen((o) => !o),
     toggleDice: () => runKit?.diceBar && setDice(!diceOff),
@@ -1491,6 +1641,7 @@ export function SceneEditor({
       else if (k === 'f') a.fullscreen()
       else if (k === 'v') a.select()
       else if (k === 'm') a.measure()
+      else if (k === 'r') a.range()
       else if (k === 'n') a.next()
       else if (k === '[') a.togglePlay()
       else if (k === 'd') a.toggleDice()
@@ -1593,6 +1744,7 @@ export function SceneEditor({
             <TokenCard
               data={tokenCardData(current, combatantOf(combat.state, current), npcs?.find((n) => n.id === current.npcId))}
               speedFt={current.speedFt ?? null}
+              tags={terrainTags(current.terrain)}
               onSpeed={(v) => patchToken(current.id, { speedFt: v })}
               onOpenStatBlock={current.npcId ? () => setPeek({ kind: 'npc', id: current.npcId as string }) : undefined}
             />
@@ -1703,7 +1855,9 @@ export function SceneEditor({
                           ) : undefined
                         }
                         trail={
-                          isFoes && !t.groupId ? (
+                          g.kind === 'prop' && terrainTags(t.terrain).length > 0 ? (
+                            <span className="bm-tag" data-testid="bm-terrain-tag">{terrainTags(t.terrain).join(' · ')}</span>
+                          ) : isFoes && !t.groupId ? (
                             <button
                               type="button"
                               className={`bm-init${c ? ' on' : ''}`}
@@ -1770,6 +1924,23 @@ export function SceneEditor({
               </p>
             )}
             {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
+            <h4>Ambient light</h4>
+            <div className="bm-chips" role="group" aria-label="Ambient light">
+              {(['bright', 'dim', 'dark'] as const).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={`bm-chip${(grid.light ?? 'bright') === l ? ' on' : ''}`}
+                  aria-pressed={(grid.light ?? 'bright') === l}
+                  onClick={() => setGridField({ light: l })}
+                >
+                  {l[0].toUpperCase() + l.slice(1)}
+                </button>
+              ))}
+            </div>
+            {grid.light && grid.light !== 'bright' && (
+              <p className="faint" style={{ fontSize: 12 }}>Players see the full {grid.light} tint. You see it at half strength so prep stays readable.</p>
+            )}
           </section>
         )}
       </Inspector>
@@ -2185,6 +2356,18 @@ export function SceneEditor({
             )}
             {railBtn('select', 'select', 'Select (V)', tool === 'select', selectTool)}
             {railBtn('measure', 'measure', 'Measure (M)', tool === 'measure', toggleMeasure)}
+            <button
+              type="button"
+              className={`bm-tool${rangeOn ? ' on' : ''}`}
+              aria-pressed={rangeOn}
+              aria-label="Range ring (R)"
+              title="Range ring (R): show how far the selected token can move"
+              data-testid="tool-range"
+              disabled={preview}
+              onClick={toggleRange}
+            >
+              <BmIcon name="range" size={20} />
+            </button>
             <hr />
             {railBtn('fog', 'fog', 'Fog of war', tool === 'fog', toggleFog)}
             {railBtn('templates', 'templates', 'Area templates', tool === 'templates', toggleTemplates)}

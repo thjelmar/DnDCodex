@@ -44,8 +44,16 @@ export type BmIconName =
   | 'heart'
   | 'clock'
   | 'pause'
+  | 'range'
 
 const PATHS: Record<BmIconName, ReactNode> = {
+  range: (
+    <>
+      <circle cx="12" cy="12" r="2.2" />
+      <circle cx="12" cy="12" r="6" strokeDasharray="2.5 2.5" />
+      <circle cx="12" cy="12" r="9.5" />
+    </>
+  ),
   select: <path d="M5 3l14 7.5-6.2 1.9L10.5 19 5 3z" />,
   measure: (
     <>
