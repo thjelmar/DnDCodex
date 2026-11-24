@@ -9,6 +9,9 @@ import { SceneEditor } from './BattleMapPage'
 import { LiveSceneKeeper } from './LiveSceneKeeper'
 import { LiveCombatKeeper } from './LiveCombatKeeper'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { NotesSaveStatus, type SaveState } from '../components/NotesSaveStatus'
+import { clearDraft, getDraft, setDraft } from '../lib/noteDrafts'
+import type { Editor } from '@tiptap/react'
 import { SidePanel } from '../components/SidePanel'
 import { StatBlockView } from '../components/StatBlockEditor'
 import { DicePanel } from '../components/DiceRoller'
@@ -16,7 +19,7 @@ import { Icon } from '../components/Icon'
 import { BmIcon } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { PlayerSharingBar } from '../components/PlayerSharing'
-import { useCombat, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
+import { useCombat, useCombatState, CombatantRow, AddCustom, combatantFromNpc } from '../components/CombatRoster'
 import { InitiativeList } from '../components/InitiativeList'
 import { RunTimer } from '../components/RunTimer'
 import { RunHandouts } from '../components/RunHandouts'
@@ -626,18 +629,66 @@ function RunBattleMap({
 /** The session's DM notes (prep, on top — what you read mid-session) and the
  *  player-facing notes (the log of what happened). Autosaves like the editor. */
 export function RunSessionNotes({ session, onWikiLink }: { session: Session; onWikiLink: (t: string) => void }) {
-  const [notes, setNotes] = useState(session.notes)
-  const [dmNotes, setDmNotes] = useState(session.dmNotes)
+  type Draft = { notes: string; dmNotes: string }
+  const draftKey = `run-notes:${session.id}`
+  // Newer text from an editor that just unmounted (tab switch, full screen) may still be
+  // on its way to the database; start from it instead of the older saved copy.
+  const start = useRef(getDraft<Draft>(draftKey))
+  const [notes, setNotes] = useState(start.current?.notes ?? session.notes)
+  const [dmNotes, setDmNotes] = useState(start.current?.dmNotes ?? session.dmNotes)
+  const [status, setStatus] = useState<SaveState>('saved')
+  const [logEditor, setLogEditor] = useState<Editor | null>(null)
+  const combat = useCombatState()
+  const saved = useRef<Draft>(start.current ? { notes: '\u0000', dmNotes: '\u0000' } : { notes: session.notes, dmNotes: session.dmNotes })
+  const latest = useRef<Draft>({ notes, dmNotes })
+  latest.current = { notes, dmNotes }
+  const mounted = useRef(true)
+
+  // Writes the latest text. Safe to call from the debounce and from unmount.
+  async function flush() {
+    const d = latest.current
+    if (d.notes === saved.current.notes && d.dmNotes === saved.current.dmNotes) return
+    try {
+      await updateSession(session.id, { notes: d.notes, dmNotes: d.dmNotes })
+      saved.current = d
+      clearDraft(draftKey, d)
+    } finally {
+      if (mounted.current && latest.current.notes === d.notes && latest.current.dmNotes === d.dmNotes) setStatus('saved')
+    }
+  }
 
   useEffect(() => {
-    if (notes === session.notes && dmNotes === session.dmNotes) return
-    const t = setTimeout(() => { updateSession(session.id, { notes, dmNotes }) }, 500)
+    if (notes === saved.current.notes && dmNotes === saved.current.dmNotes) return
+    setDraft(draftKey, latest.current)
+    setStatus('saving')
+    const t = setTimeout(() => { void flush() }, 500)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, dmNotes, session.id])
 
+  // Switching tabs or leaving full screen unmounts this editor: write what's pending now.
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      void flush()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Quick insert: a bold "Round 3 · 8:42 PM — " marker at the caret in the session log.
+  function stamp() {
+    if (!logEditor) return
+    const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    const label = combat.active ? `Round ${combat.round} · ${time}` : time
+    logEditor.chain().focus().insertContent([
+      { type: 'text', text: label, marks: [{ type: 'bold' }] },
+      { type: 'text', text: ' — ' },
+    ]).run()
+  }
+
   return (
-    <>
+    <div className="notes-editor">
       <div className="run-session-title">
         <h2 className="mb-0">{session.title}</h2>
         <span className="faint">{formatDate(session.date)}</span>
@@ -653,6 +704,7 @@ export function RunSessionNotes({ session, onWikiLink }: { session: Session; onW
         placeholder="Your prep: hooks, secrets, what the villain does next…"
         minHeight={160}
         onWikiLink={onWikiLink}
+        demoEditable
       />
       <RichTextEditor
         campaignId={session.campaignId}
@@ -660,12 +712,21 @@ export function RunSessionNotes({ session, onWikiLink }: { session: Session; onW
         onChange={setNotes}
         label="Session notes"
         placeholder="Log what happens as you play. [[Wiki links]] pop into the In play list."
-        minHeight={200}
+        minHeight={220}
         revealNeedsConfirm={session.sharedWithPlayers === true}
         onWikiLink={onWikiLink}
+        demoEditable
+        onEditor={setLogEditor}
       />
-      <div className="faint" style={{ fontSize: 12 }}>Autosaves as you type. Click a [[wiki link]] to peek at it without leaving.</div>
-    </>
+      <div className="notes-foot">
+        <button type="button" className="btn ghost small" data-testid="notes-stamp" onClick={stamp} disabled={!logEditor}
+          title={combat.active ? 'Insert the current round and time at the caret' : 'Insert the current time at the caret'}>
+          <Icon name="clock" size={13} /> {combat.active ? `Round ${combat.round} · time` : 'Time'}
+        </button>
+        <NotesSaveStatus state={status} />
+      </div>
+      <div className="faint" style={{ fontSize: 12 }}>Autosaves as you type. Type [[Name]] to link an NPC or place; click a link to peek at it without leaving.</div>
+    </div>
   )
 }
 
