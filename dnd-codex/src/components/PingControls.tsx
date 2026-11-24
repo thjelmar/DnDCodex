@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BmIcon } from './battlemap/BmIcon'
 import { TOKEN_COLORS } from '../lib/tabletop'
 import type { PingsApi } from '../lib/usePings'
 
@@ -18,11 +19,11 @@ export function PingControls({ pings }: { pings: PingsApi }) {
           aria-pressed={pings.pingTool}
           title="Ping tool: click or tap the map to ping (P)"
         >
-          ◎ Ping
+          <BmIcon name="pin" size={16} /> Ping
         </button>
       )}
       <button className="btn ghost small" onClick={() => setOpen((o) => !o)} aria-expanded={open} title="Ping and cursor settings" aria-label="Ping and cursor settings">
-        ⋯
+        <BmIcon name="more" size={16} />
       </button>
       {open && (
         <div className="ping-menu" role="group" aria-label="Pings and cursors">

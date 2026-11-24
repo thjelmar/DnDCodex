@@ -2,7 +2,10 @@ import { useEffect, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updatePlayerNote } from '../db/repo'
+import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
+import { Inspector, type ExtraInspectorTab } from './battlemap/Inspector'
+import type { PanelPlacement } from '../lib/usePanelPlacement'
 import { SharedHandouts } from './SharedHandouts'
 import { type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
 import { PlayerInitiativePanel } from './PlayerInitiativePanel'
@@ -46,6 +49,7 @@ export function PlayerSessionDock({
   localCampaignId,
   userId,
   notes,
+  place,
 }: {
   tab: DockTab
   onTab: (t: DockTab) => void
@@ -54,34 +58,35 @@ export function PlayerSessionDock({
   localCampaignId: string
   userId: string | null
   notes: ReactNode
+  /** Where the panel sits (docked, floating, own window), shared with full screen. */
+  place: PanelPlacement
 }) {
-  const tabs: { id: DockTab; label: string; icon: 'swords' | 'user' | 'pencil' | 'image' }[] = [
-    { id: 'initiative', label: 'Initiative', icon: 'swords' },
-    { id: 'me', label: 'Me', icon: 'user' },
-    { id: 'notes', label: 'Notes', icon: 'pencil' },
+  const asking = needsInitiative(combat, userId)
+  const tabs: ExtraInspectorTab[] = [
+    { id: 'initiative', label: 'Initiative', icon: 'swords', badge: asking ? { testId: 'initiative-badge', label: 'Your DM is asking for initiative' } : undefined },
+    { id: 'me', label: 'Me', icon: 'heart' },
+    { id: 'notes', label: 'Notes', icon: 'notes' },
     { id: 'handouts', label: 'Handouts', icon: 'image' },
   ]
-  const asking = needsInitiative(combat, userId)
-  return (
-    <aside className="pl-dock card" data-testid="player-dock" aria-label="Session panel">
-      <div className="pl-dock-tabs" role="tablist">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            id={`pl-tab-${t.id}`}
-            aria-selected={tab === t.id}
-            aria-controls="pl-dock-body"
-            className={`pl-dock-tab${tab === t.id ? ' on' : ''}`}
-            onClick={() => onTab(t.id)}
-          >
-            <Icon name={t.icon} size={14} /> <span>{t.label}</span>
-            {t.id === 'initiative' && asking && <span className="pl-tab-badge" data-testid="initiative-badge" role="img" aria-label="Your DM is asking for initiative" />}
-          </button>
-        ))}
-      </div>
-      <div className="pl-dock-body" id="pl-dock-body" role="tabpanel" aria-labelledby={`pl-tab-${tab}`}>
+  if (place.mode === 'closed') return null
+  const inspector = (
+    <Inspector
+      mode={place.mode === 'window' ? 'window' : place.mode === 'float' ? 'float' : 'docked'}
+      tab={tab}
+      onTab={(t) => onTab(t as DockTab)}
+      extraTabs={tabs}
+      hideSceneTabs
+      noun="panel"
+      ariaLabel="Session panel"
+      className="pl-panel"
+      posKey="player-panel"
+      canFloat={place.canFloat}
+      canClose={place.canClose}
+      onToggleFloat={place.toggleFloat}
+      onOpenWindow={place.openWindow}
+      onClose={place.close}
+    >
+      <div className="pl-dock-body" id="pl-dock-body" role="tabpanel" data-testid="player-dock">
         {tab === 'initiative' && <PlayerInitiativePanel combat={combat} cloudCampaignId={cloudCampaignId} localCampaignId={localCampaignId} userId={userId} />}
         {tab === 'me' && <MeTab combat={combat} localCampaignId={localCampaignId} userId={userId} />}
         {tab === 'notes' && notes}
@@ -93,8 +98,27 @@ export function PlayerSessionDock({
           </>
         )}
       </div>
-    </aside>
+    </Inspector>
   )
+  // In its own window the same element renders there through a portal, so the window reads and
+  // writes the page's live state (the demo's in-memory session included). The page keeps a stub.
+  if (place.iw.win) {
+    return (
+      <>
+        {createPortal(inspector, place.iw.win.document.body)}
+        <aside className="bm-insp bm-stub bm-stub-float" data-testid="bm-inspector-stub">
+          <div className="bm-stub-title">The session panel is in its own window</div>
+          <p className="faint" style={{ fontSize: 13, margin: 0 }}>
+            {place.iw.onTop
+              ? 'This window stays on top of other windows. Close it to dock the panel again.'
+              : 'This browser cannot keep a separate window on top, so it can hide behind other windows. Chrome and Edge 116 or later can keep it on top.'}
+          </p>
+          <button type="button" className="bm-btn" onClick={place.toggle}>Bring it back</button>
+        </aside>
+      </>
+    )
+  }
+  return inspector
 }
 
 /** The player's own character(s): HP they can adjust (local sheet), AC, speed, and the conditions the DM set. */

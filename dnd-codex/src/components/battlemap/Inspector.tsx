@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { BmIcon, type BmIconName } from './BmIcon'
 
 export type InspectorTab = 'tokens' | 'grid' | 'map'
@@ -8,6 +8,8 @@ export interface ExtraInspectorTab {
   label: string
   /** When set, the tab shows this icon, and only the active tab also shows its label. */
   icon?: BmIconName
+  /** A small pulsing dot on the tab (the player's "your DM is asking" cue). */
+  badge?: { testId: string; label: string }
 }
 /** What the studio shares with Run mode's tab bodies: the selected combatant, a way to select one
  *  (which selects its token and pans the map to it), and a token's color. */
@@ -50,6 +52,12 @@ export function Inspector({
   foldScene = false,
   noun = 'inspector',
   footer,
+  hideSceneTabs = false,
+  canFloat = true,
+  canClose = true,
+  className,
+  ariaLabel,
+  posKey,
   children,
 }: {
   mode: InspectorMode
@@ -67,10 +75,36 @@ export function Inspector({
   onClose: () => void
   /** Pinned under the scrolling body (the selected-token card). */
   footer?: ReactNode
+  /** Show only `extraTabs` (the player's panel has no scene tabs). */
+  hideSceneTabs?: boolean
+  /** Offer the dock and float toggle (off on a phone). */
+  canFloat?: boolean
+  /** Offer the close button (off where the panel always shows). */
+  canClose?: boolean
+  className?: string
+  ariaLabel?: string
+  /** Remember a floating panel's position under this key (per browser). */
+  posKey?: string
   children: ReactNode
 }) {
-  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  const [pos, setPosState] = useState<{ left: number; top: number } | null>(() => readPos(posKey))
+  const setPos = (p: { left: number; top: number }) => {
+    setPosState(p)
+    if (posKey) {
+      try { localStorage.setItem(`codex.panelPos.${posKey}`, JSON.stringify(p)) } catch { /* ignore */ }
+    }
+  }
   const root = useRef<HTMLElement>(null)
+
+  // A remembered position can come from a bigger map (the page versus full screen): pull it back in view.
+  useEffect(() => {
+    const box = root.current?.offsetParent?.getBoundingClientRect()
+    if (mode !== 'float' || !pos || !box) return
+    const left = Math.min(Math.max(0, pos.left), Math.max(0, box.width - 80))
+    const top = Math.min(Math.max(0, pos.top), Math.max(0, box.height - 44))
+    if (left !== pos.left || top !== pos.top) setPosState({ left, top })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
 
   // The whole header drags the floating panel, tabs included. A press only
   // becomes a drag after it moves a few pixels, so a tap on a tab still selects
@@ -107,9 +141,9 @@ export function Inspector({
   return (
     <aside
       ref={root}
-      className={`bm-insp bm-insp-${mode}`}
+      className={`bm-insp bm-insp-${mode}${className ? ` ${className}` : ''}`}
       style={style}
-      aria-label={noun === 'inspector' ? 'Scene inspector' : 'Run panel'}
+      aria-label={ariaLabel ?? (noun === 'inspector' ? 'Scene inspector' : 'Run panel')}
       data-testid="bm-inspector"
     >
       <div
@@ -117,7 +151,7 @@ export function Inspector({
         onPointerDown={onPointerDown}
       >
         <div className="bm-tabs" role="tablist" aria-label="Inspector sections">
-          {[...(extraTabs ?? []), ...(foldScene ? FOLDED_TABS : TABS)].map((t) => {
+          {[...(extraTabs ?? []), ...(hideSceneTabs ? [] : foldScene ? FOLDED_TABS : TABS)].map((t) => {
             const icon = (t as ExtraInspectorTab).icon
             return (
               <button
@@ -132,6 +166,9 @@ export function Inspector({
               >
                 {icon && <BmIcon name={icon} size={16} />}
                 <span className="bm-tab-label">{t.label}</span>
+                {(t as ExtraInspectorTab).badge && (
+                  <span className="pl-tab-badge" data-testid={(t as ExtraInspectorTab).badge!.testId} role="img" aria-label={(t as ExtraInspectorTab).badge!.label} />
+                )}
               </button>
             )
           })}
@@ -147,7 +184,7 @@ export function Inspector({
             <BmIcon name="window" size={16} />
           </button>
         )}
-        {mode !== 'drawer' && mode !== 'window' && (
+        {canFloat && mode !== 'drawer' && mode !== 'window' && (
           <button
             type="button"
             className="bm-icon-btn"
@@ -158,6 +195,7 @@ export function Inspector({
             <BmIcon name={mode === 'float' ? 'dock' : 'float'} size={16} />
           </button>
         )}
+        {(canClose || mode === 'window') && (
         <button
           type="button"
           className="bm-icon-btn"
@@ -167,11 +205,22 @@ export function Inspector({
         >
           <BmIcon name="close" size={16} />
         </button>
+        )}
       </div>
       <div className="bm-insp-body">{children}</div>
       {footer}
     </aside>
   )
+}
+
+function readPos(key?: string): { left: number; top: number } | null {
+  if (!key) return null
+  try {
+    const v = JSON.parse(localStorage.getItem(`codex.panelPos.${key}`) ?? 'null') as { left?: unknown; top?: unknown } | null
+    return v && typeof v.left === 'number' && typeof v.top === 'number' ? { left: v.left, top: v.top } : null
+  } catch {
+    return null
+  }
 }
 
 /** One row in the Tokens tab: dot, name, HP pill and the show/hide eye. */

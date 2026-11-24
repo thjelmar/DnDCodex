@@ -5909,3 +5909,75 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   .pl-fs-narrow:not(.panel-open) .pl-fs-hud .pl-turns { max-width: calc(100vw - 200px - var(--sal) - var(--sar)); }
 }
 @media (prefers-reduced-motion: reduce) { .pl-turns.asking, .pl-turns .pl-ask-btn { animation: none; } }
+
+/* ---- Player rail, back button and movable panel (T-112) ---------------------------------------
+   1. The player's tool rail uses the DM rail's own geometry: 48px wide (52px on a phone), 36px
+      tools (40px on a phone, set by .bm-tool), 4px apart, icons centered in their buttons and the
+      buttons centered in the rail.
+   2. The session panel is the DM's Inspector shell (class pl-panel): docked beside the map, floating
+      over it, or in its own window. Docked it reserves width; floating, windowed and closed do not. */
+.player-live-board.pl-rail:not(.expanded) > .player-live-bar,
+.player-live-board.expanded.pl-fs-rail > .player-live-bar {
+  box-sizing: border-box; width: 48px; padding: 8px 0; gap: 4px; align-items: center;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.player-live-board.pl-rail:not(.expanded) .player-live-bar > .row,
+.player-live-board.expanded.pl-fs-rail .player-live-bar > .row { align-items: center; justify-content: center; gap: 4px !important; }
+.player-live-bar .bm-tool { flex: none; }
+.player-live-bar .player-spell-wrap { display: grid; place-items: center; }
+@media (min-width: 861px) {
+  .player-live-board.pl-rail:not(.expanded) > .player-live-bar { align-self: start; }
+}
+/* A phone: the page's bar lies flat above the map; full screen keeps the column. */
+@media (max-width: 860px) {
+  .player-live-board.pl-rail:not(.expanded) > .player-live-bar { width: auto; padding: 4px 6px; border-radius: var(--radius-sm); }
+  .player-live-board.pl-rail:not(.expanded) > .player-live-bar > .row { flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 820px), (pointer: coarse) and (max-height: 500px) {
+  .player-live-board.expanded.pl-fs-rail > .player-live-bar { width: 52px; }
+  .player-live-board.expanded.pl-fs-rail { padding-left: calc(68px + var(--sal)); }
+}
+.player-live-board.expanded.pl-fs-rail.phone-fs,
+html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.phone-fs { padding-left: calc(68px + var(--sal)); }
+@media (pointer: coarse) and (max-height: 500px) {
+  .player-live-board.expanded.pl-fs-rail > .player-live-bar { padding: 4px 0; gap: 3px; }
+}
+
+/* The session page's back button sits first in the top bar, as in Run Mode. */
+.session-header > .bm-btn.bm-sq { flex: none; }
+@media (max-height: 500px) {
+  .session-header { padding-left: max(12px, var(--sal)); padding-right: max(12px, var(--sar)); }
+}
+
+/* The panel, in every placement. */
+.session-map { position: relative; }
+.session-grid.no-dock { grid-template-columns: minmax(0, 1fr); }
+.pl-panel .bm-tabs button { position: relative; }
+.pl-panel .bm-tabs .pl-tab-badge { position: absolute; top: 3px; right: 3px; }
+.pl-panel .bm-insp-hd { position: sticky; top: 0; z-index: 2; background: var(--bg-elev); }
+.pl-panel .pl-dock-body { padding: 14px; }
+.pl-panel.bm-insp-float { width: 360px; height: min(560px, 80%); z-index: 16; }
+.pl-panel.bm-insp-float .bm-insp-body { padding: 0; }
+.pl-panel.bm-insp-window { border: 0; }
+.bm-window-body .pl-panel .bm-insp-body { padding: 0; }
+@media (min-width: 861px) {
+  .session-grid > .pl-panel.bm-insp-docked { width: auto; height: 100%; max-height: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; }
+}
+@media (max-width: 860px) {
+  .session-grid > .pl-panel.bm-insp-docked { width: auto; margin: 0 8px; max-height: none; border: 1px solid var(--border); border-radius: 14px 14px 10px 10px; }
+}
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 860px) {
+  .session-grid > .pl-panel.bm-insp-docked { margin: 0; height: 100%; border: 0; border-left: 1px solid var(--border); border-radius: 0; }
+}
+.pl-fs-panel .pl-panel.bm-insp-docked { position: static; width: 100%; height: 100%; max-height: none; margin: 0; border: 1px solid var(--border); border-radius: var(--radius); }
+.pl-fs-narrow .pl-fs-panel .pl-panel.bm-insp-docked { border: 0; border-radius: 14px 14px 0 0; background: transparent; }
+@media (orientation: landscape) and (max-height: 500px) { .pl-fs-narrow .pl-fs-panel .pl-panel.bm-insp-docked { border-radius: 0; } }
+
+/* The zoom bar moves clear of a floating panel (--map-clear-right, set by useMapClearRight). */
+.player-live-board .tabletop-zoom { right: calc(10px + var(--sar, 0px) + var(--map-clear-right, 0px)); }
+/* A short window (a phone turned sideways): the full screen rail tightens so the join pop-up keeps its room, as before. */
+@media (max-height: 500px) {
+  .player-live-board.expanded.pl-fs-rail > .player-live-bar { padding: 4px 0; gap: 3px; }
+  .player-live-board.expanded.pl-fs-rail .player-live-bar > .row { gap: 3px !important; }
+  .player-live-board.expanded.pl-fs-rail .player-live-bar .bm-tool { width: 34px; height: 34px; }
+}

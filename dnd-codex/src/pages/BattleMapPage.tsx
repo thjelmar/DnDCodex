@@ -23,6 +23,7 @@ import { BmIcon, type BmIconName } from '../components/battlemap/BmIcon'
 import { BmMenu } from '../components/battlemap/BmMenu'
 import { Inspector, TokenRow, type RunTab, type RunStudioCtx } from '../components/battlemap/Inspector'
 import { useInspectorWindow } from '../components/battlemap/useInspectorWindow'
+import { useMapClearRight } from '../lib/usePanelPlacement'
 import { TurnStrip } from '../components/battlemap/TurnStrip'
 import { GroupBox } from '../components/battlemap/GroupBox'
 import {
@@ -575,41 +576,9 @@ export function SceneEditor({
       setDrawerOpen(true)
     } else setDockOpen(true)
   }
-  // The zoom, Fit and Ping bar sits at the bottom right of the map. A floating panel or the drawer
-  // overlays the map, so measure how far it reaches in from the right edge and publish it as
-  // --map-clear-right; the bar moves clear of it. Docked panels shrink the map itself, so they need none.
+  // The zoom, Fit and Ping bar moves clear of a floating panel or the drawer (shared hook, lib/usePanelPlacement.ts).
   const mapElRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const map = mapElRef.current
-    if (!map) return
-    const overlays = !iw.win && (asDrawer || inspFloat) && inspVisible
-    const overlay = () => (overlays ? map.querySelector<HTMLElement>('[data-testid="bm-inspector"]') : null)
-    const update = () => {
-      const panel = overlay()
-      let clear = 0
-      if (panel) {
-        const m = map.getBoundingClientRect()
-        const r = panel.getBoundingClientRect()
-        // Only a panel that reaches the bottom strip hides the bar; a panel over most of the map (a phone drawer) is modal.
-        if (r.width > 0 && r.bottom > m.bottom - 72 && r.left < m.right) clear = Math.max(0, m.right - r.left)
-        if (clear > m.width * 0.6) clear = 0
-      }
-      map.style.setProperty('--map-clear-right', `${Math.round(clear)}px`)
-    }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(map)
-    const panel = overlay()
-    if (panel) ro.observe(panel)
-    const mo = new MutationObserver(update)
-    if (panel) mo.observe(panel, { attributes: true, attributeFilter: ['style', 'class'] })
-    window.addEventListener('resize', update)
-    return () => {
-      ro.disconnect()
-      mo.disconnect()
-      window.removeEventListener('resize', update)
-    }
-  })
+  useMapClearRight(mapElRef, !iw.win && (asDrawer || inspFloat) && inspVisible)
   function toggleNotes() {
     if (isPhone && !notesOpen) setDrawerOpen(false)
     setNotesOpen((o) => !o)
