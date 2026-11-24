@@ -13,6 +13,23 @@ import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
 import { Icon } from './Icon'
 import type { SceneTemplate, TemplateShape } from '../db/types'
 
+/** True at 860px wide and below, where the full-screen session panel becomes a drawer. */
+function useNarrowFs(): boolean {
+  return useMedia('(max-width: 860px)')
+}
+
+function useMedia(q: string): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches)
+  useEffect(() => {
+    const m = window.matchMedia?.(q)
+    if (!m) return
+    const on = () => setNarrow(m.matches)
+    m.addEventListener('change', on)
+    return () => m.removeEventListener('change', on)
+  }, [])
+  return narrow
+}
+
 /** Spell-area presets a player can drop on the live map (shape defaults to the
  *  effect type: a burst is a circle, a breath/cone is a cone, a bolt is a line). */
 const SPELL_PRESETS: { label: string; shape: TemplateShape; sizeFt: number }[] = [
@@ -40,6 +57,7 @@ export function PlayerLiveBoardView({
   linkedCampaignId,
   notes,
   notesLabel = 'Notes',
+  fsExtras,
   compact = false,
   rail = false,
   empty,
@@ -49,6 +67,14 @@ export function PlayerLiveBoardView({
   /** Shown beside the map in full screen (e.g. the player's session notes). */
   notes?: ReactNode
   notesLabel?: string
+  /**
+   * The session page's own player UI, shown inside full screen so it matches the page: the
+   * "Your turn" banner, the initiative strip (Join initiative), the demo controls, and the tabbed
+   * panel (docked right, or a drawer on narrow screens). The page renders them here instead of in
+   * its own layout while full screen is open, so there is one live copy. Without it, full screen
+   * falls back to `notes` beside the map.
+   */
+  fsExtras?: { turn?: ReactNode; strip?: ReactNode; demo?: ReactNode; panel?: ReactNode }
   /** Small inline board (e.g. a sidebar card); full screen still gets the room. */
   compact?: boolean
   /** Tools as a slim vertical rail beside the map (the session page's Run Mode look). */
@@ -75,7 +101,13 @@ export function PlayerLiveBoardView({
   const isPhone = useIsPhone()
   const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
   const [colorOpen, setColorOpen] = useState(false)
-  const phoneFs = fs.expanded && isPhone
+  // The session panel: docked on wide screens, a drawer from 860px down (and on every phone).
+  const narrow = useNarrowFs()
+  const [panelPick, setPanelPick] = useState<boolean | null>(null)
+  const panelOpen = panelPick ?? !narrow
+  // A short landscape window (a phone turned sideways, even without a touch screen) gets the phone layout too.
+  const shortScreen = useMedia('(max-height: 500px)')
+  const phoneFs = fs.expanded && (isPhone || shortScreen)
   // The page's demo banner and phone top bar hide while a phone is in full screen (see styles.css).
   useEffect(() => {
     if (!phoneFs) return
@@ -231,10 +263,11 @@ export function PlayerLiveBoardView({
     )
   }
 
-  const withNotes = fs.expanded && notesOpen && !!notes
+  const withPanel = fs.expanded && !!fsExtras?.panel
+  const withNotes = fs.expanded && !withPanel && notesOpen && !!notes
 
   return (
-    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}`}>
+    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}${withPanel ? ` pl-fs-shell${panelOpen ? ' panel-open' : ''}${narrow ? ' pl-fs-narrow' : ''}` : ''}`}>
       <div className="player-live-bar">
         {(fs.expanded || !compact) && (
           <strong className="player-live-name">
@@ -265,6 +298,7 @@ export function PlayerLiveBoardView({
           />
         </div>
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
+          {fs.expanded && fsExtras?.demo}
           {(phoneFs || (rail && !fs.expanded)) && (
             <button
               className={`btn small${colorOpen ? ' primary' : ''}`}
@@ -321,7 +355,12 @@ export function PlayerLiveBoardView({
               Clear mine
             </button>
           )}
-          {fs.expanded && notes && (
+          {withPanel && (
+            <button className={`btn small${panelOpen ? ' primary' : ''}`} onClick={() => setPanelPick(!panelOpen)} aria-expanded={panelOpen} aria-label={panelOpen ? 'Hide session panel' : 'Session panel'} data-testid="fs-panel-toggle">
+              <Icon name="swords" size={14} /> <span className="pl-lbl">{panelOpen ? 'Hide panel' : 'Session panel'}</span>
+            </button>
+          )}
+          {fs.expanded && !withPanel && notes && (
             <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)} aria-label={notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}>
               📝 <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
             </button>
@@ -345,6 +384,12 @@ export function PlayerLiveBoardView({
         </p>
       )}
       {error && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</p>}
+      {withPanel && (fsExtras?.turn || fsExtras?.strip) && (
+        <div className="pl-fs-hud">
+          {fsExtras?.turn}
+          {fsExtras?.strip}
+        </div>
+      )}
 
       <div className={`battlemap-body player${withNotes ? ' with-notes' : ''}`}>
         {withNotes && <aside className="battlemap-notes">{notes}</aside>}
@@ -393,6 +438,7 @@ export function PlayerLiveBoardView({
             return hasFloatingStatus(cc) ? <TokenStatusCard token={t} combat={cc} /> : null
           }}
         />
+        {withPanel && panelOpen && <div className="pl-fs-panel" data-testid="fs-panel">{fsExtras?.panel}</div>}
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (
         <p className="faint" style={{ fontSize: 12, margin: '6px 0 0' }}>Drag your token (green ring) to move it.</p>
