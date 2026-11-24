@@ -29,7 +29,7 @@ export default defineConfig({
     // Safari's engine: one race that Chromium never shows (T-71, e2e/editor-webkit-race.spec.ts) and
     // the core of Overview pointer drag (T-90, e2e/overview-edit-drag-webkit.spec.ts).
     // Needs `npx playwright install webkit` once per Playwright version.
-    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /(editor-webkit-race|overview-edit-drag-webkit|battlemap-undo|battlemap-phone|battlemap-landscape|run-map-phone|run-desktop|run-initiative|run-panel-tools|safe-area|landscape-shell|landscape-campaign)\.spec\.ts/ },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testMatch: /(map-pings|editor-webkit-race|overview-edit-drag-webkit|battlemap-undo|battlemap-phone|battlemap-landscape|run-map-phone|run-desktop|run-initiative|run-panel-tools|safe-area|landscape-shell|landscape-campaign)\.spec\.ts/ },
   ],
   webServer: {
     command: `npx vite --port ${PORT} --strictPort`,
