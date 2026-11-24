@@ -91,6 +91,22 @@ test.describe('player rail', () => {
   })
 })
 
+test('the player toolbars use the site icon set, with no emoji or text glyphs', async ({ page }) => {
+  await open(page, PLAYER)
+  await page.getByTestId('demo-controls-toggle').click()
+  await page.getByTestId('demo-ask').click()
+  const glyph = /[\u{1F300}-\u{1FAFF}\u2600-\u27BF\u25CE\u25CF\u22EF\u2726]/u
+  for (const sel of ['.player-live-bar', '.tabletop-zoom', '[data-testid="demo-controls"]', '[data-testid="initiative-strip"]', '.session-header', '[data-testid="bm-inspector"] .bm-insp-hd']) {
+    const text = await page.locator(sel).first().innerText()
+    expect(text, sel).not.toMatch(glyph)
+  }
+  // Every rail tool carries an accessible name and a tooltip.
+  for (const b of await page.locator('.player-live-bar .bm-tool').all()) {
+    await expect(b).toHaveAttribute('aria-label', /.+/)
+    await expect(b).toHaveAttribute('title', /.+/)
+  }
+})
+
 test.describe('back button', () => {
   test('sits first in the top bar on the DM and player pages and goes back', async ({ page }) => {
     await open(page, DM)

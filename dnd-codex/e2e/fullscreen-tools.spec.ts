@@ -43,7 +43,7 @@ for (const size of SIZES) {
     await expectReachable(page, measure, 'Measure')
     await expectReachable(page, spell, 'Spell area')
     await expectReachable(page, exit, 'Exit full screen')
-    await expectReachable(page, board.getByRole('button', { name: /^◎ Ping$/ }), 'Ping')
+    await expectReachable(page, board.getByRole('button', { name: /^Ping$/ }), 'Ping')
 
     // Color: a swatch on wide screens, behind the color button on a phone.
     const colorBtn = bar.getByRole('button', { name: 'Your token color' })
@@ -100,7 +100,7 @@ for (const size of SIZES) {
     await expectReachable(page, studio.locator('.bm-rail .bm-tool').first(), 'First rail tool')
     // The top bar's controls: the Exit button, or on a narrow bar the More actions menu that holds it.
     await expectReachable(page, studio.locator('.bm-top button[aria-label="Exit full screen"], .bm-top button[aria-label="More actions"]').first(), 'Top bar control')
-    await expectReachable(page, studio.getByRole('button', { name: /^◎ Ping$/ }), 'Ping')
+    await expectReachable(page, studio.getByRole('button', { name: /^Ping$/ }), 'Ping')
 
     // Leave through the same control: the normal layout comes back.
     if (!alreadyFull) {

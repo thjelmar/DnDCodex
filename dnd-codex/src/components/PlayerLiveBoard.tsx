@@ -311,7 +311,7 @@ export function PlayerLiveBoardView({
       <>
         {empty ?? (
           <div className="empty">
-            <div className="big">🗺️</div>
+            <div className="big"><BmIcon name="map" size={36} /></div>
             <p>Your DM isn't showing a battle map right now. When they do, it appears here live.</p>
           </div>
         )}
@@ -377,7 +377,7 @@ export function PlayerLiveBoardView({
             <BarBtn
               rail={rail}
               icon="range"
-              glyph="◎"
+              glyph={<BmIcon name="range" size={16} />}
               text="Range"
               on={ringOn}
               onClick={toggleRing}
@@ -390,7 +390,7 @@ export function PlayerLiveBoardView({
           <BarBtn
             rail={rail}
             icon="measure"
-            glyph="📏"
+            glyph={<BmIcon name="measure" size={16} />}
             text={measuring ? 'Done' : 'Measure'}
             on={measuring}
             onClick={() => { setSpellTool(null); setSpellOpen(false); setMeasuring((m) => !m) }}
@@ -401,7 +401,7 @@ export function PlayerLiveBoardView({
             <BarBtn
               rail={rail}
               icon="templates"
-              glyph="✨"
+              glyph={<BmIcon name="templates" size={16} />}
               text={spellTool ? 'Stop' : 'Spell area'}
               on={!!spellTool}
               onClick={() => { if (spellTool) { setSpellTool(null); setSpellOpen(false) } else setSpellOpen((o) => !o) }}
@@ -452,7 +452,7 @@ export function PlayerLiveBoardView({
           )}
           {fs.expanded && !withPanel && notes && (
             <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)} aria-label={notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}>
-              📝 <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
+              <BmIcon name="notes" size={16} /> <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
             </button>
           )}
           <BarBtn
