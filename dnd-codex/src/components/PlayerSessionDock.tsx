@@ -1,12 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { updatePlayerNote } from '../db/repo'
 import { Icon } from './Icon'
 import { SharedHandouts } from './SharedHandouts'
-import { endMyTurn, type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
+import { type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
 import { PlayerInitiativePanel } from './PlayerInitiativePanel'
-import { needsInitiative } from './PlayerInitiativeStrip'
+import { needsInitiative } from './PlayerTurnStrip'
 import { conditionMeta } from '../lib/combat'
 
 // The player's docked panel for the live session (T-104): Initiative, Me, Notes and
@@ -36,45 +36,6 @@ export function useMyTurnAlert(mine: LiveCombatRow[]) {
     try { navigator.vibrate?.([120, 60, 120]) } catch { /* not supported */ }
     return () => { document.title = title }
   }, [on])
-}
-
-/** "Your turn" banner with End turn, for the top bar. Shows nothing when it is not your turn. */
-export function PlayerTurnBanner({
-  rows,
-  cloudCampaignId,
-}: {
-  rows: LiveCombatRow[]
-  cloudCampaignId: string
-}) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [asked, setAsked] = useState<string | null>(null)
-  const row = rows[0]
-  // A new turn clears the "waiting for your DM" state.
-  useEffect(() => { setAsked(null); setError(null) }, [row?.id])
-  if (!row) return null
-  async function end() {
-    setBusy(true)
-    setError(null)
-    try {
-      await endMyTurn(cloudCampaignId, row.id)
-      setAsked(row.id)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not end your turn. Try again.')
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="pl-turn" data-testid="your-turn" role="status" aria-live="polite">
-      <span className="pl-turn-dot" aria-hidden />
-      <strong>Your turn{rows.length === 1 ? ` · ${row.name}` : ''}</strong>
-      <button type="button" className="btn small primary" onClick={end} disabled={busy || asked === row.id} data-testid="end-turn">
-        {asked === row.id ? 'Waiting for your DM…' : 'End turn'}
-      </button>
-      {error && <span className="pis-error" role="alert">{error}</span>}
-    </div>
-  )
 }
 
 export function PlayerSessionDock({

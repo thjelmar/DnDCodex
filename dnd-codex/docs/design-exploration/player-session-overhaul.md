@@ -154,13 +154,12 @@ Differences from the mockups:
 Not verified: the signed-in Realtime path, the DM applying End turn on a real
 second device, and a real iPhone. Tests mock Supabase.
 
-## T-108: Initiative tab wears the DM tracker look
+## T-108: player turn strip and tracker-style Initiative tab
 
-- `PlayerInitiativePanel.tsx` renders the player's Initiative tab with the DM tracker's `il-*` classes
-  (header with turn and combatant counts, round avatar, initiative at the right, highlighted turn).
-  Enemies show the optional marker and never HP; a player edits only their own row.
-- Join initiative (or Set my initiative) and Leave combat sit at the bottom of the list. The form opens
-  there, in place of the buttons, like the DM's Add combatant.
-- `PlayerInitiativeStrip.tsx` is now only a prompt, shown while the DM gathers initiative and the player
-  is not in the order. Its Open Initiative button fires `OPEN_INITIATIVE_EVENT`: the page selects the tab
-  and scrolls the dock into view, and full screen opens its drawer. The tab also shows a pulsing dot.
+- The Initiative tab (`PlayerInitiativePanel.tsx`) wears the DM tracker's `il-*` rows. Enemies show the
+  optional marker and never HP; a player edits only their own row.
+- `PlayerTurnStrip.tsx` is the DM's `bm-turns` pill at the map's bottom left: round, whose turn, one round
+  chip per combatant. No Next for players. It shows Join initiative while the DM asks (pulsing, and a dot
+  on the Initiative tab), End turn on your own turn (replacing the Your turn banner), and a pop-up above
+  the strip to set your initiative or leave combat.
+- Full screen fixes the strip to the screen's bottom left, above the zoom bar and the drawer.

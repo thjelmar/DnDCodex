@@ -5825,15 +5825,41 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 .il-add .il-join { width: 100%; box-sizing: border-box; }
 .il-foot { flex-wrap: wrap; }
 .pl-dock-body .il-row.turn { scroll-margin: 8px; }
-/* The nudge above the map while the DM gathers initiative, and the dot on the tab. */
-.pl-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 6px 6px 12px; margin: 0 0 8px; border: 1px solid var(--accent); border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 14%, var(--bg-elev)); font-size: 14px; }
-.pl-ask-text { flex: 1 1 auto; min-width: 0; }
+/* The dot on the Initiative tab while the DM asks. */
 .pl-tab-badge { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pl-pulse 1.6s ease-in-out infinite; }
-.pl-fs-shell .pl-fs-hud .pl-ask { align-self: flex-start; margin: 0; }
-.player-live-board.phone-fs .pl-fs-hud .pl-ask { background: var(--bg-elev); }
 @media (prefers-reduced-motion: reduce) { .pl-tab-badge { animation: none; } }
 /* Demo controls open on the map side, so they never sit over the panel's Join initiative form (T-108). */
 @media (min-width: 861px) {
   .demo-ctl-body { right: auto; left: 12px; }
 }
 .il-join-actions { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+
+/* ---- Player turn strip (T-108): the DM's .bm-turns pill, bottom left of the player's map ----
+   The pill, round, chips and Next-style button come from the DM strip's classes above. Only the
+   placement, the pulse while the DM asks, and the pop-up are new. */
+.pl-map-wrap { position: relative; }
+.pl-turns { flex-wrap: nowrap; }
+.pl-turns.asking { border-color: var(--accent); animation: bm-chip-pulse 1.8s ease-out infinite; }
+.pl-turns .pl-ask-btn { animation: bm-chip-pulse 1.8s ease-out infinite; }
+.bm-chip.mine { background: var(--accent); }
+.pl-turns-pop { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 6; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.pl-turns-pop .il-join { border: 0; padding: 0; background: transparent; }
+.pl-turns-err { position: absolute; left: 12px; bottom: calc(100% + 4px); }
+@media (min-width: 861px) {
+  .pl-map-wrap .pl-turns { left: 70px; max-width: calc(100% - 330px); }
+}
+@media (max-width: 860px) {
+  .pl-map-wrap .pl-turns { left: 10px; bottom: 64px; max-width: calc(100% - 20px); }
+}
+/* Full screen: the strip is fixed to the screen's bottom left, clear of the docked panel and the zoom bar. */
+.pl-fs-shell .pl-fs-hud { margin: 0; }
+.pl-fs-shell .pl-fs-hud .pl-turns { position: fixed; z-index: 14; left: calc(14px + var(--sal)); bottom: calc(14px + var(--sab)); max-width: calc(100vw - 200px - var(--sal) - var(--sar)); pointer-events: auto; }
+.pl-fs-shell.panel-open:not(.pl-fs-narrow) .pl-fs-hud .pl-turns { max-width: calc(100vw - 360px - 200px - var(--sal)); }
+.pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(64px + var(--sab)); max-width: calc(100vw - 28px - var(--sal) - var(--sar)); }
+.pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(50% + 62px); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); max-width: calc(100vw - min(340px, 45vw) - 28px - var(--sal) - var(--sar)); }
+  .pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); }
+  .pl-fs-narrow:not(.panel-open) .pl-fs-hud .pl-turns { max-width: calc(100vw - 200px - var(--sal) - var(--sar)); }
+}
+@media (prefers-reduced-motion: reduce) { .pl-turns.asking, .pl-turns .pl-ask-btn { animation: none; } }

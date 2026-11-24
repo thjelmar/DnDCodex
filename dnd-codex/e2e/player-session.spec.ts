@@ -149,7 +149,7 @@ test.describe('ending your own turn', () => {
     await expect(page.getByTestId('end-turn')).toHaveCount(0)
   })
 
-  test('on your turn the banner shows, and End turn calls end_my_turn once for your row', async ({ page }) => {
+  test('on your turn the strip shows End turn, and it calls end_my_turn once for your row', async ({ page }) => {
     const mock: Mock = { rows: rowsFor(true), calls: [] }
     await seedPlayer(page)
     await mockCombat(page, mock, true, 'brann')

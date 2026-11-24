@@ -4,7 +4,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
-import { PlayerSessionDock, PlayerTurnBanner, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
+import { PlayerSessionDock, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
@@ -14,7 +14,7 @@ import { parseDiscordChannelLink } from '../lib/discord'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useLiveCombat } from '../auth/liveCombat'
 import { useAuth } from '../auth/AuthProvider'
-import { PlayerInitiativeStrip, OPEN_INITIATIVE_EVENT } from '../components/PlayerInitiativeStrip'
+import { PlayerTurnStrip } from '../components/PlayerTurnStrip'
 import { formatDate } from '../lib/format'
 import { DemoLiveControls } from '../components/DemoLiveControls'
 
@@ -45,16 +45,6 @@ export function PlayerSessionPage() {
   const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
   const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
   useMyTurnAlert(myTurnRows)
-  // The "Roll for initiative" prompt asks for the Initiative tab; on the page the dock sits under
-  // or beside the map, so show the tab and bring it into view (full screen opens its own drawer).
-  useEffect(() => {
-    const open = () => {
-      setPickedTab('initiative')
-      requestAnimationFrame(() => document.querySelector('.pl-dock')?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }))
-    }
-    window.addEventListener(OPEN_INITIATIVE_EVENT, open)
-    return () => window.removeEventListener(OPEN_INITIATIVE_EVENT, open)
-  }, [])
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -121,9 +111,8 @@ export function PlayerSessionPage() {
     </>
   )
   // The same player UI the page shows, built once so full screen can host it too.
-  const turnEl = <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
   const stripEl = (
-    <PlayerInitiativeStrip combat={liveCombat.combat} userId={user?.id ?? null} />
+    <PlayerTurnStrip combat={liveCombat.combat} cloudCampaignId={linkedId} localCampaignId={campaignId} userId={user?.id ?? null} />
   )
   const dockEl = (
     <PlayerSessionDock
@@ -143,7 +132,7 @@ export function PlayerSessionPage() {
       compact={compact}
       rail={!compact}
       onExpandedChange={setMapFull}
-      fsExtras={{ turn: turnEl, strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
+      fsExtras={{ strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
       empty={
         <div className="session-vtt-slot">
           <Icon name="map" size={28} strokeWidth={1.3} />
@@ -166,7 +155,6 @@ export function PlayerSessionPage() {
         {liveCombat.combat?.phase === 'active' && (
           <span className="pl-round" data-testid="top-round"><span className="pl-pulse" aria-hidden /> Round {liveCombat.combat.round}</span>
         )}
-        {!mapFull && turnEl}
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
         {!mapFull && <DemoLiveControls />}
@@ -179,13 +167,12 @@ export function PlayerSessionPage() {
 
       <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
         <section className="session-map">
-          {!mapFull && stripEl}
           {mapLive ? (
-            <div className="card run-card session-vtt">{board(false)}</div>
+            <div className="card run-card session-vtt"><div className="pl-map-wrap">{board(false)}{!mapFull && stripEl}</div></div>
           ) : (
             <div className="card run-card session-vtt">
               <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
-              {board(true)}
+              <div className="pl-map-wrap">{board(true)}{!mapFull && stripEl}</div>
             </div>
           )}
         </section>

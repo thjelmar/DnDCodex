@@ -44,12 +44,14 @@ for (const size of SIZES) {
     }
     await demo('demo-ask')
     await expect(board.getByTestId('initiative-strip')).toBeVisible()
-    // The prompt opens the panel (a drawer on narrow screens); Join initiative lives in its list.
-    await board.getByTestId('open-initiative').click()
-    await expect(board.getByTestId('initiative-list')).toBeVisible()
-    await board.getByTestId('join-initiative').click()
+    // Join initiative lives in the turn strip, bottom left of the map.
+    const strip = board.getByTestId('initiative-strip')
+    const box = await strip.boundingBox()
+    expect(box!.x).toBeLessThan(120)
+    await strip.getByTestId('join-initiative').click()
+    await expect(board.getByTestId('join-pop')).toBeVisible()
     await board.getByTestId('join-submit').click()
-    await expect(board.getByTestId('dock-row').filter({ hasText: 'Thalia' })).toBeVisible()
+    await expect(strip.getByTestId('strip-chip').first()).toBeVisible()
     await demo('demo-start')
     await expect(board.getByTestId('dock-row').filter({ hasText: 'Goblin Boss' })).toBeVisible()
 

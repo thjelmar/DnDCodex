@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { BmIcon } from './battlemap/BmIcon'
 import { NumberField } from './NumberField'
-import { endMyTurn, joinCombat, leaveCombat, orderRows, setMyInitiative, type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
+import { leaveCombat, orderRows, setMyInitiative, type LiveCombat, type LiveCombatRow } from '../auth/liveCombat'
 import { rollInitiative } from '../lib/combat'
 import { initials } from '../lib/tabletop'
 import type { HealthMarker } from '../lib/liveCombat'
@@ -12,12 +12,12 @@ import type { HealthMarker } from '../lib/liveCombat'
 // classes of Run mode's InitiativeList) but is a separate component: it reads the
 // privacy-filtered combat the DM shared and nothing else. Enemies show an optional
 // Injured / Bloodied / Death's door marker and never HP. A player edits only their
-// own rows, and Join initiative sits at the bottom where the DM's Add combatant is.
+// own rows. Join initiative lives in the map's turn strip (PlayerTurnStrip).
 // Like the rest of the player code, this file never imports the DM's reveal guard.
 
 const MARKER_TEXT: Record<HealthMarker, string> = { injured: 'Injured', bloodied: 'Bloodied', deaths_door: 'Death’s door' }
 
-interface Character {
+export interface Character {
   key: string
   name: string
   dexMod: number
@@ -26,7 +26,7 @@ interface Character {
 }
 
 /** The player's own character sheets in this campaign (local), for the Join form. */
-function useMyCharacters(localCampaignId: string): Character[] {
+export function useMyCharacters(localCampaignId: string): Character[] {
   const notes = useLiveQuery(
     () => db.playerNotes.where('campaignId').equals(localCampaignId).filter((n) => n.section === 'character').toArray(),
     [localCampaignId],
@@ -61,12 +61,7 @@ export function PlayerInitiativePanel({
   userId: string | null
 }) {
   const rows = useMemo(() => (combat ? orderRows(combat.rows) : []), [combat])
-  const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const characters = useMyCharacters(localCampaignId)
-
-  // The prompt's Open button and the DM asking again both land here; close a stale form when combat ends.
-  useEffect(() => { if (!combat) setAdding(false) }, [combat])
 
   if (!combat) {
     return (
@@ -78,9 +73,8 @@ export function PlayerInitiativePanel({
   }
 
   const mine = rows.filter((r) => userId && r.controlledBy === userId)
+  void localCampaignId
   const combatants = rows.reduce((a, r) => a + (r.groupCount != null && r.groupCount > 1 ? r.groupCount : 1), 0)
-  const joinedNames = new Set(mine.map((r) => r.name.trim().toLowerCase()))
-  const joinable = characters.filter((c) => !joinedNames.has(c.name.trim().toLowerCase()))
 
   async function run(fn: () => Promise<unknown>) {
     setError(null)
@@ -103,7 +97,7 @@ export function PlayerInitiativePanel({
 
       {combat.phase === 'gathering' && (
         <p className="faint il-empty" data-testid="gathering-hint">
-          {mine.length > 0 ? 'You are in. Enemies appear when your DM starts combat.' : 'Your DM is asking for initiative. Use Join initiative below.'}
+          {mine.length > 0 ? 'You are in. Enemies appear when your DM starts combat.' : 'Your DM is asking for initiative. Use Join initiative on the map strip.'}
         </p>
       )}
       {rows.length === 0 ? (
@@ -117,7 +111,6 @@ export function PlayerInitiativePanel({
               turn={combat.activeIds.includes(r.id)}
               mine={!!userId && r.controlledBy === userId}
               cloudCampaignId={cloudCampaignId}
-              onError={setError}
               run={run}
             />
           ))}
@@ -125,44 +118,6 @@ export function PlayerInitiativePanel({
       )}
       {error && <p className="pis-error" role="alert">{error}</p>}
 
-      {userId &&
-        (adding ? (
-          <div className="il-add">
-            <JoinForm
-              joinable={joinable}
-              mine={mine}
-              onJoin={(name, init, c) =>
-                run(async () => {
-                  await joinCombat(cloudCampaignId, name, init, c?.hp ?? null, c?.maxHp ?? null, c?.key ?? name.trim().toLowerCase())
-                  setAdding(false)
-                })
-              }
-              onSet={(rowId, init) =>
-                run(async () => {
-                  await setMyInitiative(cloudCampaignId, rowId, init)
-                  setAdding(false)
-                })
-              }
-              onDone={() => setAdding(false)}
-            />
-          </div>
-        ) : (
-          <div className="il-foot">
-            <button type="button" className="bm-btn" onClick={() => setAdding(true)} data-testid="join-initiative">
-              <BmIcon name="plus" size={16} /> {mine.length > 0 ? 'Set my initiative' : 'Join initiative'}
-            </button>
-            {mine.length > 0 && (
-              <button
-                type="button"
-                className="bm-btn"
-                data-testid="leave-combat"
-                onClick={() => run(async () => { for (const r of mine) await leaveCombat(cloudCampaignId, r.id) })}
-              >
-                Leave combat
-              </button>
-            )}
-          </div>
-        ))}
     </div>
   )
 }
@@ -172,14 +127,12 @@ function Row({
   turn,
   mine,
   cloudCampaignId,
-  onError,
   run,
 }: {
   r: LiveCombatRow
   turn: boolean
   mine: boolean
   cloudCampaignId: string
-  onError: (m: string | null) => void
   run: (fn: () => Promise<unknown>) => Promise<void>
 }) {
   const ally = r.kind !== 'enemy'
@@ -251,37 +204,7 @@ function Row({
           <BmIcon name="close" size={14} />
         </button>
       )}
-      {mine && turn && (
-        <div className="il-quick">
-          <EndTurnButton rowId={r.id} cloudCampaignId={cloudCampaignId} onError={onError} />
-        </div>
-      )}
     </div>
-  )
-}
-
-function EndTurnButton({ rowId, cloudCampaignId, onError }: { rowId: string; cloudCampaignId: string; onError: (m: string | null) => void }) {
-  const [state, setState] = useState<'idle' | 'busy' | 'asked'>('idle')
-  return (
-    <button
-      type="button"
-      className="bm-btn il-end-turn"
-      data-testid="end-turn-row"
-      disabled={state !== 'idle'}
-      onClick={async () => {
-        setState('busy')
-        onError(null)
-        try {
-          await endMyTurn(cloudCampaignId, rowId)
-          setState('asked')
-        } catch (e) {
-          onError(e instanceof Error ? e.message : 'Could not end your turn.')
-          setState('idle')
-        }
-      }}
-    >
-      {state === 'asked' ? 'Waiting for your DM…' : 'End turn'}
-    </button>
   )
 }
 
@@ -292,7 +215,7 @@ const ANOTHER = '__another__'
  * (pre-filled with name and HP) and set the initiative number; a character already in the
  * order is updated instead of added twice.
  */
-function JoinForm({
+export function JoinForm({
   joinable,
   mine,
   onJoin,
