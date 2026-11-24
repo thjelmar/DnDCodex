@@ -129,3 +129,25 @@ for (const size of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'phon
     await expect(board.locator('.player-live-bar').getByRole('button', { name: 'Exit full screen' })).toBeVisible()
   })
 }
+
+for (const size of [{ name: 'desktop', width: 1280, height: 800 }, { name: 'phone landscape', width: 844, height: 390 }]) {
+  test(`the full screen rail and the turn strip do not overlap (${size.name})`, async ({ page }) => {
+    await page.setViewportSize(size)
+    await page.goto('/#/')
+    await page.getByRole('button', { name: 'Try the live demo' }).click()
+    await page.getByTestId('demo-player-entry').click()
+    await expect(page.locator('.session-vtt')).toBeVisible()
+    await page.locator('.player-live-board button[aria-label="Full screen"]').first().click()
+    const board = page.locator('.player-live-board.expanded')
+    await expect(board).toBeVisible()
+    await board.getByTestId('demo-controls-toggle').click()
+    await board.getByTestId('demo-ask').click()
+    await board.getByTestId('demo-controls-toggle').click()
+    const strip = board.getByTestId('initiative-strip')
+    await expect(strip).toBeVisible()
+    const s = (await strip.boundingBox())!
+    const r = (await board.locator('.player-live-bar').boundingBox())!
+    const apart = s.x >= r.x + r.width - 1 || s.x + s.width <= r.x + 1 || s.y >= r.y + r.height - 1 || s.y + s.height <= r.y + 1
+    expect(apart, `strip ${JSON.stringify(s)} vs rail ${JSON.stringify(r)}`).toBe(true)
+  })
+}
