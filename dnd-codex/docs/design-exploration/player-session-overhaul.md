@@ -153,3 +153,13 @@ Differences from the mockups:
 
 Not verified: the signed-in Realtime path, the DM applying End turn on a real
 second device, and a real iPhone. Tests mock Supabase.
+
+## T-108: player turn strip and tracker-style Initiative tab
+
+- The Initiative tab (`PlayerInitiativePanel.tsx`) wears the DM tracker's `il-*` rows. Enemies show the
+  optional marker and never HP; a player edits only their own row.
+- `PlayerTurnStrip.tsx` is the DM's `bm-turns` pill at the map's bottom left: round, whose turn, one round
+  chip per combatant. No Next for players. It shows Join initiative while the DM asks (pulsing, and a dot
+  on the Initiative tab), End turn on your own turn (replacing the Your turn banner), and a pop-up above
+  the strip to set your initiative or leave combat.
+- Full screen fixes the strip to the screen's bottom left, above the zoom bar and the drawer.

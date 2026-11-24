@@ -27,10 +27,15 @@ test('demo player: empty state through combat and End turn, with no Supabase req
   // The DM asks for initiative; the player joins with the demo character.
   await page.getByTestId('demo-ask').click()
   await expect(page.getByTestId('initiative-strip')).toBeVisible()
-  await page.getByTestId('join-initiative').click()
-  await expect(page.getByRole('dialog', { name: 'Join initiative' })).toContainText('Thalia')
+  await expect(page.getByTestId('initiative-badge')).toBeVisible()
+  await expect(page.getByTestId('strip-round')).toHaveText('Roll for initiative')
+  // Join initiative lives in the turn strip; its pop-up opens above the strip.
+  await page.getByTestId('initiative-strip').getByTestId('join-initiative').click()
+  await expect(page.getByTestId('join-pop')).toContainText('Thalia')
   await page.getByTestId('join-submit').click()
-  await expect(page.getByTestId('strip-chip').filter({ hasText: 'Thalia' })).toBeVisible()
+  await expect(page.getByTestId('initiative-strip').getByTestId('strip-chip').locator('visible=true')).not.toHaveCount(0)
+  await expect(page.getByTestId('dock-row').filter({ hasText: 'Thalia' })).toBeVisible()
+  await expect(page.getByTestId('initiative-badge')).toHaveCount(0)
 
   // The DM starts combat: enemies appear with a marker slot but no HP numbers.
   await page.getByTestId('demo-start').click()
