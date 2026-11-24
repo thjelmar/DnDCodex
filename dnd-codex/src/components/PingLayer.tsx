@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { haloFor, markerFor, TRAIL_MS, type MarkerShape } from '../lib/pings'
+import { haloFor, TRAIL_MS } from '../lib/pings'
 import { useReducedMotion } from '../lib/useReducedMotion'
 import type { CursorItem, PingsApi } from '../lib/usePings'
 
@@ -7,12 +7,9 @@ import type { CursorItem, PingsApi } from '../lib/usePings'
 // transformed group, so positions are board pixels and stay correct under any
 // pan and zoom. Sizes divide by `scale` to keep a constant on-screen size.
 
-function Marker({ shape, r, color, halo, sw }: { shape: MarkerShape; r: number; color: string; halo: string; sw: number }) {
-  const common = { fill: color, stroke: halo, strokeWidth: sw, strokeLinejoin: 'round' as const }
-  if (shape === 'diamond') return <polygon points={`0,${-r * 1.3} ${r * 1.3},0 0,${r * 1.3} ${-r * 1.3},0`} {...common} />
-  if (shape === 'square') return <rect x={-r} y={-r} width={r * 2} height={r * 2} {...common} />
-  if (shape === 'triangle') return <polygon points={`0,${-r * 1.3} ${r * 1.2},${r} ${-r * 1.2},${r}`} {...common} />
-  return <circle r={r} {...common} />
+// Every ping centre is a circle; identity comes from color and the name tag.
+function Marker({ r, color, halo, sw }: { r: number; color: string; halo: string; sw: number }) {
+  return <circle className="ping-dot-mark" r={r} fill={color} stroke={halo} strokeWidth={sw} />
 }
 
 function NameTag({ x, y, text, color, s }: { x: number; y: number; text: string; color: string; s: number }) {
@@ -72,7 +69,6 @@ export function PingLayer({ pings, scale, view }: { pings: PingsApi; scale: numb
     <g className={`ping-layer${reduced ? ' reduced' : ''}`} pointerEvents="none" aria-hidden="true">
       {pings.items.map((p) => {
         const halo = haloFor(p.color)
-        const shape = markerFor(p.k)
         // Off-screen indicator: a chevron on the viewport edge pointing at the ping.
         const sx = view.tx + p.x * s
         const sy = view.ty + p.y * s
@@ -97,7 +93,7 @@ export function PingLayer({ pings, scale, view }: { pings: PingsApi; scale: numb
             <circle className="ping-ring" r={42 / s} fill="none" stroke={halo} strokeWidth={6} vectorEffect="non-scaling-stroke" />
             <circle className="ping-ring" r={42 / s} fill="none" stroke={p.color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
             <circle className="ping-ring ping-ring-2" r={26 / s} fill="none" stroke={p.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <Marker shape={shape} r={5 / s} color={p.color} halo={halo} sw={2 / s} />
+            <Marker r={5 / s} color={p.color} halo={halo} sw={2 / s} />
             <NameTag x={0} y={-20 / s} text={p.name} color={p.color} s={s} />
           </g>
         )

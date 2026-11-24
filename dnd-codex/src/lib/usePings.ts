@@ -26,6 +26,7 @@ import {
   sceneKey,
   writeDmPingColor,
   writePingsPref,
+  upsertLocalCursor,
   type PingMsg,
 } from './pings'
 
@@ -341,10 +342,9 @@ export function usePings({ campaignId, sceneId, userId, name, savedColor, isDm }
       const L = live.current
       if (!L.prefOn || (!L.isDm && !L.allowPlayers)) return
       const now = Date.now()
-      if (!L.online) {
-        // Offline and demo: preview your own cursor locally.
-        setCursors((cs) => [...cs.filter((c) => !c.local), { k: L.me, x, y, color: L.myColor, name: 'You', local: true, ending: end, last: now }])
-      }
+      // Always draw your own cursor locally, online or not: the channel never echoes it back.
+      // Remote cursors are never local, so this replaces only your previous local copy.
+      setCursors((cs) => upsertLocalCursor(cs, { k: L.me, x, y, color: L.myColor, name: 'You', local: true, ending: end, last: now }))
       sendRaw({ t: 'c', s: L.sk, x, y, c: L.myColor, n: L.name, k: L.me, d: L.isDm, ts: now, end })
     },
     [sendRaw],

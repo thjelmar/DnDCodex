@@ -231,3 +231,26 @@ test.describe('map pings', () => {
     await expect(pings(page)).toHaveCount(0)
   })
 })
+
+// Online users never receive their own broadcast, so the sender's drag circle must come from a
+// local copy. These cover the helper the hook uses for it, without a signed-in session.
+test.describe('own drag cursor (online)', () => {
+  test('keeps remote cursors and replaces only the previous local copy', async () => {
+    const { upsertLocalCursor } = await import('../src/lib/pings')
+    const remote = { k: 'other', local: false, x: 1 }
+    const first = { k: 'me', local: true, x: 2 }
+    const second = { k: 'me', local: true, x: 3 }
+    const afterFirst = upsertLocalCursor([remote], first)
+    expect(afterFirst).toEqual([remote, first])
+    const afterSecond = upsertLocalCursor(afterFirst, second)
+    expect(afterSecond).toEqual([remote, second])
+  })
+})
+
+test('every ping centre marker is a circle', async ({ page }) => {
+  const { x, y } = await openBoard(page)
+  await page.mouse.click(x, y, { button: 'right' })
+  await expect(pings(page)).toHaveCount(1)
+  await expect(pings(page).locator('.ping-dot-mark')).toHaveCount(1)
+  await expect(pings(page).locator('rect, polygon')).toHaveCount(0)
+})

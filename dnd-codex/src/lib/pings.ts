@@ -82,10 +82,10 @@ export function sanitizeName(n: unknown): string {
   return clean || 'Player'
 }
 
-/** Marker shape per user, so color is never the only signal. */
-export type MarkerShape = 'dot' | 'diamond' | 'square' | 'triangle'
-const SHAPES: MarkerShape[] = ['dot', 'diamond', 'square', 'triangle']
-export const markerFor = (userId: string): MarkerShape => SHAPES[hashString(userId) % SHAPES.length]
+/** Replace the sender's own local cursor (never a remote one) with the latest position. */
+export function upsertLocalCursor<T extends { local: boolean }>(cursors: T[], next: T): T[] {
+  return [...cursors.filter((c) => !c.local), next]
+}
 
 /** Halo color for a ping color: dark for light colors, white for dark ones. */
 export function haloFor(color: string): string {
