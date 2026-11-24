@@ -1239,12 +1239,12 @@ export function SceneEditor({
                       <input type="checkbox" checked={!!current.terrain?.blocks} onChange={(e) => patchTerrain(current, { blocks: e.target.checked })} />
                       Blocks movement
                     </label>
-                    <div className="bm-chips" role="group" aria-label="Cover">
+                    <div className="bm-kchips" role="group" aria-label="Cover">
                       {([[undefined, 'No cover'], ['half', '½ cover'], ['three-quarters', '¾ cover']] as const).map(([v, label]) => (
                         <button
                           key={label}
                           type="button"
-                          className={`bm-chip${current.terrain?.cover === v ? ' on' : ''}`}
+                          className={`bm-kchip${current.terrain?.cover === v ? ' on' : ''}`}
                           aria-pressed={current.terrain?.cover === v}
                           onClick={() => patchTerrain(current, { cover: v })}
                         >
@@ -1405,12 +1405,12 @@ export function SceneEditor({
             <NumberField value={templateSizeFt} min={5} max={200} step={5} onChange={(v) => v != null && setTemplateSizeFt(v)} ariaLabel="Template size in feet" />
             <span className="faint">ft</span>
           </label>
-          <div className="bm-chips bm-presets" role="group" aria-label="Template presets">
+          <div className="bm-kchips" role="group" aria-label="Template presets">
             {TEMPLATE_PRESETS.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                className={`bm-chip${templateShape === p.shape && templateSizeFt === p.sizeFt && !templateLabel ? ' on' : ''}`}
+                className={`bm-kchip${templateShape === p.shape && templateSizeFt === p.sizeFt && !templateLabel ? ' on' : ''}`}
                 aria-pressed={templateShape === p.shape && templateSizeFt === p.sizeFt && !templateLabel}
                 onClick={() => armPreset(p)}
               >
@@ -1856,7 +1856,7 @@ export function SceneEditor({
                         }
                         trail={
                           g.kind === 'prop' && terrainTags(t.terrain).length > 0 ? (
-                            <span className="bm-tag" data-testid="bm-terrain-tag">{terrainTags(t.terrain).join(' · ')}</span>
+                            <span className="bm-terrain-pill" data-testid="bm-terrain-tag">{terrainTags(t.terrain).join(' · ')}</span>
                           ) : isFoes && !t.groupId ? (
                             <button
                               type="button"
@@ -1925,12 +1925,12 @@ export function SceneEditor({
             )}
             {uploadError && <p style={{ color: 'var(--danger)', fontSize: 13 }}>{uploadError}</p>}
             <h4>Ambient light</h4>
-            <div className="bm-chips" role="group" aria-label="Ambient light">
+            <div className="bm-kchips" role="group" aria-label="Ambient light">
               {(['bright', 'dim', 'dark'] as const).map((l) => (
                 <button
                   key={l}
                   type="button"
-                  className={`bm-chip${(grid.light ?? 'bright') === l ? ' on' : ''}`}
+                  className={`bm-kchip${(grid.light ?? 'bright') === l ? ' on' : ''}`}
                   aria-pressed={(grid.light ?? 'bright') === l}
                   onClick={() => setGridField({ light: l })}
                 >

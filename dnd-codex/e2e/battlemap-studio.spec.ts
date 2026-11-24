@@ -320,6 +320,44 @@ test.describe('battle map studio', () => {
     await expect(page.getByLabel('Spell name (optional)')).toHaveValue('')
   })
 
+  test('nothing in the docked inspector is clipped: chips, pills, card and terrain fields keep whole labels', async ({ page }) => {
+    await openStudio(page)
+    await insp(page).getByRole('button', { name: 'Crate', exact: true }).click()
+    const clipped = () =>
+      insp(page).evaluate((root) => {
+        const bad: string[] = []
+        const sel = '.bm-kchip, .bm-pill, .bm-terrain-pill, .bm-card button, .bm-card-name, .bm-group-title, .bm-card-speed, .bm-terrain label, .bm-terrain button'
+        for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
+          if (el.clientWidth === 0) continue
+          // A name that truncates with an ellipsis on purpose is fine; a chip never may.
+          if (el.classList.contains('bm-card-name')) continue
+          if (el.scrollWidth > el.clientWidth + 1) bad.push(`${el.className}:${el.textContent?.trim()} ${el.scrollWidth}>${el.clientWidth}`)
+          const r = el.getBoundingClientRect()
+          const p = root.getBoundingClientRect()
+          if (r.right > p.right + 1 || r.left < p.left - 1) bad.push(`outside:${el.className}:${el.textContent?.trim()}`)
+        }
+        return bad
+      })
+    // Make the card and the terrain group as busy as they get.
+    const terrain = page.getByTestId('bm-terrain')
+    await terrain.getByLabel('Difficult terrain').check()
+    await terrain.getByRole('button', { name: '¾ cover' }).click()
+    await terrain.getByLabel('Blocks movement').check()
+    expect(await clipped()).toEqual([])
+    // Every category chip shows its whole label and a count.
+    const chips = page.getByRole('group', { name: 'Filter by category' }).getByRole('button')
+    await expect(chips).toHaveCount(5)
+    for (const name of ['All', 'Characters', 'NPCs', 'Enemies', 'Props']) {
+      await expect(chips.filter({ hasText: name })).toHaveCount(1)
+    }
+    // Squeeze the dock to the owner's reported width (about 165 px): labels still stay whole.
+    await insp(page).evaluate((el) => { el.style.width = '165px' })
+    await insp(page).getByRole('button', { name: 'Mordrek', exact: true }).click()
+    expect(await clipped()).toEqual([])
+    await insp(page).getByRole('group', { name: 'Filter by category' }).scrollIntoViewIfNeeded()
+    await insp(page).screenshot({ path: 'test-results/inspector-dock-narrow.png' })
+  })
+
   test('the inspector opens in a popup, shares the same state, and docks when the window closes', async ({ page }) => {
     await page.addInitScript(() => delete (window as unknown as Record<string, unknown>).documentPictureInPicture)
     await openStudio(page)

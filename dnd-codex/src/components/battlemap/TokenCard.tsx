@@ -36,7 +36,7 @@ export function TokenCard({
       {tags.length > 0 && (
         <p className="bm-card-tags" data-testid="bm-card-tags">
           {tags.map((t) => (
-            <span key={t} className="bm-tag">{t}</span>
+            <span key={t} className="bm-terrain-pill">{t}</span>
           ))}
         </p>
       )}
