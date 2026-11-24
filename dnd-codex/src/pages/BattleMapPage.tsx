@@ -43,6 +43,8 @@ import { formatBytes, processImageFile } from '../lib/image'
 import { detectGrid } from '../lib/gridDetect'
 import { useDmLiveScene } from './useDmLiveScene'
 import { usePlayerTemplates } from '../auth/liveScene'
+import { usePings } from '../lib/usePings'
+import { useAuth } from '../auth/AuthProvider'
 import { useRegisterSceneEditor } from './LiveSceneKeeper'
 import { useFullscreen } from '../lib/useFullscreen'
 import { useMediaQuery } from '../lib/useMediaQuery'
@@ -344,6 +346,17 @@ export function SceneEditor({
       }))
     },
   )
+  // Pings and colored cursors: shared with players over a private Broadcast
+  // channel; in the demo and offline they only animate locally (T-102).
+  const { user: pingUser, profile: pingProfile } = useAuth()
+  const pings = usePings({
+    campaignId: live.available ? campaign.id : null,
+    sceneId: scene.id,
+    userId: pingUser?.id,
+    name: pingProfile?.display_name || 'DM',
+    savedColor: live.members.find((m) => m.userId === pingUser?.id)?.color,
+    isDm: true,
+  })
   const [aligning, setAligning] = useState(false)
   // Fog of war: paint tool (null = not in fog mode). Painting a stroke commits a
   // set of revealed/hidden cells; the whole fog state syncs like the tokens.
@@ -1318,6 +1331,7 @@ export function SceneEditor({
 
   const board = (
         <Tabletop
+          pings={pings}
           width={size.width}
           height={size.height}
           grid={grid}

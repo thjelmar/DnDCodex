@@ -5573,3 +5573,23 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 /* The voice roster floats at the top left of the map, not above the page. */
 .bm-voice { position: absolute; z-index: 4; top: 10px; left: 10px; max-width: 45%; }
 .bm-voice .voice-roster { margin: 0; padding: 4px 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 999px; }
+
+/* ---- Map pings and colored cursors (T-102) ---- */
+.tabletop-view.pingable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.ping-layer .ping-ring { transform-box: fill-box; transform-origin: center; animation: ping-grow 2s ease-out forwards; }
+.ping-layer .ping-ring-2 { animation-delay: 0.25s; opacity: 0; animation-fill-mode: forwards; }
+.ping-layer .ping { animation: ping-fade 2s forwards; }
+@keyframes ping-grow { 0% { transform: scale(0.15); opacity: 1; } 75% { opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes ping-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+.ping-layer .ping-cursor { transition: opacity 0.6s; opacity: 1; }
+.ping-layer .ping-cursor.ending { opacity: 0; }
+.ping-tag-bg { fill: rgba(28, 25, 38, 0.9); }
+.ping-tag-text { fill: #ece9f1; font-weight: 600; font-family: var(--font); }
+.ping-layer.reduced .ping-ring, .ping-layer.reduced .ping-ring-2 { animation: none; transform: scale(0.7); opacity: 0.9; }
+.ping-layer.reduced .ping-cursor { transition: none; }
+.ping-menu { position: absolute; right: 0; bottom: 100%; margin-bottom: 6px; min-width: 220px; display: grid; gap: 6px; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; z-index: 5; }
+.ping-menu-row { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.ping-menu-row[role="radiogroup"] { flex-wrap: wrap; cursor: default; }
+.ping-menu input[type="checkbox"] { width: auto; flex: none; margin: 0; }
+.ping-menu-list { display: grid; gap: 4px; }
+.ping-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }

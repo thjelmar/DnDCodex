@@ -6,6 +6,7 @@ import { useFullscreen } from '../lib/useFullscreen'
 import { PHONE_QUERY, useIsPhone } from '../lib/usePhone'
 import { TOKEN_COLORS } from '../lib/tabletop'
 import { Tabletop } from './Tabletop'
+import { usePings } from '../lib/usePings'
 import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
 import { Icon } from './Icon'
 import type { SceneTemplate, TemplateShape } from '../db/types'
@@ -53,7 +54,7 @@ export function PlayerLiveBoardView({
   onExpandedChange?: (expanded: boolean) => void
   live: ReturnType<typeof useLiveScene>
 }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fs = useFullscreen()
@@ -178,6 +179,15 @@ export function PlayerLiveBoardView({
 
   if (!user) return <p className="faint" style={{ fontSize: 13 }}>Sign in to see your DM's battle map.</p>
   if (live.loading) return <p className="faint" style={{ fontSize: 13 }}>Loading…</p>
+  // Pings and colored cursors (T-102): players ping in their own color.
+  const pings = usePings({
+    campaignId: live.scene ? linkedCampaignId : null,
+    sceneId: live.scene?.sceneId ?? '',
+    userId: user?.id,
+    name: profile?.display_name || 'Player',
+    savedColor: myColor,
+    isDm: false,
+  })
   if (!live.scene) {
     return (
       <>
@@ -297,6 +307,7 @@ export function PlayerLiveBoardView({
       <div className={`battlemap-body player${withNotes ? ' with-notes' : ''}`}>
         {withNotes && <aside className="battlemap-notes">{notes}</aside>}
         <Tabletop
+          pings={pings}
           width={live.scene.width}
           height={live.scene.height}
           grid={live.scene.grid}
