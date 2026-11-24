@@ -17,6 +17,28 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-11-23',
+    title: 'A redesigned battle map, detail maps, pings, and phone landscape',
+    changes: [
+      { kind: 'new', text: 'The battle map has a new look: a slim top bar, a tool rail, and an inspector panel. Dock the inspector, float it, open it in its own window, or use it as a drawer.' },
+      { kind: 'new', text: 'A turn strip shows the Round counter and a pulsing marker on whose turn it is.' },
+      { kind: 'new', text: 'Monster groups roll one initiative and share hit points. Tokens now have types: Characters, NPCs, Enemies, and Props.' },
+      { kind: 'new', text: 'A pin on the world map can open a detail map, such as a town, with a zoom. Select Close to return to the realm map. The DM chooses which pins have a detail map.' },
+      { kind: 'new', text: 'Run Mode on desktop is now the battle map studio, with a tabbed panel (Combat, Notes, Handouts, Dice, and Scene), an initiative list, a session timer, and a dice bar.' },
+      { kind: 'new', text: 'Players can see the initiative order, add their own character, and edit their own initiative. The DM can assign NPCs to players. Players see enemy initiative but not hit points, with optional Injured, Bloodied, and Death\'s door markers.' },
+      { kind: 'new', text: 'Pings: right-click the battle map to ping a spot. Right-drag to show a colored circle with a trail to everyone. On a touch screen, use the Ping tool, or press P. Each person can turn pings off in Preferences.' },
+      { kind: 'new', text: 'The inspector has a token card, a manual speed field, grid opacity, ambient light, and a movement range ring (press R). Players can hide their own range ring.' },
+      { kind: 'new', text: 'Terrain and cover markers with prop sizes, and template presets, are now available on the battle map.' },
+      { kind: 'new', text: 'On a phone in landscape, the battle map and player board fill the full width and respect the screen notch. They use full screen where your browser supports it, and one tabbed drawer holds the panels.' },
+      { kind: 'new', text: 'You can add the app to your home screen to run it full screen.' },
+      { kind: 'improved', text: 'The app header is slimmer on a phone in landscape, which leaves more room for your content.' },
+      { kind: 'improved', text: 'World map pin labels now sit on a light chip, so they stay readable on light maps.' },
+      { kind: 'improved', text: 'Undo and Redo (Ctrl or Cmd+Z) now cover deleting, adding, duplicating, moving, and resizing tokens.' },
+      { kind: 'fixed', text: 'Deleting a token on the battle map now also removes it from combat.' },
+      { kind: 'fixed', text: 'Deleting one monster from a group of two no longer crashes the battle map.' },
+    ],
+  },
+  {
+    date: '2026-11-23',
     title: 'Edit mode: drag, resize, and a Counts card',
     changes: [
       { kind: 'new', text: 'In Edit layout on the campaign home, drag a card to move it, and drag its right edge to make it narrower or wider. It snaps to the grid, and Escape cancels a drag.' },
