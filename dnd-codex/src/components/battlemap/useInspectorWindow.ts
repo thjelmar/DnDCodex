@@ -17,7 +17,7 @@ export const WINDOW_BLOCKED = 'The browser blocked the new window. Allow pop-ups
  * copied by hand. Closing the window clears `win`, and the caller docks the
  * inspector again. Call `open` from a click: both APIs need a user gesture.
  */
-export function useInspectorWindow() {
+export function useInspectorWindow(title = 'Scene inspector', name = 'dnd-codex-inspector') {
   const [win, setWin] = useState<Window | null>(null)
   const [onTop, setOnTop] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,7 +41,7 @@ export function useInspectorWindow() {
       }
     }
     if (!w) {
-      w = window.open('', 'dnd-codex-inspector', 'popup,width=340,height=640')
+      w = window.open('', name, 'popup,width=340,height=640')
       if (w) {
         w.document.open()
         w.document.write('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body></body></html>')
@@ -52,7 +52,7 @@ export function useInspectorWindow() {
       setError(WINDOW_BLOCKED)
       return
     }
-    prepareWindow(w)
+    prepareWindow(w, title)
     current.current = w
     setOnTop(top)
     setWin(w)
@@ -64,7 +64,7 @@ export function useInspectorWindow() {
       }
     }
     w.addEventListener('pagehide', onHide)
-  }, [])
+  }, [title, name])
 
   const close = useCallback(() => {
     current.current?.close()
@@ -84,10 +84,10 @@ export function useInspectorWindow() {
 
 /** Gives a new window the page's styles, theme and accent, and keeps the theme
  *  and accent (attributes on `<html>`) in sync while the window is open. */
-function prepareWindow(w: Window): void {
+function prepareWindow(w: Window, title: string): void {
   const src = document
   const dst = w.document
-  dst.title = 'Scene inspector'
+  dst.title = title
   const copyRoot = () => {
     for (const a of Array.from(src.documentElement.attributes)) dst.documentElement.setAttribute(a.name, a.value)
   }

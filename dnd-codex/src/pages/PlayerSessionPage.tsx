@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { BmIcon } from '../components/battlemap/BmIcon'
+import { isDemo } from '../lib/demo'
+import { usePanelPlacement, useMapClearRight } from '../lib/usePanelPlacement'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
@@ -47,6 +50,10 @@ export function PlayerSessionPage() {
   const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
   const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
   useMyTurnAlert(myTurnRows)
+  // Where the panel sits (docked, floating, own window, closed), shared by the page and full screen (T-112).
+  const place = usePanelPlacement()
+  const mapRef = useRef<HTMLElement>(null)
+  useMapClearRight(mapRef, place.mode === 'float')
 
   // Find the Journal entry for this live session (by sessionRef), if any.
   const noteId = useLiveQuery(async () => {
@@ -125,6 +132,7 @@ export function PlayerSessionPage() {
       localCampaignId={campaignId}
       userId={user?.id ?? null}
       notes={notesCard}
+      place={place}
     />
   )
   const board = (compact: boolean) => (
@@ -134,7 +142,8 @@ export function PlayerSessionPage() {
       compact={compact}
       rail={!compact}
       onExpandedChange={setMapFull}
-      fsExtras={{ strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
+      fsExtras={{ strip: stripEl, demo: <DemoLiveControls />, panel: dockEl, place }}
+      pagePanel={{ open: place.visible, onToggle: place.toggle }}
       empty={
         <div className="session-vtt-slot">
           <Icon name="map" size={28} strokeWidth={1.3} />
@@ -150,6 +159,15 @@ export function PlayerSessionPage() {
   return (
     <div className="session-page">
       <div className="session-header">
+        <Link
+          to={isDemo() ? '/' : `/player/${campaignId}`}
+          className="bm-btn bm-sq"
+          aria-label="Leave the session"
+          title={isDemo() ? 'Leave the session and go back to Home' : 'Leave the session and go back to the campaign'}
+          data-testid="session-back"
+        >
+          <BmIcon name="back" />
+        </Link>
         <span aria-hidden className="run-dot" style={{ background: campaign.color }} />
         <h1 className="mb-0 run-title">{live.title || 'Session'}</h1>
         <span className="run-live-on"><span className="run-live-dot" /> Live</span>
@@ -160,15 +178,12 @@ export function PlayerSessionPage() {
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
         {!mapFull && <DemoLiveControls />}
-        <Link to={`/player/${campaignId}`} className="btn ghost small">
-          <Icon name="arrow-left" size={13} /> Leave
-        </Link>
       </div>
 
       <VoiceRoster channelId={voice?.channelId} />
 
-      <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
-        <section className="session-map">
+      <div className={`session-grid${mapLive ? ' map-live' : ''}${place.mode === 'docked' ? '' : ' no-dock'}`}>
+        <section className="session-map" ref={mapRef}>
           {mapLive ? (
             <div className="card run-card session-vtt"><div className="pl-map-wrap">{board(false)}{!mapFull && stripEl}</div></div>
           ) : (
@@ -177,9 +192,10 @@ export function PlayerSessionPage() {
               <div className="pl-map-wrap">{board(true)}{!mapFull && stripEl}</div>
             </div>
           )}
+          {!mapFull && place.mode !== 'docked' && dockEl}
         </section>
 
-        {!mapFull && dockEl}
+        {!mapFull && place.mode === 'docked' && dockEl}
       </div>
     </div>
   )

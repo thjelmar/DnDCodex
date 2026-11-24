@@ -11,6 +11,8 @@ import { Tabletop } from './Tabletop'
 import { usePings } from '../lib/usePings'
 import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
 import { Icon } from './Icon'
+import { BmIcon, type BmIconName } from './battlemap/BmIcon'
+import { useMapClearRight, type PanelPlacement } from '../lib/usePanelPlacement'
 import type { SceneTemplate, TemplateShape } from '../db/types'
 
 /** True at 860px wide and below, where the full-screen session panel becomes a drawer. */
@@ -28,6 +30,54 @@ function useMedia(q: string): boolean {
     return () => m.removeEventListener('change', on)
   }, [])
   return narrow
+}
+
+/**
+ * One tool in the player's bar. On the session page's rail it is the DM rail's own button
+ * (`bm-tool` with a Run Mode icon, so size, centering and the on state match); elsewhere it is
+ * the labelled button the bar has always used.
+ */
+function BarBtn({
+  rail,
+  icon,
+  glyph,
+  text,
+  on,
+  onClick,
+  pressed,
+  expanded,
+  label,
+  title,
+  testId,
+  dot,
+}: {
+  rail?: boolean
+  icon?: BmIconName
+  glyph?: ReactNode
+  text?: string
+  on?: boolean
+  onClick: () => void
+  pressed?: boolean
+  expanded?: boolean
+  label: string
+  title?: string
+  testId?: string
+  /** A color swatch in place of an icon (the token color button). */
+  dot?: string
+}) {
+  const swatch = dot ? <span aria-hidden className="player-color-dot" style={{ background: dot }} /> : null
+  if (rail) {
+    return (
+      <button type="button" className={`bm-tool${on ? ' on' : ''}`} onClick={onClick} aria-pressed={pressed} aria-expanded={expanded} aria-label={label} title={title ?? label} data-testid={testId}>
+        {swatch ?? (icon && <BmIcon name={icon} size={20} />)}
+      </button>
+    )
+  }
+  return (
+    <button className={`btn small${on ? ' primary' : ''}`} onClick={onClick} aria-pressed={pressed} aria-expanded={expanded} aria-label={label} title={title} data-testid={testId}>
+      {swatch ?? glyph}{text && <> <span className="pl-lbl">{text}</span></>}
+    </button>
+  )
 }
 
 /** Spell-area presets a player can drop on the live map (shape defaults to the
@@ -62,6 +112,7 @@ export function PlayerLiveBoardView({
   rail = false,
   empty,
   onExpandedChange,
+  pagePanel,
 }: {
   linkedCampaignId: string
   /** Shown beside the map in full screen (e.g. the player's session notes). */
@@ -74,7 +125,9 @@ export function PlayerLiveBoardView({
    * its own layout while full screen is open, so there is one live copy. Without it, full screen
    * falls back to `notes` beside the map.
    */
-  fsExtras?: { turn?: ReactNode; strip?: ReactNode; demo?: ReactNode; panel?: ReactNode }
+  fsExtras?: { turn?: ReactNode; strip?: ReactNode; demo?: ReactNode; panel?: ReactNode; place?: PanelPlacement }
+  /** The session panel's open/closed control for the page's own rail (full screen uses `fsExtras.place`). */
+  pagePanel?: { open: boolean; onToggle: () => void }
   /** Small inline board (e.g. a sidebar card); full screen still gets the room. */
   compact?: boolean
   /** Tools as a slim vertical rail beside the map (the session page's Run Mode look). */
@@ -89,6 +142,9 @@ export function PlayerLiveBoardView({
   const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fs = useFullscreen()
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const fsPlace = fsExtras?.place
+  useMapClearRight(bodyRef, fs.expanded && fsPlace?.mode === 'float')
   const onExpandedRef = useRef(onExpandedChange)
   onExpandedRef.current = onExpandedChange
   useEffect(() => {
@@ -264,10 +320,16 @@ export function PlayerLiveBoardView({
   }
 
   const withPanel = fs.expanded && !!fsExtras?.panel
+  // Wide full screen follows the page's placement (docked, floating, own window, closed); a narrow
+  // one keeps its own drawer toggle.
+  const placed = !!fsPlace && !narrow
+  const panelShown = placed ? fsPlace.mode !== 'closed' : panelOpen
+  const panelDocked = placed ? fsPlace.mode === 'docked' : panelOpen
+  const togglePanel = placed ? fsPlace.toggle : () => setPanelPick(!panelOpen)
   const withNotes = fs.expanded && !withPanel && notesOpen && !!notes
 
   return (
-    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${rail && fs.expanded ? ' pl-fs-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}${withPanel ? ` pl-fs-shell${panelOpen ? ' panel-open' : ''}${narrow ? ' pl-fs-narrow' : ''}` : ''}`}>
+    <div className={`player-live-board battlemap-editor${fs.expanded ? ' expanded' : ''}${compact ? ' compact' : ''}${rail && !fs.expanded ? ' pl-rail' : ''}${rail && fs.expanded ? ' pl-fs-rail' : ''}${phoneFs ? ' phone-fs' : ''}${colorOpen ? ' color-open' : ''}${withNotes ? ' notes-open' : ''}${withPanel ? ` pl-fs-shell${panelDocked ? ' panel-open' : ''}${narrow ? ' pl-fs-narrow' : ''}` : ''}`}>
       {fs.expanded && rail && fsExtras?.demo && <div className="pl-fs-demo">{fsExtras.demo}</div>}
       <div className="player-live-bar">
         {(fs.expanded || !compact) && (
@@ -301,46 +363,52 @@ export function PlayerLiveBoardView({
         <div className="row" style={{ gap: 8, marginLeft: 'auto' }}>
           {fs.expanded && !rail && fsExtras?.demo}
           {(phoneFs || rail) && (
-            <button
-              className={`btn small${colorOpen ? ' primary' : ''}`}
+            <BarBtn
+              rail={rail}
+              on={colorOpen}
               onClick={() => setColorOpen((o) => !o)}
-              aria-expanded={colorOpen}
-              aria-label="Your token color"
+              expanded={colorOpen}
+              label="Your token color"
               title="Pick the color your tokens wear"
-            >
-              <span aria-hidden className="player-color-dot" style={{ background: myColor ?? '#a78bfa' }} />
-            </button>
+              dot={myColor ?? '#a78bfa'}
+            />
           )}
           {myRingTokens.length > 0 && (
-            <button
-              className={`btn small${ringOn ? ' primary' : ''}`}
+            <BarBtn
+              rail={rail}
+              icon="range"
+              glyph="◎"
+              text="Range"
+              on={ringOn}
               onClick={toggleRing}
-              aria-pressed={ringOn}
-              aria-label="Range ring"
-              data-testid="player-range-toggle"
+              pressed={ringOn}
+              label="Range ring"
               title="Range ring (R): show how far you can move on your turn"
-            >
-              ◎ <span className="pl-lbl">Range</span>
-            </button>
+              testId="player-range-toggle"
+            />
           )}
-          <button
-            className={`btn small${measuring ? ' primary' : ''}`}
+          <BarBtn
+            rail={rail}
+            icon="measure"
+            glyph="📏"
+            text={measuring ? 'Done' : 'Measure'}
+            on={measuring}
             onClick={() => { setSpellTool(null); setSpellOpen(false); setMeasuring((m) => !m) }}
             title="Ruler: drag on the map to measure distance in feet"
-            aria-label={measuring ? 'Done' : 'Measure'}
-          >
-            📏 <span className="pl-lbl">{measuring ? 'Done' : 'Measure'}</span>
-          </button>
+            label={measuring ? 'Done' : 'Measure'}
+          />
           <div className="player-spell-wrap">
-            <button
-              className={`btn small${spellTool ? ' primary' : ''}`}
+            <BarBtn
+              rail={rail}
+              icon="templates"
+              glyph="✨"
+              text={spellTool ? 'Stop' : 'Spell area'}
+              on={!!spellTool}
               onClick={() => { if (spellTool) { setSpellTool(null); setSpellOpen(false) } else setSpellOpen((o) => !o) }}
-              aria-expanded={spellOpen}
+              expanded={spellOpen}
               title="Drop a spell area (burst, cone or line) on the map"
-              aria-label={spellTool ? 'Stop' : 'Spell area'}
-            >
-              ✨ <span className="pl-lbl">{spellTool ? 'Stop' : 'Spell area'}</span>
-            </button>
+              label={spellTool ? 'Stop' : 'Spell area'}
+            />
             {spellOpen && !spellTool && (
               <div className="player-spell-menu" role="menu">
                 {SPELL_PRESETS.map((p) => (
@@ -351,25 +419,52 @@ export function PlayerLiveBoardView({
               </div>
             )}
           </div>
-          {myTemplateIds.length > 0 && (
+          {myTemplateIds.length > 0 && (rail ? (
+            <BarBtn rail icon="trash" label="Clear mine" title="Remove the spell areas you placed" onClick={clearMyTemplates} />
+          ) : (
             <button className="btn ghost small" onClick={clearMyTemplates} title="Remove the spell areas you placed">
               Clear mine
             </button>
-          )}
+          ))}
           {withPanel && (
-            <button className={`btn small${panelOpen ? ' primary' : ''}`} onClick={() => setPanelPick(!panelOpen)} aria-expanded={panelOpen} aria-label={panelOpen ? 'Hide session panel' : 'Session panel'} data-testid="fs-panel-toggle">
-              <Icon name="swords" size={14} /> <span className="pl-lbl">{panelOpen ? 'Hide panel' : 'Session panel'}</span>
-            </button>
+            <BarBtn
+              rail={rail}
+              icon="inspector"
+              glyph={<Icon name="swords" size={14} />}
+              text={panelShown ? 'Hide panel' : 'Session panel'}
+              on={panelShown}
+              onClick={togglePanel}
+              expanded={panelShown}
+              label={panelShown ? 'Hide session panel' : 'Session panel'}
+              testId="fs-panel-toggle"
+            />
+          )}
+          {!fs.expanded && pagePanel && rail && (
+            <BarBtn
+              rail
+              icon="inspector"
+              on={pagePanel.open}
+              onClick={pagePanel.onToggle}
+              expanded={pagePanel.open}
+              label={pagePanel.open ? 'Hide session panel' : 'Session panel'}
+              testId="page-panel-toggle"
+            />
           )}
           {fs.expanded && !withPanel && notes && (
             <button className={`btn small${notesOpen ? ' primary' : ''}`} onClick={() => setNotesOpen((o) => !o)} aria-label={notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}>
               📝 <span className="pl-lbl">{notesOpen ? `Hide ${notesLabel.toLowerCase()}` : notesLabel}</span>
             </button>
           )}
-          <button className={`btn small${fs.expanded ? ' primary' : ''}`} onClick={fs.expanded ? fs.exit : fs.enter} aria-label={fs.expanded ? 'Exit full screen' : 'Full screen'} data-testid="map-fullscreen">
-            <Icon name={fs.expanded ? 'minimize' : 'maximize'} size={14} color={fs.expanded ? 'inherit' : undefined} />{' '}
-            <span className="pl-lbl">{fs.expanded ? 'Exit full screen' : 'Full screen'}</span>
-          </button>
+          <BarBtn
+            rail={rail}
+            icon={fs.expanded ? 'fullscreen-exit' : 'fullscreen'}
+            glyph={<Icon name={fs.expanded ? 'minimize' : 'maximize'} size={14} color={fs.expanded ? 'inherit' : undefined} />}
+            text={fs.expanded ? 'Exit full screen' : 'Full screen'}
+            on={fs.expanded}
+            onClick={fs.expanded ? fs.exit : fs.enter}
+            label={fs.expanded ? 'Exit full screen' : 'Full screen'}
+            testId="map-fullscreen"
+          />
         </div>
       </div>
 
@@ -392,7 +487,7 @@ export function PlayerLiveBoardView({
         </div>
       )}
 
-      <div className={`battlemap-body player${withNotes ? ' with-notes' : ''}`}>
+      <div ref={bodyRef} className={`battlemap-body player${withNotes ? ' with-notes' : ''}`}>
         {withNotes && <aside className="battlemap-notes">{notes}</aside>}
         <Tabletop
           pings={pings}
@@ -439,7 +534,7 @@ export function PlayerLiveBoardView({
             return hasFloatingStatus(cc) ? <TokenStatusCard token={t} combat={cc} /> : null
           }}
         />
-        {withPanel && panelOpen && <div className="pl-fs-panel" data-testid="fs-panel">{fsExtras?.panel}</div>}
+        {withPanel && panelShown && (panelDocked ? <div className="pl-fs-panel" data-testid="fs-panel">{fsExtras?.panel}</div> : fsExtras?.panel)}
       </div>
       {compact && !fs.expanded && ownIds.size > 0 && (
         <p className="faint" style={{ fontSize: 12, margin: '6px 0 0' }}>Drag your token (green ring) to move it.</p>
