@@ -100,7 +100,7 @@ Conflict rules:
 
 | Limit | Value | Where enforced |
 | --- | --- | --- |
-| Pings per user | 1 per 300 ms, 5 per 10 s | Sender (drop silently). Receiver also drops anything over 10 per 10 s from one sender. |
+| Pings per user | 1 per 300 ms, 10 per 10 s | Sender (drop silently). Receiver also drops anything over 24 per 10 s from one sender. |
 | Cursor sends | At most 20 per second, coalesced to the latest point per 50 ms tick, only when the position changed by at least 1 board pixel | Sender, by a `setInterval` tick that runs only in cursor mode. |
 | Simultaneous pings on screen | 8 total, 3 per sender. The oldest drops first. | Receiver. |
 | Simultaneous cursors | 12 total (extra cursors are not drawn) | Receiver. |
@@ -438,3 +438,8 @@ Risks:
   silly name sends a silly label; the 24-character cap and sanitize limit damage.
 
 Open questions: none. All six are decided (see **Decisions**).
+
+## Polish after owner testing (T-102 follow-up)
+
+- The ping limit is now 10 per 10 s (the 300 ms gap stays). The receiver limit is 24 per 10 s, above the sender limit.
+- The right-drag marker is a filled circle in the user's color with a trail of the last 0.5 s that tapers and fades, not a cursor arrow. The name label, idle and fade timings and per-user colors stay. With reduced motion, the circle shows without the trail. Your own drag uses the same marker.

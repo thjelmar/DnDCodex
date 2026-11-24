@@ -6,16 +6,18 @@
 export const PING_LIFE_MS = 2000
 /** How long a cursor takes to fade after its owner releases the button. */
 export const CURSOR_FADE_MS = 600
+/** How far back the drag trail reaches. */
+export const TRAIL_MS = 500
 /** A cursor that stops updating fades after this long. */
 export const CURSOR_IDLE_MS = 1500
 
 /** Minimum gap between two pings from one user. */
 export const PING_MIN_GAP_MS = 300
 /** At most this many pings per user in `PING_WINDOW_MS`. */
-export const PING_BURST = 5
+export const PING_BURST = 10
 export const PING_WINDOW_MS = 10_000
 /** Receivers drop a sender that exceeds this many messages in the window. */
-export const RECV_BURST = 12
+export const RECV_BURST = 24
 
 /** Cursor send interval: 20 per second. Set to `CURSOR_INTERVAL_FREE_MS` for the free Realtime tier. */
 export const CURSOR_INTERVAL_MS = 50

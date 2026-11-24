@@ -1,6 +1,7 @@
-import { haloFor, markerFor, type MarkerShape } from '../lib/pings'
+import { useEffect, useRef, useState } from 'react'
+import { haloFor, markerFor, TRAIL_MS, type MarkerShape } from '../lib/pings'
 import { useReducedMotion } from '../lib/useReducedMotion'
-import type { PingsApi } from '../lib/usePings'
+import type { CursorItem, PingsApi } from '../lib/usePings'
 
 // SVG overlay for map pings and cursors (T-102). It renders inside the board's
 // transformed group, so positions are board pixels and stay correct under any
@@ -24,6 +25,41 @@ function NameTag({ x, y, text, color, s }: { x: number; y: number; text: string;
       <text className="ping-tag-text" fontSize={fs} textAnchor="middle" dominantBaseline="central">
         {text}
       </text>
+    </g>
+  )
+}
+
+// A drag cursor: a filled circle in the user's color with a trail of the last
+// TRAIL_MS of positions that tapers and fades. Reduced motion draws the circle only.
+function CursorMark({ c, s, reduced }: { c: CursorItem; s: number; reduced: boolean }) {
+  const trail = useRef<{ x: number; y: number; t: number }[]>([])
+  const [, tick] = useState(0)
+  const now = performance.now()
+  const last = trail.current[trail.current.length - 1]
+  if (!reduced && (!last || last.x !== c.x || last.y !== c.y)) trail.current.push({ x: c.x, y: c.y, t: now })
+  trail.current = trail.current.filter((p) => now - p.t < TRAIL_MS)
+  const pts = trail.current
+  const animating = !reduced && pts.length > 1
+  useEffect(() => {
+    if (!animating) return
+    const id = requestAnimationFrame(() => tick((n) => n + 1))
+    return () => cancelAnimationFrame(id)
+  })
+  const halo = haloFor(c.color)
+  return (
+    <g className={`ping-cursor${c.ending ? ' ending' : ''}`}>
+      {!reduced &&
+        pts.slice(1).map((p, i) => {
+          const a = pts[i]
+          const f = Math.max(0, 1 - (now - p.t) / TRAIL_MS)
+          return <line key={i} className="ping-trail" x1={a.x} y1={a.y} x2={p.x} y2={p.y} stroke={c.color} strokeOpacity={f * 0.8} strokeWidth={(2 + 10 * f) / s} strokeLinecap="round" />
+        })}
+      <g style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
+        <g transform={`scale(${1 / s})`}>
+          <circle className="ping-dot-mark" r={9} fill={c.color} stroke={halo} strokeWidth={2.5} />
+          <NameTag x={20} y={20} text={c.name} color={c.color} s={1} />
+        </g>
+      </g>
     </g>
   )
 }
@@ -66,17 +102,9 @@ export function PingLayer({ pings, scale, view }: { pings: PingsApi; scale: numb
           </g>
         )
       })}
-      {pings.cursors.map((c) => {
-        const halo = haloFor(c.color)
-        return (
-          <g key={`${c.k}-${c.local ? 'l' : 'r'}`} className={`ping-cursor${c.ending ? ' ending' : ''}`} style={{ transform: `translate(${c.x}px, ${c.y}px)` }}>
-            <g transform={`scale(${1 / s})`}>
-              <path d="M0 0 L0 17 L5 13 L9 21 L12 19.5 L8 12 L14 12 Z" fill={c.color} stroke={halo} strokeWidth={1.5} strokeLinejoin="round" />
-              <NameTag x={22} y={26} text={c.name} color={c.color} s={1} />
-            </g>
-          </g>
-        )
-      })}
+      {pings.cursors.map((c) => (
+        <CursorMark key={`${c.k}-${c.local ? 'l' : 'r'}`} c={c} s={s} reduced={reduced} />
+      ))}
     </g>
   )
 }
