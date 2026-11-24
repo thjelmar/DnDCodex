@@ -227,6 +227,137 @@ test.describe('battle map studio', () => {
     await expect(page.getByRole('dialog').or(page.locator('.peek')).first()).toBeVisible()
   })
 
+  test('grid opacity changes the grid layer, and the Dim light tint shows at half strength for the DM', async ({ page }) => {
+    await openStudio(page)
+    const gridPath = page.locator('.tabletop-view svg path[vector-effect="non-scaling-stroke"]').first()
+    await expect(page.getByTestId('board-light')).toHaveCount(0)
+    await page.getByRole('tab', { name: 'Grid' }).click()
+    await page.getByLabel('Grid opacity').fill('100')
+    await expect(gridPath).toHaveAttribute('stroke-opacity', '1')
+    await page.getByRole('tab', { name: 'Map' }).click()
+    await page.getByRole('group', { name: 'Ambient light' }).getByRole('button', { name: 'Dim' }).click()
+    const tint = page.getByTestId('board-light')
+    await expect(tint).toHaveAttribute('data-light', 'dim')
+    await expect(tint).toHaveAttribute('data-viewer', 'dm')
+    await expect(tint).toHaveAttribute('fill-opacity', '0.175')
+    await page.getByRole('group', { name: 'Ambient light' }).getByRole('button', { name: 'Bright' }).click()
+    await expect(page.getByTestId('board-light')).toHaveCount(0)
+  })
+
+  test('the range ring follows the selected token\'s speed, and R toggles it', async ({ page }) => {
+    await openStudio(page)
+    const ring = page.getByTestId('range-ring')
+    await insp(page).getByRole('button', { name: 'Crate', exact: true }).click()
+    await expect(ring).toHaveCount(0) // no speed, no ring
+    const card = page.getByTestId('bm-token-card')
+    await card.getByLabel('Speed in feet').fill('30')
+    await card.getByLabel('Speed in feet').blur()
+    await expect(ring).toHaveAttribute('data-squares', '6')
+    await page.locator('.tabletop-view').press('r')
+    await expect(ring).toHaveCount(0)
+    await expect(page.getByTestId('tool-range')).toHaveAttribute('aria-pressed', 'false')
+    await page.getByTestId('tool-range').click()
+    await expect(ring).toHaveAttribute('data-squares', '6')
+    await card.getByLabel('Speed in feet').fill('')
+    await card.getByLabel('Speed in feet').blur()
+    await expect(ring).toHaveCount(0)
+  })
+
+  test('a prop gets terrain markers and a footprint: tag, hatch, cover chip, and a card tag', async ({ page }) => {
+    await openStudio(page)
+    await insp(page).getByRole('button', { name: 'Crate', exact: true }).click()
+    await expect(page.getByTestId('terrain-zone')).toHaveCount(0) // unmarked props draw nothing
+    const terrain = page.getByTestId('bm-terrain')
+    await terrain.getByLabel('Difficult terrain').check()
+    await terrain.getByRole('button', { name: '½ cover' }).click()
+    await terrain.getByLabel('Footprint width in cells').fill('3')
+    await terrain.getByLabel('Footprint width in cells').blur()
+    const zone = page.getByTestId('terrain-zone')
+    await expect(zone).toHaveCount(1)
+    await expect(zone.locator('rect.bm-zone')).toHaveAttribute('data-difficult', 'true')
+    await expect(page.getByTestId('cover-chip')).toHaveAttribute('data-cover', 'half')
+    await expect(page.getByTestId('bm-terrain-tag')).toHaveText('Difficult · ½ cover')
+    await expect(page.getByTestId('bm-card-tags')).toContainText('½ cover')
+    await terrain.getByLabel('Blocks movement').check()
+    await expect(zone.locator('rect.bm-zone')).toHaveAttribute('data-blocks', 'true')
+    // Clearing every marker removes the tag and the chip.
+    await terrain.getByLabel('Difficult terrain').uncheck()
+    await terrain.getByRole('button', { name: 'No cover' }).click()
+    await terrain.getByLabel('Blocks movement').uncheck()
+    await expect(page.getByTestId('cover-chip')).toHaveCount(0)
+    await expect(page.getByTestId('bm-terrain-tag')).toHaveCount(0)
+  })
+
+  test('characters and enemies have no terrain controls', async ({ page }) => {
+    await openStudio(page)
+    await insp(page).getByRole('button', { name: 'Mordrek', exact: true }).click()
+    await expect(page.getByTestId('bm-terrain')).toHaveCount(0)
+  })
+
+  test('template presets arm a shape and size, and a spell name labels the placed area', async ({ page }) => {
+    await openStudio(page)
+    await page.getByTestId('tool-templates').click()
+    const place = async (fx: number, fy: number, drag = true) => {
+      const b = (await page.locator('.tabletop-view').boundingBox())!
+      await page.mouse.move(b.x + b.width * fx, b.y + b.height * fy)
+      await page.mouse.down()
+      if (drag) await page.mouse.move(b.x + b.width * fx + 90, b.y + b.height * fy + 10, { steps: 4 })
+      await page.mouse.up()
+    }
+    await page.getByRole('group', { name: 'Template presets' }).getByRole('button', { name: 'Cone 30 ft' }).click()
+    await expect(page.getByLabel('Template size in feet')).toHaveValue('30')
+    await place(0.3, 0.4)
+    await expect(page.locator('.battlemap-tpl-chip')).toHaveText(/cone 30ft/)
+    await page.getByLabel('Spell name (optional)').fill('Fireball')
+    await expect(page.getByLabel('Template size in feet')).toHaveValue('20')
+    await place(0.6, 0.5, false)
+    await expect(page.locator('.tabletop-template-label')).toHaveText('Fireball')
+    await expect(page.locator('.battlemap-tpl-chip').last()).toHaveText(/Fireball 20ft/)
+    // A name the list does not know stays a plain label on the current shape.
+    await page.getByLabel('Spell name (optional)').fill('Moonbeam')
+    await expect(page.getByLabel('Template size in feet')).toHaveValue('20')
+    await page.getByRole('group', { name: 'Template shape' }).getByRole('button', { name: 'Cube' }).click()
+    await expect(page.getByLabel('Spell name (optional)')).toHaveValue('')
+  })
+
+  test('nothing in the docked inspector is clipped: chips, pills, card and terrain fields keep whole labels', async ({ page }) => {
+    await openStudio(page)
+    await insp(page).getByRole('button', { name: 'Crate', exact: true }).click()
+    const clipped = () =>
+      insp(page).evaluate((root) => {
+        const bad: string[] = []
+        const sel = '.bm-kchip, .bm-pill, .bm-terrain-pill, .bm-card button, .bm-card-name, .bm-group-title, .bm-card-speed, .bm-terrain label, .bm-terrain button'
+        for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
+          if (el.clientWidth === 0) continue
+          // A name that truncates with an ellipsis on purpose is fine; a chip never may.
+          if (el.classList.contains('bm-card-name')) continue
+          if (el.scrollWidth > el.clientWidth + 1) bad.push(`${el.className}:${el.textContent?.trim()} ${el.scrollWidth}>${el.clientWidth}`)
+          const r = el.getBoundingClientRect()
+          const p = root.getBoundingClientRect()
+          if (r.right > p.right + 1 || r.left < p.left - 1) bad.push(`outside:${el.className}:${el.textContent?.trim()}`)
+        }
+        return bad
+      })
+    // Make the card and the terrain group as busy as they get.
+    const terrain = page.getByTestId('bm-terrain')
+    await terrain.getByLabel('Difficult terrain').check()
+    await terrain.getByRole('button', { name: '¾ cover' }).click()
+    await terrain.getByLabel('Blocks movement').check()
+    expect(await clipped()).toEqual([])
+    // Every category chip shows its whole label and a count.
+    const chips = page.getByRole('group', { name: 'Filter by category' }).getByRole('button')
+    await expect(chips).toHaveCount(5)
+    for (const name of ['All', 'Characters', 'NPCs', 'Enemies', 'Props']) {
+      await expect(chips.filter({ hasText: name })).toHaveCount(1)
+    }
+    // Squeeze the dock to the owner's reported width (about 165 px): labels still stay whole.
+    await insp(page).evaluate((el) => { el.style.width = '165px' })
+    await insp(page).getByRole('button', { name: 'Mordrek', exact: true }).click()
+    expect(await clipped()).toEqual([])
+    await insp(page).getByRole('group', { name: 'Filter by category' }).scrollIntoViewIfNeeded()
+    await insp(page).screenshot({ path: 'test-results/inspector-dock-narrow.png' })
+  })
+
   test('the inspector opens in a popup, shares the same state, and docks when the window closes', async ({ page }) => {
     await page.addInitScript(() => delete (window as unknown as Record<string, unknown>).documentPictureInPicture)
     await openStudio(page)

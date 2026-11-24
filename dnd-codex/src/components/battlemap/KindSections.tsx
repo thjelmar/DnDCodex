@@ -22,12 +22,12 @@ export function KindChips({
     ...TOKEN_KINDS.map((k) => ({ id: k.kind as KindFilter, label: k.chip, n: counts[k.kind] })),
   ]
   return (
-    <div className="bm-chips" role="group" aria-label="Filter by category">
+    <div className="bm-kchips" role="group" aria-label="Filter by category">
       {chips.map((c) => (
         <button
           key={c.id}
           type="button"
-          className={`bm-chip${value === c.id ? ' on' : ''}`}
+          className={`bm-kchip${value === c.id ? ' on' : ''}`}
           aria-pressed={value === c.id}
           onClick={() => onChange(c.id)}
         >

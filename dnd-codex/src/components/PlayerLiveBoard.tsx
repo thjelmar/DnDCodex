@@ -5,6 +5,8 @@ import { getMyColor, setMyColor } from '../auth/cloud'
 import { useFullscreen } from '../lib/useFullscreen'
 import { PHONE_QUERY, useIsPhone } from '../lib/usePhone'
 import { TOKEN_COLORS } from '../lib/tabletop'
+import { BoardOverlays } from './BoardOverlays'
+import { ringSquares } from '../lib/rangeRing'
 import { Tabletop } from './Tabletop'
 import { usePings } from '../lib/usePings'
 import { TokenStatusCard, hasFloatingStatus } from './TokenStatusCard'
@@ -115,6 +117,31 @@ export function PlayerLiveBoardView({
   const ownIds = useMemo(
     () => new Set(live.tokens.filter((t) => user && t.controlledBy === user.id).map((t) => t.id)),
     [live.tokens, user],
+  )
+  // Range ring (T-103): on a player's own turn, for their own token that has a speed
+  // the DM shared. The toggle is per player and per browser; the DM never sees it.
+  const [ringOn, setRingOn] = useState(() => {
+    try { return localStorage.getItem('codex.bm.playerRange') !== '0' } catch { return true }
+  })
+  function toggleRing() {
+    setRingOn((on) => {
+      try { localStorage.setItem('codex.bm.playerRange', on ? '0' : '1') } catch { /* ignore */ }
+      return !on
+    })
+  }
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (e.metaKey || e.ctrlKey || e.altKey || e.key.toLowerCase() !== 'r') return
+      toggleRing()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  const myRingTokens = useMemo(
+    () => live.tokens.filter((t) => ownIds.has(t.id) && t.speedFt != null && ringSquares(t.speedFt) > 0),
+    [live.tokens, ownIds],
   )
   const board = useMemo(() => {
     const b = liveTokensForBoard(live.tokens)
@@ -246,6 +273,18 @@ export function PlayerLiveBoardView({
               <span aria-hidden className="player-color-dot" style={{ background: myColor ?? '#a78bfa' }} />
             </button>
           )}
+          {myRingTokens.length > 0 && (
+            <button
+              className={`btn small${ringOn ? ' primary' : ''}`}
+              onClick={toggleRing}
+              aria-pressed={ringOn}
+              aria-label="Range ring"
+              data-testid="player-range-toggle"
+              title="Range ring (R): show how far you can move on your turn"
+            >
+              ◎ <span className="pl-lbl">Range</span>
+            </button>
+          )}
           <button
             className={`btn small${measuring ? ' primary' : ''}`}
             onClick={() => { setSpellTool(null); setSpellOpen(false); setMeasuring((m) => !m) }}
@@ -308,6 +347,21 @@ export function PlayerLiveBoardView({
         {withNotes && <aside className="battlemap-notes">{notes}</aside>}
         <Tabletop
           pings={pings}
+          overlays={
+            <BoardOverlays
+              grid={live.scene.grid}
+              width={live.scene.width}
+              height={live.scene.height}
+              viewer="player"
+              tokens={board.tokens}
+              ring={(() => {
+                if (!ringOn) return null
+                const mine = myRingTokens.find((t) => t.combat?.active)
+                const bt = mine ? board.tokens.find((t) => t.id === mine.id) : null
+                return mine && bt ? { token: bt, squares: ringSquares(mine.speedFt), rule: 'standard' as const } : null
+              })()}
+            />
+          }
           width={live.scene.width}
           height={live.scene.height}
           grid={live.scene.grid}

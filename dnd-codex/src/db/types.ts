@@ -783,7 +783,24 @@ export interface SceneGrid {
   offsetY: number
   show: boolean
   color: string
+  /** Grid line opacity, 0.1 to 1. Unset keeps the original look (0.55). */
+  opacity?: number
+  /** Ambient light over the map. Unset = bright. Shared with players, because
+   *  `shared_scenes.grid` is a JSON column that carries the whole grid. */
+  light?: SceneLight
 }
+
+/** Terrain and cover markers for a prop (T-103). Marker only. */
+export interface TokenTerrain {
+  /** Difficult terrain: movement costs double. */
+  difficult?: boolean
+  /** Cover a creature gets behind this prop. */
+  cover?: 'half' | 'three-quarters'
+  /** The prop blocks movement. */
+  blocks?: boolean
+}
+
+export type SceneLight = 'bright' | 'dim' | 'dark'
 
 /** One token on a battle map. `col`/`row` are the top-left cell it occupies. */
 export interface SceneToken {
@@ -823,6 +840,12 @@ export interface SceneToken {
   kind?: TokenKind | LegacyTokenKind
   /** Manual walking speed in feet. Overrides the linked stat block's speed. */
   speedFt?: number | null
+  /** Terrain and cover markers on a prop. Labels for the table: nothing computes with them. */
+  terrain?: TokenTerrain
+  /** Footprint in cells for a prop that is not square; each falls back to `size`.
+   *  The board draws it as a zone under the token, which stays on its top-left cell. */
+  w?: number
+  h?: number
   /** The monster group (`Scene.groups`) this token belongs to. DM-only prep data:
    *  like `kind`, it never reaches the live scene payload. */
   groupId?: Id | null
@@ -858,7 +881,9 @@ export type TokenShape = 'circle' | 'square'
 /** A placed area/measurement template (spell area, breath cone, wall). Shared
  *  with players on the live map. Sizes are in feet; the origin is in fractional
  *  grid cells so it rides along when the grid is re-aligned (like tokens). */
-export type TemplateShape = 'circle' | 'cone' | 'line'
+/** `cube` (T-103): a square of `sizeFt` per side, aimed like a line. A stale client
+ *  that does not know it draws a 5 ft wide line instead. */
+export type TemplateShape = 'circle' | 'cone' | 'line' | 'cube'
 export interface SceneTemplate {
   id: Id
   shape: TemplateShape
@@ -872,6 +897,8 @@ export interface SceneTemplate {
   color: string
   /** Optional caption ("Fireball", "Breath"). */
   label?: string
+  /** Line width in feet; 5 when unset. */
+  widthFt?: number
 }
 
 /** A battle map (VTT scene): a map image, its grid, and the tokens on it. */

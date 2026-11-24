@@ -19,6 +19,7 @@ import { tokenRevealed } from '../lib/tabletop'
 import { tokenCombat } from '../lib/tokenCombat'
 import { activeIds, getCombat, type CombatState } from '../lib/combat'
 import { isDemo, notifyDemoBlocked } from '../lib/demo'
+import { hasTerrain } from '../lib/terrain'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
@@ -87,6 +88,12 @@ async function toLiveTokens(
           shape: t.shape ?? null,
           controlledBy: t.controlledBy ?? null,
           combat: linked ? tokenCombat(t, linked, acting.has(linked.id) ? linked.id : null, true) : null,
+          // Terrain markers and footprint are table information. The manual speed
+          // goes only to a token a player controls, never for a monster.
+          ...(t.terrain && hasTerrain(t.terrain) ? { terrain: t.terrain } : {}),
+          ...(t.w != null ? { cellW: t.w } : {}),
+          ...(t.h != null ? { cellH: t.h } : {}),
+          ...(t.controlledBy && t.speedFt != null ? { speedFt: t.speedFt } : {}),
         }
       }),
   )
@@ -209,6 +216,8 @@ export function useDmLiveScene(
     a.label === b.label && a.color === b.color && a.col === b.col && a.row === b.row &&
     a.size === b.size && a.portrait === b.portrait && a.controlledBy === b.controlledBy &&
     a.icon === b.icon && a.shape === b.shape &&
+    a.cellW === b.cellW && a.cellH === b.cellH && a.speedFt === b.speedFt &&
+    JSON.stringify(a.terrain) === JSON.stringify(b.terrain) &&
     JSON.stringify(a.combat) === JSON.stringify(b.combat)
 
   /**

@@ -87,9 +87,9 @@ interface Props {
   /** Placed area templates to render (spell areas etc.), or none. */
   templates?: SceneTemplate[]
   /** When set, clicking/dragging the board places a template of this shape. */
-  templateTool?: { shape: TemplateShape; sizeFt: number; color: string } | null
+  templateTool?: { shape: TemplateShape; sizeFt: number; color: string; widthFt?: number; label?: string } | null
   /** Commit a placed template (origin in cells, plus aim for cone/line). */
-  onPlaceTemplate?: (t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string }) => void
+  onPlaceTemplate?: (t: { shape: TemplateShape; col: number; row: number; sizeFt: number; dir?: number; color: string; widthFt?: number; label?: string }) => void
   /** When true, dragging the board measures a distance in feet (ephemeral). */
   measureTool?: boolean
   /** Content for a small card floated just above the selected token (its quick
@@ -102,6 +102,9 @@ interface Props {
   focus?: { ids: string[]; seq: number } | null
   /** Shared pings and colored cursors (T-102). Omit for a board with neither. */
   pings?: PingsApi
+  /** Extra SVG layers drawn above the map and grid and below templates, fog and
+   *  tokens: the light tint, terrain and the range ring (T-103). */
+  overlays?: ReactNode
 }
 
 /**
@@ -164,6 +167,7 @@ export function Tabletop({
   showGroups = false,
   focus = null,
   pings,
+  overlays,
 }: Props) {
   const iconPaths = useTokenIconPaths()
   const clampRef = useRef<(tx: number, ty: number, k: number) => { tx: number; ty: number }>((tx, ty) => ({ tx, ty }))
@@ -603,7 +607,7 @@ export function Tabletop({
         const oy = grid.offsetY + d.row * grid.cellPx
         const p = toBoard(e.clientX, e.clientY)
         const dir = templateTool.shape === 'circle' ? undefined : Math.atan2(p.y - oy, p.x - ox)
-        onPlaceTemplate?.({ shape: templateTool.shape, col: d.col, row: d.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color })
+        onPlaceTemplate?.({ shape: templateTool.shape, col: d.col, row: d.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color, widthFt: templateTool.widthFt, label: templateTool.label })
       }
       setTemplateAim(null)
     } else if (box) {
@@ -707,12 +711,14 @@ export function Tabletop({
                 d={lines}
                 fill="none"
                 stroke={grid.color}
-                strokeOpacity={0.55}
+                strokeOpacity={grid.opacity ?? 0.55}
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
               />
             )}
+
+            {overlays}
 
             {/* Area templates (spell areas, cones, lines). Drawn over the grid
                 and under the tokens: the covered squares are tinted and the
@@ -744,7 +750,7 @@ export function Tabletop({
             {/* Live preview of the template being placed. */}
             {templateTool && templateAim && (() => {
               const dir = templateTool.shape === 'circle' ? undefined : Math.atan2(templateAim.ay - (grid.offsetY + templateAim.row * grid.cellPx), templateAim.ax - (grid.offsetX + templateAim.col * grid.cellPx))
-              const ghost: SceneTemplate = { id: 'ghost', shape: templateTool.shape, col: templateAim.col, row: templateAim.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color }
+              const ghost: SceneTemplate = { id: 'ghost', shape: templateTool.shape, col: templateAim.col, row: templateAim.row, sizeFt: templateTool.sizeFt, dir, color: templateTool.color, widthFt: templateTool.widthFt }
               const geom = templateGeom(grid, ghost)
               return (
                 <g className="tabletop-template ghost" pointerEvents="none" style={{ color: templateTool.color }}>

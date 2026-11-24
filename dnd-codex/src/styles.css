@@ -5029,10 +5029,13 @@ body.ov-dragging * { cursor: inherit !important; }
 .bm-kind-dot[data-kind='npc'] { background: #0891b2; }
 .bm-kind-dot[data-kind='enemy'] { background: #dc2626; }
 .bm-kind-dot[data-kind='prop'] { background: #92591f; }
-.bm-chips { display: flex; gap: 6px; margin: 0 0 6px; overflow-x: auto; padding-bottom: 2px; }
-.bm-chip { flex: none; min-height: 38px; min-width: 44px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.bm-chip small { margin-left: 4px; color: var(--text-faint); }
-.bm-chip.on { border-color: var(--accent); color: var(--accent); }
+/* Category chips, cover, preset and light chips (T-103). Named bm-kchip so they do not
+   pick up the turn strip's round .bm-chip. They wrap, so every label stays whole at the narrowest dock. */
+.bm-kchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
+.bm-kchip { flex: 0 1 auto; display: inline-flex; align-items: center; gap: 4px; min-height: 38px; min-width: 44px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--text-dim); font: inherit; font-size: 13px; line-height: 1.2; cursor: pointer; white-space: nowrap; }
+.bm-kchip small { color: var(--text-faint); font-size: 11px; }
+.bm-kchip.on { border-color: var(--accent); color: var(--accent); }
+@media (pointer: coarse) { .bm-kchip { min-height: 44px; } }
 .bm-card { flex: none; padding: 10px; border-top: 1px solid var(--border); background: var(--bg-elev-2); }
 .bm-card-head { display: flex; align-items: center; gap: 8px; }
 .bm-card-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
@@ -5041,9 +5044,9 @@ body.ov-dragging * { cursor: inherit !important; }
 .bm-card-rows dt { color: var(--text-dim); }
 .bm-card-rows dd { margin: 0; }
 .bm-card-atk { margin: 2px 0; font-size: 12px; color: var(--text-dim); }
-.bm-card-foot { display: flex; align-items: flex-end; gap: 8px; margin-top: 8px; }
-.bm-card-foot .bm-btn { flex: 1; min-height: 38px; }
-.bm-card-speed { display: grid; gap: 2px; width: 110px; font-size: 11px; color: var(--text-dim); }
+.bm-card-foot { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.bm-card-foot .bm-btn { flex: 1 1 120px; min-height: 38px; }
+.bm-card-speed { display: grid; gap: 2px; flex: 1 1 110px; max-width: 100%; min-width: 0; font-size: 11px; color: var(--text-dim); }
 @media (max-width: 900px) { .bm-card { padding: 8px 10px; } }
 .bm-add-as { margin: 2px 8px 6px; }
 .bm-add-as button { flex: 1; }
@@ -5638,3 +5641,22 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .ping-menu input[type="checkbox"] { width: auto; flex: none; margin: 0; }
 .ping-menu-list { display: grid; gap: 4px; }
 .ping-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* Movement range ring (T-103): a soft accent fill under the selected token. */
+.bm-range-ring {
+  fill: var(--accent);
+  fill-opacity: 0.18;
+}
+.bm-slider { display: flex; align-items: center; gap: 10px; min-height: 38px; }
+.bm-slider input[type='range'] { flex: 1; min-height: 38px; }
+.bm-slider output { min-width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Terrain zones under props (T-103). */
+.bm-zone { fill: rgba(167, 139, 250, 0.08); stroke: rgba(255, 255, 255, 0.35); stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.bm-zone.blocks { stroke: #1a1410; stroke-width: 3; stroke-dasharray: none; }
+.bm-hatch-line { stroke: rgba(240, 200, 120, 0.7); stroke-width: 2.5; }
+.bm-cover-chip { fill: #1a1410; fill-opacity: 0.88; stroke: rgba(255, 255, 255, 0.5); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.bm-cover-text { fill: #f5ecd8; font-weight: 700; letter-spacing: 0.04em; }
+.bm-terrain-pill { font-size: 11px; line-height: 1.25; padding: 1px 6px; border-radius: 999px; background: var(--bg-elev-2); color: var(--text-dim); min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.bm-terrain { display: grid; gap: 8px; }
+.bm-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; }

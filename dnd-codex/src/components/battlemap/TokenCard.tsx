@@ -12,12 +12,15 @@ export function TokenCard({
   speedFt,
   onSpeed,
   onOpenStatBlock,
+  tags = [],
 }: {
   data: TokenCardData
   /** The token's own manual speed (not the stat block's), or null. */
   speedFt: number | null
   onSpeed: (v: number | null) => void
   onOpenStatBlock?: () => void
+  /** Terrain tags of a prop ("Difficult", "½ cover"). */
+  tags?: string[]
 }) {
   const kind = TOKEN_KINDS.find((k) => k.kind === data.kind)
   const rows: [string, string][] = []
@@ -30,6 +33,13 @@ export function TokenCard({
         <strong className="bm-card-name">{data.name}</strong>
         <span className="bm-pill">{kind?.one}</span>
       </div>
+      {tags.length > 0 && (
+        <p className="bm-card-tags" data-testid="bm-card-tags">
+          {tags.map((t) => (
+            <span key={t} className="bm-terrain-pill">{t}</span>
+          ))}
+        </p>
+      )}
       {rows.length > 0 && (
         <dl className="bm-card-rows">
           {rows.map(([k, v]) => (
