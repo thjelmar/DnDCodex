@@ -6,7 +6,7 @@ import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
 import { NotesSaveStatus, type SaveState } from '../components/NotesSaveStatus'
 import { clearDraft, getDraft, setDraft } from '../lib/noteDrafts'
-import { PlayerSessionDock, PlayerTurnBanner, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
+import { PlayerSessionDock, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
 import { PlayerLiveBoardView } from '../components/PlayerLiveBoard'
 import { useLiveScene } from '../auth/liveScene'
 import { Icon } from '../components/Icon'
@@ -16,7 +16,7 @@ import { parseDiscordChannelLink } from '../lib/discord'
 import { useLiveSession } from '../lib/useLiveSession'
 import { useLiveCombat } from '../auth/liveCombat'
 import { useAuth } from '../auth/AuthProvider'
-import { PlayerInitiativeStrip } from '../components/PlayerInitiativeStrip'
+import { PlayerTurnStrip } from '../components/PlayerTurnStrip'
 import { formatDate } from '../lib/format'
 import { DemoLiveControls } from '../components/DemoLiveControls'
 
@@ -113,9 +113,8 @@ export function PlayerSessionPage() {
     </>
   )
   // The same player UI the page shows, built once so full screen can host it too.
-  const turnEl = <PlayerTurnBanner rows={myTurnRows} cloudCampaignId={linkedId} />
   const stripEl = (
-    <PlayerInitiativeStrip combat={liveCombat.combat} cloudCampaignId={linkedId} localCampaignId={campaignId} userId={user?.id ?? null} />
+    <PlayerTurnStrip combat={liveCombat.combat} cloudCampaignId={linkedId} localCampaignId={campaignId} userId={user?.id ?? null} />
   )
   const dockEl = (
     <PlayerSessionDock
@@ -135,7 +134,7 @@ export function PlayerSessionPage() {
       compact={compact}
       rail={!compact}
       onExpandedChange={setMapFull}
-      fsExtras={{ turn: turnEl, strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
+      fsExtras={{ strip: stripEl, demo: <DemoLiveControls />, panel: dockEl }}
       empty={
         <div className="session-vtt-slot">
           <Icon name="map" size={28} strokeWidth={1.3} />
@@ -158,7 +157,6 @@ export function PlayerSessionPage() {
         {liveCombat.combat?.phase === 'active' && (
           <span className="pl-round" data-testid="top-round"><span className="pl-pulse" aria-hidden /> Round {liveCombat.combat.round}</span>
         )}
-        {!mapFull && turnEl}
         <div style={{ flex: 1 }} />
         <JoinVoiceButton channel={voice} />
         {!mapFull && <DemoLiveControls />}
@@ -171,13 +169,12 @@ export function PlayerSessionPage() {
 
       <div className={`session-grid${mapLive ? ' map-live' : ''}`}>
         <section className="session-map">
-          {!mapFull && stripEl}
           {mapLive ? (
-            <div className="card run-card session-vtt">{board(false)}</div>
+            <div className="card run-card session-vtt"><div className="pl-map-wrap">{board(false)}{!mapFull && stripEl}</div></div>
           ) : (
             <div className="card run-card session-vtt">
               <div className="run-col-heading"><Icon name="map" size={15} /> Tabletop</div>
-              {board(true)}
+              <div className="pl-map-wrap">{board(true)}{!mapFull && stripEl}</div>
             </div>
           )}
         </section>

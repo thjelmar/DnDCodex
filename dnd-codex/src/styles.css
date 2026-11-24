@@ -5592,35 +5592,7 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 
 /* Players' initiative strip (T-100). One scrolling row; in short landscape it floats
    over the page so it adds no height, and shows only the current turn plus the next two. */
-.pis { position: relative; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 12px; margin: 8px 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; }
-.pis-round { font-weight: 600; white-space: nowrap; }
-.pis-chips { display: flex; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.pis-chip { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-elev-2, var(--bg)); font-size: 13px; }
-.pis-chip b { color: var(--text-dim); }
-.pis-chip small { color: var(--text-faint, var(--text-dim)); }
-.pis-chip.now { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
-.pis-chip.me { outline: 1px dashed var(--good, #4ade80); outline-offset: 2px; }
-.pis-dot { width: 8px; height: 8px; border-radius: 50%; }
-.pis-dot.ally { background: var(--good, #4ade80); }
-.pis-dot.foe { background: var(--danger, #f87171); }
-.pis-marker { font-weight: 600; color: var(--danger, #f87171) !important; }
-.pis-x { border: 0; background: transparent; color: var(--text-dim); cursor: pointer; padding: 2px; }
-.pis-more { display: none; }
-.pis-pop { position: absolute; top: calc(100% + 6px); right: 8px; z-index: 30; display: grid; gap: 10px; min-width: 260px; padding: 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 6px 20px #0006; }
-.pis-pop label { display: grid; gap: 4px; font-size: 13px; color: var(--text-dim); }
 .pis-error { color: var(--danger, #f87171); font-size: 12px; }
-@media (orientation: landscape) and (max-height: 500px) {
-  .pis { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 4px); right: calc(env(safe-area-inset-right, 0px) + 8px); z-index: 40; max-width: min(70vw, 640px); min-height: 0; margin: 0; padding: 3px 8px; flex-wrap: wrap; }
-  .pis-more { display: inline-flex; }
-  .pis:not(.open) .pis-chip { display: none; }
-  .pis:not(.open) .pis-chip.now,
-  .pis:not(.open) .pis-chip.now + .pis-chip,
-  .pis:not(.open) .pis-chip.now + .pis-chip + .pis-chip,
-  .pis:not(.open):not(.has-now) .pis-chip:nth-child(-n+3) { display: inline-flex; }
-  .pis.open .pis-chips { flex-wrap: wrap; max-height: 40vh; overflow-y: auto; }
-  .pis-pop { position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom, 0px) + 8px); top: auto; }
-}
-.pis-init-input { width: 56px; padding: 0 6px; height: 24px; }
 
 /* ---- Map pings and colored cursors (T-102) ---- */
 .tabletop-view.pingable { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
@@ -5677,17 +5649,6 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 .pl-dock-body { padding: 12px; overflow-y: auto; min-height: 0; }
 .pl-empty { padding: 18px 6px; text-align: center; }
 .pl-empty p { margin: 6px 0 0; font-size: 13px; }
-.pl-init-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.pl-init-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elev-2, var(--bg)); }
-.pl-init-row.now { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
-.pl-init-row.me { outline: 1px dashed var(--good, #4ade80); outline-offset: 2px; }
-.pl-init-num { min-width: 30px; height: 30px; display: inline-grid; place-items: center; border-radius: 8px; background: var(--bg-elev); font-weight: 700; }
-.pl-init-main { display: grid; flex: 1; min-width: 0; }
-.pl-init-name { font-family: var(--font-serif, inherit); font-weight: 600; overflow-wrap: anywhere; }
-.pl-you { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 25%, transparent); font-style: normal; font-size: 11px; }
-.pl-init-sub { font-size: 12px; }
-.pl-init-hp { font-size: 13px; font-variant-numeric: tabular-nums; }
-.pl-init-marker { font-size: 12px; font-weight: 600; color: var(--danger, #f87171); }
 .pl-me { display: grid; gap: 12px; }
 .pl-me-card { padding: 12px; border: 1px solid var(--border); border-radius: 10px; display: grid; gap: 10px; }
 .pl-me-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -5750,7 +5711,6 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
   .session-page .run-title { font-size: 18px; }
   .session-grid { flex: 1; min-height: 0; gap: 0; grid-template-columns: minmax(0, 1fr) 380px; align-items: stretch; }
   .session-map { display: flex; flex-direction: column; min-height: 0; padding: 10px 12px 0; }
-  .session-map .pis { margin: 0 0 8px; flex: none; }
   .session-map .session-vtt.card { flex: 1; min-height: 0; margin: 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
   .session-map:not(:has(.expanded)) .tabletop-view { height: calc(100dvh - var(--demo-h, 0px) - 196px); min-height: 360px; }
   .pl-dock { position: static; height: 100%; max-height: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; background: var(--bg-elev); }
@@ -5765,7 +5725,6 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
   .session-header > .faint { display: none; }
   .session-header > div[style*="flex: 1"] { display: none; }
   .session-map { padding: 0 8px; }
-  .session-map .pis { margin: 0 0 6px; }
   .player-live-board.pl-rail:not(.expanded) > p { display: none; }
   .session-map:not(:has(.expanded)) .tabletop-view { height: 44vh; height: 44dvh; min-height: 240px; max-height: 480px; }
   .session-map .session-vtt.card { padding: 0; border: 0; background: transparent; margin-bottom: 8px; }
@@ -5791,10 +5750,8 @@ html[data-bm-fs] .app[data-demo='true'] .bm-studio.expanded { top: 0; }
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 860px) {
   .session-page > .session-header { flex-wrap: nowrap; }
   .session-page > .session-header .pl-turn { width: auto; flex: none; }
-  .session-page .pis { top: calc(var(--demo-h, 0px) + 46px); }
   .session-page .run-title { font-size: 15px; }
 }
-.pl-init-main { flex: 1 1 110px; min-width: 110px; }
 
 /* ==========================================================================
    Full screen map tools stay reachable
@@ -5822,10 +5779,8 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
    ========================================================================== */
 .pl-fs-shell .pl-fs-hud { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
 .pl-fs-shell:not(.phone-fs) .pl-fs-hud { flex-direction: row; flex-wrap: wrap; align-items: center; }
-.pl-fs-shell:not(.phone-fs) .pl-fs-hud .pis { flex: 1 1 420px; }
 .pl-fs-shell .pl-fs-hud:empty { display: none; }
 .pl-fs-shell .pl-fs-hud .pl-turn { width: auto; }
-.pl-fs-shell .pl-fs-hud .pis { align-self: stretch; position: relative; top: auto; right: auto; z-index: auto; max-width: none; margin: 0; }
 .pl-fs-shell .battlemap-body.player { position: relative; }
 .pl-fs-shell.panel-open:not(.pl-fs-narrow) .battlemap-body.player { grid-template-columns: minmax(0, 1fr) 360px; }
 .pl-fs-panel { min-height: 0; min-width: 0; display: flex; }
@@ -5855,10 +5810,10 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
   .player-live-board .demo-ctl-head { right: auto; left: calc(12px + env(safe-area-inset-left, 0px)); }
   .player-live-board .demo-ctl-body { left: 8px; right: 8px; }
 }
-/* The Join initiative form (.pis-pop, z 30) must win over the floating demo pill. */
+/* Keep the floating demo pill under overlays. */
 .player-live-board .demo-ctl-head { z-index: 25; }
 
-/* Notes in the side panel (T-108): a roomy editor with a save state, a toolbar that stays
+/* Notes in the side panel (T-110): a roomy editor with a save state, a toolbar that stays
    in view while the text scrolls, and room for a phone's on-screen keyboard. */
 .notes-editor { display: flex; flex-direction: column; gap: 8px; }
 .notes-foot { display: flex; align-items: center; gap: 10px; }
@@ -5877,3 +5832,54 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 .pl-dock-body, .battlemap-notes { scroll-padding-bottom: 140px; }
 /* While the on-screen keyboard is up the visual viewport is short: keep the editor tall enough to type in. */
 @media (max-height: 520px) { .notes-editor .rte-editable .rte-content { min-height: 140px; } }
+
+/* ---- Player Initiative tab wears the DM tracker look (T-108) ----
+   Rows reuse the il-* classes from Run mode's InitiativeList; only what a player needs differs. */
+.il-main.static { cursor: default; }
+.il-ini-ro { display: inline-flex; align-items: center; justify-content: flex-end; line-height: 30px; }
+.il-you { color: var(--accent); }
+.il-marker { color: var(--danger, #f87171); border-color: currentColor; font-weight: 600; }
+.il-row.mine .il-x { opacity: 0.7; }
+.il-end-turn { background: var(--accent); color: #fff; border-color: var(--accent); }
+.il-join { margin: 0; }
+.il-add .il-join { width: 100%; box-sizing: border-box; }
+.il-foot { flex-wrap: wrap; }
+.pl-dock-body .il-row.turn { scroll-margin: 8px; }
+/* The dot on the Initiative tab while the DM asks. */
+.pl-tab-badge { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pl-pulse 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .pl-tab-badge { animation: none; } }
+/* Demo controls open on the map side, so they never sit over the panel's Join initiative form (T-108). */
+@media (min-width: 861px) {
+  .demo-ctl-body { right: auto; left: 12px; }
+}
+.il-join-actions { display: inline-flex; gap: 6px; align-items: center; margin-left: auto; }
+
+/* ---- Player turn strip (T-108): the DM's .bm-turns pill, bottom left of the player's map ----
+   The pill, round, chips and Next-style button come from the DM strip's classes above. Only the
+   placement, the pulse while the DM asks, and the pop-up are new. */
+.pl-map-wrap { position: relative; }
+.pl-turns { flex-wrap: nowrap; }
+.pl-turns.asking { border-color: var(--accent); animation: bm-chip-pulse 1.8s ease-out infinite; }
+.pl-turns .pl-ask-btn { animation: bm-chip-pulse 1.8s ease-out infinite; }
+.bm-chip.mine { background: var(--accent); }
+.pl-turns-pop { position: absolute; left: 0; bottom: calc(100% + 8px); z-index: 6; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.pl-turns-pop .il-join { border: 0; padding: 0; background: transparent; }
+.pl-turns-err { position: absolute; left: 12px; bottom: calc(100% + 4px); }
+@media (min-width: 861px) {
+  .pl-map-wrap .pl-turns { left: 70px; max-width: calc(100% - 330px); }
+}
+@media (max-width: 860px) {
+  .pl-map-wrap .pl-turns { left: 10px; bottom: 64px; max-width: calc(100% - 20px); }
+}
+/* Full screen: the strip is fixed to the screen's bottom left, clear of the docked panel and the zoom bar. */
+.pl-fs-shell .pl-fs-hud { margin: 0; }
+.pl-fs-shell .pl-fs-hud .pl-turns { position: fixed; z-index: 14; left: calc(14px + var(--sal)); bottom: calc(14px + var(--sab)); max-width: calc(100vw - 200px - var(--sal) - var(--sar)); pointer-events: auto; }
+.pl-fs-shell.panel-open:not(.pl-fs-narrow) .pl-fs-hud .pl-turns { max-width: calc(100vw - 360px - 200px - var(--sal)); }
+.pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(64px + var(--sab)); max-width: calc(100vw - 28px - var(--sal) - var(--sar)); }
+.pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(50% + 62px); }
+@media (orientation: landscape) and (max-height: 500px) {
+  .pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); max-width: calc(100vw - min(340px, 45vw) - 28px - var(--sal) - var(--sar)); }
+  .pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); }
+  .pl-fs-narrow:not(.panel-open) .pl-fs-hud .pl-turns { max-width: calc(100vw - 200px - var(--sal) - var(--sar)); }
+}
+@media (prefers-reduced-motion: reduce) { .pl-turns.asking, .pl-turns .pl-ask-btn { animation: none; } }
