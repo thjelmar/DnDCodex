@@ -669,19 +669,50 @@ export function challengeLink(s: DuelState, base: string): string {
   return `${base}#/daily?beat=${encodeChallenge(s)}`
 }
 
-/** Wordle-style text: a header, the roll-by-roll grid, the HP left, and a link. */
+/** What the colored squares in a result mean. Shown beside the result, not pasted into messages. */
+export const SHARE_LEGEND = '🟩 hit  🟨 crit  ⬛ miss (you)   🟥 hit  🟧 crit  ⬜ miss (foe)'
+
+/** One attack as a square plus its outcome: "🟩 9 dmg" or "⬛ miss". */
+function attackLabel(e: LogEntry): string {
+  const mine = e.side === 'hero'
+  if (e.kind === 'hit' || e.kind === 'crit') {
+    const cell = e.kind === 'crit' ? (mine ? 'C' : 'c') : mine ? 'H' : 'h'
+    return `${CELL_EMOJI[cell as GridCell]} ${e.damage ?? 0} dmg`
+  }
+  return `${CELL_EMOJI[mine ? 'M' : 'm']} miss`
+}
+
+/** One line per round: "R1  You 🟩 9 dmg   Foe 🟥 4 dmg". Falls back to the plain grid for saves without a log. */
+function roundRows(s: DuelState): string[] {
+  const attacks = s.log.filter((e) => e.kind !== 'info')
+  if (attacks.length === 0) {
+    const rows: string[] = []
+    for (let i = 0; i < s.grid.length; i += 6) rows.push(s.grid.slice(i, i + 6).map((c) => CELL_EMOJI[c]).join(''))
+    return rows
+  }
+  const rounds = [...new Set(attacks.map((e) => e.round))].sort((a, b) => a - b)
+  return rounds.map((r) => {
+    const side = (who: Side) => {
+      const mine = attacks.filter((e) => e.round === r && e.side === who).map(attackLabel)
+      return mine.length ? mine.join(', ') : '—'
+    }
+    return `R${r}  You ${side('hero')}   Foe ${side('foe')}`
+  })
+}
+
+/** Share text: a header, one line per round, and a link. */
 export function shareText(s: DuelState, link?: string): string {
   const hero = heroOf(s)
   const foe = foeOf(s)
   const twist = twistOf(s)
   const verdict = s.outcome === 'won' ? 'Victory' : 'Defeat'
-  const rows: string[] = []
-  for (let i = 0; i < s.grid.length; i += 6) rows.push(s.grid.slice(i, i + 6).map((c) => CELL_EMOJI[c]).join(''))
+  const rows = roundRows(s)
   return [
     `⚔️ D&D Codex Daily Duel ${s.day}`,
     `${hero.emoji} ${hero.name} vs ${foe.emoji} ${foe.name} (${TIER_LABEL[s.tier]})`,
     ...(twist ? [`Twist: ${twist.name}`] : []),
     `${verdict} in ${s.round} round${s.round === 1 ? '' : 's'} · ${Math.max(0, s.heroHp)}/${hero.hp} HP left`,
+    '',
     ...rows,
     ...(link ? ['', `Think you can beat me? ${link}`] : []),
   ].join('\n')
