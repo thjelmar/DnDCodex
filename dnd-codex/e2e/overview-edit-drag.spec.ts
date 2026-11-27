@@ -359,3 +359,27 @@ test.describe('pointer drag (demo)', () => {
     expect(supabaseRequests).toEqual([])
   })
 })
+
+// T-121: the drop target is measured in an animation frame. On a busy page (a loaded CI
+// machine, a slow phone) the release can arrive before the last move has had its frame. The
+// drop must use the release point, not the last measured one. Stalling requestAnimationFrame
+// makes that case certain instead of timing-dependent.
+test.describe('release before the last animation frame', () => {
+  test.use({ viewport: { width: 1440, height: 2600 } })
+
+  test('a move drop uses the release point', async ({ page }) => {
+    await createCampaign(page)
+    await edit(page)
+    const from = await centre(grip(page, 'Run'))
+    const world = (await cellOf(page, 'World overview').boundingBox())!
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    // The first measure (at pointerdown) is the only one that runs; every later frame stalls.
+    await page.evaluate(() => {
+      window.requestAnimationFrame = () => 0
+    })
+    await page.mouse.move(world.x + 200, world.y + 10, { steps: 6 })
+    await page.mouse.up()
+    await expect.poll(async () => (await titles(page))[0]).toBe('Run')
+  })
+})
