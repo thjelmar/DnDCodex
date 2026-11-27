@@ -46,7 +46,42 @@ test.describe('daily duel', () => {
     await expect(page.getByText('A friend challenged you.')).toHaveCount(0)
   })
 
-  test('copied result includes a challenge link that opens the banner', async ({ page, context }) => {
+  test('when every copy method is blocked, the result shows in a selectable box (T-120)', async ({ page }) => {
+    // Mimics an in-app WebView: the Clipboard API rejects, execCommand refuses, no share sheet, prompt() is silent.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('blocked')) }, configurable: true })
+      Object.defineProperty(navigator, 'share', { value: undefined, configurable: true })
+      document.execCommand = () => false
+      window.prompt = () => null
+    })
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await playToEnd(page)
+    await page.getByRole('button', { name: 'Copy result and challenge link' }).click()
+    const box = page.getByTestId('duel-share-text')
+    await expect(box).toBeVisible()
+    await expect(box).toHaveValue(/#\/daily\?beat=/)
+  })
+
+  test('the legacy copy fallback works when the Clipboard API is missing (T-120)', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+      ;(window as unknown as { __copied: string }).__copied = ''
+      document.execCommand = (cmd: string) => {
+        if (cmd === 'copy') (window as unknown as { __copied: string }).__copied = (document.activeElement as HTMLTextAreaElement).value
+        return true
+      }
+    })
+    await page.goto('/#/daily')
+    await page.getByRole('button', { name: 'Roll initiative' }).click()
+    await playToEnd(page)
+    await page.getByRole('button', { name: 'Copy result and challenge link' }).click()
+    await expect(page.getByRole('button', { name: 'Copied!' })).toBeVisible()
+    expect(await page.evaluate(() => (window as unknown as { __copied: string }).__copied)).toMatch(/#\/daily\?beat=/)
+  })
+
+  test('copied result includes a challenge link that opens the banner', async ({ page, context, browserName }) => {
+    test.skip(browserName !== 'chromium', 'WebKit has no clipboard-write permission to grant')
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     await page.goto('/#/daily')
     await page.getByRole('button', { name: 'Roll initiative' }).click()

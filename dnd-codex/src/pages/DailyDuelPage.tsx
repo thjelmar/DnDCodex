@@ -16,6 +16,7 @@ import {
 import type { DuelFxKind } from '../lib/duelFx'
 import { DUELIST_ICONS, FOES, HEROES, TIER_LABEL, type DuelAttack } from '../data/duelists'
 import { GENERIC_TOKEN_ICON } from '../lib/tokenIcons'
+import { copyText } from '../lib/copyText'
 
 // Daily Duel (T-63, T-65): one Wordle-style 1v1 per UTC day, same matchup and
 // twist for everyone. Public (no sign-in) and local-only — it never calls
@@ -323,6 +324,7 @@ export function DailyDuelPage() {
   const [floaters, setFloaters] = useState<Floater[]>([])
   const [sprites, setSprites] = useState<Record<Side, { cls: string; k: number }>>({ hero: { cls: '', k: 0 }, foe: { cls: '', k: 0 } })
   const [copied, setCopied] = useState(false)
+  const [manualText, setManualText] = useState<string | null>(null)
   // Yesterday's win rate leans today's twist (T-66). `leanReady` holds the
   // button until the lookup answers or times out; offline it falls back to the seeded twist.
   const [lean, setLean] = useState<Lean | null>(null)
@@ -559,13 +561,14 @@ export function DailyDuelPage() {
     if (!duel) return
     const base = `${window.location.origin}${window.location.pathname}`
     const text = shareText(duel, challengeLink(duel, base))
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      window.prompt('Copy your result:', text)
+    const result = await copyText(text)
+    if (result === 'manual') {
+      setManualText(text)
+      return
     }
+    setManualText(null)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   // ── Derived display ─────────────────────────────────────────────────────────
@@ -768,6 +771,23 @@ export function DailyDuelPage() {
               <div>
                 <pre style={{ margin: '8px 0', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>{shareText(duel)}</pre>
                 <button className="btn primary" onClick={share}>{copied ? 'Copied!' : 'Copy result and challenge link'}</button>
+                {manualText && (
+                  <div role="status" style={{ marginTop: 8 }}>
+                    <div className="faint" style={{ fontSize: 13, marginBottom: 4 }}>
+                      This browser blocked copying. Press and hold the text, choose Select All, then Copy.
+                    </div>
+                    <textarea
+                      readOnly
+                      aria-label="Result to copy"
+                      data-testid="duel-share-text"
+                      value={manualText}
+                      rows={5}
+                      style={{ width: '100%', fontSize: 16 }}
+                      onFocus={(e) => e.currentTarget.select()}
+                      ref={(el) => { if (el) { el.focus(); el.select() } }}
+                    />
+                  </div>
+                )}
                 <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>A new duel arrives at midnight UTC.</div>
               </div>
             ) : null}
