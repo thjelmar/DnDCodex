@@ -6021,3 +6021,37 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   section.demo-ctl .demo-ctl-body > .demo-ctl-intro,
   section.demo-ctl .demo-ctl-body > .demo-ctl-log { grid-column: 1 / -1; }
 }
+
+/* ---- iPhone landscape fixes on the player session (T-119) ---- */
+/* Safe areas on the session page. --sal and --sar are 0 except on a phone turned sideways, where the
+   Dynamic Island (left) or the home bar side covers the edge: the back button, the rail, the map and
+   the panel all sit inside them. Full screen has its own insets (see .pl-fs-rail). */
+@media (min-width: 861px) {
+  .session-page > .session-header { padding-left: max(16px, var(--sal)); padding-right: max(16px, var(--sar)); }
+}
+@media (max-width: 860px) {
+  .session-page > .session-header { padding-left: max(12px, var(--sal)); padding-right: max(12px, var(--sar)); }
+}
+.session-page > .session-grid { padding-left: var(--sal); padding-right: var(--sar); box-sizing: border-box; }
+/* The player's turn strip never lets its title run into the button or its chips: the title shrinks
+   with an ellipsis, the button stays whole, and the chip row scrolls sideways inside the pill. */
+.pl-turns { min-width: 0; }
+.pl-turns > .bm-turns-round { flex: 0 1 auto; min-width: 56px; overflow: hidden; }
+.pl-turns > .bm-turns-round strong, .pl-turns > .bm-turns-round small { overflow: hidden; text-overflow: ellipsis; }
+.pl-turns > .bm-turns-next, .pl-turns > .bm-icon-btn, .pl-turns > .bm-turns-sep { flex: none; }
+.pl-turns > .bm-turns-chips { flex: 1 1 auto; min-width: 72px; }
+/* A short landscape window: the strip clears the zoom bar and uses the map's whole width. */
+@media (max-height: 500px) and (min-width: 861px) {
+  .pl-map-wrap .pl-turns { left: 70px; bottom: 64px; max-width: calc(100% - 80px); }
+}
+/* The Demo controls pill floats over the bottom of the page: leave room so the last rows scroll clear of it. */
+@media (max-width: 860px) and (orientation: portrait) {
+  .app[data-demo='true'] .session-page { padding-bottom: calc(64px + var(--sab)); }
+}
+@media (max-width: 860px), (max-height: 500px) {
+  .app[data-demo='true'] .pl-dock-body, .app[data-demo='true'] .pl-panel .pl-dock-body { padding-bottom: calc(64px + var(--sab)); }
+}
+/* A phone in landscape full screen with the drawer open: the Demo controls pill sits left of the drawer, not over its tabs. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .player-live-board.phone-fs.pl-fs-shell.panel-open .pl-fs-demo { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
+}
