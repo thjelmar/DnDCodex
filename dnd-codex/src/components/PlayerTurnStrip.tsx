@@ -34,6 +34,7 @@ export function PlayerTurnStrip({
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const popRef = useRef<HTMLDivElement>(null)
+  const chipsRef = useRef<HTMLOListElement>(null)
   const characters = useMyCharacters(localCampaignId)
   const [popStyle, setPopStyle] = useState<CSSProperties>({})
 
@@ -92,6 +93,17 @@ export function PlayerTurnStrip({
   const turnRowId = myTurn[0]?.id
   useEffect(() => { setAsked(null) }, [turnRowId])
   useEffect(() => { if (!combat) setOpen(false) }, [combat])
+  // Keep the active chip in view when the chip row scrolls sideways (a narrow pill, T-119). Only the
+  // row scrolls; scrollIntoView could move the page too.
+  const activeKey = combat ? `${combat.activeIds.join(',')}|${combat.rows.length}` : ''
+  useEffect(() => {
+    const ol = chipsRef.current
+    const el = ol?.querySelector<HTMLElement>('[aria-current="step"]')
+    if (!ol || !el) return
+    const o = el.getBoundingClientRect()
+    const b = ol.getBoundingClientRect()
+    ol.scrollLeft += o.left + o.width / 2 - (b.left + b.width / 2)
+  }, [activeKey])
   if (!combat) return null
 
   const rows = orderRows(combat.rows)
@@ -168,7 +180,7 @@ export function PlayerTurnStrip({
         </button>
       )}
       <span className="bm-turns-sep" aria-hidden />
-      <ol className="bm-turns-chips">
+      <ol className="bm-turns-chips" ref={chipsRef}>
         {rows.map((r) => (
           <li key={r.id}><Chip r={r} turn={combat.activeIds.includes(r.id)} mine={!!userId && r.controlledBy === userId} /></li>
         ))}

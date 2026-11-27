@@ -67,6 +67,8 @@ interface Props {
   onAlign: (box: { x1: number; y1: number; x2: number; y2: number }) => void
   /** Kept up to date with the board point at the center of the viewport. */
   centerRef?: MutableRefObject<{ x: number; y: number }>
+  /** True while a phone shows this board in full screen: show the whole board on entering and on every resize (T-119). */
+  fitWhole?: boolean
   /** False = viewer mode (players, DM preview): no resizing, deleting, or
    *  aligning; only tokens passing `canMoveToken` can be dragged. */
   editable?: boolean
@@ -151,6 +153,7 @@ export function Tabletop({
   aligning,
   onAlign,
   centerRef,
+  fitWhole = false,
   editable = true,
   canMoveToken,
   ownIds,
@@ -281,7 +284,14 @@ export function Tabletop({
   useEffect(initialView, [width, height]) // eslint-disable-line react-hooks/exhaustive-deps
   // ...and when the viewport itself is resized (full screen, panel toggled).
   const fitRef = useRef(initialView)
-  fitRef.current = initialView
+  fitRef.current = fitWhole ? fit : initialView
+  // A phone entering full screen: fit the whole board once the layout has settled (T-119).
+  useEffect(() => {
+    if (!fitWhole) return
+    let id2 = 0
+    const id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => fitRef.current()) })
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2) }
+  }, [fitWhole])
   useEffect(() => {
     const el = wrapRef.current
     if (!el || typeof ResizeObserver === 'undefined') return

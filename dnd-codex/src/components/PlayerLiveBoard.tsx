@@ -15,9 +15,12 @@ import { BmIcon, type BmIconName } from './battlemap/BmIcon'
 import { useMapClearRight, type PanelPlacement } from '../lib/usePanelPlacement'
 import type { SceneTemplate, TemplateShape } from '../db/types'
 
-/** True at 860px wide and below, where the full-screen session panel becomes a drawer. */
+/**
+ * True at 860px wide and below, and in a short window (a phone turned sideways is 874px wide but
+ * 402px tall), where the full-screen session panel becomes a drawer (T-119).
+ */
 function useNarrowFs(): boolean {
-  return useMedia('(max-width: 860px)')
+  return useMedia('(max-width: 860px), (max-height: 500px)')
 }
 
 function useMedia(q: string): boolean {
@@ -490,6 +493,7 @@ export function PlayerLiveBoardView({
       <div ref={bodyRef} className={`battlemap-body player${withNotes ? ' with-notes' : ''}`}>
         {withNotes && <aside className="battlemap-notes">{notes}</aside>}
         <Tabletop
+          fitWhole={phoneFs}
           pings={pings}
           overlays={
             <BoardOverlays
