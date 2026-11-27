@@ -175,27 +175,32 @@ export function startMoveDrag(a: MoveDragArgs): void {
     bar.remove()
     cell.classList.remove('is-dragging')
   }
+  // Places the ghost and the drop bar, and records the target for the point (x, y).
+  const measure = (x: number, y: number) => {
+    ghost.style.transform = `translate(${x + 14}px, ${y + 14}px)`
+    const gr = grid.getBoundingClientRect()
+    const { rects } = cellsOf(grid, a.id)
+    target = dropTarget(rects, x, y, gr.width)
+    const ref = rects.find((r) => r.id === target!.refId)
+    if (!ref) {
+      bar.style.display = 'none'
+      return
+    }
+    const b = indicatorBox(ref, target)
+    bar.style.display = 'block'
+    bar.style.transform = `translate(${b.x}px, ${b.y}px)`
+    bar.style.width = `${b.w}px`
+    bar.style.height = `${b.h}px`
+  }
   begin(
     a.handle,
     a.event,
     {
-      move(x, y) {
-        ghost.style.transform = `translate(${x + 14}px, ${y + 14}px)`
-        const gr = grid.getBoundingClientRect()
-        const { rects } = cellsOf(grid, a.id)
-        target = dropTarget(rects, x, y, gr.width)
-        const ref = rects.find((r) => r.id === target!.refId)
-        if (!ref) {
-          bar.style.display = 'none'
-          return
-        }
-        const b = indicatorBox(ref, target)
-        bar.style.display = 'block'
-        bar.style.transform = `translate(${b.x}px, ${b.y}px)`
-        bar.style.width = `${b.w}px`
-        bar.style.height = `${b.h}px`
-      },
-      commit() {
+      move: measure,
+      commit(x, y) {
+        // The last pointermove can still be waiting for its animation frame (a busy page, a
+        // fast flick), which leaves `target` stale. Measure again at the release point.
+        measure(x, y)
         cleanup()
         const layout = a.getLayout()
         const from = layout.cards.findIndex((c) => c.id === a.id)
@@ -244,22 +249,24 @@ export function startResizeDrag(a: ResizeDragArgs): void {
     badge.remove()
     cell.classList.remove('is-resizing')
   }
+  const measure = (x: number, y: number) => {
+    // The card's left edge does not move while its width changes, so measure from it.
+    const left = cell.getBoundingClientRect().left
+    const next = snapSpan(x - left, colW, gap, allowed)
+    if (next !== current) {
+      current = next
+      cell.style.setProperty('--span', String(next))
+    }
+    badge.textContent = `${name}: ${SPAN_LABEL[current]}`
+    badge.style.transform = `translate(${x + 14}px, ${y + 14}px)`
+  }
   begin(
     a.handle,
     a.event,
     {
-      move(x, y) {
-        // The card's left edge does not move while its width changes, so measure from it.
-        const left = cell.getBoundingClientRect().left
-        const next = snapSpan(x - left, colW, gap, allowed)
-        if (next !== current) {
-          current = next
-          cell.style.setProperty('--span', String(next))
-        }
-        badge.textContent = `${name}: ${SPAN_LABEL[current]}`
-        badge.style.transform = `translate(${x + 14}px, ${y + 14}px)`
-      },
-      commit() {
+      move: measure,
+      commit(x, y) {
+        measure(x, y) // the last pointermove may not have had its animation frame yet
         cleanup()
         const layout = a.getLayout()
         const next = setSpan(layout, a.id, current)
