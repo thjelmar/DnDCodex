@@ -16,6 +16,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-11-27',
+    title: 'A new player session, a live demo, and battle map polish',
+    changes: [
+      { kind: 'new', text: 'The player session has a new panel, docked beside the map, with Initiative, Me, Notes, and Handouts tabs. Pop it out into its own window, or move it where you like.' },
+      { kind: 'new', text: 'A Your turn banner appears when it is your turn, and an End turn button passes play to the next person. A turn strip across the top shows the round and whose turn it is.' },
+      { kind: 'new', text: 'The initiative panel now works like the DM\'s tracker. When a DM starts combat, a pop-up lets you join initiative with your own roll.' },
+      { kind: 'new', text: 'Players get the same full-screen map as the DM, with the rail and the back button centered on the screen edge.' },
+      { kind: 'new', text: 'Try the live demo: a pretend live session lets a player explore the new player view without a campaign. The DM side has Demo controls to move the fight along.' },
+      { kind: 'new', text: 'Edit your notes in the side panel while a session runs, without leaving the map.' },
+      { kind: 'improved', text: 'Battle map controls and panels are tidier. The dice roller lives in the panel, full screen is in the tool rail, and controls follow the map as you resize.' },
+      { kind: 'improved', text: 'The join initiative pop-up stays inside the visible part of the map and draws on top of the turn strip, the rail, and Demo controls.' },
+      { kind: 'improved', text: 'On a phone, Demo controls stay clear of the rail and the bars.' },
+      { kind: 'fixed', text: 'Condition art now fits inside the token ring instead of spilling over its edge.' },
+      { kind: 'fixed', text: 'On an iPhone in landscape, the player session respects the safe area, the turn strip stays in view, and the Session panel opens as a drawer.' },
+      { kind: 'fixed', text: 'If a page fails to load, the app retries before it shows the error page.' },
+    ],
+  },
+  {
     date: '2026-11-23',
     title: 'A redesigned battle map, detail maps, pings, and phone landscape',
     changes: [
