@@ -28,6 +28,22 @@ export function conditionArt(name: string): string | undefined {
 // the token's center line.
 export const COVER_ASPECT = 1072 / 2011
 
+/**
+ * Where to draw a cover on a token of radius `r` (token-local units, centred on 0,0).
+ * T-116: the art is a half-disc plus a name plate, so it is slightly taller than half its
+ * width (COVER_ASPECT > 0.5). Sizing it to the full token width (the old rule) pushed the
+ * plate below the token and laid the rim over the outline ring. Instead the whole frame
+ * (flat edge, rim and plate) fits inside the ring's inner edge: its height is the inner
+ * radius, and its width follows from the aspect, so the ring stays fully visible.
+ * `r` is the radius the outline is drawn at; the ring is `ringWidth` wide, centred on it.
+ */
+export function coverBox(r: number, ringWidth: number): { x: number; y: number; width: number; height: number } {
+  const inner = Math.max(0, r - ringWidth / 2)
+  const height = inner
+  const width = height / COVER_ASPECT
+  return { x: -width / 2, y: 0, width, height }
+}
+
 // When several conditions are active, the most mechanically dominant one wins
 // the single cover slot; the rest fall back to pips. Order is severity-ish and
 // easy to tweak. Anything not listed (e.g. Concentration) never takes the cover.

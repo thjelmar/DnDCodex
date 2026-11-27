@@ -21,7 +21,7 @@ import {
 } from '../lib/tabletop'
 import { conditionMeta } from '../lib/combat'
 import { conditionIcon } from '../lib/conditionIcons'
-import { conditionArt, coverCondition, COVER_ASPECT } from '../lib/conditionArt'
+import { conditionArt, coverCondition, coverBox } from '../lib/conditionArt'
 import { pinchStart, pinchMove, type PinchState } from '../lib/pinch'
 import type { PingsApi } from '../lib/usePings'
 import { PingLayer } from './PingLayer'
@@ -921,10 +921,7 @@ export function Tabletop({
                     {coverArt && (
                       <image
                         href={coverArt}
-                        x={-r}
-                        y={0}
-                        width={r * 2}
-                        height={r * 2 * COVER_ASPECT}
+                        {...coverBox(r, Math.max(2, r * 0.12))}
                         preserveAspectRatio="xMidYMid meet"
                         pointerEvents="none"
                         className="tabletop-cond-cover"
