@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { BmIcon } from './battlemap/BmIcon'
 import { possessiveTurn } from './battlemap/TurnStrip'
@@ -32,29 +33,44 @@ export function PlayerTurnStrip({
   const [asked, setAsked] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
   const characters = useMyCharacters(localCampaignId)
   const [popStyle, setPopStyle] = useState<CSSProperties>({})
 
-  // Keep the pop-up inside the visible area: pin it above the strip and cap its height at the room
-  // below whatever bar sits above the map (the page header, or full screen's tool bar). When there is
-  // little room above, open it below the strip. It scrolls inside when the window is short.
+  // Keep the pop-up inside the visible area and clear of the strip (T-118). It is portalled to <body>
+  // and fixed-positioned from the strip's rect: above the strip when there is room, else below it,
+  // else beside it. Its height is capped to the room it has and it scrolls inside. Bars that are
+  // covered (the session header behind full screen) are ignored.
   useLayoutEffect(() => {
     if (!open) return
     const place = () => {
       const el = ref.current
       if (!el) return
       const r = el.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      const w = Math.min(340, vw - 24)
       let top = 8
       for (const bar of document.querySelectorAll('.session-header, .player-live-bar, .demo-banner')) {
         const b = bar.getBoundingClientRect()
-        if (b.height > 0 && b.bottom < r.top) top = Math.max(top, b.bottom + 8)
+        if (b.height <= 0 || b.bottom >= r.top || b.width < vw * 0.6) continue /* only full-width bars above the map */
+        const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+        if (hit && bar.contains(hit)) top = Math.max(top, b.bottom + 8)
       }
       const above = r.top - top - 8
-      const below = window.innerHeight - r.bottom - 16
-      const base: CSSProperties = { position: 'fixed', left: Math.max(8, Math.min(r.left, window.innerWidth - 348)), overflowY: 'auto' }
-      // Not enough room above the strip (a short window, or a strip high on the page): open below it instead.
-      if (above < 240 && below > above) setPopStyle({ ...base, top: r.bottom + 8, maxHeight: Math.max(120, below) })
-      else setPopStyle({ ...base, bottom: window.innerHeight - r.top + 8, maxHeight: Math.max(120, above) })
+      const below = vh - r.bottom - 16
+      const left = Math.max(8, Math.min(r.left, vw - w - 8))
+      const base: CSSProperties = { position: 'fixed', left, overflowY: 'auto' }
+      const best = Math.max(above, below)
+      if (best < 140) {
+        // Too little room above or below: open beside the strip, as tall as the screen allows.
+        const right = r.right + 8
+        const sideLeft = right + w <= vw - 8 ? right : r.left - 8 - w >= 8 ? r.left - 8 - w : null
+        if (sideLeft != null) { setPopStyle({ ...base, left: sideLeft, top, maxHeight: Math.max(120, vh - top - 8) }); return }
+      }
+      // Above the strip unless that side has little room and below has more.
+      if (above < 240 && below > above) setPopStyle({ ...base, top: r.bottom + 8, maxHeight: Math.max(80, below) })
+      else setPopStyle({ ...base, bottom: vh - r.top + 8, maxHeight: Math.max(80, above) })
     }
     place()
     window.addEventListener('resize', place)
@@ -66,7 +82,7 @@ export function PlayerTurnStrip({
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
-    const onDown = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const onDown = (e: PointerEvent) => { const t = e.target as Node; if (ref.current && !ref.current.contains(t) && !popRef.current?.contains(t)) setOpen(false) }
     document.addEventListener('keydown', onKey)
     document.addEventListener('pointerdown', onDown)
     return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
@@ -159,8 +175,8 @@ export function PlayerTurnStrip({
         {rows.length === 0 && <li className="faint" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Nobody yet</li>}
       </ol>
 
-      {open && userId && (
-        <div className="pl-turns-pop" data-testid="join-pop" style={popStyle}>
+      {open && userId && createPortal(
+        <div className="pl-turns-pop" data-testid="join-pop" style={popStyle} ref={popRef} role="dialog" aria-label="Join initiative">
           <JoinForm
             joinable={joinable}
             mine={mine}
@@ -189,7 +205,8 @@ export function PlayerTurnStrip({
               Leave combat
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
       {error && <span className="pis-error pl-turns-err" role="alert">{error}</span>}
     </div>

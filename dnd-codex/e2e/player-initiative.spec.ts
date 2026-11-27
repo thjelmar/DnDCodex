@@ -231,6 +231,40 @@ const rowsFor = (withMe: boolean) => [
 
 const revealDialog = (page: Page) => page.getByRole('dialog', { name: /Show these combatants/ })
 
+async function expectPopClear(page: Page, vp: { width: number; height: number }, stripFree = true) {
+  const strip = page.getByTestId('initiative-strip')
+  const pop = page.getByTestId('join-pop')
+    const sb = (await strip.boundingBox())!
+    const pb = (await pop.boundingBox())!
+    const apart = pb.y + pb.height <= sb.y + 1 || pb.y >= sb.y + sb.height - 1 || pb.x + pb.width <= sb.x + 1 || pb.x >= sb.x + sb.width - 1
+    expect(apart, `pop ${JSON.stringify(pb)} overlaps strip ${JSON.stringify(sb)}`).toBe(true)
+    expect(pb.x).toBeGreaterThanOrEqual(0)
+    expect(pb.y).toBeGreaterThanOrEqual(0)
+    expect(pb.x + pb.width).toBeLessThanOrEqual(vp.width + 1)
+    expect(pb.y + pb.height, `pop ${JSON.stringify(pb)} strip ${JSON.stringify(sb)} style ${await pop.getAttribute('style')}`).toBeLessThanOrEqual(vp.height + 1)
+    // The strip itself stays unobstructed.
+    const stripTop = await strip.evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return !!t && el.contains(t)
+    })
+    if (stripFree) expect(stripTop, 'something covers the strip').toBe(true)
+    // Nothing covers a pop-up button: scroll each into view, then hit-test its centre.
+    const buttons = pop.getByRole('button')
+    const n = await buttons.count()
+    expect(n).toBeGreaterThan(0)
+    for (let i = 0; i < n; i++) {
+      const b = buttons.nth(i)
+      await b.scrollIntoViewIfNeeded()
+      const ok = await b.evaluate((el) => {
+        const r = el.getBoundingClientRect()
+        const t = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+        return !!t && (t === el || el.contains(t))
+      })
+      expect(ok, `something covers pop-up button ${i}`).toBe(true)
+    }
+}
+
 test.describe('player initiative panel (T-108)', () => {
   test.use({ viewport: { width: 1280, height: 900 } })
 
@@ -288,6 +322,57 @@ test.describe('player initiative panel (T-108)', () => {
       await pop.getByTestId('join-submit').click()
       expect(mock.calls.filter((c) => c.name === 'join_combat')).toHaveLength(1)
     })
+  }
+
+  // T-118: the pop-up is portalled to <body> and must sit clear of the strip and on top of everything,
+  // on the session page and in full screen (demo, where Demo controls also float over the map).
+  const SIZES = [
+    { name: 'desktop 1280x720', width: 1280, height: 720 },
+    { name: 'phone portrait 390x844', width: 390, height: 844 },
+    { name: 'phone landscape 844x390', width: 844, height: 390 },
+    { name: 'small landscape 667x375', width: 667, height: 375 },
+  ]
+  for (const vp of SIZES) {
+    test(`the join pop-up is clear of the strip and nothing covers it (signed in, ${vp.name})`, async ({ page }) => {
+      const mock: Mock = { rows: rowsFor(false), calls: [], phase: 'gathering' }
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await seedPlayer(page)
+      await mockCombat(page, mock)
+      await page.goto(`/#/player/${LOCAL}/session`)
+      await page.getByTestId('initiative-strip').getByTestId('join-initiative').click()
+      await expect(page.getByTestId('join-pop')).toBeVisible()
+      await expectPopClear(page, vp)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('join-pop')).toHaveCount(0)
+    })
+    for (const mode of ['page', 'full screen'] as const) {
+      for (const controls of [false, true]) {
+        test(`the join pop-up is clear and on top in the demo (${mode}, Demo controls ${controls ? 'open' : 'closed'}, ${vp.name})`, async ({ page }) => {
+          await page.setViewportSize({ width: vp.width, height: vp.height })
+          await page.goto('/#/')
+          await page.getByRole('button', { name: 'Try the live demo' }).click()
+          await page.getByTestId('demo-player-entry').click()
+          await page.locator('.session-vtt').waitFor()
+          if (mode === 'full screen') {
+            await page.getByRole('button', { name: 'Full screen' }).first().click()
+            await expect(page.locator('.player-live-board.expanded')).toBeVisible()
+          }
+          const toggle = page.getByTestId('demo-controls-toggle').first()
+          await toggle.click()
+          await page.getByTestId('demo-ask').click()
+          await toggle.click()
+          await expect(page.getByTestId('initiative-strip')).toBeVisible()
+          if (controls) await toggle.click()
+          // With the Demo controls open they may sit over the Join button, so open the pop-up from script.
+          await page.getByTestId('initiative-strip').getByTestId('join-initiative').evaluate((el: HTMLElement) => el.click())
+          await expect(page.getByTestId('join-pop')).toBeVisible()
+          await page.screenshot({ path: `test-results/join-pop-${mode.replace(' ', '')}-${controls ? 'ctl' : 'noctl'}-${vp.width}x${vp.height}.png` })
+          await expectPopClear(page, vp, !controls)
+          await page.keyboard.press('Escape')
+          await expect(page.getByTestId('join-pop')).toHaveCount(0)
+        })
+      }
+    }
   }
 
   test('the strip shows the round, the active chip, and no HP or Next for a player', async ({ page }) => {

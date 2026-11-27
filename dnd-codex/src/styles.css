@@ -5888,7 +5888,7 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
 .pl-turns.asking { border-color: var(--accent); animation: bm-chip-pulse 1.8s ease-out infinite; }
 .pl-turns .pl-ask-btn { animation: bm-chip-pulse 1.8s ease-out infinite; }
 .bm-chip.mine { background: var(--accent); }
-.pl-turns-pop { position: fixed; left: 8px; z-index: 60; overscroll-behavior: contain; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.pl-turns-pop { position: fixed; left: 8px; z-index: 900; /* portalled to <body> (T-118): above the strip, rail, zoom bar, Demo controls and drawers */ overscroll-behavior: contain; width: min(340px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
 .pl-turns-pop .il-join { border: 0; padding: 0; background: transparent; }
 .pl-turns-err { position: absolute; left: 12px; bottom: calc(100% + 4px); }
 @media (min-width: 861px) {
