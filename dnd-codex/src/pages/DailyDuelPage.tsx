@@ -10,7 +10,7 @@ import type { Lean } from '../lib/duelLean'
 import {
   availableAttacks, averageDamage, canDodge, canUseSignature, challengeLink, chooseAttack, compareToChallenge,
   dailyMatchup, dailyTier, dailyTwist, endTurn, foeAc, foeAttackMode, foeIntent, foeOf, gridEmoji, heroAc, heroAttackMode, heroOf,
-  heroAttacks, heroToHit, historyStats, hitChance, loadDuel, parseChallenge, rollPending, saveDuel, shareText, signatureOf,
+  heroAttacks, heroToHit, historyStats, hitChance, loadDuel, parseChallenge, rollPending, saveDuel, SHARE_LEGEND, shareText, signatureOf,
   startDuel, toDuelRecord, twistOf, useDodge, useSignature, utcDayKey, type DuelState, type LogEntry, type Side,
 } from '../lib/dailyDuel'
 import type { DuelFxKind } from '../lib/duelFx'
@@ -770,6 +770,7 @@ export function DailyDuelPage() {
             ) : over ? (
               <div>
                 <pre style={{ margin: '8px 0', fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}>{shareText(duel)}</pre>
+                <div className="faint" style={{ fontSize: 12, marginBottom: 8 }}>{SHARE_LEGEND}</div>
                 <button className="btn primary" onClick={share}>{copied ? 'Copied!' : 'Copy result and challenge link'}</button>
                 {manualText && (
                   <div role="status" style={{ marginTop: 8 }}>

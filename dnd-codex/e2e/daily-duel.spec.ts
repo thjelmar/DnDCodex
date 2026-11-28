@@ -91,6 +91,9 @@ test.describe('daily duel', () => {
     const link = /(https?:\/\/\S+#\/daily\?beat=\S+)/.exec(text)?.[1]
     expect(link, 'the copied text must carry a challenge link').toBeTruthy()
     expect(text).toMatch(/Twist: /)
+    expect(text).toMatch(/^R1  You .+ Foe /m) // one labeled line per round (T-122)
+    expect(text).not.toContain('(you)') // the legend stays on the page, out of the pasted text
+    await expect(page.getByText('⬛ miss (you)')).toBeVisible()
     await page.goto(link as string)
     await expect(page.getByText('A friend challenged you.')).toBeVisible()
   })
