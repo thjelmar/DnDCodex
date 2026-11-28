@@ -5,7 +5,7 @@ import { NOTE_CARD_LABEL, type NoteCardType } from '../editor/NoteCard'
 // Quick capture for the live session Notes tab (T-124): one line that adds a typed,
 // labeled card to the top of the session note. A leading character picks the type
 // (@ NPC, # place, ! loot, + quest lead, ? ask the DM); the chips pick it too.
-// The card goes through the editor, so it saves with the note like any typed text.
+// The entry goes through the editor, so it saves with the note like any typed text.
 
 const PREFIX: Record<string, NoteCardType> = { '@': 'npc', '#': 'place', '!': 'loot', '+': 'quest', '?': 'ask' }
 const CHIPS: { type: NoteCardType; label: string }[] = [
@@ -32,14 +32,12 @@ export function NoteCapture({ editor, round }: { editor: Editor | null; round?: 
 
   function add() {
     if (!canAdd || !editor) return
-    editor
-      .chain()
-      .insertContentAt(0, {
-        type: 'noteCard',
-        attrs: { type, round: round ?? null },
-        content: [{ type: 'text', text: body }],
-      })
-      .run()
+    // An untyped capture is plain text, so a card always means something (NPC, loot, ...).
+    const node =
+      type === 'note'
+        ? { type: 'paragraph', content: [{ type: 'text', text: body }] }
+        : { type: 'noteCard', attrs: { type, round: round ?? null }, content: [{ type: 'text', text: body }] }
+    editor.chain().insertContentAt(0, node).run()
     setText('')
   }
 

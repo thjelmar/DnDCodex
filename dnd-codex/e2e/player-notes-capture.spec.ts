@@ -59,6 +59,23 @@ test('demo player: quick capture adds typed cards, stamps the round, and keeps t
   expect(supabaseRequests, 'the demo must not send any request to the Supabase host').toEqual([])
 })
 
+test('demo player: an untyped capture is plain text, not a card', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openDemoPlayerNotes(page)
+  const editor = page.locator('#pl-dock-body .ProseMirror')
+  const capture = page.getByTestId('capture-input')
+  await expect(capture).toBeEnabled()
+  await capture.fill('Ambush')
+  await capture.press('Enter')
+  await expect(editor).toContainText('Ambush')
+  await expect(editor.locator('.note-card')).toHaveCount(0)
+  // A typed one still becomes a card, above the plain text.
+  await capture.fill('!Frost-rune key')
+  await capture.press('Enter')
+  await expect(editor.locator('.note-card.nc-loot')).toHaveCount(1)
+  await expect(editor.locator('.note-card')).toHaveCount(1)
+})
+
 test('demo player: the toolbar is labeled and has no spoiler lock', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openDemoPlayerNotes(page)

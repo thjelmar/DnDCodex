@@ -26,6 +26,7 @@ or other session panels was left out.
 
 ## Implementation notes
 
+- An untyped capture is plain text; only typed captures become cards.
 - Typed cards are a tiptap node (`src/editor/NoteCard.ts`) stored as `<div data-note-card="loot" data-round="3">`. No new table, no change to the save path or `createPlayerNote`. The `@tiptap` packages are unchanged.
 - `src/components/NoteCapture.tsx` is the capture bar. `PlayerNotesPage.tsx` holds `PlayerNotebook` and `PlayerEntryEditor` (the old side-panel form, now inline).
 - Tests: `e2e/player-notes-capture.spec.ts` (live tab, Chromium and WebKit) and `e2e/player-notebook.spec.ts` (notebook, Chromium and WebKit).
