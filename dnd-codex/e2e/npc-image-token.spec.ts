@@ -96,3 +96,38 @@ test.describe('NPC image on the battle map token', () => {
     await expect(mordrek(page).locator('image')).toHaveCount(1)
   })
 })
+
+test.describe('Token icon swatch on the NPC sheet', () => {
+  for (const [label, size] of [['desktop', { width: 1440, height: 900 }], ['phone', { width: 390, height: 844 }]] as const) {
+    test(`the swatch follows the portrait, and a picked icon wins (${label})`, async ({ page }) => {
+      await page.setViewportSize(size)
+      // The demo's record editors are read-only, so use a real local campaign.
+      await page.goto('/#/')
+      await page.getByRole('button', { name: 'Start a campaign' }).click()
+      await page.getByPlaceholder('Curse of the Shattered Crown').fill(`E2E swatch ${Date.now()}`)
+      await page.getByRole('button', { name: 'Create', exact: true }).click()
+      await expect(page).toHaveURL(/#\/campaign\/[^/]+/)
+      const campaignId = new URL(page.url()).hash.split('/')[2]
+      await page.goto(`/#/campaign/${campaignId}/npcs`)
+      await page.getByRole('button', { name: 'New NPC' }).click()
+      const swatch = page.getByTestId('token-icon-preview')
+      await expect(swatch).toBeVisible()
+      await expect(swatch.locator('img')).toHaveCount(0)
+
+      await page.locator('.entity-image input[type=file]').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: Buffer.from(PNG.split(',')[1], 'base64') })
+      // Uploads open the crop dialog (T-113); confirm it.
+      await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click()
+      await expect(swatch.locator('img')).toHaveCount(1)
+      await expect(page.locator('.token-icon-field')).toContainText('Portrait')
+
+      // The Change picker still works: picking an icon replaces the portrait.
+      await page.locator('.token-icon-field').getByRole('button', { name: 'Change' }).click()
+      await page.getByRole('option').first().click()
+      await expect(swatch.locator('img')).toHaveCount(0)
+      await expect(swatch.locator('svg')).toHaveCount(1)
+      // Use automatic brings the portrait back.
+      await page.getByRole('button', { name: 'Use automatic' }).click()
+      await expect(swatch.locator('img')).toHaveCount(1)
+    })
+  }
+})
