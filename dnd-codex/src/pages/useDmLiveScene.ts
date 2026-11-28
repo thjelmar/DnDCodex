@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
@@ -20,6 +21,7 @@ import { tokenCombat } from '../lib/tokenCombat'
 import { activeIds, getCombat, type CombatState } from '../lib/combat'
 import { isDemo, notifyDemoBlocked } from '../lib/demo'
 import { hasTerrain } from '../lib/terrain'
+import { withNpcImage } from '../lib/npcTokenArt'
 import type { Campaign, Id, Scene, SceneFog, SceneGrid, SceneTemplate, SceneToken } from '../db/types'
 
 // The DM half of live battle maps. While the edited map is the one being shown
@@ -251,7 +253,13 @@ export function useDmLiveScene(
         throw e
       }
     }
-    const next = await toLiveTokens(d.tokens, members, thumbs.current, d.fog, d.combat)
+    // T-131: a token with no image of its own wears its NPC's, but players get that
+    // image only when the DM shares the NPC's portrait with them.
+    const npcIds = new Set(d.tokens.map((t) => t.npcId).filter((x): x is string => !!x))
+    const npcs = npcIds.size ? await db.npcs.bulkGet([...npcIds]) : []
+    const npcById = new Map(npcs.filter((n): n is NonNullable<typeof n> => !!n).map((n) => [n.id, n]))
+    const forPlayers = d.tokens.map((t) => withNpcImage(t, t.npcId ? npcById.get(t.npcId) : undefined, true))
+    const next = await toLiveTokens(forPlayers, members, thumbs.current, d.fog, d.combat)
     const changed = next.filter((t) => {
       const prev = pushedTokens.current.get(t.id)
       return !prev || !same(prev, t)
@@ -282,6 +290,14 @@ export function useDmLiveScene(
   // on the debounce is flushed if the editor unmounts (switching panes/maps).
   const { sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat } = draft
   const pending = useRef<Draft | null>(null)
+  // Changes to a linked NPC's image or sharing re-push the tokens that wear it.
+  const npcArtKey = useLiveQuery(async () => {
+    const ids = [...new Set(tokens.map((t) => t.npcId).filter((x): x is string => !!x))]
+    const npcs = await db.npcs.bulkGet(ids)
+    return npcs
+      .map((n) => (n ? `${n.id}:${n.imageId ?? ''}:${n.sharedWithPlayers ? 1 : 0}:${(n.sharedSections ?? ['*']).join('+')}:${n.tokenIcon ?? ''}` : ''))
+      .join('|')
+  }, [tokens])
   useEffect(() => {
     if (!isShowing || !seeded) return
     const d = { sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat }
@@ -292,7 +308,7 @@ export function useDmLiveScene(
     }, PUSH_DELAY)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat, members])
+  }, [isShowing, seeded, sceneId, name, grid, width, height, imageId, tokens, fog, templates, combat, members, npcArtKey])
   useEffect(
     () => () => {
       if (pending.current) enqueuePush(pending.current)
