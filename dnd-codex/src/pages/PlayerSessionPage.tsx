@@ -7,6 +7,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createPlayerNote, updatePlayerNote } from '../db/repo'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { NoteCapture } from '../components/NoteCapture'
+import type { Editor } from '@tiptap/react'
 import { NotesSaveStatus, type SaveState } from '../components/NotesSaveStatus'
 import { getDraft, onDraft, setDraft } from '../lib/noteDrafts'
 import { PlayerSessionDock, myActiveRows, useMyTurnAlert, type DockTab } from '../components/PlayerSessionDock'
@@ -48,6 +50,8 @@ export function PlayerSessionPage() {
   const { user } = useAuth()
   // The docked panel opens on Initiative (it has its own empty state), until the player picks.
   const [pickedTab, setPickedTab] = useState<DockTab | null>(null)
+  // The session note's live editor, so the capture bar can add cards to it (T-124).
+  const [notesEditor, setNotesEditor] = useState<Editor | null>(null)
   const myTurnRows = myActiveRows(liveCombat.combat, user?.id ?? null)
   useMyTurnAlert(myTurnRows)
   // Where the panel sits (docked, floating, own window, closed), shared by the page and full screen (T-112).
@@ -99,7 +103,7 @@ export function PlayerSessionPage() {
   // Title a new note after the session (the DM's session title, else its date) —
   // never the bare word "Session".
   const noteTitle = live.title || (live.sessionDate ? formatDate(live.sessionDate) : 'Session notes')
-  const notesEditor =
+  const notesBody =
     noteId === undefined ? (
       <p className="faint" style={{ fontSize: 13 }}>Preparing your notes…</p>
     ) : (
@@ -110,13 +114,20 @@ export function PlayerSessionPage() {
         sessionRef={sessionRef!}
         defaultTitle={noteTitle}
         date={live.sessionDate || undefined}
+        onEditor={setNotesEditor}
       />
     )
   const notesCard = (
     <>
-      <div className="run-col-heading"><Icon name="pencil" size={15} /> My session notes</div>
-      {notesEditor}
-      <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>Saved to your Journal and the “Story So Far” recap.</p>
+      <div className="run-col-heading"><Icon name="pencil" size={15} /> {noteTitle}</div>
+      <NoteCapture editor={notesEditor} round={liveCombat.combat?.phase === 'active' ? liveCombat.combat.round : null} />
+      {notesBody}
+      <p className="faint" style={{ fontSize: 12, marginTop: 8 }}>
+        Saved to your Journal and the “Story So Far” recap.
+        {noteId && !isDemo() && (
+          <> <Link to={`/player/${campaignId}?sel=${noteId}`}>Open in notebook ↗</Link></>
+        )}
+      </p>
     </>
   )
   // The same player UI the page shows, built once so full screen can host it too.
@@ -218,12 +229,14 @@ function SessionNotes({
   sessionRef,
   defaultTitle,
   date,
+  onEditor,
 }: {
   initialNoteId: string | null
   campaignId: string
   sessionRef: string
   defaultTitle: string
   date?: string
+  onEditor?: (editor: Editor | null) => void
 }) {
   // The note we're bound to once it exists (starts from any existing note).
   const draftKey = `player-note:${campaignId}:${sessionRef}`
@@ -325,6 +338,8 @@ function SessionNotes({
         placeholder="Jot down what happens this session — [[wiki links]] and images work too."
         minHeight={260}
         demoEditable
+        variant="player"
+        onEditor={onEditor}
       />
       <NotesSaveStatus state={status} />
     </div>

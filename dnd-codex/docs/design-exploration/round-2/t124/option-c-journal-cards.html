@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8"><title>T-124 option C: Journal cards</title><style>:root{--bg:#14121a;--elev:#1c1926;--elev2:#262233;--border:#352f45;--text:#ece9f1;--dim:#a49fb5;--faint:#726d82;--accent:#a78bfa;--strong:#7c3aed;--good:#4ade80;--danger:#f87171;--serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0c0b10;color:var(--text);font:15px/1.5 var(--sans);padding:28px;display:flex;gap:36px;align-items:flex-start}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;margin:0}
+.cap{font-size:12px;color:var(--faint);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.desk{width:1280px;height:800px;background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.phone{width:390px;height:800px;background:var(--bg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--elev)}
+.top .dot{width:12px;height:12px;border-radius:50%;background:#34d399}
+.top b{font-family:var(--serif);font-size:17px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:99px;border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.pill.live{color:var(--good);border-color:#2a5a3c;background:#12251a}
+.pill.acc{color:var(--accent);border-color:#4a3a80;background:#211b36}
+.pill.dm{color:#7dd3fc;border-color:#254a60;background:#10222c}
+.sp{flex:1}
+.btn{font:500 13px var(--sans);color:var(--text);background:var(--elev2);border:1px solid var(--border);border-radius:7px;padding:7px 13px;white-space:nowrap}
+.btn.pri{background:var(--strong);border-color:var(--strong);color:#fff}
+.btn.sm{padding:4px 10px;font-size:12px}
+.input{background:var(--elev);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--dim);font-size:14px;width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--dim);background:var(--elev)}
+.chip.on{background:#2a2145;border-color:var(--accent);color:var(--accent)}
+.faint{color:var(--faint)}.dim{color:var(--dim)}
+.row{display:flex;align-items:center;gap:10px}
+.ico{width:28px;height:28px;border-radius:7px;background:var(--elev2);display:grid;place-items:center;font-size:14px;flex:none}
+.note{padding:10px 12px;border-radius:8px;border:1px solid transparent;display:flex;gap:10px}
+.note.sel{background:var(--elev2);border-color:var(--border);box-shadow:inset 3px 0 0 var(--accent)}
+.note .t{font-family:var(--serif);font-weight:600;font-size:15px}
+.note .p{font-size:13px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.note .m{font-size:11px;color:var(--faint);display:flex;gap:8px;align-items:center;margin-top:2px}
+.wl{color:var(--accent);background:#211b36;border-radius:5px;padding:0 6px;text-decoration:none}
+.doc h1{font-size:30px;margin-bottom:8px}
+.doc ul{padding-left:1.3em;margin:.5em 0}.doc li{margin:.25em 0}
+.doc blockquote{margin:.8em 0;border-left:3px solid var(--accent);padding:2px 14px;color:var(--dim);font-style:italic}
+.doc h3{font-size:18px;margin:1em 0 .2em}
+.fbar{display:flex;gap:2px;background:var(--elev2);border:1px solid var(--border);border-radius:10px;padding:4px;width:max-content;box-shadow:0 6px 20px #0008}
+.fbar span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);padding:5px 9px;border-radius:6px}
+.fbar span.on{background:#2a2145;color:var(--accent)}
+.fbar i{width:1px;background:var(--border);margin:3px 3px}
+.sect{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.card{background:var(--elev);border:1px solid var(--border);border-radius:10px;padding:14px}
+.save{font-size:12px;color:var(--good)}
+.tabbar{flex:none;display:flex;border-top:1px solid var(--border);background:var(--elev);padding:6px 4px calc(6px)}
+.tabbar span{flex:1;text-align:center;font-size:11px;color:var(--faint);padding:4px 0}
+.tabbar span.on{color:var(--accent)}
+.kbd{flex:none;height:250px;background:#1a1822;border-top:1px solid var(--border);display:grid;place-items:center;color:var(--faint);font-size:12px}
+.body{flex:1;min-height:0;overflow:hidden;display:flex}
+.scroll{overflow:hidden}
+.label{position:absolute;top:10px;right:14px;font-size:11px;color:var(--faint)}
+</style></head><body>
+<div>
+<p class="cap">Option C · Journal cards · desktop (grid, with the focused editor opened over it)</p>
+<div class="desk" style="position:relative">
+  <div class="top"><span class="dot"></span><b>Frozen City</b><span class="pill live">● Session live</span><span class="sp"></span><div class="input" style="width:240px">🔍 Search</div><button class="btn pri">＋ New note</button></div>
+  <div style="padding:18px 28px;flex:1;min-height:0;overflow:hidden">
+    <div class="chips" style="margin-bottom:14px"><span class="chip on">All</span><span class="chip">📓 Journal</span><span class="chip">⚔️ Quests</span><span class="chip">🧑 People & places</span><span class="chip">🧝 Character</span><span class="chip">📝 Loose</span></div>
+    <div class="sect" style="margin-top:0">Journal</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+      <div class="card"><span class="pill acc">Nov 27</span><h3 style="font-size:17px;margin:8px 0 4px">The Frozen Gate</h3><div class="dim" style="font-size:13px;height:60px;overflow:hidden">We reached the gate before sunset. Captain Mira told us the council sealed the east wing…</div></div>
+      <div class="card"><span class="pill acc">Nov 17</span><h3 style="font-size:17px;margin:8px 0 4px">Into the Thaw</h3><div class="dim" style="font-size:13px;height:60px;overflow:hidden">We found the cellar under the tavern and a sealed door with a rune.</div></div>
+      <div class="card"><span class="pill acc">Nov 10</span><h3 style="font-size:17px;margin:8px 0 4px">Arrival</h3><div class="dim" style="font-size:13px;height:60px;overflow:hidden">Met in the Gilded Stag. Mira hired us for the caravan job.</div></div>
+      <div class="card" style="border-style:dashed;display:grid;place-items:center;color:var(--faint)">＋ Add entry</div>
+    </div>
+    <div class="sect">Quests</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+      <div class="card"><span class="pill live">Active</span><h3 style="font-size:17px;margin:8px 0 4px">Missing caravan</h3><div class="dim" style="font-size:13px">Salt Road. 200 gp.</div></div>
+      <div class="card"><span class="pill dm">Completed</span><h3 style="font-size:17px;margin:8px 0 4px">Clear the cellar</h3><div class="dim" style="font-size:13px">Done Nov 17.</div></div>
+    </div>
+  </div>
+  <div style="position:absolute;inset:48px 0 0 0;background:#0009"></div>
+  <div class="doc" style="position:absolute;left:190px;right:190px;top:78px;bottom:28px;background:var(--elev);border:1px solid var(--border);border-radius:14px;padding:24px 40px;box-shadow:0 20px 60px #000a">
+    <div class="row dim" style="font-size:13px;margin-bottom:8px"><span class="pill acc">📓 Journal</span><span>Nov 27</span><span class="chip">#mira</span><span class="sp"></span><span class="save">✓ Saved</span><button class="btn sm">Done</button></div>
+    <h1>Session 7: The Frozen Gate</h1>
+    <div class="fbar" style="margin:8px 0 12px"><span><b>B</b></span><span>I</span><i></i><span>Heading</span><span>• List</span><span>❝ Quote</span><i></i><span>🔗 Link</span><span>🖼 Image</span></div>
+    <p>We reached the gate before sunset. <a class="wl">Captain Mira</a> told us the council sealed the east wing.</p>
+    <ul><li>Hold the <a class="wl">Ice Gate</a> until dawn</li><li>Rune under the frost</li></ul>
+  </div>
+</div></div>
+<div>
+<p class="cap">Option C · phone (cards, then editor sheet)</p>
+<div style="display:flex;gap:20px">
+<div class="phone">
+  <div class="top"><b>Notes</b><span class="sp"></span><div class="input" style="width:140px;padding:4px 10px">🔍</div></div>
+  <div style="padding:12px;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:10px">
+    <div class="chips" style="flex-wrap:nowrap;overflow:hidden"><span class="chip on">All</span><span class="chip">Journal</span><span class="chip">Quests</span><span class="chip">People</span></div>
+    <div class="card"><div class="row"><span class="pill acc">Nov 27</span></div><h3 style="font-size:16px;margin:6px 0 2px">The Frozen Gate</h3><div class="dim" style="font-size:13px">We reached the gate before sunset…</div></div>
+    <div class="card"><div class="row"><span class="pill live">Active</span></div><h3 style="font-size:16px;margin:6px 0 2px">Missing caravan</h3><div class="dim" style="font-size:13px">Salt Road. 200 gp.</div></div>
+    <div class="card"><span class="pill acc">🧑 People</span><h3 style="font-size:16px;margin:6px 0 2px">Captain Mira</h3><div class="dim" style="font-size:13px">Gate warden.</div></div>
+  </div>
+  <div style="position:absolute;right:16px;bottom:78px"><button class="btn pri" style="border-radius:99px;padding:12px 18px">＋ New</button></div>
+  <div class="tabbar"><span>Initiative</span><span>Me</span><span class="on">Notes</span><span>Handouts</span></div>
+</div>
+<div class="phone">
+  <div class="top"><span class="dim">Done</span><b style="font-size:15px;flex:1;text-align:center">Journal</b><span class="save">✓</span></div>
+  <div class="doc" style="padding:14px 16px;flex:1;min-height:0;overflow:hidden"><h1 style="font-size:24px">Session 7: The Frozen Gate</h1><p>We reached the gate before sunset. <a class="wl">Captain Mira</a> told us the council sealed the east wing.</p></div>
+  <div style="padding:6px 8px;border-top:1px solid var(--border);background:var(--elev)"><div class="fbar" style="width:100%;box-shadow:none;justify-content:space-between"><span><b>B</b></span><span>I</span><span>H</span><span>•</span><span>❝</span><span>🔗</span><span>🖼</span></div></div>
+  <div class="kbd">on-screen keyboard</div>
+</div></div></div>
+</body></html>

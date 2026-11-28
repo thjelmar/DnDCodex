@@ -6055,3 +6055,184 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
 @media (orientation: landscape) and (max-height: 500px) {
   .player-live-board.phone-fs.pl-fs-shell.panel-open .pl-fs-demo { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
 }
+
+/* ---- T-124: player note taking (labeled toolbar, typed note cards, quick capture) ---- */
+.rte-toolbar-player { justify-content: flex-start; flex-wrap: wrap; row-gap: 2px; }
+.rte-toolbar-player .rte-btn { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 9px; }
+.rte-toolbar-player .rte-btn { white-space: nowrap; }
+.rte-btn-label { font-size: 12px; font-family: var(--sans, system-ui, sans-serif); }
+@media (max-width: 640px) {
+  .rte-btn-label { display: none; }
+  /* contain: inline-size keeps a scrolling row from widening the panel to its full content width. */
+  .rte-toolbar-player { flex-wrap: nowrap; overflow-x: auto; justify-content: space-between; contain: inline-size; }
+  .rte-toolbar-player .rte-btn { min-width: 40px; height: 36px; justify-content: center; }
+}
+
+.note-card {
+  --nc-color: var(--accent);
+  position: relative;
+  margin: 8px 0;
+  padding: 8px 12px 9px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--nc-color);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.note-card::before {
+  content: attr(data-label);
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nc-color);
+  user-select: none;
+}
+.rte-content .note-card { font-size: 14px; line-height: 1.5; }
+.note-card.nc-note { --nc-color: var(--text-dim); }
+.note-card.nc-npc { --nc-color: #7dd3fc; }
+.note-card.nc-place { --nc-color: #86efac; }
+.note-card.nc-loot { --nc-color: #fbbf24; }
+.note-card.nc-ask { --nc-color: #fb7185; }
+:root[data-theme="light"] .note-card.nc-npc { --nc-color: #0369a1; }
+:root[data-theme="light"] .note-card.nc-place { --nc-color: #15803d; }
+:root[data-theme="light"] .note-card.nc-loot { --nc-color: #b45309; }
+:root[data-theme="light"] .note-card.nc-ask { --nc-color: #be123c; }
+
+.note-capture { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.nc-row { display: flex; gap: 8px; align-items: center; }
+.nc-input { flex: 1; min-width: 0; }
+.nc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nc-chip {
+  font: 500 12px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 5px 11px;
+  min-height: 30px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.nc-chip:hover { color: var(--text); }
+.nc-chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+@media (max-width: 640px) {
+  .nc-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; contain: inline-size; }
+  .nc-chip { white-space: nowrap; min-height: 36px; }
+}
+
+/* ---- T-124: player notebook (campaign Notes page) ---- */
+.notebook {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  min-height: 560px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  overflow: hidden;
+}
+@media (min-width: 1280px) {
+  .notebook.has-note { grid-template-columns: 310px minmax(0, 1fr) 230px; }
+}
+.nb-list { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-right: 1px solid var(--border); min-width: 0; max-height: 78vh; }
+.nb-list-head { display: flex; gap: 8px; align-items: center; }
+.nb-list-head .input { flex: 1; min-width: 0; }
+.nb-new { position: relative; }
+.nb-new-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 230px;
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px; padding: 4px;
+  box-shadow: 0 10px 30px #0008; display: flex; flex-direction: column;
+}
+.nb-new-menu button {
+  text-align: left; background: transparent; border: none; color: var(--text); padding: 9px 10px;
+  border-radius: 7px; cursor: pointer; font-size: 14px; min-height: 40px;
+}
+.nb-new-menu button:hover { background: var(--bg-elev); }
+.nb-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.nb-chip {
+  font: 500 12px system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  padding: 4px 10px; min-height: 28px; border-radius: 99px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text-dim); cursor: pointer;
+}
+.nb-chip:hover { color: var(--text); }
+.nb-chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.nb-items { overflow-y: auto; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.nb-none { margin: 8px 2px; font-size: 13px; }
+.nb-group-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin: 12px 4px 4px; }
+.nb-item {
+  display: flex; gap: 10px; width: 100%; text-align: left; padding: 10px 11px; border-radius: 8px;
+  border: 1px solid transparent; background: transparent; color: var(--text); cursor: pointer; min-height: 44px;
+}
+.nb-item:hover { background: var(--bg-elev-2); }
+.nb-item.sel { background: var(--bg-elev-2); border-color: var(--border); box-shadow: inset 3px 0 0 var(--accent); }
+.nb-ico { width: 28px; height: 28px; border-radius: 7px; background: var(--bg-elev-2); display: grid; place-items: center; font-size: 14px; flex: none; }
+.nb-item.sel .nb-ico { background: var(--bg); }
+.nb-item-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.nb-item-title { font-family: var(--serif); font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-item-prev { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nb-item-meta { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text-faint); align-items: center; }
+.nb-tag { color: var(--accent); }
+
+.nb-editor { min-width: 0; padding: 18px 28px 24px; }
+.nb-empty { display: grid; place-items: center; text-align: center; height: 100%; min-height: 360px; align-content: center; }
+.nb-empty .big { font-size: 40px; }
+.nb-entry { display: flex; flex-direction: column; gap: 12px; }
+.nb-entry-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nb-entry-bar .pill-tag { font-size: 12px; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.nb-entry-bar .danger-text { color: var(--danger); }
+.nb-entry-bar .notes-status { margin-left: 0; }
+.nb-back { display: none; }
+.nb-title {
+  width: 100%; background: transparent; border: none; border-bottom: 1px solid transparent; outline: none;
+  font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.2; color: var(--text); padding: 2px 0;
+}
+.nb-title:focus { border-bottom-color: var(--accent); }
+.nb-meta { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; }
+.nb-meta-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-faint); }
+.nb-meta-tags { flex: 1; min-width: 200px; }
+.nb-shared { display: flex; flex-direction: column; gap: 12px; }
+
+.nb-side { border-left: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nb-side-title { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); margin: 12px 0 4px; }
+.nb-side-title:first-child { margin-top: 0; }
+.nb-side-none { font-size: 13px; margin: 0; }
+.nb-link {
+  text-align: left; background: transparent; border: none; padding: 5px 0; color: var(--accent); cursor: pointer; font-size: 14px;
+}
+.nb-link:hover { text-decoration: underline; }
+.nb-link-plain { color: var(--text-dim); cursor: default; }
+.nb-link-plain:hover { text-decoration: none; }
+
+@media (max-width: 899px) {
+  .notebook { grid-template-columns: 1fr; border-radius: 10px; }
+  .nb-list { border-right: none; max-height: none; }
+  .notebook.has-note .nb-list { display: none; }
+  .notebook:not(.has-note) .nb-editor { display: none; }
+  .nb-editor { padding: 14px 14px 20px; }
+  .nb-back { display: inline-flex; min-height: 36px; }
+  .nb-title { font-size: 24px; }
+  .nb-side { display: none; }
+  .nb-item { min-height: 52px; }
+}
+@media (max-width: 899px) {
+  .nb-entry-bar { flex-wrap: nowrap; }
+  .nb-entry-bar .pill-tag { display: none; }
+}
+
+/* T-124: on a phone the player panel names every tab, so Notes is easy to find. */
+@media (max-width: 640px) {
+  .pl-panel .bm-tabs { overflow-x: auto; scrollbar-width: none; }
+  .pl-panel .bm-tabs::-webkit-scrollbar { display: none; }
+  .pl-panel .bm-tabs button.has-icon { flex: none; gap: 5px; padding: 6px 8px; white-space: nowrap; }
+  .pl-panel .bm-tabs button.has-icon:not(.on) .bm-tab-label { display: inline; }
+}
+
+/* T-124: iOS zooms and scrolls the page when a focused field is under 16px. Touch screens get 16px
+   in every text field so the screen stays put while you type. */
+@media (pointer: coarse) {
+  input.input, textarea.textarea, select.select, .nb-search input, .nc-input, .note-capture input,
+  .notebook input, .notebook select, .notebook textarea { font-size: 16px; }
+}

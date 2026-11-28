@@ -17,6 +17,7 @@ import { AddPlayerCampaignModal } from './components/AddPlayerCampaignModal'
 import { PreferencesModal } from './components/PreferencesModal'
 import { BugReportModal } from './components/BugReportModal'
 import { installErrorLog, logBoundaryError } from './lib/errorLog'
+import { installKeepFocusVisible } from './lib/keepFocusVisible'
 import { isChunkLoadError } from './lib/chunkError'
 import { lazyWithRetry } from './lib/lazyWithRetry'
 import { PENDING_JOIN_KEY } from './lib/prefs'
@@ -77,6 +78,7 @@ const JoinLandingPage = lazyWithRetry(() => import('./pages/JoinLandingPage').th
 // Start capturing client errors as early as possible so a bug report includes
 // whatever went wrong before the user opened the reporter.
 installErrorLog()
+installKeepFocusVisible()
 
 // Shown while a code-split route chunk loads (usually a blink on first visit).
 function RouteFallback() {
