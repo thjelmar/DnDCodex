@@ -5,6 +5,7 @@ import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import { WikiLink } from '../editor/WikiLink'
 import { Spoiler } from '../editor/Spoiler'
+import { NoteCard } from '../editor/NoteCard'
 import { Icon } from './Icon'
 import { useRevealConfirm } from './ConfirmDialog'
 import { useWikiResolver } from '../editor/useWikiResolver'
@@ -28,6 +29,7 @@ export function RichTextEditor({
   onWikiLink,
   demoEditable = false,
   onEditor,
+  variant,
 }: {
   campaignId: Id
   value: string
@@ -48,6 +50,8 @@ export function RichTextEditor({
   demoEditable?: boolean
   /** Hands the live tiptap editor to the parent (for quick-insert buttons). */
   onEditor?: (editor: Editor | null) => void
+  /** 'player' swaps the toolbar for a labeled one with no spoiler lock (a DM-only tool). */
+  variant?: 'player'
 }) {
   const { follow } = useWikiResolver(campaignId)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -63,6 +67,7 @@ export function RichTextEditor({
       Image.configure({ allowBase64: true }),
       WikiLink,
       Spoiler,
+      NoteCard,
       Placeholder.configure({ placeholder: placeholder ?? 'Write here…' }),
     ],
     content: value || '',
@@ -139,7 +144,7 @@ export function RichTextEditor({
     <div className="field">
       {label && <label>{label}</label>}
       <div className="rte rte-editable">
-        <Toolbar editor={editor} onInsertImage={() => fileRef.current?.click()} busy={busy} revealNeedsConfirm={revealNeedsConfirm} />
+        <Toolbar editor={editor} onInsertImage={() => fileRef.current?.click()} busy={busy} revealNeedsConfirm={revealNeedsConfirm} variant={variant} />
         <div onClick={onClick}>
           <EditorContent editor={editor} />
         </div>
@@ -168,11 +173,14 @@ function Btn({
   active,
   onClick,
   title,
+  label,
   children,
 }: {
   active?: boolean
   onClick: () => void
   title: string
+  /** Shown beside the icon in the player toolbar (hidden on phones). */
+  label?: string
   children: React.ReactNode
 }) {
   return (
@@ -182,8 +190,10 @@ function Btn({
       title={title}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
+      aria-label={label}
     >
       {children}
+      {label && <span className="rte-btn-label">{label}</span>}
     </button>
   )
 }
@@ -193,11 +203,13 @@ function Toolbar({
   onInsertImage,
   busy,
   revealNeedsConfirm,
+  variant,
 }: {
   editor: Editor | null
   onInsertImage: () => void
   busy: boolean
   revealNeedsConfirm: boolean
+  variant?: 'player'
 }) {
   const revealConfirm = useRevealConfirm()
   // Re-render the toolbar on selection/content changes so active states update.
@@ -229,6 +241,36 @@ function Toolbar({
     const ok = await revealConfirm(editor.isActive('spoiler'), revealNeedsConfirm)
     if (!ok) return
     editor.chain().focus().toggleMark('spoiler').run()
+  }
+
+  if (variant === 'player') {
+    return (
+      <div className="rte-toolbar rte-toolbar-player" role="toolbar" aria-label="Formatting">
+        <Btn title="Bold (Ctrl+B)" label="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <strong>B</strong>
+        </Btn>
+        <Btn title="Italic (Ctrl+I)" label="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <em>I</em>
+        </Btn>
+        <span className="rte-sep" />
+        <Btn title="Heading" label="Heading" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+          H
+        </Btn>
+        <Btn title="Bullet list" label="List" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          •
+        </Btn>
+        <Btn title="Quote" label="Quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+          ❝
+        </Btn>
+        <span className="rte-sep" />
+        <Btn title="Link an NPC or place (select its name first)" label="Link" active={editor.isActive('wikiLink')} onClick={toggleWikiLink}>
+          [[ ]]
+        </Btn>
+        <Btn title="Insert image" label="Image" onClick={onInsertImage}>
+          {busy ? '…' : <Icon name="image" size={15} />}
+        </Btn>
+      </div>
+    )
   }
 
   return (
