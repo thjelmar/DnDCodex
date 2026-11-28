@@ -60,7 +60,7 @@ export function SessionsPage() {
     const s = await createSession(campaign.id, {
       title: `Session ${(sessions?.length ?? 0) + 1}`,
       date: todayISODate(),
-    })
+    }, { draft: true })
     setSelectedId(s.id)
   }
 

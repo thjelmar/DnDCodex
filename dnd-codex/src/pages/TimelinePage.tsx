@@ -43,11 +43,11 @@ export function TimelinePage() {
   const shown = threadFilter ? events.filter((e) => e.threadId === threadFilter) : events
 
   async function newEvent() {
-    const e = await createTimelineEvent(cid, { threadId: threadFilter })
+    const e = await createTimelineEvent(cid, { threadId: threadFilter }, { draft: true })
     setEditEvent(e)
   }
   async function newThread() {
-    const t = await createPlotThread(cid)
+    const t = await createPlotThread(cid, {}, { draft: true })
     setEditThread(t)
   }
 

@@ -53,7 +53,7 @@ export function ItemsPage() {
   })
 
   async function add() {
-    const i = await createItem(campaign.id)
+    const i = await createItem(campaign.id, {}, { draft: true })
     setEditingId(i.id)
   }
 

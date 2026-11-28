@@ -69,6 +69,9 @@ test.describe('Run mode desktop 1440x900', () => {
     await page.goto(`/#/campaign/${campaignId}/sessions`)
     await page.getByRole('button', { name: 'New Session' }).click()
     await expect(page.getByText('Session 1').first()).toBeVisible()
+    // A blank sheet is not kept (T-125), so give the session a title of its own.
+    await page.locator('input.input').first().fill('Session 1: the arrival')
+    await page.waitForTimeout(900)
     // No map yet: the top bar and the tabs are still there, with a New battle map button.
     await page.goto(`/#/run/${campaignId}`)
     await expect(page.getByTestId('run-top')).toBeVisible()

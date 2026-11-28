@@ -38,7 +38,7 @@ export function RollTablesPage() {
   const selected = tables?.find((t) => t.id === selectedId) ?? null
 
   async function add() {
-    const t = await createRollTable(campaign.id)
+    const t = await createRollTable(campaign.id, {}, { draft: true })
     setSelectedId(t.id)
   }
 

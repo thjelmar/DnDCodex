@@ -2,6 +2,7 @@ import { db, newId, now } from './db'
 import { enqueuePut, enqueuePutById, enqueueDel } from '../lib/syncQueue'
 import { enqueueGlobalPut, enqueueGlobalDel } from '../lib/globalSyncQueue'
 import { isDemo, notifyDemoBlocked, DemoBlockedError, DEMO_PLAYER_CAMPAIGN_ID } from '../lib/demo'
+import { markDraft } from '../lib/drafts'
 import { tableForKind } from '../lib/syncKinds'
 import { LOCATION_TYPES } from './types'
 import { CARDS, LAYOUT_VERSION, OVERVIEW_LAYOUT_ID, type ResolvedLayout } from '../lib/overviewCards'
@@ -43,6 +44,11 @@ import type {
 //   - skipDemoWrite(): passive autosave (updateX). Silently no-ops — editors
 //     stay interactive but nothing persists, with no prompt spam on every key.
 // ---------------------------------------------------------------------------
+
+/** `draft: true` marks a record created from a "New …" button as blank-until-edited (T-125). */
+export interface DraftOpts {
+  draft?: boolean
+}
 
 function blockDemoWrite(): void {
   if (isDemo()) {
@@ -145,6 +151,7 @@ export async function deleteCampaign(id: Id): Promise<void> {
 export async function createSession(
   campaignId: Id,
   input: Partial<Pick<Session, 'title' | 'date' | 'notes' | 'dmNotes' | 'tags'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Session> {
   blockDemoWrite()
   const ts = now()
@@ -160,6 +167,7 @@ export async function createSession(
     updatedAt: ts,
   }
   await db.sessions.add(session)
+  if (opts.draft) markDraft('sessions', session)
   await enqueuePut('sessions', session.id, campaignId)
   return session
 }
@@ -192,6 +200,7 @@ export async function createLocation(
       | 'population' | 'prosperity' | 'imports' | 'exports' | 'pointsOfInterest'
     >
   > = {},
+  opts: DraftOpts = {},
 ): Promise<Location> {
   blockDemoWrite()
   const ts = now()
@@ -220,6 +229,7 @@ export async function createLocation(
     updatedAt: ts,
   }
   await db.locations.add(location)
+  if (opts.draft) markDraft('locations', location)
   await enqueuePut('locations', location.id, campaignId)
   return location
 }
@@ -248,6 +258,7 @@ export async function createNPC(
       | 'race' | 'statBlock' | 'statBlockData'
     >
   > = {},
+  opts: DraftOpts = {},
 ): Promise<NPC> {
   blockDemoWrite()
   const ts = now()
@@ -268,6 +279,7 @@ export async function createNPC(
     updatedAt: ts,
   }
   await db.npcs.add(npc)
+  if (opts.draft) markDraft('npcs', npc)
   await enqueuePut('npcs', npc.id, campaignId)
   return npc
 }
@@ -289,6 +301,7 @@ export async function deleteNPC(id: Id): Promise<void> {
 export async function createItem(
   campaignId: Id,
   input: Partial<Pick<Item, 'name' | 'rarity' | 'category' | 'description' | 'attunement' | 'value' | 'tags'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Item> {
   blockDemoWrite()
   const ts = now()
@@ -307,6 +320,7 @@ export async function createItem(
     updatedAt: ts,
   }
   await db.items.add(item)
+  if (opts.draft) markDraft('items', item)
   await enqueuePut('items', item.id, campaignId)
   return item
 }
@@ -328,6 +342,7 @@ export async function deleteItem(id: Id): Promise<void> {
 export async function createNote(
   campaignId: Id,
   input: Partial<Pick<Note, 'title' | 'body' | 'tags'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Note> {
   blockDemoWrite()
   const ts = now()
@@ -341,6 +356,7 @@ export async function createNote(
     updatedAt: ts,
   }
   await db.notes.add(note)
+  if (opts.draft) markDraft('notes', note)
   await enqueuePut('notes', note.id, campaignId)
   return note
 }
@@ -367,6 +383,7 @@ export function newRollTableEntry(text = '', weight = 1): RollTableEntry {
 export async function createRollTable(
   campaignId: Id,
   input: Partial<Pick<RollTable, 'name' | 'category' | 'description' | 'entries' | 'tags'>> = {},
+  opts: DraftOpts = {},
 ): Promise<RollTable> {
   blockDemoWrite()
   const ts = now()
@@ -383,6 +400,7 @@ export async function createRollTable(
     updatedAt: ts,
   }
   await db.rollTables.add(table)
+  if (opts.draft) markDraft('rollTables', table)
   await enqueuePut('rollTables', table.id, campaignId)
   return table
 }
@@ -640,6 +658,7 @@ export async function deleteRollTable(id: Id): Promise<void> {
 export async function createPlayerNote(
   campaignId: Id,
   input: Partial<Pick<PlayerNote, 'section' | 'title' | 'body' | 'tags' | 'date' | 'status'>> = {},
+  opts: DraftOpts = {},
 ): Promise<PlayerNote> {
   // The demo player's own notes work (local demo DB only), so the session Notes tab can be tried.
   if (campaignId !== DEMO_PLAYER_CAMPAIGN_ID) blockDemoWrite()
@@ -658,6 +677,7 @@ export async function createPlayerNote(
     updatedAt: ts,
   }
   await db.playerNotes.add(note)
+  if (opts.draft) markDraft('playerNotes', note)
   await enqueuePut('playerNotes', note.id, campaignId)
   return note
 }
@@ -681,6 +701,7 @@ export async function deletePlayerNote(id: Id): Promise<void> {
 export async function createEncounter(
   campaignId: Id,
   input: Partial<Pick<Encounter, 'name' | 'players' | 'level' | 'combatants'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Encounter> {
   const ts = now()
   const encounter: Encounter = {
@@ -694,6 +715,7 @@ export async function createEncounter(
     updatedAt: ts,
   }
   await db.encounters.add(encounter)
+  if (opts.draft) markDraft('encounters', encounter)
   await enqueuePut('encounters', encounter.id, campaignId)
   return encounter
 }
@@ -716,6 +738,7 @@ export async function deleteEncounter(id: Id): Promise<void> {
 export async function createScene(
   campaignId: Id,
   input: Partial<Pick<Scene, 'name' | 'imageId' | 'width' | 'height' | 'grid' | 'tokens' | 'source'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Scene> {
   const ts = now()
   const scene: Scene = {
@@ -732,6 +755,7 @@ export async function createScene(
     updatedAt: ts,
   }
   await db.scenes.add(scene)
+  if (opts.draft) markDraft('scenes', scene)
   await enqueuePut('scenes', scene.id, campaignId)
   return scene
 }
@@ -775,6 +799,7 @@ export async function getOrCreateWorldMap(campaignId: Id): Promise<WorldMap> {
     updatedAt: ts,
   }
   await db.worldMaps.add(map)
+  markDraft('worldMaps', map) // blank until an image or pin is added (T-125)
   await enqueuePut('worldMaps', map.id, campaignId)
   return map
 }
@@ -841,7 +866,7 @@ export function descendantMaps(all: WorldMap[], rootId: Id): WorldMap[] {
 
 const THREAD_COLORS = ['#7f77dd', '#1d9e75', '#d4537e', '#378add', '#ba7517', '#e2504a', '#888780']
 
-export async function createPlotThread(campaignId: Id, input: Partial<Pick<PlotThread, 'name' | 'status' | 'color' | 'description'>> = {}): Promise<PlotThread> {
+export async function createPlotThread(campaignId: Id, input: Partial<Pick<PlotThread, 'name' | 'status' | 'color' | 'description'>> = {}, opts: DraftOpts = {}): Promise<PlotThread> {
   const ts = now()
   const count = await db.plotThreads.where('campaignId').equals(campaignId).count()
   const thread: PlotThread = {
@@ -855,6 +880,7 @@ export async function createPlotThread(campaignId: Id, input: Partial<Pick<PlotT
     updatedAt: ts,
   }
   await db.plotThreads.add(thread)
+  if (opts.draft) markDraft('plotThreads', thread)
   await enqueuePut('plotThreads', thread.id, campaignId)
   return thread
 }
@@ -879,6 +905,7 @@ const FAMILY_COLORS = ['#d4537e', '#378add', '#1d9e75', '#ba7517', '#7f77dd', '#
 export async function createFamily(
   campaignId: Id,
   input: Partial<Pick<Family, 'name' | 'color'>> = {},
+  opts: DraftOpts = {},
 ): Promise<Family> {
   const ts = now()
   const count = await db.families.where('campaignId').equals(campaignId).count()
@@ -891,6 +918,7 @@ export async function createFamily(
     updatedAt: ts,
   }
   await db.families.add(family)
+  if (opts.draft) markDraft('families', family)
   await enqueuePut('families', family.id, campaignId)
   return family
 }
@@ -915,6 +943,7 @@ const RACE_COLORS = ['#7f77dd', '#1d9e75', '#d4537e', '#378add', '#ba7517', '#e2
 export async function createRaceGroup(
   campaignId: Id,
   input: Partial<Pick<RaceGroup, 'name' | 'color' | 'races' | 'description'>> = {},
+  opts: DraftOpts = {},
 ): Promise<RaceGroup> {
   const ts = now()
   const count = await db.raceGroups.where('campaignId').equals(campaignId).count()
@@ -929,6 +958,7 @@ export async function createRaceGroup(
     updatedAt: ts,
   }
   await db.raceGroups.add(group)
+  if (opts.draft) markDraft('raceGroups', group)
   await enqueuePut('raceGroups', group.id, campaignId)
   return group
 }
@@ -953,7 +983,7 @@ export async function deleteRaceGroup(id: Id): Promise<void> {
   }
 }
 
-export async function createTimelineEvent(campaignId: Id, input: Partial<Pick<TimelineEvent, 'title' | 'dateLabel' | 'sortKey' | 'body' | 'threadId' | 'refs' | 'year'>> = {}): Promise<TimelineEvent> {
+export async function createTimelineEvent(campaignId: Id, input: Partial<Pick<TimelineEvent, 'title' | 'dateLabel' | 'sortKey' | 'body' | 'threadId' | 'refs' | 'year'>> = {}, opts: DraftOpts = {}): Promise<TimelineEvent> {
   const ts = now()
   // Default sortKey to just after the current max, so a new event lands at the end.
   let sortKey = input.sortKey
@@ -975,6 +1005,7 @@ export async function createTimelineEvent(campaignId: Id, input: Partial<Pick<Ti
     updatedAt: ts,
   }
   await db.timelineEvents.add(event)
+  if (opts.draft) markDraft('timelineEvents', event)
   await enqueuePut('timelineEvents', event.id, campaignId)
   return event
 }

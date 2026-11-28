@@ -29,7 +29,7 @@ export function NotesPage() {
   const selected = notes?.find((n) => n.id === selectedId) ?? null
 
   async function add() {
-    const n = await createNote(campaign.id)
+    const n = await createNote(campaign.id, {}, { draft: true })
     setSelectedId(n.id)
   }
 

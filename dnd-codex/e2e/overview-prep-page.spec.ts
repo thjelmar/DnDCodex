@@ -41,6 +41,9 @@ test('a new campaign shows an unticked checklist and an empty feed, then the fee
   await page.goto(`/#/campaign/${campaignId}/sessions`)
   await page.getByRole('button', { name: 'New Session' }).click()
   await expect(page.getByText('Session 1').first()).toBeVisible()
+  // A blank sheet is not kept (T-125), so give the session a title of its own.
+  await page.locator('input.input').first().fill('Session 1: the arrival')
+  await page.waitForTimeout(900)
   await page.goBack()
   await expect(page).toHaveURL(/#\/campaign\/[^/]+$/)
 

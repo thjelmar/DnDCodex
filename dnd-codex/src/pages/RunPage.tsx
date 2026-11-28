@@ -172,7 +172,7 @@ export function RunPage() {
     const s = await createSession(campaignId, {
       title: `Session ${(sessions?.length ?? 0) + 1}`,
       date: todayISODate(),
-    })
+    }, { draft: true })
     setParams({ session: s.id }, { replace: true })
   }
 
