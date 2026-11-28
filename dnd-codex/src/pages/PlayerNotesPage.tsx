@@ -198,7 +198,7 @@ export function PlayerNotesPage() {
 
   async function addTo(section: PlayerNoteSection) {
     const n = await createPlayerNote(campaignId!, { section })
-    setEditingId(n.id)
+    openNote(n.id)
   }
 
   async function removeCampaign() {

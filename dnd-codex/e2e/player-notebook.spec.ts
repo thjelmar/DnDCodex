@@ -145,3 +145,16 @@ test.describe('phone', () => {
     await expect(page.getByTestId('nb-entry')).toBeHidden()
   })
 })
+
+test.describe('new entry on a short screen', () => {
+  test.use({ viewport: { width: 1280, height: 640 } })
+
+  test('New scrolls the notebook into view so the body editor is visible', async ({ page }) => {
+    await seed(page)
+    await page.getByTestId('nb-new').scrollIntoViewIfNeeded()
+    await page.getByTestId('nb-new').click()
+    await page.getByTestId('nb-new-journal').click()
+    const body = page.getByTestId('nb-entry').locator('.ProseMirror')
+    await expect(body).toBeInViewport({ ratio: 0.5 })
+  })
+})
