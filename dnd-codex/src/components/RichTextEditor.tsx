@@ -76,6 +76,9 @@ export function RichTextEditor({
       // Keep the caret clear of the panel edges (and of a phone's on-screen keyboard).
       scrollMargin: { top: 56, bottom: 120, left: 0, right: 0 },
       scrollThreshold: { top: 56, bottom: 120, left: 0, right: 0 },
+      // On a touch screen iOS already scrolls the caret into view above the keyboard. Doing it a
+      // second time here on every keystroke makes the screen stutter, so leave it to the browser.
+      handleScrollToSelection: () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
       attributes: {
         class: 'rte-content',
         ...(minHeight ? { style: `min-height:${minHeight}px` } : {}),
