@@ -1,6 +1,7 @@
 // On an iPhone the on-screen keyboard shrinks the visual viewport and Safari scrolls the page to
-// reveal the focused field, which makes the screen jump. This keeps the field being edited (or the
-// caret inside a rich text editor) in view whenever the keyboard opens, closes, or resizes.
+// reveal the focused field, which makes the screen jump. This nudges the field being edited into view
+// only when the keyboard opens, closes, or resizes. It never runs per keystroke, so it can't fight
+// the browser's own caret scrolling (that made the screen stutter while typing).
 
 function target(): HTMLElement | null {
   const el = document.activeElement as HTMLElement | null
@@ -26,7 +27,7 @@ function reveal() {
   const bottom = top + (vv?.height ?? window.innerHeight)
   const pad = 72
   if (rect.bottom > bottom - pad || rect.top < top + pad / 2) {
-    anchor.scrollIntoView({ block: 'center', behavior: 'auto' })
+    anchor.scrollIntoView({ block: 'nearest', behavior: 'auto' })
   }
 }
 
@@ -40,7 +41,4 @@ export function installKeepFocusVisible() {
   }
   vv.addEventListener('resize', soon)
   document.addEventListener('focusin', soon)
-  document.addEventListener('selectionchange', () => {
-    if (target()?.isContentEditable) soon()
-  })
 }
