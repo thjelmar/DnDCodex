@@ -6236,3 +6236,30 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   input.input, textarea.textarea, select.select, .nb-search input, .nc-input, .note-capture input,
   .notebook input, .notebook select, .notebook textarea { font-size: 16px; }
 }
+
+/* ---------- Image crop dialog ---------- */
+
+.crop-dialog { display: flex; flex-direction: column; align-items: center; }
+.crop-frame {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.crop-frame:active { cursor: grabbing; }
+.crop-frame.round { border-radius: 50%; }
+.crop-img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  pointer-events: none;
+}
+.crop-controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; width: 260px; max-width: 100%; }
+.crop-token { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.crop-zoom { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.crop-zoom input { flex: 1; min-width: 0; }
