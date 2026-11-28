@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { liveTokensForBoard, moveMyToken, placeMyTemplate, removeMyTemplate, usePlayerTemplates, useLiveScene } from '../auth/liveScene'
 import { getMyColor, setMyColor } from '../auth/cloud'
@@ -150,12 +150,14 @@ export function PlayerLiveBoardView({
   useMapClearRight(bodyRef, fs.expanded && fsPlace?.mode === 'float')
   const onExpandedRef = useRef(onExpandedChange)
   onExpandedRef.current = onExpandedChange
-  useEffect(() => {
+  // A layout effect, so the page hides its own panel before the browser can see the board's
+  // full-screen panel mounted beside it (two `bm-inspector` elements for one commit, T-130).
+  useLayoutEffect(() => {
     onExpandedRef.current?.(fs.expanded)
   }, [fs.expanded])
   // Unmounting while expanded (e.g. the page moves the board when the DM stops
   // the map) must still tell the page full screen is over.
-  useEffect(() => () => onExpandedRef.current?.(false), [])
+  useLayoutEffect(() => () => onExpandedRef.current?.(false), [])
   // On a phone the notes start closed and open as a drawer, so the map keeps the room (T-96).
   const isPhone = useIsPhone()
   const [notesOpen, setNotesOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.(PHONE_QUERY).matches))
