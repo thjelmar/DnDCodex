@@ -12,6 +12,12 @@ guarantee matters.
   is no auth call, no Realtime socket, no RPC, and no sync push.
 - The demo uses its own IndexedDB (`dnd-codex-demo`), seeded from
   `src/data/demoSeed.ts`.
+- The demo records `DEMO_SEED_VERSION` (in `src/data/demoSeed.ts`) in
+  `localStorage` after it seeds. On each demo load, if the recorded version
+  differs or a seeded campaign is missing, the demo database is wiped and
+  reseeded. Only the demo database is touched. **Bump `DEMO_SEED_VERSION`
+  whenever you change the seed**, or an already-open demo keeps the old data and
+  can show "That campaign doesn't exist in this browser."
 - `e2e/demo-isolation.spec.ts` and `e2e/demo-player-session.spec.ts` fail if the
   demo sends any request to the Supabase host.
 
