@@ -1,0 +1,95 @@
+<!doctype html><html><head><meta charset="utf-8"><title>T-124 option B: Session scratchpad</title><style>:root{--bg:#14121a;--elev:#1c1926;--elev2:#262233;--border:#352f45;--text:#ece9f1;--dim:#a49fb5;--faint:#726d82;--accent:#a78bfa;--strong:#7c3aed;--good:#4ade80;--danger:#f87171;--serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:#0c0b10;color:var(--text);font:15px/1.5 var(--sans);padding:28px;display:flex;gap:36px;align-items:flex-start}
+h1,h2,h3{font-family:var(--serif);font-weight:600;line-height:1.2;margin:0}
+.cap{font-size:12px;color:var(--faint);margin:0 0 8px;letter-spacing:.06em;text-transform:uppercase}
+.desk{width:1280px;height:800px;background:var(--bg);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.phone{width:390px;height:800px;background:var(--bg);border:1px solid var(--border);border-radius:28px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.top{height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--border);background:var(--elev)}
+.top .dot{width:12px;height:12px;border-radius:50%;background:#34d399}
+.top b{font-family:var(--serif);font-size:17px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:99px;border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.pill.live{color:var(--good);border-color:#2a5a3c;background:#12251a}
+.pill.acc{color:var(--accent);border-color:#4a3a80;background:#211b36}
+.pill.dm{color:#7dd3fc;border-color:#254a60;background:#10222c}
+.sp{flex:1}
+.btn{font:500 13px var(--sans);color:var(--text);background:var(--elev2);border:1px solid var(--border);border-radius:7px;padding:7px 13px;white-space:nowrap}
+.btn.pri{background:var(--strong);border-color:var(--strong);color:#fff}
+.btn.sm{padding:4px 10px;font-size:12px}
+.input{background:var(--elev);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--dim);font-size:14px;width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--border);color:var(--dim);background:var(--elev)}
+.chip.on{background:#2a2145;border-color:var(--accent);color:var(--accent)}
+.faint{color:var(--faint)}.dim{color:var(--dim)}
+.row{display:flex;align-items:center;gap:10px}
+.ico{width:28px;height:28px;border-radius:7px;background:var(--elev2);display:grid;place-items:center;font-size:14px;flex:none}
+.note{padding:10px 12px;border-radius:8px;border:1px solid transparent;display:flex;gap:10px}
+.note.sel{background:var(--elev2);border-color:var(--border);box-shadow:inset 3px 0 0 var(--accent)}
+.note .t{font-family:var(--serif);font-weight:600;font-size:15px}
+.note .p{font-size:13px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.note .m{font-size:11px;color:var(--faint);display:flex;gap:8px;align-items:center;margin-top:2px}
+.wl{color:var(--accent);background:#211b36;border-radius:5px;padding:0 6px;text-decoration:none}
+.doc h1{font-size:30px;margin-bottom:8px}
+.doc ul{padding-left:1.3em;margin:.5em 0}.doc li{margin:.25em 0}
+.doc blockquote{margin:.8em 0;border-left:3px solid var(--accent);padding:2px 14px;color:var(--dim);font-style:italic}
+.doc h3{font-size:18px;margin:1em 0 .2em}
+.fbar{display:flex;gap:2px;background:var(--elev2);border:1px solid var(--border);border-radius:10px;padding:4px;width:max-content;box-shadow:0 6px 20px #0008}
+.fbar span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);padding:5px 9px;border-radius:6px}
+.fbar span.on{background:#2a2145;color:var(--accent)}
+.fbar i{width:1px;background:var(--border);margin:3px 3px}
+.sect{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.card{background:var(--elev);border:1px solid var(--border);border-radius:10px;padding:14px}
+.save{font-size:12px;color:var(--good)}
+.tabbar{flex:none;display:flex;border-top:1px solid var(--border);background:var(--elev);padding:6px 4px calc(6px)}
+.tabbar span{flex:1;text-align:center;font-size:11px;color:var(--faint);padding:4px 0}
+.tabbar span.on{color:var(--accent)}
+.kbd{flex:none;height:250px;background:#1a1822;border-top:1px solid var(--border);display:grid;place-items:center;color:var(--faint);font-size:12px}
+.body{flex:1;min-height:0;overflow:hidden;display:flex}
+.scroll{overflow:hidden}
+.label{position:absolute;top:10px;right:14px;font-size:11px;color:var(--faint)}
+</style></head><body>
+<div>
+<p class="cap">Option B · Session scratchpad · desktop (live session, Notes tab docked beside the map)</p>
+<div class="desk">
+  <div class="top"><span class="dot"></span><b>Frozen City</b><span class="pill live">● Session live</span><span class="sp"></span><span class="pill">Round 3</span><span class="pill acc">Your turn</span></div>
+  <div class="body">
+    <div style="flex:1;background:repeating-linear-gradient(0deg,#1a1722 0 39px,#221e2d 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,#221e2d 39px 40px);display:grid;place-items:center;color:var(--faint)">battle map</div>
+    <aside style="width:430px;border-left:1px solid var(--border);background:var(--elev);display:flex;flex-direction:column">
+      <div style="display:flex;border-bottom:1px solid var(--border)"><span style="padding:12px 16px;color:var(--faint)">Initiative</span><span style="padding:12px 16px;color:var(--faint)">Me</span><span style="padding:12px 16px;color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)">Notes</span><span style="padding:12px 16px;color:var(--faint)">Handouts</span></div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:0" class="doc">
+        <div class="row"><h3 style="font-size:19px;flex:1;margin:0">Session 7: The Frozen Gate</h3><span class="save">✓ Saved</span></div>
+        <div class="row dim" style="font-size:12px"><span>Nov 27 · Round 3</span><span class="pill">Mine only</span></div>
+        <div class="chips"><span class="chip on">＋ NPC</span><span class="chip on">＋ Quest lead</span><span class="chip on">＋ Loot</span><span class="chip on">？ Ask DM</span></div>
+        <div style="flex:1;min-height:0;overflow:hidden;font-size:14px">
+          <p style="margin:.2em 0"><span class="pill dm">R2</span> Mira holds the gate; <a class="wl">Captain Mira</a> owes us.</p>
+          <div class="card" style="margin:8px 0;padding:10px"><span class="pill acc">NPC</span> <b>Old Tam</b> <span class="dim">· ferryman, knows the cellar</span></div>
+          <div class="card" style="margin:8px 0;padding:10px"><span class="pill acc">Loot</span> <b>Frost-rune key</b> <span class="dim">· Kessa has it</span></div>
+          <div class="card" style="margin:8px 0;padding:10px;border-color:#4a3a80"><span class="pill acc">Ask DM</span> Who ordered the seal?</div>
+          <p class="faint" style="margin:.4em 0">Type here…</p>
+        </div>
+        <div class="fbar" style="width:100%;justify-content:space-between"><span><b>B</b></span><span>I</span><span>H</span><span>• List</span><span>❝</span><span>🔗 Link</span><span>🖼</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<p class="cap" style="margin-top:22px">Option B · campaign page: preview cards</p>
+<div class="desk" style="height:380px"><div class="body" style="padding:20px;gap:14px;flex-wrap:wrap;align-content:flex-start">
+  <div class="card" style="width:300px"><div class="row"><span class="pill acc">📓 Journal</span><span class="faint" style="font-size:12px">Nov 27</span></div><h3 style="margin:8px 0 4px;font-size:17px">Session 7: The Frozen Gate</h3><div class="dim" style="font-size:13px">We reached the gate before sunset. Captain Mira told us the council sealed…</div></div>
+  <div class="card" style="width:300px"><div class="row"><span class="pill acc">⚔️ Quest</span><span class="pill live">Active</span></div><h3 style="margin:8px 0 4px;font-size:17px">Find the missing caravan</h3><div class="dim" style="font-size:13px">Last seen near the Salt Road. Reward 200 gp.</div></div>
+  <div class="card" style="width:300px"><div class="row"><span class="pill acc">🧑 People</span></div><h3 style="margin:8px 0 4px;font-size:17px">Captain Mira</h3><div class="dim" style="font-size:13px">Gate warden. Distrusts the council, owes us a favor.</div></div>
+</div></div>
+</div>
+<div>
+<p class="cap">Option B · phone (Notes sheet over the map)</p>
+<div class="phone">
+  <div style="height:150px;flex:none;background:repeating-linear-gradient(0deg,#1a1722 0 29px,#221e2d 29px 30px),repeating-linear-gradient(90deg,transparent 0 29px,#221e2d 29px 30px);display:grid;place-items:center;color:var(--faint);font-size:12px">map (peek)</div>
+  <div style="flex:1;min-height:0;background:var(--elev);border-top:1px solid var(--border);border-radius:16px 16px 0 0;display:flex;flex-direction:column;padding:10px 14px" class="doc">
+    <div style="width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 8px"></div>
+    <div class="row"><h3 style="font-size:17px;flex:1;margin:0">Session 7: The Frozen Gate</h3><span class="save">✓</span></div>
+    <div class="chips" style="margin:8px 0;flex-wrap:nowrap;overflow:hidden"><span class="chip on">＋ NPC</span><span class="chip on">＋ Quest</span><span class="chip on">＋ Loot</span><span class="chip on">？ DM</span></div>
+    <div style="flex:1;overflow:hidden;font-size:14px"><p style="margin:.2em 0">Mira holds the gate; <a class="wl">Captain Mira</a> owes us.</p><div class="card" style="padding:8px;margin:6px 0"><span class="pill acc">Ask DM</span> Who ordered the seal?</div></div>
+    <div class="fbar" style="width:100%;box-shadow:none;justify-content:space-between"><span><b>B</b></span><span>I</span><span>H</span><span>•</span><span>🔗</span><span>🖼</span></div>
+  </div>
+  <div class="kbd" style="height:230px">on-screen keyboard</div>
+</div></div>
+</body></html>
