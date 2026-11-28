@@ -25,7 +25,7 @@ import { useTopbarAutoHide } from './lib/useTopbarAutoHide'
 import { DemoBanner, DemoBlockedToast } from './components/DemoChrome'
 import { libraryAvailable } from './lib/battleLibrary'
 import { isDemo } from './lib/demo'
-import { purgeBlankDrafts, abandonOwnDrafts } from './lib/drafts'
+import { purgeBlankDrafts, abandonOwnDrafts, resumeOwnDrafts, ownDraftIds } from './lib/drafts'
 import type { Campaign } from './db/types'
 import { useChangelogUnseen } from './lib/useChangelog'
 
@@ -439,10 +439,12 @@ function PlayerNotesNav({ onAddPlayerCampaign }: { onAddPlayerCampaign: () => vo
   )
 }
 
+const PURGE_DELAY_MS = 1500
+
 /** Deletes blank drafts (T-125): when the user navigates away from a "New …" sheet
  *  they never filled in, and once at startup for drafts a closed tab left behind. */
 function BlankDraftSweeper() {
-  const { pathname, search, hash } = useLocation()
+  const { pathname } = useLocation()
   const first = useRef(true)
   useEffect(() => {
     if (first.current) {
@@ -450,12 +452,26 @@ function BlankDraftSweeper() {
       void purgeBlankDrafts({ scope: 'stale' })
       return
     }
-    void purgeBlankDrafts({ keepIfIn: `${pathname}${search}${hash}` })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Wait out the editors' save debounce (about 500 ms), then look at the saved row,
+    // so text typed just before leaving is not mistaken for a blank sheet.
+    // Only the drafts that existed when the user left: one created since belongs to the new page.
+    const only = ownDraftIds()
+    if (!only.length) return
+    const t = window.setTimeout(() => {
+      void purgeBlankDrafts({ only, keepIfIn: window.location.hash })
+    }, PURGE_DELAY_MS)
+    return () => window.clearTimeout(t)
   }, [pathname])
   useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) resumeOwnDrafts()
+    }
     window.addEventListener('pagehide', abandonOwnDrafts)
-    return () => window.removeEventListener('pagehide', abandonOwnDrafts)
+    window.addEventListener('pageshow', onShow)
+    return () => {
+      window.removeEventListener('pagehide', abandonOwnDrafts)
+      window.removeEventListener('pageshow', onShow)
+    }
   }, [])
   return null
 }

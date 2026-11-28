@@ -536,7 +536,7 @@ export async function createSessionFromTemplate(
     notes: tplStr(data, 'notes'),
     dmNotes: tplStr(data, 'dmNotes'),
     tags: tplTags(data),
-  }, { draft: true })
+  })
 }
 
 // Template data is an untyped JSON blob (it may come from sync written by another
@@ -586,7 +586,7 @@ export async function createNpcFromTemplate(
     statBlock: tplStr(data, 'statBlock'),
     statBlockData: (data.statBlockData as NPC['statBlockData']) ?? undefined,
     tags: tplTags(data),
-  }, { draft: true })
+  })
 }
 
 // --- Location templates (T-30) ---
@@ -636,7 +636,7 @@ export async function createLocationFromTemplate(
     imports: tplStr(data, 'imports'),
     exports: tplStr(data, 'exports'),
     pointsOfInterest: tplStr(data, 'pointsOfInterest'),
-  }, { draft: true })
+  })
 }
 
 export async function updateRollTable(id: Id, patch: Partial<RollTable>): Promise<void> {

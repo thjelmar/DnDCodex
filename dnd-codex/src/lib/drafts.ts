@@ -127,13 +127,14 @@ function find(table: SyncTable, id: string): DraftEntry | undefined {
 }
 
 function drop(table: SyncTable, id: string): void {
-  cache = load().filter((e) => !(e.table === table && e.id === id))
+  cache = refresh().filter((e) => !(e.table === table && e.id === id))
   save()
 }
 
 /** Registers a freshly created record as a draft. Call right after adding it. */
 export function markDraft(table: SyncTable, rec: { id: string }): void {
-  load().push({ table, id: rec.id, base: normalize(rec), owner: TAB_ID, at: Date.now() })
+  // Re-read first so another tab's entries are not overwritten by a stale cache.
+  refresh().push({ table, id: rec.id, base: normalize(rec), owner: TAB_ID, at: Date.now() })
   save()
 }
 
@@ -161,17 +162,46 @@ export async function holdBack(table: SyncTable, id: string): Promise<boolean> {
 export interface PurgeOptions {
   /** `own` (default): drafts this tab created. `stale`: old drafts from any tab (boot sweep). */
   scope?: 'own' | 'stale'
+  /** Only consider these draft ids (the drafts that existed when the user left). */
+  only?: string[]
   /** Skip drafts whose id appears in this text (the route the user is moving to). */
   keepIfIn?: string
 }
 
-/** Deletes still-blank drafts. Drafts that gained content are released instead. */
+/** Records another record still points at (a foreign key, a link, a pin, a map parent). */
+async function isReferenced(id: string, ignore: Set<string>): Promise<boolean> {
+  for (const t of db.tables) {
+    if (t.name === 'pending' || t.name === 'syncState') continue
+    const hit = await t.filter((row) => {
+      const r = row as { id?: string }
+      if (r.id === id || (r.id && ignore.has(r.id))) return false
+      return JSON.stringify(row).includes(id)
+    }).count()
+    if (hit > 0) return true
+  }
+  return false
+}
+
+/** Keeps a draft for good (it gained content or something points at it) and queues it for sync. */
+async function release(entry: DraftEntry): Promise<void> {
+  drop(entry.table, entry.id)
+  const { enqueuePutById } = await import('./syncQueue') // lazy: syncQueue imports this module
+  await enqueuePutById(entry.table, entry.id)
+}
+
+/**
+ * Deletes still-blank drafts. A draft that gained content, or that anything
+ * references (a link, a foreign key such as `threadId` or `parentLocationId`, a
+ * pin), is released instead and syncs like any record. Drafts that only point at
+ * each other (a blank child under a blank parent) are deleted together.
+ */
 export async function purgeBlankDrafts(opts: PurgeOptions = {}): Promise<number> {
   const scope = opts.scope ?? 'own'
   const t = Date.now()
-  let removed = 0
+  const candidates: DraftEntry[] = []
   for (const entry of [...refresh()]) {
     if (scope === 'own' ? entry.owner !== TAB_ID : entry.owner !== GONE && t - entry.at < STALE_MS) continue
+    if (opts.only && !opts.only.includes(entry.id)) continue
     if (opts.keepIfIn && opts.keepIfIn.includes(entry.id)) continue
     const rec = (await db.table(entry.table).get(entry.id)) as object | undefined
     if (!rec) {
@@ -179,13 +209,16 @@ export async function purgeBlankDrafts(opts: PurgeOptions = {}): Promise<number>
       continue
     }
     if (!isUnchangedSinceCreation(entry.base, rec)) {
-      drop(entry.table, entry.id)
+      await release(entry)
       continue
     }
-    // A record someone linked to is no longer an orphan; keep it and let it sync.
-    const linked = await db.links.filter((l) => l.fromId === entry.id || l.toId === entry.id).count()
-    if (linked > 0) {
-      drop(entry.table, entry.id)
+    candidates.push(entry)
+  }
+  const blankIds = new Set(candidates.map((c) => c.id))
+  let removed = 0
+  for (const entry of candidates) {
+    if (await isReferenced(entry.id, blankIds)) {
+      await release(entry)
       continue
     }
     // Never synced (holdBack kept it out of the outbox), so no tombstone is needed.
@@ -196,14 +229,29 @@ export async function purgeBlankDrafts(opts: PurgeOptions = {}): Promise<number>
   return removed
 }
 
+/** Ids of this tab's drafts right now. */
+export function ownDraftIds(): string[] {
+  return refresh().filter((e) => e.owner === TAB_ID).map((e) => e.id)
+}
+
+let abandoned: string[] = []
+
 /** Marks this tab's drafts as abandoned. Synchronous, so it can run in `pagehide`. */
 export function abandonOwnDrafts(): void {
-  let changed = false
-  for (const e of load()) {
+  abandoned = []
+  for (const e of refresh()) {
     if (e.owner === TAB_ID) {
       e.owner = GONE
-      changed = true
+      abandoned.push(e.id)
     }
   }
-  if (changed) save()
+  if (abandoned.length) save()
+}
+
+/** The page came back from the back/forward cache: take its drafts back. */
+export function resumeOwnDrafts(): void {
+  if (!abandoned.length) return
+  for (const e of refresh()) if (abandoned.includes(e.id) && e.owner === GONE) e.owner = TAB_ID
+  abandoned = []
+  save()
 }

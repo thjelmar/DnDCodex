@@ -34,12 +34,12 @@ test.describe('core flows (local, signed out)', () => {
     await page.getByRole('button', { name: 'New battle map' }).click()
     await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
 
-    // The session has content, so it persists in IndexedDB across a reload. The
-    // battle map is still blank, so it is not kept (T-125; e2e/blank-drafts.spec.ts).
+    // Everything persists in IndexedDB across a reload. (The session has a title of its
+    // own: a blank session is not kept, T-125. A Run mode battle map is kept as is.)
     await page.reload()
     await page.goto(`/#/campaign/${campaignId}/sessions`)
     await expect(page.getByText('Session 1: the arrival').first()).toBeVisible()
     await page.goto(`/#/run/${campaignId}`)
-    await expect(page.getByRole('button', { name: 'New battle map' })).toBeVisible()
+    await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
   })
 })

@@ -56,7 +56,7 @@ test.describe('blank drafts are not kept (T-125)', () => {
       expect(await rows(page, k.store)).toHaveLength(1)
 
       await page.goto(`/#/campaign/${cid}`)
-      await expect.poll(() => rows(page, k.store)).toHaveLength(0)
+      await expect.poll(() => rows(page, k.store), { timeout: 15000 }).toHaveLength(0)
     })
   }
 
@@ -117,5 +117,53 @@ test.describe('blank drafts are not kept (T-125)', () => {
     }, cid)
     expect(result).toEqual({ blank: 0, filled: 1 })
     expect(supabaseRequests.filter((u) => u.includes('/records'))).toHaveLength(0)
+  })
+
+  test('a blank draft that another record points at is kept, not deleted', async ({ page }) => {
+    const cid = await newCampaign(page)
+    await page.goto(`/#/campaign/${cid}/timeline`)
+    const threadId = await page.evaluate(async (campaignId) => {
+      const load = (u: string) => import(/* @vite-ignore */ u)
+      const repo = await load('/src/db/repo.ts')
+      const thread = await repo.createPlotThread(campaignId, {}, { draft: true })
+      await repo.createTimelineEvent(campaignId, { title: 'The siege', threadId: thread.id })
+      return thread.id as string
+    }, cid)
+    await page.goto(`/#/campaign/${cid}`)
+    await page.waitForTimeout(2500) // past the purge delay
+    const threads = await rows(page, 'plotThreads')
+    expect(threads.map((t) => t.id)).toContain(threadId)
+  })
+
+  test('content that is saved just after leaving still keeps the record', async ({ page }) => {
+    const cid = await newCampaign(page)
+    await page.goto(`/#/campaign/${cid}/npcs`)
+    const id = await page.evaluate(async (campaignId) => {
+      const load = (u: string) => import(/* @vite-ignore */ u)
+      const repo = await load('/src/db/repo.ts')
+      return (await repo.createNPC(campaignId, {}, { draft: true })).id as string
+    }, cid)
+    await page.goto(`/#/campaign/${cid}`) // leave at once
+    await page.waitForTimeout(400) // an editor's debounced save lands after the route change
+    await page.evaluate(async (npcId) => {
+      const load = (u: string) => import(/* @vite-ignore */ u)
+      const repo = await load('/src/db/repo.ts')
+      await repo.updateNPC(npcId, { name: 'Late save' })
+    }, id)
+    await page.waitForTimeout(2500)
+    expect((await rows(page, 'npcs')).map((n) => n.name)).toEqual(['Late save'])
+  })
+
+  test('a record made from a template is kept even if you do not edit it', async ({ page }) => {
+    const cid = await newCampaign(page)
+    await page.goto(`/#/campaign/${cid}/npcs`)
+    await page.evaluate(async (campaignId) => {
+      const load = (u: string) => import(/* @vite-ignore */ u)
+      const repo = await load('/src/db/repo.ts')
+      await repo.createNpcFromTemplate(campaignId, { role: 'Guard', description: 'Stern.' })
+    }, cid)
+    await page.goto(`/#/campaign/${cid}`)
+    await page.waitForTimeout(2500)
+    expect(await rows(page, 'npcs')).toHaveLength(1)
   })
 })
