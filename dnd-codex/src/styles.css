@@ -5787,7 +5787,7 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.phone-fs { p
 }
 .player-live-board.phone-fs .pl-fs-hud > * { pointer-events: auto; }
 @media (orientation: landscape) and (max-height: 500px) {
-  .pl-fs-narrow .pl-fs-panel { left: auto; width: calc(min(340px, 45vw) + var(--sar)); height: 100%; border-radius: 0; padding-bottom: var(--sab); }
+  .pl-fs-narrow .pl-fs-panel { left: auto; width: calc(min(340px, 45vw) + var(--sar)); height: 100%; border-radius: 0; padding-bottom: var(--sab); padding-left: 0; /* the bottom sheet's left inset (--sal) squeezed the drawer's rows (T-127) */ }
   .pl-fs-narrow .pl-fs-panel .pl-dock { border-radius: 0; }
   .pl-fs-narrow.panel-open .tabletop-zoom { bottom: calc(10px + var(--sab)); right: calc(min(340px, 45vw) + var(--sar) + 10px); }
   .player-live-board.phone-fs.pl-fs-shell.panel-open .player-live-bar { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
@@ -5899,14 +5899,18 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
 }
 /* Full screen: the strip is fixed to the screen's bottom left, clear of the docked panel and the zoom bar. */
 .pl-fs-shell .pl-fs-hud { margin: 0; }
-.pl-fs-shell .pl-fs-hud .pl-turns { position: fixed; z-index: 14; left: calc(14px + var(--sal)); bottom: calc(14px + var(--sab)); max-width: calc(100vw - 200px - var(--sal) - var(--sar)); pointer-events: auto; }
-.pl-fs-shell.panel-open:not(.pl-fs-narrow) .pl-fs-hud .pl-turns { max-width: calc(100vw - 360px - 200px - var(--sal)); }
-.pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(64px + var(--sab)); max-width: calc(100vw - 28px - var(--sal) - var(--sar)); }
+/* --pl-strip-left is where the strip starts. With the tool rail it starts right of it (the rail is 44px, or
+   52px on a phone, at 8px + --sal), so the strip never covers the rail's Panel and Exit buttons (T-127). */
+.pl-fs-shell { --pl-strip-left: calc(14px + var(--sal)); }
+@media (orientation: landscape) { .pl-fs-shell.pl-fs-rail { --pl-strip-left: calc(68px + var(--sal)); } }
+.pl-fs-shell .pl-fs-hud .pl-turns { position: fixed; z-index: 14; left: var(--pl-strip-left); bottom: calc(14px + var(--sab)); max-width: calc(100vw - 200px - var(--pl-strip-left) - var(--sar)); pointer-events: auto; }
+.pl-fs-shell.panel-open:not(.pl-fs-narrow) .pl-fs-hud .pl-turns { max-width: calc(100vw - 360px - 200px - var(--pl-strip-left)); }
+.pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(64px + var(--sab)); max-width: calc(100vw - 14px - var(--pl-strip-left) - var(--sar)); }
 .pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(50% + 62px); }
 @media (orientation: landscape) and (max-height: 500px) {
-  .pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); max-width: calc(100vw - min(340px, 45vw) - 28px - var(--sal) - var(--sar)); }
+  .pl-fs-narrow .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); max-width: calc(100vw - min(340px, 45vw) - 14px - var(--pl-strip-left) - var(--sar)); }
   .pl-fs-narrow.panel-open .pl-fs-hud .pl-turns { bottom: calc(56px + var(--sab)); }
-  .pl-fs-narrow:not(.panel-open) .pl-fs-hud .pl-turns { max-width: calc(100vw - 200px - var(--sal) - var(--sar)); }
+  .pl-fs-narrow:not(.panel-open) .pl-fs-hud .pl-turns { max-width: calc(100vw - 200px - var(--pl-strip-left) - var(--sar)); }
 }
 @media (prefers-reduced-motion: reduce) { .pl-turns.asking, .pl-turns .pl-ask-btn { animation: none; } }
 
@@ -6036,22 +6040,49 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
 /* The player's turn strip never lets its title run into the button or its chips: the title shrinks
    with an ellipsis, the button stays whole, and the chip row scrolls sideways inside the pill. */
 .pl-turns { min-width: 0; }
+/* The title keeps its natural width and only shrinks (with an ellipsis) after the chip row has given up all it can:
+   the chips scroll sideways, so they are the ones to shrink first (T-127). */
 .pl-turns > .bm-turns-round { flex: 0 1 auto; min-width: 56px; overflow: hidden; }
 .pl-turns > .bm-turns-round strong, .pl-turns > .bm-turns-round small { overflow: hidden; text-overflow: ellipsis; }
 .pl-turns > .bm-turns-next, .pl-turns > .bm-icon-btn, .pl-turns > .bm-turns-sep { flex: none; }
-.pl-turns > .bm-turns-chips { flex: 1 1 auto; min-width: 72px; }
+.pl-turns > .bm-turns-chips { flex: 1 8 auto; min-width: 72px; } /* a larger shrink factor: the chips give up room before the title does (T-127) */
 /* A short landscape window: the strip clears the zoom bar and uses the map's whole width. */
 @media (max-height: 500px) and (min-width: 861px) {
   .pl-map-wrap .pl-turns { left: 70px; bottom: 64px; max-width: calc(100% - 80px); }
 }
-/* The Demo controls pill floats over the bottom of the page: leave room so the last rows scroll clear of it. */
+/* On a phone the pill used to float over the panel's rows. On the session page it now sits in the header
+   instead (in portrait on a row of its own, right aligned), so it never covers a row (T-127). Full screen
+   keeps the floating pill: it sits beside the zoom bar there. */
+@media (max-width: 860px) {
+  .session-page > .session-header section.demo-ctl .demo-ctl-head { position: static; box-shadow: none; min-height: 34px; }
+}
 @media (max-width: 860px) and (orientation: portrait) {
-  .app[data-demo='true'] .session-page { padding-bottom: calc(64px + var(--sab)); }
+  .session-page > .session-header section.demo-ctl { order: 10; flex: 1 0 100%; display: flex; justify-content: flex-end; }
 }
 @media (max-width: 860px), (max-height: 500px) {
-  .app[data-demo='true'] .pl-dock-body, .app[data-demo='true'] .pl-panel .pl-dock-body { padding-bottom: calc(64px + var(--sab)); }
+  /* Full screen only: the Demo controls pill floats over the bottom there, so the last rows scroll clear of it. */
+  .app[data-demo='true'] .player-live-board.expanded .pl-dock-body { padding-bottom: calc(64px + var(--sab)); }
 }
 /* A phone in landscape full screen with the drawer open: the Demo controls pill sits left of the drawer, not over its tabs. */
 @media (orientation: landscape) and (max-height: 500px) {
   .player-live-board.phone-fs.pl-fs-shell.panel-open .pl-fs-demo { right: calc(min(340px, 45vw) + var(--sar) + 8px); }
+}
+
+/* ---- Landscape leftovers (T-127) ---- */
+/* A phone turned sideways: the drawer's rows give the name the room. Smaller avatar, gap and padding, and a
+   narrower initiative column, so a name like "Thalia" shows whole and only a long one gets an ellipsis. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .pl-fs-narrow .pl-dock .il-row { grid-template-columns: minmax(0, 1fr) 44px; gap: 2px 6px; padding: 5px 6px; }
+  .pl-fs-narrow .pl-dock .il-ini { width: 44px; font-size: 16px; }
+  .pl-fs-narrow .pl-dock .il-main { gap: 8px; }
+  .pl-fs-narrow .pl-dock .il-av { width: 30px; height: 30px; font-size: 12px; }
+  .pl-fs-narrow .pl-dock .il-x { right: 52px; }
+}
+/* The player strip in a short landscape window: tighter chrome so the title and the chips both fit. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .pl-turns { gap: 4px; padding: 4px 6px; }
+  .pl-turns > .bm-turns-round { padding: 0 2px 0 6px; }
+  .pl-turns > .bm-turns-round strong { font-size: 14px; }
+  .pl-turns > .bm-turns-next { padding: 0 10px; }
+  .pl-turns > .bm-turns-chips { min-width: 56px; gap: 4px; }
 }

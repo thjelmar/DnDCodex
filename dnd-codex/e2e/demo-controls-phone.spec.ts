@@ -75,7 +75,8 @@ for (const size of SIZES) {
           if (inPanel && (b.l < scroller.l - 0.5 || b.r > scroller.r + 0.5)) problems.push(`${el.textContent || el.getAttribute('aria-label')} clipped horizontally`)
           if (!inPanel) {
             if (b.l < 0 || b.t < 0 || b.r > vw || b.b > vh) problems.push('toggle outside viewport')
-            for (const [sel, o] of obs) if ((fullScreen || sel === '.session-header') && hit(b, o)) problems.push(`toggle overlaps ${sel}`)
+            // On the page the pill lives in the session header (T-127), so only full screen has obstacles for it.
+            for (const [sel, o] of obs) if (fullScreen && hit(b, o)) problems.push(`toggle overlaps ${sel}`)
           }
         }
         return problems
