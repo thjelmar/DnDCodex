@@ -557,6 +557,13 @@ const playerCharacter: PlayerNote = {
   updatedAt: T,
 }
 
+/**
+ * Bump this whenever the demo seed changes (ids, records, or shape). An open demo
+ * database that was seeded under a different version is wiped and reseeded on the
+ * next demo entry. See docs/DEMO.md.
+ */
+export const DEMO_SEED_VERSION = 1
+
 export const DEMO_SNAPSHOT: DatabaseSnapshot = {
   version: 8,
   exportedAt: T,
