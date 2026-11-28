@@ -2,8 +2,9 @@ import { useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createImage, deleteImage } from '../db/repo'
-import { processImageFile } from '../lib/image'
+import { processImageFile, type ProcessedImage } from '../lib/image'
 import { Icon } from './Icon'
+import { ImageCropDialog } from './ImageCropDialog'
 import type { Id } from '../db/types'
 
 /**
@@ -19,6 +20,7 @@ export function EntityImage({
   width = 132,
   height = 156,
   label = 'portrait',
+  round,
 }: {
   campaignId: Id
   imageId: Id | null | undefined
@@ -26,21 +28,32 @@ export function EntityImage({
   width?: number
   height?: number
   label?: string
+  /** Crop to a circle-friendly square. Defaults to true for token images. */
+  round?: boolean
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<File | null>(null)
+  const isRound = round ?? /token/i.test(label)
 
   const image = useLiveQuery(
     () => (imageId ? db.images.get(imageId) : undefined),
     [imageId],
   )
 
-  async function handleFiles(files: FileList | null) {
+  function handleFiles(files: FileList | null) {
     const file = files?.[0]
-    if (!file) return
+    if (fileRef.current) fileRef.current.value = ''
+    if (!file || !file.type.startsWith('image/')) return
+    // Animated GIFs can't be cropped on a canvas without losing the animation.
+    if (file.type === 'image/gif') void store(file, null)
+    else setPending(file)
+  }
+
+  async function store(file: File, cropped: ProcessedImage | null) {
     setBusy(true)
     try {
-      const processed = await processImageFile(file)
+      const processed = cropped ?? (await processImageFile(file))
       const created = await createImage(campaignId, {
         name: file.name,
         mime: processed.mime,
@@ -53,10 +66,9 @@ export function EntityImage({
       onChange(created.id)
       if (previous) await deleteImage(previous)
     } catch {
-      /* not an image / decode failure — ignore */
+      /* decode failure — ignore */
     } finally {
       setBusy(false)
-      if (fileRef.current) fileRef.current.value = ''
     }
   }
 
@@ -102,6 +114,21 @@ export function EntityImage({
         >
           {busy ? '…' : <><Icon name="image" size={26} strokeWidth={1.5} /><span style={{ fontSize: 12 }}>Add {label}</span></>}
         </button>
+      )}
+      {pending && (
+        <ImageCropDialog
+          file={pending}
+          aspect={isRound ? 1 : width / height}
+          round={isRound}
+          tokenPreview={isRound || label === 'portrait'}
+          title={`Adjust ${label}`}
+          onCancel={() => setPending(null)}
+          onSave={async (processed) => {
+            const file = pending
+            setPending(null)
+            await store(file, processed)
+          }}
+        />
       )}
     </div>
   )

@@ -13,6 +13,9 @@ export const MIN_CELL_SCREEN = 22
 /** Largest token footprint, in cells per side. */
 export const MAX_TOKEN_SIZE = 8
 
+/** Width of the ring drawn around a token of radius `r` (shared with the crop preview). */
+export const tokenRingWidth = (r: number) => Math.max(2, r * 0.12)
+
 export const TOKEN_COLORS = ['#dc2626', '#2563eb', '#16a34a', '#ca8a04', '#7c3aed', '#db2777', '#0891b2', '#475569']
 
 export const TOKEN_SIZES: { cells: number; label: string }[] = [

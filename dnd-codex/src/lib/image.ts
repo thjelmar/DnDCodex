@@ -72,6 +72,42 @@ export async function processImageFile(file: File, maxDim: number = MAX_DIM): Pr
   return { dataUrl, mime, width, height, bytes: base64Bytes(dataUrl) }
 }
 
+export interface CropRect {
+  sx: number
+  sy: number
+  sw: number
+  sh: number
+}
+
+const CROP_LONG_EDGE = 640
+
+/**
+ * Draws the chosen rectangle of a decoded image into a new canvas whose shape
+ * matches the frame (aspect = width / height) and encodes it as WebP (JPEG
+ * fallback). The long edge is capped at 640 px, or at the source resolution if
+ * that is smaller, so a crop never grows the file.
+ */
+export function cropBitmapToProcessed(bitmap: ImageBitmap, rect: CropRect, aspect: number): ProcessedImage {
+  const longSrc = Math.max(rect.sw, rect.sh)
+  const long = Math.max(1, Math.min(CROP_LONG_EDGE, Math.round(longSrc)))
+  const width = Math.max(1, Math.round(aspect >= 1 ? long : long * aspect))
+  const height = Math.max(1, Math.round(aspect >= 1 ? long / aspect : long))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not process the image.')
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(bitmap, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, width, height)
+  let mime = 'image/webp'
+  let dataUrl = canvas.toDataURL(mime, QUALITY)
+  if (!dataUrl.startsWith('data:image/webp')) {
+    mime = 'image/jpeg'
+    dataUrl = canvas.toDataURL(mime, QUALITY)
+  }
+  return { dataUrl, mime, width, height, bytes: base64Bytes(dataUrl) }
+}
+
 function imageDimensions(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve) => {
     const img = new Image()

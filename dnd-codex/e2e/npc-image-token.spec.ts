@@ -115,6 +115,8 @@ test.describe('Token icon swatch on the NPC sheet', () => {
       await expect(swatch.locator('img')).toHaveCount(0)
 
       await page.locator('.entity-image input[type=file]').setInputFiles({ name: 'p.png', mimeType: 'image/png', buffer: Buffer.from(PNG.split(',')[1], 'base64') })
+      // Uploads open the crop dialog (T-113); confirm it.
+      await page.getByRole('dialog').getByRole('button', { name: 'Save', exact: true }).click()
       await expect(swatch.locator('img')).toHaveCount(1)
       await expect(page.locator('.token-icon-field')).toContainText('Portrait')
 

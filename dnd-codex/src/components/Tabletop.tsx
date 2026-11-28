@@ -18,6 +18,7 @@ import {
   templateCells,
   templateGeom,
   tokenCenter,
+  tokenRingWidth,
 } from '../lib/tabletop'
 import { conditionMeta } from '../lib/combat'
 import { conditionIcon } from '../lib/conditionIcons'
@@ -886,8 +887,8 @@ export function Tabletop({
                         ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} fill={t.color} />
                         : <circle r={r} fill={t.color} />
                       const outline = square
-                        ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
-                        : <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={Math.max(2, r * 0.12)} />
+                        ? <rect x={-r} y={-r} width={r * 2} height={r * 2} rx={rx} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={tokenRingWidth(r)} />
+                        : <circle r={r} fill="none" stroke={sel ? '#fff' : t.color} strokeWidth={tokenRingWidth(r)} />
                       return (
                         <>
                           <clipPath id={`tt-clip-${t.id}`}>{clip}</clipPath>
