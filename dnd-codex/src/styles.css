@@ -6259,5 +6259,7 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   max-width: none;
   pointer-events: none;
 }
-.crop-zoom { display: flex; align-items: center; gap: 10px; margin-top: 12px; width: 260px; max-width: 100%; }
+.crop-controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; width: 260px; max-width: 100%; }
+.crop-token { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.crop-zoom { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .crop-zoom input { flex: 1; min-width: 0; }

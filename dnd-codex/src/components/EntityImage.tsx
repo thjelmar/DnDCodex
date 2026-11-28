@@ -120,6 +120,7 @@ export function EntityImage({
           file={pending}
           aspect={isRound ? 1 : width / height}
           round={isRound}
+          tokenPreview={isRound || label === 'portrait'}
           title={`Adjust ${label}`}
           onCancel={() => setPending(null)}
           onSave={async (processed) => {

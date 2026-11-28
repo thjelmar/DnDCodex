@@ -128,6 +128,25 @@ for (const [name, viewport] of [
       await expect(page.locator('img.entity-image-img')).toBeVisible()
     })
 
+    test('the token preview follows the crop', async ({ page }) => {
+      await openDialog(page)
+      const preview = page.getByTestId('crop-token-preview')
+      await expect(preview).toBeVisible()
+      const box = (await preview.boundingBox())!
+      expect(box.width).toBeLessThan(80)
+      const imgX = () => preview.locator('image').getAttribute('x')
+      const before = await imgX()
+      const f = (await page.getByTestId('crop-frame').boundingBox())!
+      await page.mouse.move(f.x + f.width / 2, f.y + f.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(f.x + f.width / 2 + 60, f.y + f.height / 2, { steps: 5 })
+      await page.mouse.up()
+      expect(await imgX()).not.toBe(before)
+      // Fully visible inside the modal on this viewport.
+      const vp = page.viewportSize()!
+      expect(box.x + box.width).toBeLessThanOrEqual(vp.width)
+    })
+
     test('Cancel stores nothing', async ({ page }) => {
       await openDialog(page)
       await page.getByRole('button', { name: 'Cancel' }).click()

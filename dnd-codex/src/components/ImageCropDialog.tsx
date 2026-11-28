@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal } from './Modal'
 import { cropBitmapToProcessed, type CropRect } from '../lib/image'
 import type { ProcessedImage } from '../lib/image'
+import { TOKEN_COLORS, tokenRingWidth } from '../lib/tabletop'
 
 /**
  * Pan and zoom an uploaded image inside the shape it will be shown in, then
@@ -17,6 +18,7 @@ export function ImageCropDialog({
   aspect,
   round = false,
   title = 'Adjust image',
+  tokenPreview = false,
   onCancel,
   onSave,
 }: {
@@ -25,6 +27,8 @@ export function ImageCropDialog({
   aspect: number
   round?: boolean
   title?: string
+  /** Show how the crop looks as a battle map token (same clip and ring as the map). */
+  tokenPreview?: boolean
   onCancel: () => void
   onSave: (processed: ProcessedImage) => void | Promise<void>
 }) {
@@ -130,6 +134,18 @@ export function ImageCropDialog({
     }
   }, [bitmap, frameW, frameH, scale, off])
 
+  // A token shows the centre square of the image (preserveAspectRatio "slice"
+  // on the map), so map that square of the crop into a token-sized circle.
+  const PREVIEW_R = 28
+  const tokenImage = (() => {
+    if (!bitmap || !rect || !url) return null
+    const q = Math.min(rect.sw, rect.sh)
+    const k = (PREVIEW_R * 2) / q
+    const qx = rect.sx + (rect.sw - q) / 2
+    const qy = rect.sy + (rect.sh - q) / 2
+    return { x: -PREVIEW_R - qx * k, y: -PREVIEW_R - qy * k, w: bitmap.width * k, h: bitmap.height * k }
+  })()
+
   async function save() {
     if (!bitmap || !rect) return
     setSaving(true)
@@ -187,6 +203,30 @@ export function ImageCropDialog({
               />
             )}
           </div>
+          <div className="crop-controls">
+          {tokenPreview && url && tokenImage && (
+            <div className="crop-token" title="How this looks on a battle map">
+              <svg
+                data-testid="crop-token-preview"
+                width={PREVIEW_R * 2 + 8}
+                height={PREVIEW_R * 2 + 8}
+                viewBox={`${-PREVIEW_R - 4} ${-PREVIEW_R - 4} ${PREVIEW_R * 2 + 8} ${PREVIEW_R * 2 + 8}`}
+              >
+                <clipPath id="crop-token-clip"><circle r={PREVIEW_R} /></clipPath>
+                <circle r={PREVIEW_R} fill={TOKEN_COLORS[1]} />
+                <image
+                  href={url}
+                  x={tokenImage.x}
+                  y={tokenImage.y}
+                  width={tokenImage.w}
+                  height={tokenImage.h}
+                  clipPath="url(#crop-token-clip)"
+                />
+                <circle r={PREVIEW_R} fill="none" stroke={TOKEN_COLORS[1]} strokeWidth={tokenRingWidth(PREVIEW_R)} />
+              </svg>
+              <span className="faint" style={{ fontSize: 11 }}>On the map</span>
+            </div>
+          )}
           <label className="crop-zoom">
             <span className="faint" style={{ fontSize: 12 }}>Zoom</span>
             <input
@@ -199,6 +239,7 @@ export function ImageCropDialog({
               onChange={(e) => applyZoom(Number(e.target.value))}
             />
           </label>
+          </div>
         </div>
       )}
     </Modal>
