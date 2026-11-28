@@ -21,8 +21,9 @@ import { BUILTIN_NPC_TEMPLATES } from '../data/builtinTemplates'
 import { randomPersonName } from '../lib/nameGen'
 import { useGenOverrides } from '../lib/useGenOverrides'
 import { TokenIconPicker } from '../components/TokenIcon'
+import { tokenImageId } from '../lib/npcTokenArt'
 import { GENERIC_TOKEN_ICON, npcTokenIcon } from '../lib/tokenIcons'
-import type { NPC, StatBlock } from '../db/types'
+import type { NPC, SceneToken, StatBlock } from '../db/types'
 
 const DISPOSITIONS: NPC['disposition'][] = ['friendly', 'neutral', 'hostile', 'unknown']
 const DISPOSITION_COLOR: Record<NPC['disposition'], string> = {
@@ -244,6 +245,8 @@ function NpcEditor({
       <TokenIconPicker
         value={tokenIcon}
         autoId={npcTokenIcon({ name, role, race, statBlockData }) ?? GENERIC_TOKEN_ICON}
+        // Same rule as the map token (T-131): the portrait shows unless an icon was picked.
+        portraitImageId={tokenImageId({} as SceneToken, { name, role, race, imageId, tokenIcon, statBlockData, sharedWithPlayers: false })}
         onChange={setTokenIcon}
       />
       <div className="form-row">

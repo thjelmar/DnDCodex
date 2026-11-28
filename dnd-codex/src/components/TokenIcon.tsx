@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
 import { TOKEN_ICON_CATALOG, isTokenIcon, tokenIconLabel, useTokenIconPaths } from '../lib/tokenIcons'
 
 /** A bundled game-icons.net glyph as plain HTML-hosted SVG, colored by
@@ -18,14 +20,19 @@ export function TokenIcon({ id, size = 24 }: { id: string; size?: number }) {
 export function TokenIconPicker({
   value,
   autoId,
+  portraitImageId,
   onChange,
 }: {
   /** The saved override, or null/undefined for automatic. */
   value: string | null | undefined
   /** What automatic currently resolves to (null = initials). */
   autoId: string | null
+  /** An image the token wears instead of the automatic icon (an NPC portrait). The
+   *  swatch shows it when no icon was picked on purpose. */
+  portraitImageId?: string | null
   onChange: (id: string | null) => void
 }) {
+  const portrait = useLiveQuery(() => (portraitImageId ? db.images.get(portraitImageId) : undefined), [portraitImageId])
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const shown = useMemo(() => {
@@ -38,11 +45,13 @@ export function TokenIconPicker({
     <div className="field token-icon-field">
       <label>Token icon</label>
       <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-        <span className="token-icon-preview" aria-hidden="true">
-          {effective ? <TokenIcon id={effective} size={28} /> : <span className="faint">Aa</span>}
+        <span className="token-icon-preview" aria-hidden="true" data-testid="token-icon-preview">
+          {portraitImageId && !current && portrait ? (
+            <img src={portrait.dataUrl} alt="" className="token-icon-portrait" data-testid="token-icon-portrait" />
+          ) : effective ? <TokenIcon id={effective} size={28} /> : <span className="faint">Aa</span>}
         </span>
         <span className="faint" style={{ fontSize: 12, flex: 1 }}>
-          {current ? tokenIconLabel(current) : autoId ? `Automatic (${tokenIconLabel(autoId)})` : 'Automatic'}
+          {current ? tokenIconLabel(current) : portraitImageId ? 'Portrait' : autoId ? `Automatic (${tokenIconLabel(autoId)})` : 'Automatic'}
         </span>
         <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           {open ? 'Done' : 'Change'}
