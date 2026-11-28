@@ -134,6 +134,46 @@ for (const { w, h } of LANDSCAPE) {
       await expect(panel).toHaveCount(0)
       await expect(toggle).toHaveAttribute('aria-expanded', 'false')
     })
+
+    // T-127: the strip starts right of the rail, so the rail's Panel and Exit buttons stay whole and tappable.
+    test('full screen: the turn strip never covers the rail', async ({ page }) => {
+      await open(page, w, h, true)
+      await join(page, true)
+      await page.getByTestId('map-fullscreen').first().click()
+      await expect(page.locator('.player-live-board.expanded')).toBeVisible()
+      await shot(page, `${w}x${h}-fs-strip`)
+      const strip = await box(page, '[data-testid=initiative-strip]')
+      const rail = await box(page, '.player-live-bar')
+      expect(hit(strip, rail), JSON.stringify({ strip, rail })).toBe(false)
+      expect(strip.r).toBeLessThanOrEqual(w + 0.5)
+      // Both buttons take a tap (Playwright refuses a click that another element would receive).
+      await page.getByTestId('fs-panel-toggle').click({ trial: true })
+      await page.getByTestId('fs-panel-toggle').click()
+      await expect(page.getByTestId('fs-panel')).toBeVisible()
+      await page.getByTestId('fs-panel-toggle').click()
+      await page.locator('.player-live-board.expanded .player-live-bar').getByRole('button').last().click({ trial: true })
+    })
+
+    // T-127: names get the room; an ellipsis shows only when a name truly cannot fit.
+    test('the drawer row and the strip title show whole names', async ({ page }) => {
+      await open(page, w, h, true)
+      await join(page, true)
+      const clipped = (sel: string) =>
+        page.locator(sel).first().evaluate((e) => e.scrollWidth > e.clientWidth + 1)
+      expect(await clipped('[data-testid=initiative-strip] .bm-turns-round strong'), 'strip title').toBe(false)
+      // A 667pt-wide phone leaves the map card about 320pt: its subtitle may then take an ellipsis.
+      if (w >= 844) expect(await clipped('[data-testid=initiative-strip] .bm-turns-round small'), 'strip subtitle').toBe(false)
+      await page.getByTestId('map-fullscreen').first().click()
+      await page.getByTestId('fs-panel-toggle').click()
+      const names = page.locator('[data-testid=fs-panel] .il-name')
+      await expect(names.first()).toBeVisible()
+      const n = await names.count()
+      for (let i = 0; i < n; i++) {
+        // Polled: the drawer slides in, and a name is measured once it has its final width.
+        const text = await names.nth(i).textContent()
+        await expect.poll(() => names.nth(i).evaluate((e) => e.scrollWidth > e.clientWidth + 1), { message: `drawer name "${text}"` }).toBe(false)
+      }
+    })
   })
 }
 
@@ -181,4 +221,63 @@ test.describe('portrait 402x874', () => {
     await page.locator('.player-live-board.expanded .tabletop-zoom').getByText('Fit', { exact: true }).click()
     expect(await tf()).toBe(before)
   })
+})
+
+// T-127: the pill sits in the page header on a phone, so it can never cover a panel row.
+for (const [w, h] of [[402, 874], [844, 390], [667, 375]]) {
+  test(`${w}x${h}: the Demo controls pill is in the header, not floating over the panel`, async ({ page }) => {
+    await open(page, w, h)
+    await join(page)
+    const pill = page.getByTestId('demo-controls-toggle').first()
+    expect(await pill.evaluate((e) => getComputedStyle(e).position)).not.toBe('fixed')
+    const p = await box(page, '[data-testid=demo-controls-toggle]')
+    const header = await box(page, '.session-page > .session-header')
+    expect(p.t).toBeGreaterThanOrEqual(header.t - 0.5)
+    expect(p.b).toBeLessThanOrEqual(header.b + 0.5)
+    const dock = await box(page, '.pl-panel')
+    expect(hit(p, dock)).toBe(false)
+  })
+}
+
+// T-127: the map fits the visible area on entering full screen and again after every rotation.
+test('full screen refits the whole map after a rotation', async ({ page, browserName }) => {
+  // Chromium puts the window itself in full screen, which a test cannot resize; Safari's engine does not.
+  test.skip(browserName === 'chromium', 'a full screen Chromium window cannot be resized')
+  await open(page, 402, 874)
+  await page.getByTestId('map-fullscreen').first().click()
+  await expect(page.locator('.player-live-board.expanded')).toBeVisible()
+  const tf = () => page.evaluate(() => document.querySelector('.player-live-board.expanded .tabletop-view svg > g[transform^="translate"]')!.getAttribute('transform')!)
+  // The view the board settled into, then the view the Fit button gives: equal means it was already fitted.
+  const fitted = async () => {
+    await page.waitForTimeout(800)
+    const settled = await tf()
+    await page.locator('.player-live-board.expanded .tabletop-zoom').getByText('Fit', { exact: true }).click()
+    expect(await tf()).toBe(settled)
+  }
+  await fitted()
+  await page.setViewportSize({ width: 874, height: 402 })
+  await fitted()
+  await page.setViewportSize({ width: 402, height: 874 })
+  await fitted()
+})
+
+// T-127: 874x402 with Safari's tab bar showing leaves about 270pt. The rail fills most of that height, and
+// the strip must still leave its Panel and Exit buttons uncovered and tappable.
+test('874x270 (Safari tab bar showing): full screen strip clears the rail', async ({ page }) => {
+  await page.setViewportSize({ width: 874, height: 270 })
+  await page.addInitScript(() => sessionStorage.setItem('codex-demo', '1'))
+  await page.goto(URL)
+  await page.addStyleTag({ content: `:root { --sal: ${SAL}px; }` })
+  await page.locator('.tabletop-view').waitFor({ state: 'attached' })
+  await join(page, true)
+  await page.getByTestId('map-fullscreen').first().click()
+  await expect(page.locator('.player-live-board.expanded')).toBeVisible()
+  await shot(page, '874x270-fs-strip')
+  const strip = await box(page, '[data-testid=initiative-strip]')
+  const rail = await box(page, '.player-live-bar')
+  expect(hit(strip, rail), JSON.stringify({ strip, rail })).toBe(false)
+  await page.getByTestId('fs-panel-toggle').click()
+  await expect(page.getByTestId('fs-panel')).toBeVisible()
+  await page.getByTestId('fs-panel-toggle').click()
+  await page.locator('.player-live-board.expanded .player-live-bar').getByRole('button').last().click({ trial: true })
 })
