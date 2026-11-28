@@ -70,6 +70,8 @@ import {
   tokenRevealed,
 } from '../lib/tabletop'
 import { TokenIconPicker } from '../components/TokenIcon'
+import { getThumbnail } from '../lib/thumbnail'
+import { withNpcImage } from '../lib/npcTokenArt'
 import { EMOJI_TOKEN_ICONS, GENERIC_TOKEN_ICON, npcTokenIcon, pickTokenIcon } from '../lib/tokenIcons'
 import { BoardOverlays, type RangeRing } from '../components/BoardOverlays'
 import { COMMON_SPELLS, TEMPLATE_PRESETS, spellsMentioned } from '../data/templatePresets'
@@ -235,6 +237,8 @@ interface HistoryEntry {
   redo: () => void
 }
 const HISTORY_LIMIT = 30
+/** Longest edge of the preview a token wears on the DM's board. */
+const TOKEN_ART_PX = 256
 
 export function SceneEditor({
   campaign,
@@ -673,20 +677,6 @@ export function SceneEditor({
       })
   }, [mapImage?.id, mapImage?.dataUrl, mapImage?.storagePath])
 
-  const portraitIds = useMemo(
-    () => [...new Set(tokens.map((t) => t.imageId).filter((x): x is string => !!x))],
-    [tokens],
-  )
-  const portraits = useLiveQuery(
-    async () => {
-      const imgs = await db.images.bulkGet(portraitIds)
-      const out: Record<string, string> = {}
-      for (const img of imgs) if (img) out[img.id] = img.dataUrl
-      return out
-    },
-    [portraitIds.join(',')],
-  )
-
   function patchToken(id: string, patch: Partial<SceneToken>) {
     touch()
     setTokens((ts) => ts.map((t) => (t.id === id ? { ...t, ...patch } : t)))
@@ -868,7 +858,7 @@ export function SceneEditor({
     addToken({
       label: count > 0 ? `${npc.name} ${count + 1}` : npc.name,
       npcId: npc.id,
-      imageId: npc.imageId ?? null,
+      // No image is copied here: the board reads the NPC's image live (T-131).
       // Stamped on the token so players' boards (which have no NPC data)
       // show the same icon.
       tokenIcon: npcTokenIcon(npc),
@@ -1093,9 +1083,29 @@ export function SceneEditor({
     // pick) so a change on the NPC sheet shows up without re-placing tokens.
     const npc = t.npcId ? npcs?.find((n) => n.id === t.npcId) : undefined
     const icon = npc && !t.tokenIcon ? npcTokenIcon(npc) : t.tokenIcon
-    const next = icon && icon !== t.tokenIcon ? { ...t, tokenIcon: icon } : t
+    const withIcon = icon && icon !== t.tokenIcon ? { ...t, tokenIcon: icon } : t
+    // T-131: an NPC token with no image of its own wears the NPC's image (the player
+    // preview follows what players are allowed to see).
+    const next = withNpcImage(withIcon, npc, preview)
     return c === t.color ? next : { ...next, color: c }
   })
+
+  // Token art as small previews, never the full-size uploads: a token is at most a few
+  // hundred pixels across, and the shared preview cache decodes each image once.
+  const portraitIds = [...new Set(boardTokens.map((t) => t.imageId).filter((x): x is string => !!x))].sort()
+  const portraits = useLiveQuery(
+    async () => {
+      const out: Record<string, string> = {}
+      await Promise.all(
+        portraitIds.map(async (id) => {
+          const r = await getThumbnail(id, TOKEN_ART_PX)
+          if (r.status === 'ready') out[id] = r.src
+        }),
+      )
+      return out
+    },
+    [portraitIds.join(',')],
+  )
 
   const gridSection = (
           <section>
