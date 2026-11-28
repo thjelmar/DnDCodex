@@ -23,7 +23,7 @@ export function RaceGroupsPage() {
     <div>
       <div className="row between" style={{ alignItems: 'center', marginBottom: 6 }}>
         <h2 className="mb-0">Race Groups</h2>
-        <button className="btn small primary" onClick={() => createRaceGroup(campaign.id)}>
+        <button className="btn small primary" onClick={() => createRaceGroup(campaign.id, {}, { draft: true })}>
           <Icon name="plus" size={13} color="inherit" /> New group
         </button>
       </div>

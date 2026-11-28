@@ -239,6 +239,9 @@ test.describe('hub cards, empty campaign', () => {
     await page.goto(`/#/campaign/${id}/sessions`)
     await page.getByRole('button', { name: 'New Session' }).click()
     await expect(page.getByText('Session 1').first()).toBeVisible()
+    // A blank sheet is not kept (T-125), so give the session a title of its own.
+    await page.locator('input.input').first().fill('Session 1: the arrival')
+    await page.waitForTimeout(900)
     await page.goto(`/#/campaign/${id}`)
     await expect(card(page, 'Prep')).not.toContainText('No sessions yet')
     await expect(card(page, 'Prep').getByText('Session 1')).toBeVisible()

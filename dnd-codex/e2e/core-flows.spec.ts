@@ -25,17 +25,21 @@ test.describe('core flows (local, signed out)', () => {
     await page.goto(`/#/campaign/${campaignId}/sessions`)
     await page.getByRole('button', { name: 'New Session' }).click()
     await expect(page.getByText('Session 1').first()).toBeVisible()
+    // A sheet nobody fills in is not kept (T-125), so give the session some content.
+    await page.locator('input.input').first().fill('Session 1: the arrival')
+    await page.waitForTimeout(1000)
 
     // A battle map is the live scene the DM shows to players. Create one from Run mode.
     await page.goto(`/#/run/${campaignId}`)
     await page.getByRole('button', { name: 'New battle map' }).click()
     await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
 
-    // Everything persists in IndexedDB across a reload.
+    // The session has content, so it persists in IndexedDB across a reload. The
+    // battle map is still blank, so it is not kept (T-125; e2e/blank-drafts.spec.ts).
     await page.reload()
     await page.goto(`/#/campaign/${campaignId}/sessions`)
-    await expect(page.getByText('Session 1').first()).toBeVisible()
+    await expect(page.getByText('Session 1: the arrival').first()).toBeVisible()
     await page.goto(`/#/run/${campaignId}`)
-    await expect(page.locator('.run-mapname')).toHaveText('Battle Map 1')
+    await expect(page.getByRole('button', { name: 'New battle map' })).toBeVisible()
   })
 })

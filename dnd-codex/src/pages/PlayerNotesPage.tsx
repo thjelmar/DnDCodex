@@ -204,7 +204,7 @@ export function PlayerNotesPage() {
   }
 
   async function addTo(section: PlayerNoteSection) {
-    const n = await createPlayerNote(campaignId!, { section })
+    const n = await createPlayerNote(campaignId!, { section }, { draft: true })
     setEditingId(n.id)
   }
 

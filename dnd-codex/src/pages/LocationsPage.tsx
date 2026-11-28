@@ -73,7 +73,7 @@ export function LocationsPage() {
   const selected = locations?.find((l) => l.id === selectedId) ?? null
 
   async function add() {
-    const l = await createLocation(campaign.id, selected ? { parentLocationId: selected.id } : {})
+    const l = await createLocation(campaign.id, selected ? { parentLocationId: selected.id } : {}, { draft: true })
     setSelectedId(l.id)
   }
 

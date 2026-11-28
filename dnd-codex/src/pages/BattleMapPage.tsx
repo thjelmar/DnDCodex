@@ -135,7 +135,7 @@ export function BattleMapPage() {
   const selected = scenes?.find((s) => s.id === selectedId) ?? null
 
   async function add() {
-    const s = await createScene(campaign.id, { name: `Battle Map ${(scenes?.length ?? 0) + 1}` })
+    const s = await createScene(campaign.id, { name: `Battle Map ${(scenes?.length ?? 0) + 1}` }, { draft: true })
     setSelectedId(s.id)
   }
 

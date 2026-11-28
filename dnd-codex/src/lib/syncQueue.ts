@@ -1,5 +1,6 @@
 import { db, now } from '../db/db'
 import type { SyncTable } from '../db/types'
+import { holdBack } from './drafts'
 
 // The push outbox. Every local mutation that touches a synced campaign is
 // recorded here so the sync engine can mirror it to the cloud, then drop it.
@@ -57,6 +58,7 @@ export async function loadSyncedCampaigns(): Promise<void> {
 
 /** Queue an upsert of a record whose campaign is known (create paths). */
 export async function enqueuePut(table: SyncTable, recordId: string, campaignId: string): Promise<void> {
+  if (await holdBack(table, recordId)) return // blank draft (T-125): never synced
   if (!synced.has(campaignId)) return
   await db.pending.add({ table, recordId, campaignId, op: 'put', at: now() })
   notifyChange()
@@ -67,6 +69,7 @@ export async function enqueuePut(table: SyncTable, recordId: string, campaignId:
  * record to find its campaign, then enqueues if that campaign is synced.
  */
 export async function enqueuePutById(table: SyncTable, recordId: string): Promise<void> {
+  if (await holdBack(table, recordId)) return // blank draft (T-125): never synced
   if (!syncActive()) return
   const campaignId = table === 'campaigns' ? recordId : await lookupCampaignId(table, recordId)
   if (campaignId && synced.has(campaignId)) {

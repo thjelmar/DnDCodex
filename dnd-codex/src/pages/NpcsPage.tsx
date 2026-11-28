@@ -52,7 +52,7 @@ export function NpcsPage() {
   const selected = npcs?.find((n) => n.id === selectedId) ?? null
 
   async function add() {
-    const n = await createNPC(campaign.id)
+    const n = await createNPC(campaign.id, {}, { draft: true })
     setSelectedId(n.id)
   }
 

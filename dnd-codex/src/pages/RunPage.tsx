@@ -172,7 +172,7 @@ export function RunPage() {
     const s = await createSession(campaignId, {
       title: `Session ${(sessions?.length ?? 0) + 1}`,
       date: todayISODate(),
-    })
+    }, { draft: true })
     setParams({ session: s.id }, { replace: true })
   }
 
@@ -530,7 +530,7 @@ function RunBattleMap({
   if (!scenes) return null
   const scene = scenes.find((s) => s.id === picked) ?? scenes[0] ?? null
 
-  const newScene = async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` })).id)
+  const newScene = async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` }, { draft: true })).id)
 
   // Desktop with no map yet: keep the top bar and the tabs, and offer a new map in the middle.
   if (!scene && desktop) {
@@ -573,7 +573,7 @@ function RunBattleMap({
         <p>No battle maps in this campaign yet.</p>
         <button
           className="btn primary"
-          onClick={async () => setPicked((await createScene(campaign.id, { name: 'Battle Map 1' })).id)}
+          onClick={async () => setPicked((await createScene(campaign.id, { name: 'Battle Map 1' }, { draft: true })).id)}
         >
           <Icon name="plus" size={15} color="inherit" /> New battle map
         </button>
@@ -618,7 +618,7 @@ function RunBattleMap({
               runKit: { tabs: runTabs, onBack },
               scenes,
               onSelectScene: setPicked,
-              onNewScene: async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` })).id),
+              onNewScene: async () => setPicked((await createScene(campaign.id, { name: `Battle Map ${scenes.length + 1}` }, { draft: true })).id),
             }
           : {})}
       />

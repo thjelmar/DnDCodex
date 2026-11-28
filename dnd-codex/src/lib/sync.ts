@@ -1,5 +1,6 @@
 import { db, now } from '../db/db'
 import { supabase } from './supabase'
+import { holdBack } from './drafts'
 import { SYNC_TABLES, kindForTable, tableForKind } from './syncKinds'
 import {
   addSyncedCampaign,
@@ -128,7 +129,7 @@ async function enqueueWholeCampaign(campaignId: string): Promise<void> {
       continue
     }
     const recs = (await db.table(table).where('campaignId').equals(campaignId).toArray()) as { id: string }[]
-    for (const r of recs) rows.push({ table, recordId: r.id, campaignId, op: 'put', at: ts })
+    for (const r of recs) if (!(await holdBack(table, r.id))) rows.push({ table, recordId: r.id, campaignId, op: 'put', at: ts })
   }
   if (rows.length) await db.pending.bulkAdd(rows)
 }
@@ -233,6 +234,7 @@ async function pushCampaign(campaignId: string, ownerId: string): Promise<void> 
       rows.push({ campaign_id: campaignId, kind, id: c.recordId, data: { id: c.recordId, updatedAt: nowIso }, deleted: true })
       continue
     }
+    if (await holdBack(c.table, c.recordId)) continue // blank draft (T-125)
     const rec = (await db.table(c.table).get(c.recordId)) as { updatedAt?: string } | undefined
     if (!rec) {
       // Created then deleted before push — send a tombstone.
@@ -251,6 +253,10 @@ async function pushCampaign(campaignId: string, ownerId: string): Promise<void> 
     }
   }
 
+  if (rows.length === 0) {
+    await db.pending.bulkDelete(pend.map((p) => p.id!).filter((id) => id != null))
+    return
+  }
   const { error } = await supabase.from('records').upsert(rows, { onConflict: 'campaign_id,kind,id' })
   if (error) throw error
 
