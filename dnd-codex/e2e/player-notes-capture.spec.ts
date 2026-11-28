@@ -115,3 +115,12 @@ test('phone: every panel tab shows its name, so Notes is easy to find', async ({
   const last = await tabs.getByRole('tab', { name: 'Handouts' }).boundingBox()
   expect(last && last.x + last.width <= 390, 'the last tab fits the phone width').toBe(true)
 })
+
+test.describe('touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 780 } })
+  test('text fields are 16px so iOS does not zoom or jump the page while typing', async ({ page }) => {
+    await openDemoPlayerNotes(page)
+    const size = await page.getByTestId('capture-input').evaluate((el) => getComputedStyle(el).fontSize)
+    expect(size).toBe('16px')
+  })
+})

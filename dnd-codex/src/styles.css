@@ -6229,3 +6229,10 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   .pl-panel .bm-tabs button.has-icon { flex: none; gap: 5px; padding: 6px 8px; white-space: nowrap; }
   .pl-panel .bm-tabs button.has-icon:not(.on) .bm-tab-label { display: inline; }
 }
+
+/* T-124: iOS zooms and scrolls the page when a focused field is under 16px. Touch screens get 16px
+   in every text field so the screen stays put while you type. */
+@media (pointer: coarse) {
+  input.input, textarea.textarea, select.select, .nb-search input, .nc-input, .note-capture input,
+  .notebook input, .notebook select, .notebook textarea { font-size: 16px; }
+}
