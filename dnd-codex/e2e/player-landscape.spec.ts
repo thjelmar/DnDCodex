@@ -151,7 +151,7 @@ for (const { w, h } of LANDSCAPE) {
       await page.getByTestId('fs-panel-toggle').click()
       await expect(page.getByTestId('fs-panel')).toBeVisible()
       await page.getByTestId('fs-panel-toggle').click()
-      await page.locator('.player-live-board.expanded .player-live-bar').getByRole('button').last().click({ trial: true })
+      await page.locator('.player-live-board.expanded .player-live-bar').getByTestId('map-fullscreen').click({ trial: true })
     })
 
     // T-127: names get the room; an ellipsis shows only when a name truly cannot fit.
@@ -249,7 +249,8 @@ test('full screen refits the whole map after a rotation', async ({ page, browser
   const tf = () => page.evaluate(() => document.querySelector('.player-live-board.expanded .tabletop-view svg > g[transform^="translate"]')!.getAttribute('transform')!)
   // The view the board settled into, then the view the Fit button gives: equal means it was already fitted.
   const fitted = async () => {
-    await page.waitForTimeout(800)
+    // Wait until the view stops changing instead of a fixed sleep.
+    await expect.poll(async () => { const a = await tf(); await page.waitForTimeout(150); return a === (await tf()) }).toBe(true)
     const settled = await tf()
     await page.locator('.player-live-board.expanded .tabletop-zoom').getByText('Fit', { exact: true }).click()
     expect(await tf()).toBe(settled)
@@ -279,5 +280,5 @@ test('874x270 (Safari tab bar showing): full screen strip clears the rail', asyn
   await page.getByTestId('fs-panel-toggle').click()
   await expect(page.getByTestId('fs-panel')).toBeVisible()
   await page.getByTestId('fs-panel-toggle').click()
-  await page.locator('.player-live-board.expanded .player-live-bar').getByRole('button').last().click({ trial: true })
+  await page.locator('.player-live-board.expanded .player-live-bar').getByTestId('map-fullscreen').click({ trial: true })
 })
