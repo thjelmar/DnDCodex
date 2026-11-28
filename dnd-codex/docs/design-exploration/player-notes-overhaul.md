@@ -20,7 +20,7 @@ or other session panels was left out.
 
 | Where | What |
 | --- | --- |
-| Live session, **Notes** tab | A capture bar adds typed cards (NPC, Place, Loot, Quest lead, Ask DM, Note) to the top of the session note. A leading `@`, `#`, `!`, `+` or `?` picks the type. During combat the card carries the round. |
+| Live session, **Notes** tab | A capture bar adds typed cards (NPC, Place, Loot, Quest lead, Ask DM) to the top of the session note. A leading `@`, `#`, `!`, `+` or `?` picks the type. During combat the card carries the round. |
 | Campaign Notes page | A notebook: searchable list grouped by section, the open entry beside it, and a links and backlinks pane. On a phone, the list and then the entry full screen with a back button. |
 | Editor | `RichTextEditor` gets `variant="player"`: a labeled toolbar (icon-only on phones) with no spoiler lock. |
 
@@ -33,6 +33,5 @@ or other session panels was left out.
 
 ## Known gaps (follow-ups)
 
-- "Story so far" shows a typed card as plain text, without its label.
 - The Link button still needs the name selected first. A picker of the campaign's NPCs and places is not built.
 - "Ask DM" cards stay private. Sending them to the DM needs a new table.
