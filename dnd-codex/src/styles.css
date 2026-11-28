@@ -6221,3 +6221,11 @@ html[data-bm-fs] .app[data-demo='true'] .player-live-board.expanded.pl-fs-rail.p
   .nb-entry-bar { flex-wrap: nowrap; }
   .nb-entry-bar .pill-tag { display: none; }
 }
+
+/* T-124: on a phone the player panel names every tab, so Notes is easy to find. */
+@media (max-width: 640px) {
+  .pl-panel .bm-tabs { overflow-x: auto; scrollbar-width: none; }
+  .pl-panel .bm-tabs::-webkit-scrollbar { display: none; }
+  .pl-panel .bm-tabs button.has-icon { flex: none; gap: 5px; padding: 6px 8px; white-space: nowrap; }
+  .pl-panel .bm-tabs button.has-icon:not(.on) .bm-tab-label { display: inline; }
+}

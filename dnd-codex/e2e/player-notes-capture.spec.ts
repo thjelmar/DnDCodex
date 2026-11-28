@@ -103,3 +103,15 @@ test('phone: capture and keep typing with the toolbar reachable', async ({ page 
   const box = await page.locator('#pl-dock-body .note-capture').boundingBox()
   expect(box && box.x >= 0 && box.x + box.width <= 390, 'the capture bar fits the phone width').toBe(true)
 })
+
+test('phone: every panel tab shows its name, so Notes is easy to find', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 780 })
+  await openDemoPlayerNotes(page)
+  const tabs = page.locator('.pl-panel .bm-tabs')
+  for (const name of ['Initiative', 'Me', 'Notes', 'Handouts']) {
+    await expect(tabs.locator('.bm-tab-label', { hasText: new RegExp(`^${name}$`) })).toBeVisible()
+  }
+  // Nothing is cut off at the right edge.
+  const last = await tabs.getByRole('tab', { name: 'Handouts' }).boundingBox()
+  expect(last && last.x + last.width <= 390, 'the last tab fits the phone width').toBe(true)
+})
